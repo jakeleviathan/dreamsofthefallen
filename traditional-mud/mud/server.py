@@ -12,6 +12,10 @@ from mud.troll_survivor_choice import (
     install_troll_survivor_choice_content,
     install_troll_survivor_choice_runtime,
 )
+from mud.troll_choice_echoes import (
+    install_troll_choice_echo_content,
+    install_troll_choice_echo_runtime,
+)
 
 install_dwarf_content()
 install_forest_elf_nurture_content()
@@ -20,6 +24,7 @@ install_goblin_world()
 install_troll_content()
 install_troll_raid_content()
 install_troll_survivor_choice_content()
+install_troll_choice_echo_content()
 
 from mud.goblin_deep_mire import install_goblin_deep_mire_runtime
 from mud.goblin_clans import install_goblin_clan_content, install_goblin_clan_runtime
@@ -67,6 +72,7 @@ install_dwarf_runtime(PlayerSession, WORLD)
 install_troll_runtime(PlayerSession, WORLD)
 install_troll_raid_runtime(PlayerSession, WORLD)
 install_troll_survivor_choice_runtime(PlayerSession, WORLD)
+install_troll_choice_echo_runtime(PlayerSession, WORLD)
 install_goblin_runtime(PlayerSession, WORLD)
 install_goblin_salvage_quest_runtime(PlayerSession, WORLD)
 install_goblin_outer_route_runtime(PlayerSession, WORLD)
