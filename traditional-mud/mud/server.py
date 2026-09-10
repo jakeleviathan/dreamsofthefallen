@@ -4,7 +4,8 @@ from datetime import datetime
 from mud.database import Database
 from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
-from mud.room_runtime import install_room_runtime
+from mud.room_runtime import WORLD, install_room_runtime
+from mud.room_state_storage import load_world_room_state, save_world_room_state
 
 
 # Route all live sessions through the sophisticated room definition/state/view
@@ -19,6 +20,7 @@ class MudServer:
         self.sessions: set[PlayerSession] = set()
         self.database = Database()
         self.mobile_npcs = MobileNpcManager()
+        load_world_room_state(WORLD.state)
 
     async def handle_connection(
         self,
@@ -96,3 +98,4 @@ class MudServer:
         finally:
             npc_task.cancel()
             await asyncio.gather(npc_task, return_exceptions=True)
+            save_world_room_state(WORLD.state)
