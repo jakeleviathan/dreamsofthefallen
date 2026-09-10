@@ -4,6 +4,8 @@ import asyncio
 import json
 from dataclasses import dataclass, field
 
+from mud.client_gui import configured_mudlet_gui_offer
+
 # Telnet command bytes.
 IAC = 255
 DONT = 254
@@ -32,6 +34,7 @@ class TelnetConnection:
     client_name: str | None = None
     client_version: str | None = None
     gmcp_packages: set[str] = field(default_factory=set)
+    client_gui_offer_sent: bool = False
 
     async def begin_negotiation(self) -> None:
         # Advertise server-side GMCP support. A supporting client replies DO GMCP.
@@ -45,6 +48,14 @@ class TelnetConnection:
     async def send_gmcp(self, package: str, payload: dict | list | str | int | float | bool | None = None) -> bool:
         if not self.gmcp_enabled:
             return False
+
+        # Client.GUI should be offered only once per connection. PlayerSession
+        # also contains a later fallback offer, so keeping this guard in the
+        # Telnet layer prevents duplicate downloads when GMCP negotiation works
+        # normally and the immediate offer has already been sent.
+        if package == "Client.GUI" and self.client_gui_offer_sent:
+            return False
+
         body = package
         if payload is not None:
             if isinstance(payload, str):
@@ -55,7 +66,41 @@ class TelnetConnection:
         raw = body.encode("utf-8", errors="replace").replace(bytes((IAC,)), bytes((IAC, IAC)))
         self.writer.write(bytes((IAC, SB, GMCP)) + raw + bytes((IAC, SE)))
         await self.writer.drain()
+
+        if package == "Client.GUI":
+            self.client_gui_offer_sent = True
+
         return True
+
+    async def _offer_official_mudlet_hud(self) -> bool:
+        """Offer the official Dreams of the Fallen Mudlet HUD immediately.
+
+        Mudlet's Client.GUI extension is handled as GMCP. Sending this as soon
+        as the client answers DO GMCP lets a first-time Mudlet connection begin
+        downloading/installing the official package before account login rather
+        than waiting until the player submits a later command.
+        """
+        if self.client_gui_offer_sent:
+            return False
+
+        offer = configured_mudlet_gui_offer()
+        if not offer.enabled:
+            return False
+
+        return await self.send_gmcp(
+            "Client.GUI",
+            {
+                "version": offer.version,
+                "url": offer.url,
+            },
+        )
+
+    async def _enable_gmcp(self) -> None:
+        """Enable GMCP and perform one-time post-negotiation setup."""
+        was_enabled = self.gmcp_enabled
+        self.gmcp_enabled = True
+        if not was_enabled:
+            await self._offer_official_mudlet_hud()
 
     async def read_line(self) -> str | None:
         """Read one player text line while consuming Telnet negotiations.
@@ -97,7 +142,11 @@ class TelnetConnection:
             option = option_b[0]
             if option == GMCP:
                 if command == DO:
-                    self.gmcp_enabled = True
+                    # This is the critical moment for Mudlet: it has accepted
+                    # the server's WILL GMCP. Enable GMCP and immediately send
+                    # the Client.GUI package offer instead of waiting for a
+                    # later player prompt/command cycle.
+                    await self._enable_gmcp()
                 elif command == DONT:
                     self.gmcp_enabled = False
             return
@@ -109,7 +158,10 @@ class TelnetConnection:
             option = option_b[0]
             payload = await self._read_subnegotiation_payload()
             if option == GMCP:
-                self.gmcp_enabled = True
+                # Some clients may send GMCP subnegotiation immediately. Treat
+                # that as confirmation that GMCP is active and make the same
+                # one-time GUI offer if DO GMCP was not observed first.
+                await self._enable_gmcp()
                 self._handle_gmcp_from_client(payload)
             return
 
