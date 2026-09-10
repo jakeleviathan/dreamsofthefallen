@@ -8,6 +8,7 @@ from mud.forest_elf_stewardship import install_forest_elf_stewardship_content, i
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 from mud.human_blackwall_opening import install_human_blackwall_content, install_human_blackwall_runtime
 from mud.human_cathedral_faith import install_human_cathedral_content, install_human_cathedral_runtime
+from mud.undead_start import install_undead_content, install_undead_runtime
 from mud.troll_start import install_troll_content, install_troll_runtime
 from mud.troll_raid_opening import install_troll_raid_content, install_troll_raid_runtime
 from mud.troll_survivor_choice import (
@@ -27,6 +28,7 @@ install_forest_elf_stewardship_content()
 install_goblin_world()
 install_human_blackwall_content()
 install_human_cathedral_content()
+install_undead_content()
 install_troll_content()
 install_troll_raid_content()
 install_troll_survivor_choice_content()
@@ -77,6 +79,7 @@ install_forest_elf_stewardship_runtime(PlayerSession, WORLD)
 install_dwarf_runtime(PlayerSession, WORLD)
 install_human_blackwall_runtime(PlayerSession, WORLD)
 install_human_cathedral_runtime(PlayerSession, WORLD)
+install_undead_runtime(PlayerSession, WORLD)
 install_troll_runtime(PlayerSession, WORLD)
 install_troll_raid_runtime(PlayerSession, WORLD)
 install_troll_survivor_choice_runtime(PlayerSession, WORLD)
