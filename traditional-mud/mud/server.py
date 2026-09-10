@@ -4,6 +4,12 @@ from datetime import datetime
 from mud.database import Database
 from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
+from mud.room_runtime import install_room_runtime
+
+
+# Route all live sessions through the sophisticated room definition/state/view
+# engine while preserving the established quest/combat/crafting behavior.
+install_room_runtime(PlayerSession)
 
 
 class MudServer:
