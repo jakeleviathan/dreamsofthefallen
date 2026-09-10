@@ -25,6 +25,7 @@ from mud.goblin_swamp import (
     _handle_swamp_gathering,
     install_goblin_swamp_content,
 )
+from mud.goblin_swamp_access import enforce_first_piling_swamp_access
 from mud.room_engine import PlayerRoomContext, WorldService
 
 
@@ -111,6 +112,7 @@ class GoblinSwampTests(unittest.TestCase):
     def _service(self) -> WorldService:
         service = WorldService(rooms=world.ROOMS_BY_KEY, augmentations=goblin_room_augmentations())
         install_goblin_swamp_content(service)
+        enforce_first_piling_swamp_access(service)
         return service
 
     def test_swamp_adds_branching_beginner_network(self) -> None:
