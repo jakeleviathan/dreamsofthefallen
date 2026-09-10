@@ -11,6 +11,7 @@ from mud.astralis_time import ASTRALIS_CLOCK, ASTRALIS_WEATHER, WeatherEvent
 from mud.calendar_runtime import install_calendar_runtime
 from mud.database import Database
 from mud.goblin_runtime import install_goblin_runtime
+from mud.goblin_salvage_quest import install_goblin_salvage_quest_runtime
 from mud.human_district import DistrictEvent
 from mud.seasonal_cultures import SEASONAL_CULTURES, SeasonalCultureEvent
 from mud.seasonal_runtime import install_seasonal_runtime
@@ -25,12 +26,13 @@ from mud.room_state_storage import load_world_room_state, save_world_room_state
 WORLD.augmentations.update(goblin_room_augmentations())
 
 # Build the live command/runtime stack from broad room behavior outward into
-# calendar, culture-specific seasonal behavior, and finally Goblin starter
-# conveniences/social interactions.
+# calendar, culture-specific seasonal behavior, Goblin starter social behavior,
+# and finally the first Goblin salvage-economy quest.
 install_room_runtime(PlayerSession)
 install_calendar_runtime(PlayerSession, WORLD)
 install_seasonal_runtime(PlayerSession, WORLD)
 install_goblin_runtime(PlayerSession, WORLD)
+install_goblin_salvage_quest_runtime(PlayerSession, WORLD)
 
 
 class MudServer:
