@@ -1,9 +1,16 @@
 import asyncio
 
+# Register the Goblin room/NPC data before session and room-runtime modules take
+# their references to the shared legacy world registries.
+from mud.goblin_start import goblin_room_augmentations, install_goblin_world
+
+install_goblin_world()
+
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, ASTRALIS_WEATHER, WeatherEvent
 from mud.calendar_runtime import install_calendar_runtime
 from mud.database import Database
+from mud.goblin_runtime import install_goblin_runtime
 from mud.human_district import DistrictEvent
 from mud.seasonal_cultures import SEASONAL_CULTURES, SeasonalCultureEvent
 from mud.seasonal_runtime import install_seasonal_runtime
@@ -13,11 +20,17 @@ from mud.room_runtime import WORLD, install_room_runtime
 from mud.room_state_storage import load_world_room_state, save_world_room_state
 
 
+# The room runtime was created from the registered legacy world. Add the rich
+# Goblin scene layers before anyone can request/cache those room scenes.
+WORLD.augmentations.update(goblin_room_augmentations())
+
 # Build the live command/runtime stack from broad room behavior outward into
-# calendar and finally culture-specific seasonal behavior.
+# calendar, culture-specific seasonal behavior, and finally Goblin starter
+# conveniences/social interactions.
 install_room_runtime(PlayerSession)
 install_calendar_runtime(PlayerSession, WORLD)
 install_seasonal_runtime(PlayerSession, WORLD)
+install_goblin_runtime(PlayerSession, WORLD)
 
 
 class MudServer:
