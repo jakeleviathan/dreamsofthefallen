@@ -17,6 +17,7 @@ from mud.troll_choice_echoes import (
     install_troll_choice_echo_runtime,
 )
 from mud.equipment_system import install_equipment_runtime
+from mud.equipment_accessory import install_accessory_runtime
 
 install_dwarf_content()
 install_forest_elf_nurture_content()
@@ -89,6 +90,10 @@ enforce_first_piling_swamp_access(WORLD)
 # item catalog once, then notices quest rewards granted by every existing runtime
 # without editing each quest module individually.
 install_equipment_runtime(PlayerSession)
+# One universal accessory slot extends the base seven-slot equipment pass. It is
+# intentionally a single slot: rings, charms, necklaces, amulets, and pendants all
+# compete for the same equipped position.
+install_accessory_runtime(PlayerSession)
 
 
 class MudServer:
