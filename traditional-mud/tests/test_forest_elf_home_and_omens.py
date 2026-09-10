@@ -233,7 +233,7 @@ class ForestElfHomeAndOmensTests(unittest.TestCase):
         self.assertEqual(database.get_quest(session.character.id, ONE_TURN_FARTHER.key)["status"], "completed")
         self.assertIn(FOREST_ELF_OPENING_COMPLETE_FLAG, database.list_flags(session.character.id))
         output = "".join(session.outputs).lower()
-        self.assertIn("larger mystery", output)
+        self.assertIn("open thread for later stories", output)
         self.assertIn("owes us neither comfort nor explanation", output)
 
     def test_legacy_forest_elf_progress_is_grandfathered_without_rewind(self):
