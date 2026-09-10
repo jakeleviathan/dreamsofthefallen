@@ -3,9 +3,11 @@ import asyncio
 # Register race-specific world content before session and room-runtime modules
 # take their references to the shared room/crafting/quest registries.
 from mud.dwarf_start import install_dwarf_content, install_dwarf_runtime
+from mud.forest_elf_nurture import install_forest_elf_nurture_content, install_forest_elf_nurture_runtime
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 
 install_dwarf_content()
+install_forest_elf_nurture_content()
 install_goblin_world()
 
 from mud.goblin_deep_mire import install_goblin_deep_mire_runtime
@@ -48,6 +50,7 @@ WORLD.augmentations.update(goblin_room_augmentations())
 install_room_runtime(PlayerSession)
 install_calendar_runtime(PlayerSession, WORLD)
 install_seasonal_runtime(PlayerSession, WORLD)
+install_forest_elf_nurture_runtime(PlayerSession, WORLD)
 install_dwarf_runtime(PlayerSession, WORLD)
 install_goblin_runtime(PlayerSession, WORLD)
 install_goblin_salvage_quest_runtime(PlayerSession, WORLD)
