@@ -213,7 +213,7 @@ class DwarfFirstShiftTests(unittest.TestCase):
         output = "".join(session.outputs).lower()
         self.assertIn("not contract", output)
         self.assertIn("not joined clockglass", output)
-        self.assertIn("not a permanent profession", output)
+        self.assertIn("chosen a permanent profession", output)
 
     def test_alternate_house_interest_is_equally_valid_and_does_not_change_class(self):
         temp, database, session = self._session("Deep")
