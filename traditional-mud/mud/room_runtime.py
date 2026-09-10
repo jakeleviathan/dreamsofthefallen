@@ -3,11 +3,20 @@ from __future__ import annotations
 from datetime import datetime
 
 from mud.combat import ENEMIES_BY_KEY
+from mud.room_content import complete_room_augmentations
 from mud.room_engine import PlayerRoomContext, WorldService
-from mud.world import NPCS_BY_KEY
+from mud.world import (
+    FOREST_ELF_LISTENING_POOL_KEY,
+    FOREST_ELF_WAYSTONE_BEND_KEY,
+    HUMAN_BLACKGLASS_ARCH_KEY,
+    NPCS_BY_KEY,
+    SPOREKIN_FORGOTTEN_GROVE_ROOM_KEY,
+)
 
 
-WORLD = WorldService()
+# Every authored room now runs through the rich scene catalog rather than only
+# the original showcase rooms.
+WORLD = WorldService(augmentations=complete_room_augmentations())
 
 
 def _context_for(session) -> PlayerRoomContext:
@@ -22,6 +31,39 @@ def _context_for(session) -> PlayerRoomContext:
         character_flags=frozenset(session.database.list_flags(character.id)),
         hour=datetime.now().hour,
     )
+
+
+def _quest_sensitive_legacy_interaction(room_key: str, command: str) -> bool:
+    """Keep existing quest side effects for commands upgraded into features.
+
+    The new room catalog can describe these landmarks, but their original
+    handlers currently own quest advancement. Until quest actions themselves
+    become data-driven, these exact interactions deliberately delegate.
+    """
+    normalized = command.strip().lower()
+    if room_key == FOREST_ELF_WAYSTONE_BEND_KEY:
+        return normalized in {
+            "examine waystone", "look waystone", "examine stone marker", "look stone marker"
+        }
+    if room_key == FOREST_ELF_LISTENING_POOL_KEY:
+        return normalized in {
+            "listen", "listen pool", "listen to pool", "listen water"
+        }
+    if room_key == HUMAN_BLACKGLASS_ARCH_KEY:
+        return normalized in {
+            "examine mark", "look mark", "examine symbol", "look symbol",
+            "examine occult mark", "look occult mark",
+        }
+    if room_key == SPOREKIN_FORGOTTEN_GROVE_ROOM_KEY:
+        if normalized in {
+            "examine mushrooms", "examine mushroom ring", "examine ring", "look mushrooms",
+            "look mushroom ring", "look ring", "examine stone", "look stone",
+            "listen", "listen grove", "listen to grove",
+        }:
+            return True
+        if normalized.startswith("touch "):
+            return True
+    return False
 
 
 async def _render_current_room(session, original_show_current_room) -> None:
@@ -165,11 +207,16 @@ def install_room_runtime(player_session_class) -> None:
             await _show_features(self)
             return
 
+        room_key = self.character.current_room or ""
         pieces = normalized.split(maxsplit=1)
-        if len(pieces) == 2 and pieces[0] in {"look", "examine", "search", "touch", "listen"}:
+        if (
+            len(pieces) == 2
+            and pieces[0] in {"look", "examine", "search", "touch", "listen"}
+            and not _quest_sensitive_legacy_interaction(room_key, normalized)
+        ):
             action, target = pieces
             result = WORLD.interact(
-                self.character.current_room or "",
+                room_key,
                 action,
                 target,
                 _context_for(self),
