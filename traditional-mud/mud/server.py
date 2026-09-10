@@ -1,8 +1,9 @@
 import asyncio
-from datetime import datetime
 
+from mud.astralis_human_district import HUMAN_DISTRICT
+from mud.astralis_time import ASTRALIS_CLOCK, ASTRALIS_WEATHER, WeatherEvent
 from mud.database import Database
-from mud.human_district import DistrictEvent, HUMAN_DISTRICT
+from mud.human_district import DistrictEvent
 from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
 from mud.room_runtime import WORLD, install_room_runtime
@@ -22,9 +23,14 @@ class MudServer:
         self.database = Database()
         self.mobile_npcs = MobileNpcManager()
         load_world_room_state(WORLD.state)
-        # Scheduled business state always wins over a stale saved door state.
-        # Rain shutters are derived temporary state and are rebuilt here too.
-        HUMAN_DISTRICT.initialize(datetime.now(), WORLD.state)
+
+        moment = ASTRALIS_CLOCK.now()
+        # Regional weather is persistent shared state. Missing regions receive
+        # biome-appropriate defaults before businesses inspect weather.
+        ASTRALIS_WEATHER.initialize(moment, WORLD.state)
+        # Scheduled business state wins over stale saved door state. Temporary
+        # rain shutters are rebuilt from the current weather on startup.
+        HUMAN_DISTRICT.initialize(moment, WORLD.state)
 
     async def handle_connection(
         self,
@@ -73,8 +79,6 @@ class MudServer:
                         f"{movement.npc_name} fixes its attention on you and continues to stalk your trail.\r\n> "
                     )
 
-        # Aggressive NPCs acquire targets only after physically entering the
-        # player's room. This is deliberately not a cross-room detection scan.
         for session in destination_sessions:
             await session.check_mobile_npc_aggression(movement.npc_key)
 
@@ -87,6 +91,15 @@ class MudServer:
                 continue
             await session.send(f"\r\n{event.text}\r\n> ")
 
+    async def broadcast_weather_event(self, event: WeatherEvent) -> None:
+        for session in tuple(self.sessions):
+            if session.state is not SessionState.PLAYING or session.character is None:
+                continue
+            scene = WORLD.scene(session.character.current_room or "")
+            if scene is None or scene.region_key != event.region_key:
+                continue
+            await session.send(f"\r\n{event.text}\r\n> ")
+
     async def run(self) -> None:
         server = await asyncio.start_server(
             self.handle_connection,
@@ -95,21 +108,31 @@ class MudServer:
         )
 
         addresses = ", ".join(str(sock.getsockname()) for sock in server.sockets or [])
+        moment = ASTRALIS_CLOCK.now()
         print(f"Dreams of the Fallen listening on {addresses}")
+        print(f"Astralis clock: {moment.display} (4 real hours per world day)")
         print(f"Connect with a Telnet client on port {self.port}.")
 
         npc_task = asyncio.create_task(
             self.mobile_npcs.run(
                 self.broadcast_npc_movement,
                 player_rooms_provider=self.player_room_keys,
-                hour_provider=lambda: datetime.now().hour,
+                hour_provider=lambda: ASTRALIS_CLOCK.now().hour,
+            )
+        )
+        weather_task = asyncio.create_task(
+            ASTRALIS_WEATHER.run(
+                WORLD.state,
+                self.broadcast_weather_event,
+                clock=ASTRALIS_CLOCK,
+                interval_seconds=5.0,
             )
         )
         district_task = asyncio.create_task(
             HUMAN_DISTRICT.run(
                 WORLD.state,
                 self.broadcast_district_event,
-                now_provider=datetime.now,
+                now_provider=ASTRALIS_CLOCK.now,
                 interval_seconds=5.0,
             )
         )
@@ -118,6 +141,7 @@ class MudServer:
                 await server.serve_forever()
         finally:
             npc_task.cancel()
+            weather_task.cancel()
             district_task.cancel()
-            await asyncio.gather(npc_task, district_task, return_exceptions=True)
+            await asyncio.gather(npc_task, weather_task, district_task, return_exceptions=True)
             save_world_room_state(WORLD.state)
