@@ -21,6 +21,7 @@ from mud.troll_choice_echoes import (
 )
 from mud.equipment_system import install_equipment_runtime
 from mud.equipment_accessory import install_accessory_runtime
+from mud.login_experience import install_login_experience
 
 install_dwarf_content()
 install_forest_elf_nurture_content()
@@ -95,14 +96,14 @@ install_goblin_clan_followup_runtime(PlayerSession, WORLD)
 # Apply the authoritative First Piling branch gate last so no later content
 # registration can accidentally expose the beginner swamp before Ruskle's lesson.
 enforce_first_piling_swamp_access(WORLD)
-# Equipment is deliberately the outermost command layer. It normalizes the final
-# item catalog once, then notices quest rewards granted by every existing runtime
-# without editing each quest module individually.
+# Equipment is deliberately the outermost game-command layer. It normalizes the
+# final item catalog once, then notices quest rewards granted by existing runtimes.
 install_equipment_runtime(PlayerSession)
-# One universal accessory slot extends the base seven-slot equipment pass. It is
-# intentionally a single slot: rings, charms, necklaces, amulets, and pendants all
-# compete for the same equipped position.
+# One universal accessory slot extends the base seven-slot equipment pass.
 install_accessory_runtime(PlayerSession)
+# The pre-character experience is installed last because it owns only the
+# opening/login/account/roster screens and should not disturb any in-world layer.
+install_login_experience(PlayerSession)
 
 
 class MudServer:
