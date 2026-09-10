@@ -2,6 +2,7 @@ import asyncio
 
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, ASTRALIS_WEATHER, WeatherEvent
+from mud.calendar_runtime import install_calendar_runtime
 from mud.database import Database
 from mud.human_district import DistrictEvent
 from mud.session import PlayerSession, SessionState
@@ -10,9 +11,10 @@ from mud.room_runtime import WORLD, install_room_runtime
 from mud.room_state_storage import load_world_room_state, save_world_room_state
 
 
-# Route all live sessions through the sophisticated room definition/state/view
-# engine while preserving the established quest/combat/crafting behavior.
+# Install room behavior first, then layer calendar/date commands over that
+# complete command stack so existing exploration and quest handling stay intact.
 install_room_runtime(PlayerSession)
+install_calendar_runtime(PlayerSession, WORLD)
 
 
 class MudServer:
@@ -110,7 +112,7 @@ class MudServer:
         addresses = ", ".join(str(sock.getsockname()) for sock in server.sockets or [])
         moment = ASTRALIS_CLOCK.now()
         print(f"Dreams of the Fallen listening on {addresses}")
-        print(f"Astralis clock: {moment.display} (4 real hours per world day)")
+        print(f"Astralis clock: {moment.calendar_display} (4 real hours per world day)")
         print(f"Connect with a Telnet client on port {self.port}.")
 
         npc_task = asyncio.create_task(
