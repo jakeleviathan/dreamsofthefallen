@@ -55,15 +55,27 @@ class GoblinJunkCityStartTests(unittest.TestCase):
             self.assertTrue(npc.dialogue)
 
     def test_installation_registers_rooms_and_npcs_idempotently(self):
-        install_goblin_world()
-        before_rooms = len(world.ROOMS)
-        before_npcs = len(world.NPCS)
-        install_goblin_world()
-        self.assertEqual(len(world.ROOMS), before_rooms)
-        self.assertEqual(len(world.NPCS), before_npcs)
-        self.assertIsNotNone(world.ROOMS_BY_KEY.get(GOBLIN_START_ROOM_KEY))
-        for npc in GOBLIN_NPCS:
-            self.assertIsNotNone(world.NPCS_BY_KEY.get(npc.key))
+        original_rooms = world.ROOMS
+        original_npcs = world.NPCS
+        original_rooms_by_key = dict(world.ROOMS_BY_KEY)
+        original_npcs_by_key = dict(world.NPCS_BY_KEY)
+        try:
+            install_goblin_world()
+            before_rooms = len(world.ROOMS)
+            before_npcs = len(world.NPCS)
+            install_goblin_world()
+            self.assertEqual(len(world.ROOMS), before_rooms)
+            self.assertEqual(len(world.NPCS), before_npcs)
+            self.assertIsNotNone(world.ROOMS_BY_KEY.get(GOBLIN_START_ROOM_KEY))
+            for npc in GOBLIN_NPCS:
+                self.assertIsNotNone(world.NPCS_BY_KEY.get(npc.key))
+        finally:
+            world.ROOMS = original_rooms
+            world.NPCS = original_npcs
+            world.ROOMS_BY_KEY.clear()
+            world.ROOMS_BY_KEY.update(original_rooms_by_key)
+            world.NPCS_BY_KEY.clear()
+            world.NPCS_BY_KEY.update(original_npcs_by_key)
 
     def test_existing_floodpick_seasonal_anchor_matches_junk_city(self):
         anchor = ANCHORS_BY_RACE["goblin"]
