@@ -16,7 +16,7 @@ from mud.troll_choice_echoes import (
     install_troll_choice_echo_content,
     install_troll_choice_echo_runtime,
 )
-from mud.equipment_system import install_equipment_content, install_equipment_runtime
+from mud.equipment_system import install_equipment_runtime
 
 install_dwarf_content()
 install_forest_elf_nurture_content()
@@ -39,10 +39,6 @@ from mud.goblin_clan_followups import install_goblin_clan_followup_content, inst
 install_goblin_clan_content()
 install_goblin_return_loop_content()
 install_goblin_clan_followup_content()
-# Equipment rewards and slot metadata should already exist when PlayerSession
-# takes its shared item-registry reference. The runtime installs again after all
-# race layers so any late-registered legacy item is made universally wearable.
-install_equipment_content()
 
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, ASTRALIS_WEATHER, WeatherEvent
@@ -89,8 +85,9 @@ install_goblin_clan_followup_runtime(PlayerSession, WORLD)
 # Apply the authoritative First Piling branch gate last so no later content
 # registration can accidentally expose the beginner swamp before Ruskle's lesson.
 enforce_first_piling_swamp_access(WORLD)
-# Equipment is deliberately the outermost command layer. This lets it notice
-# quest rewards granted by every existing race runtime without editing each one.
+# Equipment is deliberately the outermost command layer. It normalizes the final
+# item catalog once, then notices quest rewards granted by every existing runtime
+# without editing each quest module individually.
 install_equipment_runtime(PlayerSession)
 
 
