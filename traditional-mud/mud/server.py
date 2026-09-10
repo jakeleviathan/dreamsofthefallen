@@ -59,6 +59,7 @@ from mud.goblin_salvage_quest import install_goblin_salvage_quest_runtime
 from mud.goblin_outer_route import install_goblin_outer_route_runtime
 from mud.goblin_swamp import install_goblin_swamp_runtime
 from mud.goblin_swamp_access import enforce_first_piling_swamp_access
+from mud.goblin_rattlefen_opening import install_rattlefen_opening_runtime
 from mud.human_district import DistrictEvent
 from mud.seasonal_cultures import SEASONAL_CULTURES, SeasonalCultureEvent
 from mud.seasonal_runtime import install_seasonal_runtime
@@ -96,6 +97,10 @@ install_goblin_deep_mire_runtime(PlayerSession, WORLD)
 install_goblin_return_loop_runtime(PlayerSession, WORLD)
 install_goblin_clan_runtime(PlayerSession, WORLD)
 install_goblin_clan_followup_runtime(PlayerSession, WORLD)
+# The Rattlefen opening sits outside the older Goblin progression layers. New
+# Goblins complete this richer six-part introduction first; legacy Goblins with
+# existing salvage progress are grandfathered and never rewound.
+install_rattlefen_opening_runtime(PlayerSession, WORLD)
 # Apply the authoritative First Piling branch gate last so no later content
 # registration can accidentally expose the beginner swamp before Ruskle's lesson.
 enforce_first_piling_swamp_access(WORLD)
