@@ -5,16 +5,19 @@ from mud.astralis_time import ASTRALIS_CLOCK, ASTRALIS_WEATHER, WeatherEvent
 from mud.calendar_runtime import install_calendar_runtime
 from mud.database import Database
 from mud.human_district import DistrictEvent
+from mud.seasonal_cultures import SEASONAL_CULTURES, SeasonalCultureEvent
+from mud.seasonal_runtime import install_seasonal_runtime
 from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
 from mud.room_runtime import WORLD, install_room_runtime
 from mud.room_state_storage import load_world_room_state, save_world_room_state
 
 
-# Install room behavior first, then layer calendar/date commands over that
-# complete command stack so existing exploration and quest handling stay intact.
+# Build the live command/runtime stack from broad room behavior outward into
+# calendar and finally culture-specific seasonal behavior.
 install_room_runtime(PlayerSession)
 install_calendar_runtime(PlayerSession, WORLD)
+install_seasonal_runtime(PlayerSession, WORLD)
 
 
 class MudServer:
@@ -33,6 +36,9 @@ class MudServer:
         # Scheduled business state wins over stale saved door state. Temporary
         # rain shutters are rebuilt from the current weather on startup.
         HUMAN_DISTRICT.initialize(moment, WORLD.state)
+        # Seasonal culture transitions begin from the current calendar season;
+        # startup itself does not replay a fake season-change announcement.
+        SEASONAL_CULTURES.initialize(moment)
 
     async def handle_connection(
         self,
@@ -102,6 +108,15 @@ class MudServer:
                 continue
             await session.send(f"\r\n{event.text}\r\n> ")
 
+    async def broadcast_seasonal_culture_event(self, event: SeasonalCultureEvent) -> None:
+        for session in tuple(self.sessions):
+            if session.state is not SessionState.PLAYING or session.character is None:
+                continue
+            scene = WORLD.scene(session.character.current_room or "")
+            if scene is None or scene.region_key != event.region_key:
+                continue
+            await session.send(f"\r\n{event.text}\r\n> ")
+
     async def run(self) -> None:
         server = await asyncio.start_server(
             self.handle_connection,
@@ -138,6 +153,12 @@ class MudServer:
                 interval_seconds=5.0,
             )
         )
+        seasonal_task = asyncio.create_task(
+            SEASONAL_CULTURES.run(
+                self.broadcast_seasonal_culture_event,
+                interval_seconds=5.0,
+            )
+        )
         try:
             async with server:
                 await server.serve_forever()
@@ -145,5 +166,12 @@ class MudServer:
             npc_task.cancel()
             weather_task.cancel()
             district_task.cancel()
-            await asyncio.gather(npc_task, weather_task, district_task, return_exceptions=True)
+            seasonal_task.cancel()
+            await asyncio.gather(
+                npc_task,
+                weather_task,
+                district_task,
+                seasonal_task,
+                return_exceptions=True,
+            )
             save_world_room_state(WORLD.state)
