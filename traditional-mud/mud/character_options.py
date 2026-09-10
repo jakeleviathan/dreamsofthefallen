@@ -158,7 +158,7 @@ RACES: tuple[RaceDefinition, ...] = (
             "Strength comes naturally to trolls, but their culture does not treat strength as a moral virtue or obsession.",
             "They are skilled hunters, warriors, and animal handlers.",
             "Other races often stereotype trolls as stupid despite their average intelligence, leaving many trolls bitter about outsider distrust.",
-            "Their culture is brutal and intimidating in presentation, and their starting experience is harsh and dangerous immediately.",
+            "Their culture is harsh and intimidating in presentation, while young Trolls are taught survival through supervised, practical lessons before facing the genuinely dangerous wilderness beyond their strongholds.",
         ),
         starting_region="troll_strongholds",
         social_profile="distrusted_and_stereotyped",
