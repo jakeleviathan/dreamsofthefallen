@@ -3,6 +3,7 @@ import asyncio
 # Register race-specific world content before session and room-runtime modules
 # take their references to the shared room/crafting/quest registries.
 from mud.dwarf_start import install_dwarf_content, install_dwarf_runtime
+from mud.dwarf_first_shift import install_dwarf_first_shift_content, install_dwarf_first_shift_runtime
 from mud.forest_elf_nurture import install_forest_elf_nurture_content, install_forest_elf_nurture_runtime
 from mud.forest_elf_stewardship import install_forest_elf_stewardship_content, install_forest_elf_stewardship_runtime
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
@@ -24,6 +25,7 @@ from mud.equipment_accessory import install_accessory_runtime
 from mud.login_experience import install_login_experience
 
 install_dwarf_content()
+install_dwarf_first_shift_content()
 install_forest_elf_nurture_content()
 install_forest_elf_stewardship_content()
 install_goblin_world()
@@ -78,6 +80,7 @@ install_seasonal_runtime(PlayerSession, WORLD)
 install_forest_elf_nurture_runtime(PlayerSession, WORLD)
 install_forest_elf_stewardship_runtime(PlayerSession, WORLD)
 install_dwarf_runtime(PlayerSession, WORLD)
+install_dwarf_first_shift_runtime(PlayerSession, WORLD)
 install_human_blackwall_runtime(PlayerSession, WORLD)
 install_human_cathedral_runtime(PlayerSession, WORLD)
 install_undead_runtime(PlayerSession, WORLD)
