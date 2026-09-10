@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 
 from mud.database import Database
+from mud.human_district import DistrictEvent, HUMAN_DISTRICT
 from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
 from mud.room_runtime import WORLD, install_room_runtime
@@ -21,6 +22,9 @@ class MudServer:
         self.database = Database()
         self.mobile_npcs = MobileNpcManager()
         load_world_room_state(WORLD.state)
+        # Scheduled business state always wins over a stale saved door state.
+        # Rain shutters are derived temporary state and are rebuilt here too.
+        HUMAN_DISTRICT.initialize(datetime.now(), WORLD.state)
 
     async def handle_connection(
         self,
@@ -74,6 +78,15 @@ class MudServer:
         for session in destination_sessions:
             await session.check_mobile_npc_aggression(movement.npc_key)
 
+    async def broadcast_district_event(self, event: DistrictEvent) -> None:
+        room_keys = set(event.room_keys)
+        for session in tuple(self.sessions):
+            if session.state is not SessionState.PLAYING or session.character is None:
+                continue
+            if session.character.current_room not in room_keys:
+                continue
+            await session.send(f"\r\n{event.text}\r\n> ")
+
     async def run(self) -> None:
         server = await asyncio.start_server(
             self.handle_connection,
@@ -92,10 +105,19 @@ class MudServer:
                 hour_provider=lambda: datetime.now().hour,
             )
         )
+        district_task = asyncio.create_task(
+            HUMAN_DISTRICT.run(
+                WORLD.state,
+                self.broadcast_district_event,
+                now_provider=datetime.now,
+                interval_seconds=5.0,
+            )
+        )
         try:
             async with server:
                 await server.serve_forever()
         finally:
             npc_task.cancel()
-            await asyncio.gather(npc_task, return_exceptions=True)
+            district_task.cancel()
+            await asyncio.gather(npc_task, district_task, return_exceptions=True)
             save_world_room_state(WORLD.state)
