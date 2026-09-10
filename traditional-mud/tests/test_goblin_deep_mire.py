@@ -230,7 +230,8 @@ class GoblinDeepMireTests(unittest.TestCase):
         self.assertFalse(blocked.allowed)
         self.assertIn("pump", blocked.message.lower())
         self.assertTrue(opened.allowed)
-        self.assertEqual(opened.destination_key, GOBLIN_GREENHOUSE_CONSERVATORY_KEY)
+        self.assertIsNotNone(opened.exit)
+        self.assertEqual(opened.exit.destination_key, GOBLIN_GREENHOUSE_CONSERVATORY_KEY)
 
     def test_environmental_puzzle_completes_without_combat(self):
         self._service()
