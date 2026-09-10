@@ -98,7 +98,7 @@ REGIONS: tuple[RegionDefinition, ...] = (
             "share an ancient cultural ancestry while living in very different climates."
         ),
         primary_races=("troll",),
-        starting_tone="harsh and dangerous immediately",
+        starting_tone="harsh climate and practical survival from the first room, but beginner lessons are fair, supervised, and non-lethal",
         is_major_start=True,
     ),
     RegionDefinition(
