@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass
 from typing import Awaitable, Callable
 
+from mud.astralis_calendar import AstralisCalendarDate, calendar_for_day, regional_calendar_context
 from mud.room_engine import RoomStateStore
 from mud.world_data import REGIONS
 
@@ -41,8 +42,43 @@ class AstralisMoment:
         return self.total_minutes // 60
 
     @property
+    def calendar(self) -> AstralisCalendarDate:
+        return calendar_for_day(self.day_number)
+
+    @property
+    def year(self) -> int:
+        return self.calendar.year
+
+    @property
+    def day_of_year(self) -> int:
+        return self.calendar.day_of_year
+
+    @property
+    def season(self) -> str:
+        return self.calendar.season_key
+
+    @property
+    def season_name(self) -> str:
+        return self.calendar.season_name
+
+    @property
+    def moon_phase(self) -> str:
+        return self.calendar.moon_phase
+
+    @property
+    def moon_phase_name(self) -> str:
+        return self.calendar.moon_phase_name
+
+    @property
     def display(self) -> str:
         return f"Day {self.day_number}, {self.hour:02d}:{self.minute:02d} ({self.phase})"
+
+    @property
+    def calendar_display(self) -> str:
+        return f"{self.calendar.display}; {self.hour:02d}:{self.minute:02d} ({self.phase})"
+
+    def regional_context(self, region_key: str):
+        return regional_calendar_context(region_key, self.day_number)
 
 
 class AstralisClock:
@@ -150,11 +186,25 @@ def _transition_candidates(profile: WeatherProfile, current: str) -> tuple[str, 
         adjacent.add(states[index - 1])
     if index + 1 < len(states):
         adjacent.add(states[index + 1])
-    # Allow a rare jump from settled weather into a severe state, but avoid
-    # constantly snapping between unrelated extremes.
     severe = {"storm", "duststorm", "snow", "rain"}
     adjacent.update(state for state in states if state in severe)
     return tuple(state for state in states if state in adjacent)
+
+
+def _seasonally_weighted_candidates(candidates: tuple[str, ...], season: str) -> tuple[str, ...]:
+    """Bias weather gently toward the season without violating biome states."""
+    weighted = list(candidates)
+    preferred_by_season = {
+        "spring": {"rain", "mist", "humid"},
+        "summer": {"clear", "humid"},
+        "autumn": {"cloudy", "mist", "windy"},
+        "winter": {"snow", "cloudy", "mist"},
+    }
+    preferred = preferred_by_season.get(season, set())
+    for value in candidates:
+        if value in preferred:
+            weighted.extend((value, value))
+    return tuple(weighted)
 
 
 def weather_change_text(region_name: str, old: str, new: str) -> str:
@@ -196,7 +246,14 @@ class AstralisWeatherService:
             if region.key not in state.region_weather:
                 state.set_weather(region.key, profile_for_biome(region.biome).default)
 
-    def _roll_region(self, region_key: str, region_name: str, biome: str, state: RoomStateStore) -> WeatherEvent | None:
+    def _roll_region(
+        self,
+        region_key: str,
+        region_name: str,
+        biome: str,
+        season: str,
+        state: RoomStateStore,
+    ) -> WeatherEvent | None:
         profile = profile_for_biome(biome)
         current = state.weather_for(region_key)
         if current not in profile.states:
@@ -205,10 +262,11 @@ class AstralisWeatherService:
         if self.rng.random() < profile.stay_chance.get(current, 0.85):
             return None
 
-        candidates = [value for value in _transition_candidates(profile, current) if value != current]
+        candidates = tuple(value for value in _transition_candidates(profile, current) if value != current)
         if not candidates:
             return None
-        new_weather = self.rng.choice(candidates)
+        weighted = _seasonally_weighted_candidates(candidates, season)
+        new_weather = self.rng.choice(weighted)
         state.set_weather(region_key, new_weather)
         return WeatherEvent(
             region_key=region_key,
@@ -228,7 +286,14 @@ class AstralisWeatherService:
         events: list[WeatherEvent] = []
         for _ in range(crossed):
             for region in REGIONS:
-                event = self._roll_region(region.key, region.name, region.biome, state)
+                context = moment.regional_context(region.key)
+                event = self._roll_region(
+                    region.key,
+                    region.name,
+                    region.biome,
+                    context.season,
+                    state,
+                )
                 if event is not None:
                     events.append(event)
         self.last_total_hour = moment.total_hours
