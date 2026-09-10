@@ -268,13 +268,15 @@ class TrollStartTests(unittest.TestCase):
         self.assertTrue(opened.allowed)
         self.assertEqual(opened.exit.destination_key, TROLL_TRACKLINE_VERGE_KEY)
 
+        # Room views read authoritative regional weather from shared world state,
+        # just like the live server, rather than trusting caller-supplied weather.
+        service.state.set_weather("troll_strongholds", "snow")
         snow_context = PlayerRoomContext(
             character_id=2,
             race_key="troll",
             class_key="druid",
             level=1,
             character_flags=frozenset({TROLL_COLD_COMPLETE_FLAG}),
-            weather="snow",
             hour=12,
         )
         for room_key in TROLL_SURVIVAL_ROOM_KEYS:
