@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 
 from mud.combat import ENEMIES_BY_KEY
+from mud.crafting import ITEMS_BY_KEY
+from mud.human_district import HUMAN_DISTRICT, HUMAN_REGION_KEY
 from mud.room_content import complete_room_augmentations
 from mud.room_engine import PlayerRoomContext, WorldService
 from mud.world import (
@@ -66,6 +68,24 @@ def _quest_sensitive_legacy_interaction(room_key: str, command: str) -> bool:
     return False
 
 
+def _current_business(session, target: str = ""):
+    if session.character is None:
+        return None
+    return HUMAN_DISTRICT.find_business(session.character.current_room or "", target)
+
+
+async def _render_business_status(session) -> None:
+    if session.character is None:
+        return
+    lines = HUMAN_DISTRICT.storefront_lines(
+        session.character.current_room or "",
+        WORLD.state,
+        datetime.now().hour,
+    )
+    for line in lines:
+        await session.send(f"\r\n{line}\r\n")
+
+
 async def _render_current_room(session, original_show_current_room) -> None:
     character = session.character
     if character is None:
@@ -84,6 +104,11 @@ async def _render_current_room(session, original_show_current_room) -> None:
         await session.send(
             "\r\nNotable: " + ", ".join(feature.name for feature in view.features) + ".\r\n"
         )
+
+    business = HUMAN_DISTRICT.business_in_room(view.key)
+    if business is not None:
+        await session.send(f"Notable business: {business.name}.\r\n")
+        await _render_business_status(session)
 
     if scene is not None:
         for npc_key in scene.npc_keys:
@@ -133,16 +158,48 @@ async def _show_features(session) -> None:
     if character is None:
         return
     view = WORLD.build_view(character.current_room or "", _context_for(session))
-    if view is None or not view.features:
+    business = HUMAN_DISTRICT.business_in_room(character.current_room or "")
+    if (view is None or not view.features) and business is None:
         await session.send("Nothing here is singled out as an interactive landmark.\r\n")
         return
     await session.send("Notable features:\r\n")
-    for feature in view.features:
-        detail = f" - {feature.name}"
-        if feature.summary:
-            detail += f": {feature.summary}"
-        await session.send(detail + "\r\n")
-    await session.send("Try EXAMINE, SEARCH, TOUCH, LISTEN, or LOOK <feature>.\r\n")
+    if view is not None:
+        for feature in view.features:
+            detail = f" - {feature.name}"
+            if feature.summary:
+                detail += f": {feature.summary}"
+            await session.send(detail + "\r\n")
+    if business is not None:
+        await session.send(
+            f" - {business.name}: {business.storefront_description} Proprietor: {business.proprietor}.\r\n"
+        )
+    await session.send(
+        "Try EXAMINE, SEARCH, TOUCH, LISTEN, SMELL, or LOOK <feature>. Human businesses also support SHOP, HOURS, TALK, OPEN, and CLOSE.\r\n"
+    )
+
+
+async def _show_business_shop(session, business) -> None:
+    lines = HUMAN_DISTRICT.shop_lines(business, WORLD.state, datetime.now().hour)
+    for index, line in enumerate(lines):
+        if index >= 3 and line in ITEMS_BY_KEY:
+            await session.send(ITEMS_BY_KEY[line].name + "\r\n")
+        else:
+            await session.send(line + "\r\n")
+    if HUMAN_DISTRICT.is_open(business, WORLD.state, datetime.now().hour):
+        await session.send(
+            "Prices are deliberately not attached yet; Astralis's permanent currency/economy has not been finalized.\r\n"
+        )
+
+
+async def _show_weather(session) -> None:
+    if session.character is None:
+        return
+    scene = WORLD.scene(session.character.current_room or "")
+    if scene is None:
+        await session.send("You cannot get a clear read on the weather here.\r\n")
+        return
+    weather = WORLD.state.weather_for(scene.region_key)
+    await session.send(f"Current regional weather: {weather}.\r\n")
 
 
 def install_room_runtime(player_session_class) -> None:
@@ -200,21 +257,84 @@ def install_room_runtime(player_session_class) -> None:
             return
 
         normalized = command.strip().lower()
+        room_key = self.character.current_room or ""
+
         if normalized in {"exits", "exit"}:
             await _show_exits(self)
             return
         if normalized in {"features", "feature", "details", "landmarks", "landmark"}:
             await _show_features(self)
             return
+        if normalized in {"weather", "conditions"}:
+            await _show_weather(self)
+            return
 
-        room_key = self.character.current_room or ""
+        # Human starting-district storefronts are real scheduled world objects.
+        if normalized in {"shop", "list", "wares", "hours", "shop hours"}:
+            business = _current_business(self)
+            if business is not None:
+                if normalized in {"hours", "shop hours"}:
+                    await self.send(
+                        f"{business.name} - proprietor {business.proprietor} - posted hours {business.hours_text}.\r\n"
+                    )
+                else:
+                    await _show_business_shop(self, business)
+                return
+
         pieces = normalized.split(maxsplit=1)
+        action = pieces[0] if pieces else ""
+        target = pieces[1] if len(pieces) == 2 else ""
+
+        if action in {"shop", "hours"} and target:
+            business = _current_business(self, target)
+            if business is not None:
+                if action == "hours":
+                    await self.send(
+                        f"{business.name} - proprietor {business.proprietor} - posted hours {business.hours_text}.\r\n"
+                    )
+                else:
+                    await _show_business_shop(self, business)
+                return
+
+        if action in {"talk", "speak"}:
+            business = _current_business(self, target) if target else _current_business(self)
+            if business is not None:
+                await self.send(HUMAN_DISTRICT.talk(business, WORLD.state, datetime.now().hour) + "\r\n")
+                return
+
+        if action in {"open", "close"} and target:
+            business = _current_business(self, target)
+            if business is not None:
+                if action == "open":
+                    text = HUMAN_DISTRICT.open_door(business, WORLD.state, datetime.now().hour)
+                else:
+                    text = HUMAN_DISTRICT.close_door(business, WORLD.state, datetime.now().hour)
+                await self.send(text + "\r\n")
+                return
+
+        if action in {"smell", "sniff"}:
+            business = _current_business(self, target) if target else _current_business(self)
+            if business is not None:
+                await self.send(HUMAN_DISTRICT.smell(business, WORLD.state, datetime.now().hour) + "\r\n")
+                return
+            await self.send("You take in the air, but nothing here has been authored with a distinct scent yet.\r\n")
+            return
+
+        if len(pieces) == 2 and action in {"look", "examine", "search", "listen"}:
+            business = _current_business(self, target)
+            if business is not None:
+                if action == "listen":
+                    text = HUMAN_DISTRICT.listen(business, WORLD.state, datetime.now().hour)
+                else:
+                    text = HUMAN_DISTRICT.examine(business, WORLD.state, datetime.now().hour)
+                await self.send("\r\n" + text + "\r\n")
+                return
+
         if (
             len(pieces) == 2
-            and pieces[0] in {"look", "examine", "search", "touch", "listen"}
+            and action in {"look", "examine", "search", "touch", "listen"}
             and not _quest_sensitive_legacy_interaction(room_key, normalized)
         ):
-            action, target = pieces
             result = WORLD.interact(
                 room_key,
                 action,
@@ -245,7 +365,8 @@ def install_room_runtime(player_session_class) -> None:
 
         if normalized in {"help", "?"}:
             await self.send(
-                "Room exploration: FEATURES/LANDMARKS lists interactive details; SEARCH <feature> and LOOK/EXAMINE/TOUCH/LISTEN <feature> use the scene system.\r\n"
+                "Room exploration: FEATURES/LANDMARKS lists interactive details; SEARCH/LOOK/EXAMINE/TOUCH/LISTEN/SMELL can inspect the scene. "
+                "Human district businesses also support SHOP, HOURS, TALK <proprietor>, OPEN <shop>, and CLOSE <shop>. WEATHER reports the current regional state.\r\n"
             )
 
     player_session_class.show_current_room = show_current_room
