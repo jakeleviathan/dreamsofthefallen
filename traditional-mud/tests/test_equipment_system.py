@@ -224,7 +224,12 @@ class EquipmentSystemTests(unittest.TestCase):
         self.assertEqual(database2.item_quantity(camp.character.id, "troll_trail_legwraps"), 0)
 
     def test_troll_raid_spear_becomes_universal_stat_weapon_and_auto_wields_during_tutorial(self):
-        troll_raid.install_troll_raid_content()
+        # Register only the spear here. The raid installer also rewrites Frostroot
+        # rooms/NPCs and belongs to its own test suite; this test only needs to
+        # prove that the equipment layer recognizes the real tutorial weapon.
+        if troll_raid.NOTCHED_HUNTING_SPEAR.key not in crafting.ITEMS_BY_KEY:
+            crafting.ITEMS = crafting.ITEMS + (troll_raid.NOTCHED_HUNTING_SPEAR,)
+            crafting.ITEMS_BY_KEY[troll_raid.NOTCHED_HUNTING_SPEAR.key] = troll_raid.NOTCHED_HUNTING_SPEAR
         install_equipment_content()
         spear = crafting.ITEMS_BY_KEY["frostroot_notched_spear"]
         self.assertIsNotNone(spear.equipment)
