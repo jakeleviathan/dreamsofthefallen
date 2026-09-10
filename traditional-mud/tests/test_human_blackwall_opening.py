@@ -183,7 +183,7 @@ class HumanBlackwallOpeningTests(unittest.TestCase):
         self.assertTrue(asyncio.run(handle_human_opening_command(session, "talk orrin")))
         self.assertIn(HUMAN_EARTH_ARTIFACT_IDENTIFIED_FLAG, database.list_flags(session.character.id))
         self.assertEqual(database.item_quantity(session.character.id, HUMAN_EARTH_HANDSET_KEY), 0)
-        self.assertIn("no road back", "".join(session.outputs).lower())
+        self.assertIn("a road back", "".join(session.outputs).lower())
         self.assertEqual(database.get_quest(session.character.id, HUMAN_EARTH_CACHE_QUEST.key)["status"], "completed")
 
         # Quest 4: the gate opens, then the old cathedral thread is released rather than erased.
