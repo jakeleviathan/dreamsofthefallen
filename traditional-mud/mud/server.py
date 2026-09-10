@@ -7,6 +7,7 @@ from mud.dwarf_first_shift import install_dwarf_first_shift_content, install_dwa
 from mud.forest_elf_nurture import install_forest_elf_nurture_content, install_forest_elf_nurture_runtime
 from mud.forest_elf_stewardship import install_forest_elf_stewardship_content, install_forest_elf_stewardship_runtime
 from mud.forest_elf_home_and_omens import install_forest_elf_home_content, install_forest_elf_home_runtime
+from mud.forest_elf_homecoming import install_forest_elf_homecoming_runtime
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 from mud.human_blackwall_opening import install_human_blackwall_content, install_human_blackwall_runtime
 from mud.human_cathedral_faith import install_human_cathedral_content, install_human_cathedral_runtime
@@ -85,6 +86,8 @@ install_forest_elf_stewardship_runtime(PlayerSession, WORLD)
 # This outer Forest Elf layer turns the older Heartseed and Old River Path
 # tutorials into the middle of a fuller home -> observation -> class-lens arc.
 install_forest_elf_home_runtime(PlayerSession, WORLD)
+# Finish that arc with a prepared wayroot return and a quiet homecoming beat.
+install_forest_elf_homecoming_runtime(PlayerSession)
 install_dwarf_runtime(PlayerSession, WORLD)
 install_dwarf_first_shift_runtime(PlayerSession, WORLD)
 install_human_blackwall_runtime(PlayerSession, WORLD)
