@@ -8,12 +8,16 @@ install_goblin_world()
 
 from mud.goblin_deep_mire import install_goblin_deep_mire_runtime
 from mud.goblin_clans import install_goblin_clan_content, install_goblin_clan_runtime
+from mud.goblin_return_loop import install_goblin_return_loop_content, install_goblin_return_loop_runtime
+from mud.goblin_clan_followups import install_goblin_clan_followup_content, install_goblin_clan_followup_runtime
 
-# Clan content depends on (and idempotently registers) the deeper mire, its
-# alchemy materials/recipes, and the earlier beginner swamp. Doing this before
-# importing PlayerSession means generic recipe/help views see the expanded
-# crafting registries as well as the specialist runtimes below.
+# Clan/deep-mire content depends on (and idempotently registers) the earlier
+# Goblin layers. Register the safe return loop and second-wave clan quests before
+# importing PlayerSession so generic room, quest, recipe, and help views can see
+# the complete Goblin progression tree.
 install_goblin_clan_content()
+install_goblin_return_loop_content()
+install_goblin_clan_followup_content()
 
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, ASTRALIS_WEATHER, WeatherEvent
@@ -39,7 +43,8 @@ WORLD.augmentations.update(goblin_room_augmentations())
 
 # Build the live command/runtime stack from broad room behavior outward into
 # calendar, seasonal culture, Goblin city life, beginner progression, the
-# branching swamp, deeper mire/glasshouse, and finally soft clan politics.
+# branching swamp, deeper mire/glasshouse, discovered return shortcut, first
+# clan politics, and finally the second-wave standing/choice layer.
 install_room_runtime(PlayerSession)
 install_calendar_runtime(PlayerSession, WORLD)
 install_seasonal_runtime(PlayerSession, WORLD)
@@ -48,7 +53,9 @@ install_goblin_salvage_quest_runtime(PlayerSession, WORLD)
 install_goblin_outer_route_runtime(PlayerSession, WORLD)
 install_goblin_swamp_runtime(PlayerSession, WORLD)
 install_goblin_deep_mire_runtime(PlayerSession, WORLD)
+install_goblin_return_loop_runtime(PlayerSession, WORLD)
 install_goblin_clan_runtime(PlayerSession, WORLD)
+install_goblin_clan_followup_runtime(PlayerSession, WORLD)
 # Apply the authoritative First Piling branch gate last so no later content
 # registration can accidentally expose the beginner swamp before Ruskle's lesson.
 enforce_first_piling_swamp_access(WORLD)
