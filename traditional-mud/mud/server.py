@@ -1,9 +1,11 @@
 import asyncio
 
-# Register Goblin world content before session and room-runtime modules take
-# their references to shared world/crafting registries.
+# Register race-specific world content before session and room-runtime modules
+# take their references to the shared room/crafting/quest registries.
+from mud.dwarf_start import install_dwarf_content, install_dwarf_runtime
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 
+install_dwarf_content()
 install_goblin_world()
 
 from mud.goblin_deep_mire import install_goblin_deep_mire_runtime
@@ -42,12 +44,11 @@ from mud.room_state_storage import load_world_room_state, save_world_room_state
 WORLD.augmentations.update(goblin_room_augmentations())
 
 # Build the live command/runtime stack from broad room behavior outward into
-# calendar, seasonal culture, Goblin city life, beginner progression, the
-# branching swamp, deeper mire/glasshouse, discovered return shortcut, first
-# clan politics, and finally the second-wave standing/choice layer.
+# calendar/seasonal layers, then race-specific starter and progression systems.
 install_room_runtime(PlayerSession)
 install_calendar_runtime(PlayerSession, WORLD)
 install_seasonal_runtime(PlayerSession, WORLD)
+install_dwarf_runtime(PlayerSession, WORLD)
 install_goblin_runtime(PlayerSession, WORLD)
 install_goblin_salvage_quest_runtime(PlayerSession, WORLD)
 install_goblin_outer_route_runtime(PlayerSession, WORLD)
