@@ -12,6 +12,7 @@ from mud.calendar_runtime import install_calendar_runtime
 from mud.database import Database
 from mud.goblin_runtime import install_goblin_runtime
 from mud.goblin_salvage_quest import install_goblin_salvage_quest_runtime
+from mud.goblin_outer_route import install_goblin_outer_route_runtime
 from mud.human_district import DistrictEvent
 from mud.seasonal_cultures import SEASONAL_CULTURES, SeasonalCultureEvent
 from mud.seasonal_runtime import install_seasonal_runtime
@@ -27,12 +28,13 @@ WORLD.augmentations.update(goblin_room_augmentations())
 
 # Build the live command/runtime stack from broad room behavior outward into
 # calendar, culture-specific seasonal behavior, Goblin starter social behavior,
-# and finally the first Goblin salvage-economy quest.
+# the first salvage-economy quest, and then the first supervised outer route.
 install_room_runtime(PlayerSession)
 install_calendar_runtime(PlayerSession, WORLD)
 install_seasonal_runtime(PlayerSession, WORLD)
 install_goblin_runtime(PlayerSession, WORLD)
 install_goblin_salvage_quest_runtime(PlayerSession, WORLD)
+install_goblin_outer_route_runtime(PlayerSession, WORLD)
 
 
 class MudServer:
