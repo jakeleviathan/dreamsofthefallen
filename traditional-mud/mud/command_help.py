@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from mud.character_options import RACES_BY_KEY
 from mud.mechanics import class_abilities_for_level
+from mud.new_player_guidance import install_new_player_guidance_runtime
 from mud.quests import QUESTS_BY_KEY
 from mud.world import NPCS_BY_KEY, ROOMS_BY_KEY
 
@@ -178,6 +179,7 @@ def _quick_help_text(session) -> str:
         "\r\n--- Help ---",
         "LOOK and EXITS show where you are. Move with NORTH/SOUTH/EAST/WEST/UP/DOWN (or N/S/E/W/U/D).",
         "EXAMINE <thing>, SEARCH <thing>, TOUCH <thing>, LISTEN, READ <thing>, and TALK <person> interact with the world.",
+        "SAY <message> speaks aloud to players in your room. BASICS gives the tiny new-player version at any time.",
         "QUESTS shows your quest journal. ABILITIES shows your class abilities. RACIAL shows your racial kit.",
         "ATTACK <target>, USE <ability>, and FLEE cover the basic combat loop.",
         "INVENTORY and EQUIPMENT show what you carry and wear. Your opening teaches class basics naturally as you progress.",
@@ -215,6 +217,8 @@ def _full_help_text(session) -> str:
         "LISTEN [thing] - listen to the room or a supported feature",
         "READ <thing> - read an item, note, sign, or authored text",
         "TALK <person> - speak to someone in the room",
+        "SAY <message> - speak aloud to other players in the room",
+        "BASICS - show the tiny new-player command refresher",
         "FEATURES / DETAILS / LANDMARKS - review visible room features",
         "",
         "[Character & Progression]",
@@ -335,6 +339,10 @@ def install_command_help_runtime(player_session_class) -> None:
     if getattr(player_session_class, "_command_help_runtime_installed", False):
         return
 
+    # The newcomer layer sits immediately beneath HELP: it teaches typed-command
+    # basics, provides real SAY/BASICS commands, and stays quiet once the player
+    # demonstrates that they understand the interaction model.
+    install_new_player_guidance_runtime(player_session_class)
     previous_playing_prompt = player_session_class.playing_prompt
 
     async def playing_prompt(self) -> None:
