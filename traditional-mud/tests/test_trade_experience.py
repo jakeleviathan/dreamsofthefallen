@@ -87,7 +87,8 @@ class TradeExperienceTests(unittest.TestCase):
 
     def test_give_moves_positive_quantity_and_rejects_quest_items(self):
         self.db.add_item(self.alice_character.id, "iron_ore", 3)
-        self.db.add_item(self.alice_character.id, "sealed_cathedral_note", 1)
+        alice_note_before = self.db.item_quantity(self.alice_character.id, "sealed_cathedral_note")
+        bob_note_before = self.db.item_quantity(self.bob_character.id, "sealed_cathedral_note")
         alice, bob = self._pair(
             ["give Bob 2 iron ore", "give Bob sealed cathedral note"],
             [],
@@ -99,20 +100,30 @@ class TradeExperienceTests(unittest.TestCase):
         self.assertIn("Alice gives you 2x Iron Ore", "".join(bob.outputs))
 
         asyncio.run(alice.playing_prompt())
-        self.assertEqual(self.db.item_quantity(self.alice_character.id, "sealed_cathedral_note"), 1)
-        self.assertEqual(self.db.item_quantity(self.bob_character.id, "sealed_cathedral_note"), 0)
+        self.assertEqual(
+            self.db.item_quantity(self.alice_character.id, "sealed_cathedral_note"),
+            alice_note_before,
+        )
+        self.assertEqual(
+            self.db.item_quantity(self.bob_character.id, "sealed_cathedral_note"),
+            bob_note_before,
+        )
         self.assertIn("quest item", "".join(alice.outputs).lower())
 
     def test_equipped_items_must_be_unequipped_before_transfer(self):
         if self.db.item_quantity(self.alice_character.id, "starter_weapon") <= 0:
             self.db.add_item(self.alice_character.id, "starter_weapon", 1)
+        bob_weapon_before = self.db.item_quantity(self.bob_character.id, "starter_weapon")
         set_equipped_item(self.db, self.alice_character.id, "main_hand", "starter_weapon")
         alice, _bob = self._pair(["give Bob basic starting weapon"], [])
 
         asyncio.run(alice.playing_prompt())
 
         self.assertGreater(self.db.item_quantity(self.alice_character.id, "starter_weapon"), 0)
-        self.assertEqual(self.db.item_quantity(self.bob_character.id, "starter_weapon"), 0)
+        self.assertEqual(
+            self.db.item_quantity(self.bob_character.id, "starter_weapon"),
+            bob_weapon_before,
+        )
         self.assertIn("unequip", "".join(alice.outputs).lower())
 
     def test_two_party_trade_commits_both_offers_atomically(self):
