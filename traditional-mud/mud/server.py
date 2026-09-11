@@ -16,6 +16,10 @@ from mud.forest_elf_druid_start import (
     install_forest_elf_druid_content,
     install_forest_elf_druid_runtime,
 )
+from mud.forest_elf_wizard_start import (
+    install_forest_elf_wizard_content,
+    install_forest_elf_wizard_runtime,
+)
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 from mud.human_blackwall_opening import install_human_blackwall_content, install_human_blackwall_runtime
 from mud.human_cathedral_faith import install_human_cathedral_content, install_human_cathedral_runtime
@@ -60,6 +64,9 @@ install_forest_elf_necromancer_content()
 # Forest Elf Druids receive a gentler post-opening capstone in the nursery's
 # Warmhouse: one healing spell surrounded by ordinary care and patient release.
 install_forest_elf_druid_content()
+# Forest Elf Wizards learn practical restraint at a communal tile kiln: ordinary
+# controls first, one precise Coldfire Burst, then inspect whether the work held.
+install_forest_elf_wizard_content()
 install_goblin_world()
 install_human_blackwall_content()
 install_human_cathedral_content()
@@ -151,6 +158,9 @@ install_forest_elf_necromancer_runtime(PlayerSession, WORLD)
 # Forest Elf Druids finish the shared opening with a quiet recovery shift that
 # teaches Minor Heal, ordinary aftercare, patience, and non-ownership.
 install_forest_elf_druid_runtime(PlayerSession, WORLD)
+# Forest Elf Wizards finish with practical kiln work: inspect material and kiln,
+# set ordinary controls, apply precise Coldfire, then verify the useful result.
+install_forest_elf_wizard_runtime(PlayerSession, WORLD)
 install_dwarf_runtime(PlayerSession, WORLD)
 install_dwarf_first_shift_runtime(PlayerSession, WORLD)
 install_human_blackwall_runtime(PlayerSession, WORLD)
