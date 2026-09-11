@@ -312,6 +312,7 @@ async def _talk_alen(session) -> bool:
         await session.send(
             "\r\nAlen is moving benches when you arrive. He gives you one end of a bench before he gives you a lesson.\r\n"
             "'Sera Ashfern died three mornings ago. Peacefully. Her family asked for a remembrance tonight.'\r\n"
+            "Alen sets down his end of the bench. 'Ritual is not evidence. It is a shape people can stand inside together when ordinary speech becomes difficult.'\r\n"
             + _deity_lens(getattr(session.character, "deity_key", None))
             + "\r\n'Priests are useful here when we remember that presence is also a form of service. Start with her daughter. TALK MIRA.'\r\n"
         )
