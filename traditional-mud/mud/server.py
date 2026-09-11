@@ -30,6 +30,7 @@ from mud.forest_elf_priest_start import (
 )
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 from mud.human_blackwall_opening import install_human_blackwall_content, install_human_blackwall_runtime
+from mud.human_playable_slice import install_human_playable_slice_content, install_human_playable_slice_runtime
 from mud.human_cathedral_faith import install_human_cathedral_content, install_human_cathedral_runtime
 from mud.human_necromancer_start import (
     install_human_necromancer_content,
@@ -67,6 +68,8 @@ from mud.sporekin_depth import install_sporekin_depth_content, install_sporekin_
 from mud.starter_class_moments import install_starter_class_moment_runtime
 from mud.command_help import install_command_help_runtime
 from mud.new_player_guidance import install_new_player_guidance_runtime
+from mud.player_preferences import install_player_preferences_runtime
+from mud.social_experience import install_social_experience_runtime
 from mud.room_prompt_experience import install_room_prompt_experience_runtime
 from mud.staff_control import install_staff_control_runtime
 from mud.undead_start import install_undead_content, install_undead_runtime
@@ -106,6 +109,9 @@ install_forest_elf_brute_content()
 install_forest_elf_priest_content()
 install_goblin_world()
 install_human_blackwall_content()
+# Polish the Blackwall opening into one complete first-session slice: authored XP
+# cadence, explicit first loot, forgiving first recovery, and a quiet world vista.
+install_human_playable_slice_content()
 install_human_cathedral_content()
 # Human Necromancers continue from the shared Blackwall opening into controlled
 # civic salvage: check for life first, use one precise Life Tap, recover remains,
@@ -235,6 +241,9 @@ install_forest_elf_priest_runtime(PlayerSession, WORLD)
 install_dwarf_runtime(PlayerSession, WORLD)
 install_dwarf_first_shift_runtime(PlayerSession, WORLD)
 install_human_blackwall_runtime(PlayerSession, WORLD)
+# The Human vertical slice sits directly outside the shared Blackwall runtime so
+# its XP/loot/recovery cadence observes the real quest and combat state.
+install_human_playable_slice_runtime(PlayerSession, WORLD)
 install_human_cathedral_runtime(PlayerSession, WORLD)
 # Human Necromancers get their first deeper class-specific extension only after
 # the shared Blackwall opening, framed as civic salvage rather than spectacle.
@@ -280,6 +289,10 @@ install_login_experience(PlayerSession)
 # SAY/BASICS and stuck nudges are real live-server behavior rather than test-only code.
 install_command_help_runtime(PlayerSession)
 install_new_player_guidance_runtime(PlayerSession)
+# Player settings and social tools are persistent product layers, not test-only
+# helpers. They remain outside authored quest runtimes and inside the final prompt.
+install_player_preferences_runtime(PlayerSession)
+install_social_experience_runtime(PlayerSession)
 # The room/prompt layer keeps ordinary play readable in both Telnet and Mudlet.
 install_room_prompt_experience_runtime(PlayerSession, WORLD)
 # Staff controls sit outermost so staff commands never leak into normal player
