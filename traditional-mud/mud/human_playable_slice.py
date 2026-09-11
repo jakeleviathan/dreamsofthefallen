@@ -31,6 +31,23 @@ HUMAN_SLICE_FIRST_RESCUE_FLAG = "human_slice_first_burrower_rescue_used"
 HUMAN_SLICE_BURROWER_LOOT_FLAG = "human_slice_burrower_loot_claimed"
 HUMAN_SLICE_OVERLOOK_FLAG = "human_slice_first_mile_overlook_seen"
 
+# This is a playtest target, not a timer in the game. The Human slice should feel
+# like a compact first RPG session rather than a tutorial corridor. The manual QA
+# sheet in PLAYTEST_HUMAN_FIRST_SESSION.md records real stopwatch results.
+HUMAN_SLICE_PLAYTEST_TARGET_MINUTES = (20, 30)
+
+# First-combat copy should give one concrete class action, not make a new player
+# parse the whole ability list while an enemy is already swinging at them.
+FIRST_FIGHT_ABILITY_PRIORITY = (
+    "coldfire_burst",
+    "minor_life_tap",
+    "judgment_bolt",
+    "taunt",
+    "guardian_ward",
+    "restoring_light",
+    "minor_heal",
+)
+
 
 SOOTSTEP_HIDE_BRACERS = ItemDefinition(
     key=HUMAN_SOOTSTEP_BRACERS_KEY,
@@ -270,6 +287,23 @@ def newly_unlocked_class_abilities(character, old_level: int, new_level: int) ->
     )
 
 
+def first_fight_class_hint(character) -> tuple[str, str] | None:
+    """Choose one immediately useful level-one class action for first-combat copy."""
+    if character is None:
+        return None
+    abilities = class_abilities_for_level(
+        character.character_class or "",
+        max(1, int(getattr(character, "level", 1))),
+        getattr(character, "deity_key", None),
+    )
+    by_key = {ability.key: ability for ability in abilities}
+    for key in FIRST_FIGHT_ABILITY_PRIORITY:
+        ability = by_key.get(key)
+        if ability is not None:
+            return ability.name, f"USE {ability.name.upper()}"
+    return None
+
+
 async def announce_slice_awards(session, awards: tuple[SliceAward, ...]) -> None:
     for award in awards:
         await session.send(f"\r\nExperience: +{award.xp} XP - {award.label}.\r\n")
@@ -283,9 +317,7 @@ async def announce_slice_awards(session, awards: tuple[SliceAward, ...]) -> None
                 await session.send(
                     f"New class ability{'ies' if len(unlocked) != 1 else ''}: {label}.\r\n"
                 )
-            await session.send(
-                "Your character has grown beyond the opening rank. Type ABILITIES to review the tools that changed with the level.\r\n"
-            )
+            await session.send("Type ABILITIES when you want the full details.\r\n")
         else:
             next_total = PROGRESSION_RULES.cumulative_xp_for_level(award.new_level + 1)
             await session.send(
@@ -309,7 +341,7 @@ async def claim_burrower_loot(session) -> bool:
     await session.send(
         "\r\nYou salvage two intact plates of slate-thick hide from the burrower's forelimbs and lace them with a clean length of the torn wagon leather. The result is crude, but solid enough to wear.\r\n"
         "\r\nLoot: Sootstep Hide Bracers [Hands | AC +1 | HP +1]\r\n"
-        "Type COMPARE SOOTSTEP HIDE BRACERS to see how they fit your current gear, or EQUIP SOOTSTEP HIDE BRACERS to wear them.\r\n"
+        "COMPARE SOOTSTEP HIDE BRACERS checks them against your current gear. EQUIP SOOTSTEP HIDE BRACERS puts them on.\r\n"
     )
     return True
 
@@ -343,10 +375,10 @@ async def recover_first_burrower_defeat(session, enemy_name: str) -> bool:
 
     await session.send(
         "\r\nThe burrower gets underneath your guard and the tunnel goes black.\r\n"
-        "\r\nYou wake on a Cinder Ward watch bench with a bandage around your ribs and a cup of bitter tea going cold beside you. A maintenance runner found you near the Sootstep stair and hauled you back inside.\r\n"
-        "A folded scrap from Sergeant Mara Vey sits under the cup: 'A bad attempt is still information. Remember what got through your guard, then decide whether you are ready to try again.'\r\n"
-        "This first Blackwall recovery costs no experience. Outside protected opening incidents, death returns you to your bind point and can cost XP earned within your current level.\r\n"
-        "Your investigation is still active. Recover your bearings, then return east when you are ready to try the tunnel again.\r\n\r\n"
+        "\r\nYou wake on a Cinder Ward watch bench, bandaged, with a cup of bitter tea going cold beside you. A maintenance runner hauled you back from the Sootstep stair.\r\n"
+        "Under the cup is a scrap from Sergeant Mara Vey: 'A bad attempt is still information. Remember what got through your guard, then decide whether you are ready to try again.'\r\n"
+        "This first Blackwall recovery costs no experience. Later deaths return you to your bind point and can cost XP earned within your current level.\r\n"
+        "The investigation is still active. Return east when you are ready.\r\n\r\n"
     )
     await session.show_current_room()
     await session.send_client_state()
@@ -392,7 +424,7 @@ def install_human_playable_slice_runtime(player_session_class, world_service=Non
             await announce_slice_awards(self, awards)
         if burrower_loot_available(self):
             await self.send(
-                "\r\nThe defeated Sootstep Burrower is still here. Type LOOT BURROWER before you leave if you want to salvage something useful from the fight.\r\n"
+                "\r\nThe defeated Sootstep Burrower is still here. LOOT BURROWER if you want the useful hide before you leave.\r\n"
             )
 
     async def move_character(self, direction: str) -> None:
@@ -407,9 +439,9 @@ def install_human_playable_slice_runtime(player_session_class, world_service=Non
             return
         self.database.grant_flag(self.character.id, HUMAN_SLICE_OVERLOOK_FLAG)
         await self.send(
-            "\r\nNo bell sounds. No quest appears. For a moment Astralis is simply a place around you: wagons on a distant road, somebody's cooking smoke, mountains that will still be there tomorrow.\r\n"
-            "Looking back, Blackwall resolves into places instead of one silhouette: Mara's yard, Ketta's freight court, Orrin's archive windows, Sera's gate. The morning already has people in it you can picture returning to.\r\n"
-            "The structured Blackwall opening has done its job. When you want another direction, WEST returns to the city and the sealed cathedral note waiting there. The milepost and horizon offer names without assigning you a task. For now, you are allowed to just look.\r\n"
+            "\r\nNo bell sounds. No new quest appears. Astralis is simply around you: wagons on a distant road, cooking smoke, mountains that will still be there tomorrow.\r\n"
+            "Behind you are Mara's yard, Ketta's freight court, Orrin's archive windows, and Sera's gate. Ahead are names on a milepost and roads you have not walked.\r\n"
+            "The Blackwall opening is over. WEST returns to the city. For now, you are allowed to just look.\r\n"
         )
 
     async def start_combat(self, target_text: str) -> None:
@@ -423,9 +455,15 @@ def install_human_playable_slice_runtime(player_session_class, world_service=Non
         if HUMAN_SLICE_FIRST_FIGHT_HELP_FLAG in flags:
             return
         self.database.grant_flag(self.character.id, HUMAN_SLICE_FIRST_FIGHT_HELP_FLAG)
+        class_hint = first_fight_class_hint(getattr(self, "character", None))
         await self.send(
-            "\r\nCombat is live now: your normal weapon attacks repeat automatically. You can still type commands while they do.\r\n"
-            "Type ABILITIES if you need to check your class tools, USE <ability> to act, HEALTH to check the fight, or FLEE to try to break away.\r\n"
+            "\r\nCombat is live. Your weapon keeps attacking automatically; you can still type between swings.\r\n"
+        )
+        if class_hint is not None:
+            ability_name, command = class_hint
+            await self.send(f"Try {command} for your {ability_name} class tool. ")
+        await self.send(
+            "HEALTH checks the fight. FLEE tries to break away. ABILITIES shows the full list.\r\n"
         )
 
     async def _finish_enemy_defeat(self, enemy) -> None:
@@ -438,11 +476,11 @@ def install_human_playable_slice_runtime(player_session_class, world_service=Non
             return
         if self.combatant is not None:
             await self.send(
-                f"Combat ends. You steady yourself at {self.combatant.current_hp}/{self.combatant.max_hp} HP and {self.combatant.current_mana}/{self.combatant.max_mana} mana.\r\n"
+                f"Combat ends. {self.combatant.current_hp}/{self.combatant.max_hp} HP, {self.combatant.current_mana}/{self.combatant.max_mana} mana.\r\n"
             )
         if burrower_loot_available(self):
             await self.send(
-                "The burrower's slate hide is thick enough to be useful. Type LOOT BURROWER before you SEARCH NEST.\r\n"
+                "The burrower's slate hide looks useful. LOOT BURROWER before you SEARCH NEST.\r\n"
             )
 
     async def _handle_character_death(self, enemy_name: str) -> None:
@@ -482,7 +520,7 @@ def install_human_playable_slice_runtime(player_session_class, world_service=Non
             await announce_slice_awards(self, awards)
 
         if normalized in {"look", "l"} and burrower_loot_available(self):
-            await self.send("The defeated Sootstep Burrower lies beside the nest. You can LOOT BURROWER before continuing.\r\n")
+            await self.send("The defeated Sootstep Burrower lies beside the nest. LOOT BURROWER before continuing if you want its useful hide.\r\n")
 
     player_session_class.enter_character = enter_character
     player_session_class.move_character = move_character
