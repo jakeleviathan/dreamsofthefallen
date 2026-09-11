@@ -68,6 +68,7 @@ from mud.starter_class_moments import install_starter_class_moment_runtime
 from mud.command_help import install_command_help_runtime
 from mud.new_player_guidance import install_new_player_guidance_runtime
 from mud.room_prompt_experience import install_room_prompt_experience_runtime
+from mud.staff_control import install_staff_control_runtime
 from mud.undead_start import install_undead_content, install_undead_runtime
 from mud.troll_start import install_troll_content, install_troll_runtime
 from mud.troll_raid_opening import install_troll_raid_content, install_troll_raid_runtime
@@ -279,10 +280,12 @@ install_login_experience(PlayerSession)
 # SAY/BASICS and stuck nudges are real live-server behavior rather than test-only code.
 install_command_help_runtime(PlayerSession)
 install_new_player_guidance_runtime(PlayerSession)
-# The final outer layer controls the minute-to-minute Telnet presentation: rooms
-# are consistently scannable, contextual TALK hints stay sparse, and the default
-# prompt carries HP/mana without requiring a graphical client.
+# The room/prompt layer keeps ordinary play readable in both Telnet and Mudlet.
 install_room_prompt_experience_runtime(PlayerSession, WORLD)
+# Staff controls sit outermost so staff commands never leak into normal player
+# command handling. Access is role-gated, disruptive actions require confirmation,
+# and every staff action is written to the persistent audit log.
+install_staff_control_runtime(PlayerSession)
 
 
 class MudServer:
