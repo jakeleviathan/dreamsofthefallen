@@ -180,7 +180,7 @@ def _quick_help_text(session) -> str:
         "EXAMINE <thing>, SEARCH <thing>, TOUCH <thing>, LISTEN, READ <thing>, and TALK <person> interact with the world.",
         "QUESTS shows your quest journal. ABILITIES shows your class abilities. RACIAL shows your racial kit.",
         "ATTACK <target>, USE <ability>, and FLEE cover the basic combat loop.",
-        "INVENTORY and EQUIPMENT show what you carry and wear. CLASS MOMENT plays your optional race/class opening beat.",
+        "INVENTORY and EQUIPMENT show what you carry and wear. Your opening teaches class basics naturally as you progress.",
     ]
     active = _active_quests(session)
     if active:
@@ -228,7 +228,6 @@ def _full_help_text(session) -> str:
         "QUESTS / JOURNAL - quest journal and current objectives",
         "ACCESS - persistent access and progression gates",
         "BIND / BIND POINT - bind-point information",
-        "CLASS MOMENT - optional race-specific class practice scene",
         "INVENTORY - carried items",
         "EQUIPMENT - worn and wielded gear",
         "EQUIP <item> / UNEQUIP <slot or item> / COMPARE <item> - manage gear",
