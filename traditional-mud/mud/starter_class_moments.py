@@ -17,7 +17,17 @@ class StarterClassMoment:
 
     @property
     def flag_key(self) -> str:
+        # Keep the original persistence key so characters who already completed
+        # the older opt-in version are never made to repeat the lesson.
         return f"starter_class_moment_{self.race_key}_{self.class_key}"
+
+
+@dataclass(frozen=True, slots=True)
+class OpeningTrigger:
+    quest_key: str
+    trigger_step: str
+    lead_in: str
+    closing: str
 
 
 RACE_SETTINGS: dict[str, tuple[str, str]] = {
@@ -54,6 +64,63 @@ RACE_SETTINGS: dict[str, tuple[str, str]] = {
         "The Chorus can share impressions, warnings, and memory, but it cannot practice your discipline for you. This is one of the first places a young Sporekin learns the difference between knowledge held by many and judgment exercised by one.",
     ),
 }
+
+
+# Each class lesson is attached to a real transition that already happens in the
+# race's authored starter experience. There is no CLASS MOMENT command anymore.
+# The beat appears only after the normal opening action genuinely advances its
+# quest, so typing a phrase in the wrong room cannot summon a tutorial scene.
+RACE_OPENING_TRIGGERS: dict[str, OpeningTrigger] = {
+    "human": OpeningTrigger(
+        "human_blackwall_readiness",
+        "report_muster",
+        "As Sergeant Mara finishes the muster check, she keeps you in the yard for one more minute. 'Blackwall does not care what you call your discipline. It cares whether you can use it without making the emergency worse.'",
+        "Mara gives a short nod and turns you back toward the signal board. The readiness drill continues.",
+    ),
+    "forest_elf": OpeningTrigger(
+        "forest_elf_morning_already_underway",
+        "talk_neris",
+        "Before Neris sends you off with the keeper parcel, the morning work pauses for one small piece of class practice. Nobody forms a ceremony around it; one useful correction is treated like any other part of learning the town.",
+        "The practice ends without applause. Neris presses the parcel into your hands, and the ordinary morning resumes around you.",
+    ),
+    "moon_elf": OpeningTrigger(
+        "moon_elf_third_chair",
+        "meet_ilyra",
+        "Before Ilyra asks you to take the Third Chair, she studies the way you carry your chosen discipline. 'Perspective is not only where you stand. It is also knowing what your own training makes easy for you to notice.'",
+        "Ilyra leaves the lesson there and gestures toward the empty chair. The civic disagreement is waiting.",
+    ),
+    "dwarf": OpeningTrigger(
+        "dwarf_first_work_order",
+        "registry_stamp",
+        "After Helga stamps the first work order, she points you toward a marked practice square beside the registry counter. 'Every serious trade carried through this city gets checked before somebody else has to trust it. Yours is no exception.'",
+        "The check is brief, documented, and apparently sufficient. Helga sends you on toward the union counterseal.",
+    ),
+    "goblin": OpeningTrigger(
+        "goblin_rattlefen_three_bells",
+        "inspect_wreck",
+        "While you sort the fresh wreck, an older salvage hand notices how your class training changes the way you approach the pile. 'Good. Show me one thing that works. Pretty can wait until useful survives.'",
+        "The salvage hand loses interest the instant the lesson proves practical. You still have one claim tag and a wreck full of choices.",
+    ),
+    "troll": OpeningTrigger(
+        "troll_night_is_not_over",
+        "talk_raska",
+        "Raska stops you before you reach for the spear. 'One clean habit first. Whatever your training is, show me the part you can still do tired, cold, and scared. No showing off.'",
+        "Raska grunts once. 'Good enough. Now take the spear.' The broken palisade still needs you.",
+    ),
+    "undead": OpeningTrigger(
+        "undead_no_voice_above_you",
+        "talk_reclaimer",
+        "Reclaimer Sevra studies you after explaining the severance ahead. 'A master may have chosen what your body once did. I will not. Before we cut away the last command thread, show me one discipline you choose to keep for yourself.'",
+        "Sevra accepts the answer without asking who taught it to you in life. What matters here is that the choice belongs to you now.",
+    ),
+    "sporekin": OpeningTrigger(
+        "sporekin_voice_of_your_own",
+        "talk_nemm",
+        "Nemm lets the Chorus settle quiet between you. 'A thousand remembered hands can show you how a technique looked. They still cannot decide how your hand should use it. Show me one thing that is yours to judge.'",
+        "Nemm inclines their cap. The Chorus keeps the memory of the exercise, but the decision inside it remains unmistakably yours.",
+    ),
+}
+
 
 CLASS_PRACTICE: dict[str, tuple[str, str]] = {
     "brute": (
@@ -111,10 +178,10 @@ def _priest_path_line(session) -> str:
     if character is None or character.character_class != "priest":
         return ""
     path = PRIEST_DEITIES_BY_KEY.get(character.deity_key or "")
-    if path is None:
-        return "Your Priest path has not been named yet."
     if character.deity_key == "moon_elf_witness":
         return "For you, that center is the Witness tradition: sacred clarity without a personal lunar patron."
+    if path is None:
+        return "Your Priest path has not been named yet."
     return f"For you, that center is {path.name}, whose path is associated with {path.domain}."
 
 
@@ -128,26 +195,59 @@ def _starter_ability_line(session) -> str:
     if not abilities:
         return ""
     first = abilities[0]
-    return f"Your first executable class ability is {first.name}. Type ABILITIES for the full unlocked list."
+    return f"Your training already gives you access to {first.name}. Type ABILITIES whenever you need to review what you can use."
 
 
-async def _show_moment(session, *, complete: bool) -> None:
+def _quest_state(session, quest_key: str) -> dict | None:
+    character = getattr(session, "character", None)
+    database = getattr(session, "database", None)
+    if character is None or database is None or not hasattr(database, "get_quest"):
+        return None
+    row = database.get_quest(character.id, quest_key)
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return dict(row)
+    try:
+        return dict(row)
+    except (TypeError, ValueError):
+        return None
+
+
+def _trigger_ready(session) -> tuple[OpeningTrigger, StarterClassMoment] | None:
+    character = getattr(session, "character", None)
+    if character is None:
+        return None
+    moment = starter_class_moment(character.race or "", character.character_class or "")
+    trigger = RACE_OPENING_TRIGGERS.get(character.race or "")
+    if moment is None or trigger is None:
+        return None
+    if moment.flag_key in session.database.list_flags(character.id):
+        return None
+    quest = _quest_state(session, trigger.quest_key)
+    if quest is None or quest.get("status") != "active":
+        return None
+    if quest.get("current_step") != trigger.trigger_step:
+        return None
+    return trigger, moment
+
+
+async def _show_integrated_class_beat(session, trigger: OpeningTrigger, moment: StarterClassMoment) -> None:
     character = session.character
     if character is None:
         return
-    moment = starter_class_moment(character.race or "", character.character_class or "")
-    if moment is None:
-        await session.send("No starter class moment is authored for this character.\r\n")
+    if moment.flag_key in session.database.list_flags(character.id):
         return
 
     race = RACES_BY_KEY.get(moment.race_key)
     character_class = CLASSES_BY_KEY.get(moment.class_key)
     race_name = race.name if race else moment.race_key
     class_name = character_class.name if character_class else moment.class_key
-    already_done = moment.flag_key in session.database.list_flags(character.id)
 
-    await session.send(f"\r\n--- {moment.title}: {race_name} {class_name} ---\r\n")
+    await session.send(f"\r\n--- {moment.title} ---\r\n")
+    await session.send(trigger.lead_in + "\r\n\r\n")
     await session.send(moment.setting + "\r\n\r\n")
+    await session.send(f"As a {race_name} {class_name}, you practice one small piece of the discipline:\r\n")
     await session.send(moment.practice_text + "\r\n")
     priest_line = _priest_path_line(session)
     if priest_line:
@@ -156,39 +256,37 @@ async def _show_moment(session, *, complete: bool) -> None:
     if ability_line:
         await session.send(ability_line + "\r\n")
     await session.send("\r\n" + moment.lesson + "\r\n")
+    await session.send(trigger.closing + "\r\n")
+    session.database.grant_flag(character.id, moment.flag_key)
 
-    if complete and not already_done:
-        session.database.grant_flag(character.id, moment.flag_key)
-        await session.send("Class moment complete. This does not block or replace your racial opening quest.\r\n")
-    elif already_done:
-        await session.send("You have already completed this small class-specific opening moment.\r\n")
+
+async def _delegate_prompt(self, previous_playing_prompt, command: str) -> None:
+    had_instance_prompt = "prompt" in self.__dict__
+    prior_prompt = self.__dict__.get("prompt")
+
+    async def replay_prompt(_text: str) -> str:
+        return command
+
+    self.prompt = replay_prompt
+    try:
+        await previous_playing_prompt(self)
+    finally:
+        if had_instance_prompt:
+            self.prompt = prior_prompt
+        else:
+            self.__dict__.pop("prompt", None)
 
 
 def install_starter_class_moment_runtime(player_session_class) -> None:
-    """Give every one of the 8x5 race/class combinations a small opening beat.
+    """Weave all 8x5 class acknowledgements into existing racial openings.
 
-    The moment is deliberately self-contained: no race needs forty duplicate
-    rooms, enemies, or quest branches merely to acknowledge class identity.
+    Nothing is launched by a meta tutorial command. A class beat is emitted once,
+    immediately after a real authored starter-quest action advances the opening.
     """
     if getattr(player_session_class, "_starter_class_moment_runtime_installed", False):
         return
 
-    previous_enter_character = player_session_class.enter_character
     previous_playing_prompt = player_session_class.playing_prompt
-
-    async def enter_character(self) -> None:
-        await previous_enter_character(self)
-        character = self.character
-        if character is None:
-            return
-        moment = starter_class_moment(character.race or "", character.character_class or "")
-        if moment is None:
-            return
-        if moment.flag_key not in self.database.list_flags(character.id):
-            await self.send(
-                "\r\nYour racial opening includes one brief class-specific practice beat. "
-                "Type CLASS MOMENT when you want to play it; it is optional and never blocks your quest progress.\r\n"
-            )
 
     async def playing_prompt(self) -> None:
         if self.character is None:
@@ -200,32 +298,26 @@ def install_starter_class_moment_runtime(player_session_class) -> None:
         if command is None:
             self.state = type(self.state).DISCONNECTED
             return
-        normalized = " ".join(command.strip().lower().split())
 
-        if normalized in {"class moment", "class practice", "practice class", "starter class"}:
-            await _show_moment(self, complete=True)
+        ready = _trigger_ready(self)
+        before_step = None
+        if ready is not None:
+            trigger, _moment = ready
+            before = _quest_state(self, trigger.quest_key)
+            before_step = None if before is None else before.get("current_step")
+
+        await _delegate_prompt(self, previous_playing_prompt, command)
+
+        if ready is None:
             return
+        trigger, moment = ready
+        after = _quest_state(self, trigger.quest_key)
+        if after is None:
+            return
+        # Only a real state transition inside the underlying racial opener earns
+        # the beat. Wrong-room or invalid commands leave the step unchanged.
+        if before_step == trigger.trigger_step and after.get("current_step") != before_step:
+            await _show_integrated_class_beat(self, trigger, moment)
 
-        had_instance_prompt = "prompt" in self.__dict__
-        prior_prompt = self.__dict__.get("prompt")
-
-        async def replay_prompt(_text: str) -> str:
-            return command
-
-        self.prompt = replay_prompt
-        try:
-            await previous_playing_prompt(self)
-        finally:
-            if had_instance_prompt:
-                self.prompt = prior_prompt
-            else:
-                self.__dict__.pop("prompt", None)
-
-        if normalized in {"help", "?"}:
-            await self.send(
-                "Starter identity: CLASS MOMENT plays the optional class-specific beat woven into your race's opening.\r\n"
-            )
-
-    player_session_class.enter_character = enter_character
     player_session_class.playing_prompt = playing_prompt
     player_session_class._starter_class_moment_runtime_installed = True
