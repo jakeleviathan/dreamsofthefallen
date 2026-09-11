@@ -264,7 +264,7 @@ class MoonElfDruidStartTests(unittest.TestCase):
         output = "".join(session.outputs).lower()
         self.assertIn("care without clarity can still cause harm", output)
         self.assertIn("corrected the light before you strengthened the roots", output)
-        self.assertIn("not suddenly perfect", output)
+        self.assertIn("nothing becomes perfect", output)
 
     def test_nurture_progress_cannot_be_farmed_by_replaying_step(self):
         class Session(FakeSession):
