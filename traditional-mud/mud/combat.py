@@ -172,7 +172,9 @@ SEWER_RAT = EnemyDefinition(
     armor_class=3,
     auto_attack_damage=2,
     auto_attack_interval=3.2,
-    xp_reward=30,
+    # The Vermin Pens are infinitely repeatable. Keep them useful for loot and
+    # practice without letting the tutorial cage out-level the authored world.
+    xp_reward=15,
     retaliates=True,
     tutorial=True,
 )
@@ -186,7 +188,9 @@ SMALL_IMP = EnemyDefinition(
     armor_class=5,
     auto_attack_damage=3,
     auto_attack_interval=3.0,
-    xp_reward=40,
+    # Slightly better than the rat because the imp is tougher, but still below
+    # the one-time Blackwall Burrower reward that anchors the Human level-2 arc.
+    xp_reward=20,
     retaliates=True,
     tutorial=True,
 )
