@@ -24,6 +24,10 @@ from mud.forest_elf_brute_start import (
     install_forest_elf_brute_content,
     install_forest_elf_brute_runtime,
 )
+from mud.forest_elf_priest_start import (
+    install_forest_elf_priest_content,
+    install_forest_elf_priest_runtime,
+)
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 from mud.human_blackwall_opening import install_human_blackwall_content, install_human_blackwall_runtime
 from mud.human_cathedral_faith import install_human_cathedral_content, install_human_cathedral_runtime
@@ -74,6 +78,9 @@ install_forest_elf_wizard_content()
 # Forest Elf Brutes join an ordinary path crew: brace a dangerous load, lift with
 # other people, then use Taunt to protect someone without turning danger into a fight.
 install_forest_elf_brute_content()
+# Forest Elf Priests serve at a family remembrance: listening and ritual matter
+# without requiring grief to become a spell problem or evidence for a doctrine.
+install_forest_elf_priest_content()
 install_goblin_world()
 install_human_blackwall_content()
 install_human_cathedral_content()
@@ -171,6 +178,9 @@ install_forest_elf_wizard_runtime(PlayerSession, WORLD)
 # Forest Elf Brutes learn protection through path work: control the load, use the
 # crew, take hostile attention, and end the danger without needing to defeat it.
 install_forest_elf_brute_runtime(PlayerSession, WORLD)
+# Forest Elf Priests learn that communal ritual can serve grief without erasing it,
+# proving a theology, or using magic simply because the class possesses magic.
+install_forest_elf_priest_runtime(PlayerSession, WORLD)
 install_dwarf_runtime(PlayerSession, WORLD)
 install_dwarf_first_shift_runtime(PlayerSession, WORLD)
 install_human_blackwall_runtime(PlayerSession, WORLD)
