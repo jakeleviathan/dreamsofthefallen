@@ -1,5 +1,14 @@
 import asyncio
 
+# Compatibility for an older Dwarf first-shift symbol typo that only appears
+# when the fully assembled live WORLD is passed back through that installer.
+# The unit content path never exercised it, but the canonical production server
+# does. Keep the live entrypoint healthy while preserving the authored room key.
+import mud.dwarf_first_shift as dwarf_first_shift
+
+if not hasattr(dwarf_first_shift, "BELLOWSWORKS_SHIFT_FLOOR_KEY"):
+    dwarf_first_shift.BELLOWSWORKS_SHIFT_FLOOR_KEY = dwarf_first_shift.DWARF_BELLOWSWORKS_FLOOR_KEY
+
 from mud.server import MudServer, PlayerSession, WORLD
 from mud.trade_experience import install_trade_experience_runtime
 from mud.economy_loop import install_economy_loop_runtime
