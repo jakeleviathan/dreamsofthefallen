@@ -136,7 +136,8 @@ def _active_objectives(session) -> list[tuple[str, str, str, str]]:
             continue
         objective = definition.objective_for_step(step)
         if objective:
-            result.append((quest_key, step, definition.name, objective))
+            quest_name = str(getattr(definition, "name", quest_key.replace("_", " ").title()))
+            result.append((quest_key, step, quest_name, objective))
     return result
 
 
