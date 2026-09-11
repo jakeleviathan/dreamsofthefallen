@@ -19,8 +19,10 @@ from mud.human_blackwall_opening import (
 )
 from mud.human_playable_slice import (
     HUMAN_FIRST_MILE_OVERLOOK_KEY,
+    HUMAN_SLICE_PLAYTEST_TARGET_MINUTES,
     SliceAward,
     announce_slice_awards,
+    first_fight_class_hint,
     human_playable_slice_augmentations,
     install_human_playable_slice_content,
     newly_unlocked_class_abilities,
@@ -142,6 +144,26 @@ class HumanPlayableSliceEmotionalPolishTests(unittest.TestCase):
         output = "".join(session.outputs)
         self.assertIn("Sergeant Mara Vey", output)
         self.assertIn("bad attempt is still information", output.lower())
+
+    def test_first_fight_hint_names_one_concrete_class_action(self):
+        cases = (
+            ("brute", None, ("Taunt", "USE TAUNT")),
+            ("wizard", None, ("Coldfire Burst", "USE COLDFIRE BURST")),
+            ("druid", None, ("Minor Heal", "USE MINOR HEAL")),
+            ("necromancer", None, ("Minor Life Tap", "USE MINOR LIFE TAP")),
+            ("priest", "leviathan", ("Judgment Bolt", "USE JUDGMENT BOLT")),
+        )
+        for class_key, deity_key, expected in cases:
+            with self.subTest(class_key=class_key, deity_key=deity_key):
+                character = SimpleNamespace(
+                    character_class=class_key,
+                    deity_key=deity_key,
+                    level=1,
+                )
+                self.assertEqual(first_fight_class_hint(character), expected)
+
+    def test_manual_playtest_target_is_a_compact_first_session(self):
+        self.assertEqual(HUMAN_SLICE_PLAYTEST_TARGET_MINUTES, (20, 30))
 
 
 if __name__ == "__main__":
