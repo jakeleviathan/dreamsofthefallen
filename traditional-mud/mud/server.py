@@ -8,6 +8,10 @@ from mud.forest_elf_nurture import install_forest_elf_nurture_content, install_f
 from mud.forest_elf_stewardship import install_forest_elf_stewardship_content, install_forest_elf_stewardship_runtime
 from mud.forest_elf_home_and_omens import install_forest_elf_home_content, install_forest_elf_home_runtime
 from mud.forest_elf_homecoming import install_forest_elf_homecoming_runtime
+from mud.forest_elf_necromancer_start import (
+    install_forest_elf_necromancer_content,
+    install_forest_elf_necromancer_runtime,
+)
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 from mud.human_blackwall_opening import install_human_blackwall_content, install_human_blackwall_runtime
 from mud.human_cathedral_faith import install_human_cathedral_content, install_human_cathedral_runtime
@@ -46,6 +50,9 @@ install_dwarf_first_shift_content()
 install_forest_elf_nurture_content()
 install_forest_elf_stewardship_content()
 install_forest_elf_home_content()
+# The first dedicated Forest Elf class extension adds a public death-work grove
+# to Hearthwalk, then waits until the shared racial opening is complete.
+install_forest_elf_necromancer_content()
 install_goblin_world()
 install_human_blackwall_content()
 install_human_cathedral_content()
@@ -131,6 +138,9 @@ install_forest_elf_stewardship_runtime(PlayerSession, WORLD)
 install_forest_elf_home_runtime(PlayerSession, WORLD)
 # Finish that arc with a prepared wayroot return and a quiet homecoming beat.
 install_forest_elf_homecoming_runtime(PlayerSession)
+# Forest Elf Necromancers continue from the Hushed Verge observation into a
+# grounded lesson about ordinary death, restraint, and their first Life Tap.
+install_forest_elf_necromancer_runtime(PlayerSession, WORLD)
 install_dwarf_runtime(PlayerSession, WORLD)
 install_dwarf_first_shift_runtime(PlayerSession, WORLD)
 install_human_blackwall_runtime(PlayerSession, WORLD)
