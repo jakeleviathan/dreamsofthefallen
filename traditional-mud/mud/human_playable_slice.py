@@ -17,7 +17,7 @@ from mud.human_blackwall_opening import (
     HUMAN_READINESS_QUEST_KEY,
     HUMAN_SOOTSTEP_TUNNEL_KEY,
 )
-from mud.mechanics import PROGRESSION_RULES
+from mud.mechanics import PROGRESSION_RULES, class_abilities_for_level
 from mud.room_engine import DescriptionLayer, ExitDefinition, FeatureDefinition, RoomAugmentation
 from mud.stats import CharacterStats, EquipmentItem
 from mud.world import RoomDefinition
@@ -91,6 +91,15 @@ def human_playable_slice_augmentations() -> dict[str, RoomAugmentation]:
                     summary="the first broad view of Astralis outside the shelter of the Human capital",
                     examine_text=(
                         "Blackwall is only one shape in the landscape from here. Wagons move like dark stitches along the northern road, field walls divide the low country, and the distant mountains are too far away to feel like scenery placed for your benefit. People already live there. Roads already matter there."
+                    ),
+                ),
+                FeatureDefinition(
+                    key="first_mile_blackwall_behind",
+                    name="Blackwall Behind You",
+                    aliases=("blackwall", "wall", "city", "blackwall behind you", "look back"),
+                    summary="the Human capital resolving into familiar places instead of one enormous silhouette",
+                    examine_text=(
+                        "From outside, Blackwall stops being one intimidating shape. You can pick out the watch quarter around Sergeant Mara Vey's readiness yard, the freight roofs where Ketta Brassrun argued with a broken wheel, the archive windows where Orrin Vale set the dead Earth handset into a padded tray, and Sera Thorn's gate below. The people from the morning are still back there doing ordinary work. The road ahead feels larger because you now have somewhere specific behind you."
                     ),
                 ),
             ),
@@ -244,13 +253,38 @@ def reconcile_human_slice_progression(session) -> tuple[SliceAward, ...]:
     return tuple(awards)
 
 
+def newly_unlocked_class_abilities(character, old_level: int, new_level: int) -> tuple[str, ...]:
+    """Return concrete class abilities gained across a level boundary."""
+    if character is None or new_level <= old_level:
+        return ()
+    class_key = character.character_class or ""
+    deity_key = getattr(character, "deity_key", None)
+    before = {
+        ability.key
+        for ability in class_abilities_for_level(class_key, old_level, deity_key)
+    }
+    return tuple(
+        ability.name
+        for ability in class_abilities_for_level(class_key, new_level, deity_key)
+        if ability.key not in before
+    )
+
+
 async def announce_slice_awards(session, awards: tuple[SliceAward, ...]) -> None:
     for award in awards:
         await session.send(f"\r\nExperience: +{award.xp} XP - {award.label}.\r\n")
         if award.new_level > award.old_level:
+            unlocked = newly_unlocked_class_abilities(
+                getattr(session, "character", None), award.old_level, award.new_level
+            )
+            await session.send(f"*** LEVEL {award.new_level} ***\r\n")
+            if unlocked:
+                label = ", ".join(unlocked)
+                await session.send(
+                    f"New class ability{'ies' if len(unlocked) != 1 else ''}: {label}.\r\n"
+                )
             await session.send(
-                f"*** LEVEL {award.new_level} ***\r\n"
-                "Your character has grown beyond the opening rank. Type ABILITIES to see what your class can now do.\r\n"
+                "Your character has grown beyond the opening rank. Type ABILITIES to review the tools that changed with the level.\r\n"
             )
         else:
             next_total = PROGRESSION_RULES.cumulative_xp_for_level(award.new_level + 1)
@@ -310,6 +344,7 @@ async def recover_first_burrower_defeat(session, enemy_name: str) -> bool:
     await session.send(
         "\r\nThe burrower gets underneath your guard and the tunnel goes black.\r\n"
         "\r\nYou wake on a Cinder Ward watch bench with a bandage around your ribs and a cup of bitter tea going cold beside you. A maintenance runner found you near the Sootstep stair and hauled you back inside.\r\n"
+        "A folded scrap from Sergeant Mara Vey sits under the cup: 'A bad attempt is still information. Remember what got through your guard, then decide whether you are ready to try again.'\r\n"
         "This first Blackwall recovery costs no experience. Outside protected opening incidents, death returns you to your bind point and can cost XP earned within your current level.\r\n"
         "Your investigation is still active. Recover your bearings, then return east when you are ready to try the tunnel again.\r\n\r\n"
     )
@@ -373,7 +408,8 @@ def install_human_playable_slice_runtime(player_session_class, world_service=Non
         self.database.grant_flag(self.character.id, HUMAN_SLICE_OVERLOOK_FLAG)
         await self.send(
             "\r\nNo bell sounds. No quest appears. For a moment Astralis is simply a place around you: wagons on a distant road, somebody's cooking smoke, mountains that will still be there tomorrow.\r\n"
-            "The structured Blackwall opening has done its job. When you want another direction, WEST returns to the city and the sealed cathedral note waiting there. For now, you are allowed to just look.\r\n"
+            "Looking back, Blackwall resolves into places instead of one silhouette: Mara's yard, Ketta's freight court, Orrin's archive windows, Sera's gate. The morning already has people in it you can picture returning to.\r\n"
+            "The structured Blackwall opening has done its job. When you want another direction, WEST returns to the city and the sealed cathedral note waiting there. The milepost and horizon offer names without assigning you a task. For now, you are allowed to just look.\r\n"
         )
 
     async def start_combat(self, target_text: str) -> None:
