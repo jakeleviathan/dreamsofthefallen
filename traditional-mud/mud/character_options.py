@@ -89,16 +89,20 @@ RACES: tuple[RaceDefinition, ...] = (
         name="Moon Elf",
         description=(
             "Lavender-grey elves with oversized eyes and no visible sclera. Their lost origins and ancient lunar culture "
-            "make them visibly unusual, though they are long-established on Astralis."
+            "center on perspective, clear horizons, and the idea that understanding can change when the view changes."
         ),
         lore=(
             "Their true origin is lost to time; some traditions claim they arrived from beyond Astralis without technology.",
             "They have normal hair and otherwise familiar elven humanoid anatomy.",
-            "Their civilization is ancient, mystical, elegant, and deeply tied to Astralis's moon.",
+            "Their civilization is ancient, elegant, and deeply tied to Astralis's moon, but the moon is not generally worshiped as a god.",
+            "The moon is a cultural and spiritual symbol of perspective: distance can reveal a shape that closeness hides.",
+            "Their high-altitude cities are valued for broad clear horizons and open night skies, not because height is believed to make Moon Elves holier or superior.",
+            "Changing one's mind when new evidence or perspective changes the view is respected rather than treated as weakness.",
+            "Many families keep journals across generations so descendants can see observations, decisions, disagreements, and later corrections rather than a falsely perfect ancestral record.",
+            "The moon's phases mark customary modes of thought rather than fate or horoscopes: New Moon for privacy and beginnings, Waxing for inquiry and preparation, Full Moon for clarity and honesty, and Waning for revision and release.",
             "They are emotionally familiar rather than alien and are broadly accepted by other races.",
-            "They resent Forest Elf claims that they are not real elves.",
-            "Like Forest Elves, they insist that they are simply 'Elves'; 'Moon Elf' is an outsider/player-facing label.",
-            "Their high-altitude homeland places their cities among mountain peaks closer to the moonlit sky.",
+            "They resent Forest Elf claims that they are not real elves; Forest Elves often see them as detached observers, while Moon Elves see Forest Elf rootedness as capable of becoming narrowness.",
+            "Like Forest Elves, they insist that they are simply 'Elves'; 'Moon Elf' is an outsider/player-facing label, and the rivalry between the two Elven cultures is sharp without being automatic hatred or war.",
         ),
         starting_region="moon_peaks",
         social_profile="accepted_but_elven_rivalry",
