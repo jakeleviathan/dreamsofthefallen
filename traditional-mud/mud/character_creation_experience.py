@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from mud.character_options import RaceDefinition
+from mud.character_options import ClassDefinition, RaceDefinition
 
 
 @dataclass(frozen=True, slots=True)
@@ -11,6 +11,13 @@ class RacePresentation:
     known_for: str
     world_view: str
     starting_area: str
+
+
+@dataclass(frozen=True, slots=True)
+class ClassPresentation:
+    hook: str
+    play_style: str
+    good_if: str
 
 
 RACE_PRESENTATIONS: dict[str, RacePresentation] = {
@@ -65,6 +72,35 @@ RACE_PRESENTATIONS: dict[str, RacePresentation] = {
 }
 
 
+CLASS_PRESENTATIONS: dict[str, ClassPresentation] = {
+    "brute": ClassPresentation(
+        hook="Strength with responsibility: stand where the danger has to deal with you first.",
+        play_style="A weapon-focused frontline fighter built around threat control, direct physical damage, and protecting other people by holding enemy attention.",
+        good_if="You like being in the middle of the fight, controlling pressure, relying on weapons and gear, and making physical decisions that matter to the whole group.",
+    ),
+    "wizard": ClassPresentation(
+        hook="Careful power through understanding.",
+        play_style="A direct-damage arcane caster with powerful spells, self-protection, magical utility, and eventually world-spanning movement magic.",
+        good_if="You like solving problems with precise spellwork, hitting hard from magic rather than weapons, and carrying some of your own protection and utility.",
+    ),
+    "druid": ClassPresentation(
+        hook="Care for living things with healing, preparation, and practical nature magic.",
+        play_style="A nature-oriented support caster combining healing, buffs, gathering utility, wards, and control without shapeshifting.",
+        good_if="You like helping a group stay healthy and prepared, using nature as a toolkit, and being useful even when raw damage is not the answer.",
+    ),
+    "priest": ClassPresentation(
+        hook="Ritual care without easy answers.",
+        play_style="Astralis's strongest dedicated healer and defensive-support class, with an authored spiritual path that shapes later spells and abilities.",
+        good_if="You like keeping other people alive, protecting a group, carrying major healing responsibility, and letting faith or tradition shape how your magic develops.",
+    ),
+    "necromancer": ClassPresentation(
+        hook="Death work with consequences.",
+        play_style="A caster built around life-draining magic, decay, damage over time, undead servants, and practical tools that deal directly with death.",
+        good_if="You like pets, attrition, unusual utility, morally weighty magic, and power that often asks what should be done rather than only what can be done.",
+    ),
+}
+
+
 def _normalize_choice(value: str) -> str:
     return " ".join(value.strip().lower().replace("_", " ").split())
 
@@ -83,6 +119,23 @@ def _find_race(options: tuple[RaceDefinition, ...], choice: str) -> RaceDefiniti
         }
         if normalized in names:
             return race
+    return None
+
+
+def _find_class(options: tuple[ClassDefinition, ...], choice: str) -> ClassDefinition | None:
+    normalized = _normalize_choice(choice)
+    if normalized.isdigit():
+        index = int(normalized)
+        if 1 <= index <= len(options):
+            return options[index - 1]
+        return None
+    for character_class in options:
+        names = {
+            _normalize_choice(character_class.key),
+            _normalize_choice(character_class.name),
+        }
+        if normalized in names:
+            return character_class
     return None
 
 
@@ -171,18 +224,123 @@ async def choose_race_experience(
             await session.send("Type CHOOSE, MORE LORE, or BACK.\r\n")
 
 
+async def _show_calling_list(session, options: tuple[ClassDefinition, ...]) -> None:
+    await session.send(
+        "\r\n--- Choose Your Calling ---\r\n"
+        "Start with the kind of adventurer you want to be. Pick a calling to see how it actually plays before committing.\r\n\r\n"
+    )
+    for index, character_class in enumerate(options, start=1):
+        presentation = CLASS_PRESENTATIONS.get(character_class.key)
+        hook = presentation.hook if presentation else character_class.description
+        await session.send(f"{index}) {character_class.name} - {hook}\r\n")
+    await session.send(
+        "\r\nEvery people can follow every calling. Enter a number or class name to look closer.\r\n"
+        "Type 0 or CANCEL to leave character creation.\r\n"
+    )
+
+
+async def _show_class_card(session, character_class: ClassDefinition) -> None:
+    presentation = CLASS_PRESENTATIONS.get(character_class.key)
+    await session.send(f"\r\n--- {character_class.name} ---\r\n")
+    if presentation is None:
+        await session.send(character_class.description + "\r\n")
+    else:
+        await session.send(
+            f"Vibe: {presentation.hook}\r\n\r\n"
+            f"How it plays: {presentation.play_style}\r\n"
+            f"Good if you like: {presentation.good_if}\r\n"
+            f"At the start: {character_class.early_game_identity}\r\n"
+        )
+    if character_class.requires_deity_path:
+        await session.send(
+            "Path: Your Priest tradition or patron is chosen immediately after class selection and shapes your authored spell path.\r\n"
+        )
+    await session.send(
+        "\r\nType CHOOSE to continue with this class, MORE DETAILS for the longer mechanical picture, or BACK to compare classes.\r\n"
+    )
+
+
+async def _show_class_details(session, character_class: ClassDefinition) -> None:
+    await session.send(f"\r\n--- More Details: {character_class.name} ---\r\n")
+    await session.send(f"Core role: {character_class.description}\r\n")
+    await session.send(f"Later identity: {character_class.endgame_identity}\r\n")
+    await session.send(f"Equipment: {character_class.equipment_identity}\r\n")
+    await session.send(
+        "Ability progression: Your class has an authored ability path; you do not build it from a talent pool.\r\n"
+    )
+    if character_class.class_passives:
+        await session.send("Class features: " + ", ".join(character_class.class_passives) + ".\r\n")
+    if character_class.allows_shapeshifting:
+        await session.send("Shapeshifting: This class can shapeshift.\r\n")
+    elif character_class.key == "druid":
+        await session.send("Shapeshifting: Druids in Dreams of the Fallen do not shapeshift.\r\n")
+    if character_class.requires_deity_path:
+        await session.send(
+            "Spiritual path: Priest abilities branch through an authored patron or cultural tradition rather than a generic spell list.\r\n"
+        )
+    await session.send("\r\nType CHOOSE to continue or BACK to compare classes.\r\n")
+
+
+async def choose_class_experience(
+    session,
+    options: tuple[ClassDefinition, ...],
+) -> ClassDefinition | None:
+    while True:
+        await _show_calling_list(session, options)
+        choice = await session.prompt("Calling: ")
+        if choice is None:
+            import mud.session as session_module
+
+            session.state = session_module.SessionState.DISCONNECTED
+            return None
+        if _normalize_choice(choice) in {"0", "cancel", "quit", "q"}:
+            await session.send("\r\nCharacter creation cancelled.\r\n")
+            return None
+
+        character_class = _find_class(options, choice)
+        if character_class is None:
+            await session.send("\r\nChoose one of the listed callings by number or class name.\r\n")
+            continue
+
+        await _show_class_card(session, character_class)
+        while True:
+            action = await session.prompt(f"{character_class.name}: ")
+            if action is None:
+                import mud.session as session_module
+
+                session.state = session_module.SessionState.DISCONNECTED
+                return None
+            normalized = _normalize_choice(action)
+            if normalized in {"choose", "select", "yes", "y", "continue"}:
+                return character_class
+            if normalized in {"more", "more details", "details", "info", "mechanics"}:
+                await _show_class_details(session, character_class)
+                continue
+            if normalized in {"back", "b", "compare"}:
+                break
+            if normalized in {"0", "cancel", "quit", "q"}:
+                await session.send("\r\nCharacter creation cancelled.\r\n")
+                return None
+            await session.send("Type CHOOSE, MORE DETAILS, or BACK.\r\n")
+
+
 def install_character_creation_experience(player_session_class) -> None:
-    """Make race selection hook-first without changing the underlying race/class rules."""
+    """Make race and class selection hook-first without changing the underlying rules."""
     if getattr(player_session_class, "_character_creation_experience_installed", False):
         return
 
     previous_choose_creation_option = player_session_class.choose_creation_option
 
     async def choose_creation_option(self, label: str, options):
-        if label.strip().lower() == "race" and options and all(
+        normalized_label = label.strip().lower()
+        if normalized_label == "race" and options and all(
             isinstance(option, RaceDefinition) for option in options
         ):
             return await choose_race_experience(self, tuple(options))
+        if normalized_label == "class" and options and all(
+            isinstance(option, ClassDefinition) for option in options
+        ):
+            return await choose_class_experience(self, tuple(options))
         return await previous_choose_creation_option(self, label, options)
 
     player_session_class.choose_creation_option = choose_creation_option
