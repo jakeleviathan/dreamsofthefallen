@@ -71,6 +71,8 @@ class CommandHelpTests(unittest.TestCase):
         self.assertIn("COMMANDS or HELP ALL", output)
         self.assertIn("QUESTS", output)
         self.assertIn("RACIAL", output)
+        self.assertIn("opening teaches class basics naturally", output)
+        self.assertNotIn("CLASS MOMENT", output)
         self.assertNotIn("[Crafts, Gathering & Shops]", output)
 
     def test_full_help_is_tailored_to_forest_elf_wizard(self):
@@ -81,6 +83,7 @@ class CommandHelpTests(unittest.TestCase):
         self.assertIn("USE COLDFIRE BURST", output)
         self.assertIn("SLIPSTEP", output)
         self.assertIn("HOME, FOREST OPENING", output)
+        self.assertNotIn("CLASS MOMENT", output)
         self.assertNotIn("RECONSIDER", output)
         self.assertNotIn("PENTHOUSE", output)
 
