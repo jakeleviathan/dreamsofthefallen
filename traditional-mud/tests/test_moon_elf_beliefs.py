@@ -129,7 +129,7 @@ class MoonElfBeliefTests(unittest.TestCase):
         asyncio.run(session.playing_prompt())
         beliefs_output = "".join(session.outputs).lower()
         self.assertIn("elven lunar tradition", beliefs_output)
-        self.assertIn("changing your mind", beliefs_output)
+        self.assertIn("change your mind", beliefs_output)
 
         session.outputs.clear()
         session.command = "moon"
