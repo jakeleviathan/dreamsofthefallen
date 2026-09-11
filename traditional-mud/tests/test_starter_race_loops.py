@@ -1,14 +1,12 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
-# Import the fully assembled game server so every authored race module has had a
-# chance to register its rooms and first quest before the contract is checked.
-import mud.server  # noqa: F401
-import mud.quests as quests
-import mud.world as world
 from mud.character_options import RACES_BY_KEY
 from mud.database import Database
 from mud.starter_race_loops import (
@@ -40,19 +38,30 @@ class StarterRaceLoopTests(unittest.TestCase):
                 self.assertTrue(all(action.strip() for action in loop.player_actions))
                 self.assertTrue(loop.completion_flag.strip())
 
-    def test_live_content_satisfies_the_eight_race_contract(self):
+    def test_contract_validator_requires_rooms_regions_exits_and_first_quests(self):
+        rooms = {
+            loop.starting_room_key: SimpleNamespace(
+                region_key=loop.region_key,
+                exits={"out": "somewhere"},
+            )
+            for loop in STARTER_RACE_LOOPS
+        }
+        quests = {loop.first_quest_key: object() for loop in STARTER_RACE_LOOPS}
+
         validate_starter_loop_contract(
-            rooms_by_key=world.ROOMS_BY_KEY,
-            quests_by_key=quests.QUESTS_BY_KEY,
+            rooms_by_key=rooms,
+            quests_by_key=quests,
             race_keys=set(RACES_BY_KEY),
         )
 
-        for loop in STARTER_RACE_LOOPS:
-            with self.subTest(race=loop.race_key):
-                room = world.ROOMS_BY_KEY[loop.starting_room_key]
-                self.assertEqual(room.region_key, loop.region_key)
-                self.assertTrue(room.exits)
-                self.assertIn(loop.first_quest_key, quests.QUESTS_BY_KEY)
+        broken_quests = dict(quests)
+        broken_quests.pop(STARTER_RACE_LOOPS[0].first_quest_key)
+        with self.assertRaises(RuntimeError):
+            validate_starter_loop_contract(
+                rooms_by_key=rooms,
+                quests_by_key=broken_quests,
+                race_keys=set(RACES_BY_KEY),
+            )
 
     def test_new_characters_of_all_eight_races_have_real_room_and_bind_immediately(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -69,15 +78,29 @@ class StarterRaceLoopTests(unittest.TestCase):
                     )
                     self.assertEqual(character.current_room, loop.starting_room_key)
                     self.assertEqual(character.bind_room, loop.starting_room_key)
-                    self.assertIn(character.current_room, world.ROOMS_BY_KEY)
 
     def test_starting_room_lookup_covers_every_race(self):
         for race_key in RACES_BY_KEY:
             with self.subTest(race=race_key):
-                room_key = starting_room_for_race(race_key)
-                self.assertIsNotNone(room_key)
-                self.assertIn(room_key, world.ROOMS_BY_KEY)
+                self.assertIsNotNone(starting_room_for_race(race_key))
         self.assertIsNone(starting_room_for_race("not_a_race"))
+
+    def test_production_entrypoint_assembles_and_validates_all_eight_starts(self):
+        # Importing the production entrypoint installs every authored content
+        # layer and then runs the real starter-loop validator. Do it in a child
+        # process so those production registry mutations cannot leak into the
+        # rest of the unit test suite.
+        project_root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [sys.executable, "-c", "import server; print('STARTER_CONTRACT_OK')"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertIn("STARTER_CONTRACT_OK", result.stdout)
 
 
 if __name__ == "__main__":
