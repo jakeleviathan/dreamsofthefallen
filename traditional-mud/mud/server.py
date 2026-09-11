@@ -11,6 +11,7 @@ from mud.forest_elf_homecoming import install_forest_elf_homecoming_runtime
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 from mud.human_blackwall_opening import install_human_blackwall_content, install_human_blackwall_runtime
 from mud.human_cathedral_faith import install_human_cathedral_content, install_human_cathedral_runtime
+from mud.moon_elf_beliefs import install_moon_elf_belief_runtime
 from mud.undead_start import install_undead_content, install_undead_runtime
 from mud.troll_start import install_troll_content, install_troll_runtime
 from mud.troll_raid_opening import install_troll_raid_content, install_troll_raid_runtime
@@ -80,6 +81,9 @@ WORLD.augmentations.update(goblin_room_augmentations())
 # calendar/seasonal layers, then race-specific starter and progression systems.
 install_room_runtime(PlayerSession)
 install_calendar_runtime(PlayerSession, WORLD)
+# Moon Elf culture interprets the existing astronomical moon cycle as a set of
+# reflective customs rather than prophecy, fate, or worship.
+install_moon_elf_belief_runtime(PlayerSession)
 install_seasonal_runtime(PlayerSession, WORLD)
 install_forest_elf_nurture_runtime(PlayerSession, WORLD)
 install_forest_elf_stewardship_runtime(PlayerSession, WORLD)
