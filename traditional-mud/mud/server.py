@@ -148,8 +148,9 @@ install_racial_ability_runtime(PlayerSession)
 # Sporekin now continue beyond the Forgotten Pulse into a mentor-led lesson on
 # individual judgment, culture, and a safe first combat practice.
 install_sporekin_depth_runtime(PlayerSession, WORLD)
-# Every one of the 8x5 race/class combinations receives one optional, compact
-# class-specific opening beat without multiplying the room graph forty times.
+# Every 8x5 race/class combination gets one compact class lesson automatically
+# when a real authored milestone in that race's starter experience advances.
+# There is no separate tutorial command and no duplicate room graph.
 install_starter_class_moment_runtime(PlayerSession)
 # Apply the authoritative First Piling branch gate last so no later content
 # registration can accidentally expose the beginner swamp before Ruskle's lesson.
