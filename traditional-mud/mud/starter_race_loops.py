@@ -258,8 +258,8 @@ def install_starter_room_database_hook(database_class) -> None:
         name: str,
         race: str,
         character_class: str,
-        deity_key: str | None = None,
         stats=None,
+        deity_key: str | None = None,
     ):
         character = previous_create_character(
             self,
@@ -267,8 +267,8 @@ def install_starter_room_database_hook(database_class) -> None:
             name,
             race,
             character_class,
-            deity_key=deity_key,
             stats=stats,
+            deity_key=deity_key,
         )
         desired_room = starting_room_for_race(race)
         if desired_room is None:
