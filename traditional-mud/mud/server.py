@@ -14,6 +14,10 @@ from mud.human_cathedral_faith import install_human_cathedral_content, install_h
 from mud.moon_elf_beliefs import install_moon_elf_belief_runtime
 from mud.moon_elf_city import install_moon_elf_city_content, install_moon_elf_city_runtime
 from mud.moon_elf_third_chair import install_third_chair_content, install_third_chair_runtime
+from mud.moon_elf_witness_start import (
+    install_moon_elf_witness_start_content,
+    install_moon_elf_witness_start_runtime,
+)
 from mud.racial_abilities import (
     install_fast_learner_database_hook,
     install_racial_ability_definitions,
@@ -51,6 +55,9 @@ install_moon_elf_city_content()
 # The Third Chair extends High Horizon with its first guided social quest and
 # therefore registers after the city it patches but before PlayerSession imports.
 install_third_chair_content()
+# The first dedicated race/class opening extension belongs to Moon Elf Witness
+# Priests and grows naturally out of The Third Chair into practical healing.
+install_moon_elf_witness_start_content()
 install_undead_content()
 install_troll_content()
 install_troll_raid_content()
@@ -113,6 +120,9 @@ install_moon_elf_city_runtime(PlayerSession, WORLD)
 # The Third Chair lets new Moon Elves learn that philosophy through an ordinary
 # civic disagreement, two physical viewpoints, and a non-punitive choice.
 install_third_chair_runtime(PlayerSession, WORLD)
+# Witness Priests receive a class-specific extension only after the shared Moon
+# Elf opening: practical care, first Clearview Mending, and checking the result.
+install_moon_elf_witness_start_runtime(PlayerSession, WORLD)
 install_seasonal_runtime(PlayerSession, WORLD)
 install_forest_elf_nurture_runtime(PlayerSession, WORLD)
 install_forest_elf_stewardship_runtime(PlayerSession, WORLD)
