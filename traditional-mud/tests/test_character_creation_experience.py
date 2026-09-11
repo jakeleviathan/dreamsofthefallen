@@ -4,11 +4,13 @@ import asyncio
 import unittest
 
 from mud.character_creation_experience import (
+    CLASS_PRESENTATIONS,
     RACE_PRESENTATIONS,
+    choose_class_experience,
     choose_race_experience,
     install_character_creation_experience,
 )
-from mud.character_options import RACES
+from mud.character_options import CLASSES, RACES
 from mud.session import SessionState
 
 
@@ -46,14 +48,13 @@ class CharacterCreationExperienceTests(unittest.TestCase):
             self.assertTrue(presentation.world_view)
             self.assertTrue(presentation.starting_area)
 
-    def test_first_screen_is_short_hook_list_not_full_lore_dump(self):
+    def test_first_race_screen_is_short_hook_list_not_full_lore_dump(self):
         session = FakeSession(["0"])
         asyncio.run(choose_race_experience(session, RACES))
         output = "".join(session.outputs)
         self.assertIn("Choose Your People", output)
         self.assertIn("Human - Outsiders who crossed from another world", output)
         self.assertIn("Moon Elf - High-horizon elves", output)
-        # Long lore remains opt-in instead of flooding the first screen.
         self.assertNotIn("No known route back to Earth remains", output)
         self.assertNotIn("Many families keep journals across generations", output)
 
@@ -76,22 +77,84 @@ class CharacterCreationExperienceTests(unittest.TestCase):
         self.assertIn("More Lore: Forest Elf", output)
         self.assertIn("They insist that they are simply 'Elves'", output)
 
-    def test_back_returns_to_comparison_list(self):
+    def test_race_back_returns_to_comparison_list(self):
         session = FakeSession(["1", "back", "8", "choose"])
         selected = asyncio.run(choose_race_experience(session, RACES))
         self.assertEqual(selected.key, "sporekin")
         self.assertGreaterEqual("".join(session.outputs).count("Choose Your People"), 2)
 
-    def test_wrapper_only_replaces_race_choice(self):
-        race_session = WrappedSession(["3", "choose"])
-        selected = asyncio.run(race_session.choose_creation_option("race", RACES))
-        self.assertEqual(selected.key, "moon_elf")
+    def test_all_five_classes_have_hook_first_presentation(self):
+        self.assertEqual({character_class.key for character_class in CLASSES}, set(CLASS_PRESENTATIONS))
+        for character_class in CLASSES:
+            presentation = CLASS_PRESENTATIONS[character_class.key]
+            self.assertTrue(presentation.hook)
+            self.assertTrue(presentation.play_style)
+            self.assertTrue(presentation.good_if)
 
-        class_result = asyncio.run(
-            WrappedSession([]).choose_creation_option("class", (object(),))
+    def test_first_class_screen_is_short_hook_list_not_mechanical_dump(self):
+        session = FakeSession(["0"])
+        asyncio.run(choose_class_experience(session, CLASSES))
+        output = "".join(session.outputs)
+        self.assertIn("Choose Your Calling", output)
+        self.assertIn("Wizard - Careful power through understanding.", output)
+        self.assertIn("Priest - Ritual care without easy answers.", output)
+        self.assertIn("Necromancer - Death work with consequences.", output)
+        self.assertIn("Every people can follow every calling", output)
+        self.assertNotIn("Single-target magical nuke powerhouse", output)
+        self.assertNotIn("Raise Skeleton at level 2", output)
+
+    def test_selecting_class_opens_play_style_card_before_commitment(self):
+        session = FakeSession(["necromancer", "choose"])
+        selected = asyncio.run(choose_class_experience(session, CLASSES))
+        self.assertEqual(selected.key, "necromancer")
+        output = "".join(session.outputs)
+        self.assertIn("Vibe: Death work with consequences.", output)
+        self.assertIn("How it plays:", output)
+        self.assertIn("Good if you like:", output)
+        self.assertIn("At the start:", output)
+        self.assertIn("MORE DETAILS", output)
+
+    def test_class_more_details_is_optional_and_preserves_choice(self):
+        session = FakeSession(["druid", "more details", "choose"])
+        selected = asyncio.run(choose_class_experience(session, CLASSES))
+        self.assertEqual(selected.key, "druid")
+        output = "".join(session.outputs)
+        self.assertIn("More Details: Druid", output)
+        self.assertIn("Later identity:", output)
+        self.assertIn("Equipment:", output)
+        self.assertIn("do not shapeshift", output)
+        self.assertIn("authored ability path", output)
+
+    def test_priest_card_explains_followup_spiritual_path_without_lore_dump(self):
+        session = FakeSession(["priest", "choose"])
+        selected = asyncio.run(choose_class_experience(session, CLASSES))
+        self.assertEqual(selected.key, "priest")
+        output = "".join(session.outputs)
+        self.assertIn("tradition or patron is chosen immediately after class selection", output)
+        self.assertNotIn("Zerjz", output)
+        self.assertNotIn("Tenebrous", output)
+        self.assertNotIn("Leviathan", output)
+
+    def test_class_back_returns_to_comparison_list(self):
+        session = FakeSession(["wizard", "back", "brute", "choose"])
+        selected = asyncio.run(choose_class_experience(session, CLASSES))
+        self.assertEqual(selected.key, "brute")
+        self.assertGreaterEqual("".join(session.outputs).count("Choose Your Calling"), 2)
+
+    def test_wrapper_replaces_race_and_class_choice_but_delegates_other_labels(self):
+        race_session = WrappedSession(["3", "choose"])
+        selected_race = asyncio.run(race_session.choose_creation_option("race", RACES))
+        self.assertEqual(selected_race.key, "moon_elf")
+
+        class_session = WrappedSession(["5", "choose"])
+        selected_class = asyncio.run(class_session.choose_creation_option("class", CLASSES))
+        self.assertEqual(selected_class.key, "necromancer")
+
+        other_result = asyncio.run(
+            WrappedSession([]).choose_creation_option("background", (object(),))
         )
-        self.assertEqual(class_result[0], "legacy")
-        self.assertEqual(class_result[1], "class")
+        self.assertEqual(other_result[0], "legacy")
+        self.assertEqual(other_result[1], "background")
 
 
 if __name__ == "__main__":
