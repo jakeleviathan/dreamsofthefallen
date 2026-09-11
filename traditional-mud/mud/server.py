@@ -13,6 +13,7 @@ from mud.human_blackwall_opening import install_human_blackwall_content, install
 from mud.human_cathedral_faith import install_human_cathedral_content, install_human_cathedral_runtime
 from mud.moon_elf_beliefs import install_moon_elf_belief_runtime
 from mud.moon_elf_city import install_moon_elf_city_content, install_moon_elf_city_runtime
+from mud.moon_elf_third_chair import install_third_chair_content, install_third_chair_runtime
 from mud.undead_start import install_undead_content, install_undead_runtime
 from mud.troll_start import install_troll_content, install_troll_runtime
 from mud.troll_raid_opening import install_troll_raid_content, install_troll_raid_runtime
@@ -39,6 +40,9 @@ install_human_cathedral_content()
 # High Horizon must exist before PlayerSession imports the shared room and race
 # registries so new Moon Elves enter a real starter city rather than a fallback.
 install_moon_elf_city_content()
+# The Third Chair extends High Horizon with its first guided social quest and
+# therefore registers after the city it patches but before PlayerSession imports.
+install_third_chair_content()
 install_undead_content()
 install_troll_content()
 install_troll_raid_content()
@@ -91,6 +95,9 @@ install_moon_elf_belief_runtime(PlayerSession)
 # High Horizon turns that philosophy into civic procedure and a lived-in city:
 # rotating government, public Counterview, night markets, and Skyglass Spire.
 install_moon_elf_city_runtime(PlayerSession, WORLD)
+# The Third Chair lets new Moon Elves learn that philosophy through an ordinary
+# civic disagreement, two physical viewpoints, and a non-punitive choice.
+install_third_chair_runtime(PlayerSession, WORLD)
 install_seasonal_runtime(PlayerSession, WORLD)
 install_forest_elf_nurture_runtime(PlayerSession, WORLD)
 install_forest_elf_stewardship_runtime(PlayerSession, WORLD)
