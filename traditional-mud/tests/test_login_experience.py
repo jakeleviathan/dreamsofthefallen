@@ -8,6 +8,7 @@ from pathlib import Path
 from mud.database import Database
 from mud.login_experience import GOTHIC_WELCOME_BANNER, install_login_experience
 from mud.session import SessionState
+from mud.world import HUMAN_START_ROOM_KEY, ROOMS_BY_KEY
 
 
 class FakeSession:
@@ -84,11 +85,12 @@ class LoginExperienceTests(unittest.TestCase):
         self.assertEqual(session.state, SessionState.CHARACTER_MENU)
         self.assertIn("--- Login ---", "".join(session.outputs))
 
-    def test_roster_always_shows_eight_slots_and_last_played(self):
+    def test_roster_always_shows_eight_slots_last_played_and_location(self):
         database = self._db()
         account = database.create_account("Roster", "hash")
         first = database.create_character(account.id, "Morrow", "human", "wizard")
         database.create_character(account.id, "Rattle", "undead", "brute")
+        database.set_character_room(first.id, HUMAN_START_ROOM_KEY)
         with database.connect() as db:
             db.execute(
                 "UPDATE characters SET last_played_at = '2026-09-09 23:45:00' WHERE id = ?",
@@ -106,8 +108,11 @@ class LoginExperienceTests(unittest.TestCase):
         self.assertIn("Human", output)
         self.assertIn("Wizard", output)
         self.assertIn("2026-09-09 23:45 UTC", output)
+        self.assertIn("Location:", output)
+        self.assertIn(ROOMS_BY_KEY[HUMAN_START_ROOM_KEY].name, output)
         self.assertEqual(output.count("[ Empty ]"), 6)
         self.assertIn("ENTER <slot or name>", output)
+        self.assertIn("PLAY LAST", output)
         self.assertIn("CREATE", output)
 
     def test_enter_accepts_slot_and_records_last_played(self):
@@ -128,6 +133,42 @@ class LoginExperienceTests(unittest.TestCase):
                 (character.id,),
             ).fetchone()["last_played_at"]
         self.assertIsNotNone(value)
+
+    def test_play_last_enters_most_recent_character(self):
+        database = self._db()
+        account = database.create_account("QuickReturn", "hash")
+        older = database.create_character(account.id, "Older", "human", "wizard")
+        newer = database.create_character(account.id, "Newer", "moon_elf", "druid")
+        with database.connect() as db:
+            db.execute(
+                "UPDATE characters SET last_played_at = '2026-09-08 12:00:00' WHERE id = ?",
+                (older.id,),
+            )
+            db.execute(
+                "UPDATE characters SET last_played_at = '2026-09-10 12:00:00' WHERE id = ?",
+                (newer.id,),
+            )
+
+        session = FakeSession(database, ["play last"])
+        session.account = account
+        session.state = SessionState.CHARACTER_MENU
+        asyncio.run(session.character_menu())
+
+        self.assertTrue(session.entered)
+        self.assertEqual(session.character.id, newer.id)
+
+    def test_play_last_without_history_is_explained(self):
+        database = self._db()
+        account = database.create_account("NoHistory", "hash")
+        database.create_character(account.id, "Fresh", "human", "wizard")
+        session = FakeSession(database, ["play last"])
+        session.account = account
+        session.state = SessionState.CHARACTER_MENU
+
+        asyncio.run(session.character_menu())
+
+        self.assertFalse(session.entered)
+        self.assertIn("no previously played character", "".join(session.outputs).lower())
 
     def test_create_command_uses_existing_character_creation_flow(self):
         database = self._db()
