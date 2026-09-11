@@ -173,7 +173,7 @@ def _quick_help_text(session) -> str:
         "SETTINGS controls prompt style, color/contrast, hint level, Mudlet enhancements, and screen-reader mode.",
         "QUESTS shows your quest journal. ABILITIES shows your class abilities. RACIAL shows your racial kit.",
         "ATTACK <target>, USE <ability>, and FLEE cover the basic combat loop.",
-        "INVENTORY and EQUIPMENT show what you carry and wear. BASICS gives the tiny new-player refresher.",
+        "INVENTORY and EQUIPMENT show what you carry and wear. Your opening teaches class basics naturally as you progress. BASICS gives the tiny new-player refresher.",
     ]
     active = _active_quests(session)
     if active:
