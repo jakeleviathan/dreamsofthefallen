@@ -5,7 +5,12 @@ from typing import Any
 
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.combat import ENEMIES_BY_KEY
-from mud.player_preferences import hint_level, persist_prompt_mode, style_text
+from mud.player_preferences import (
+    hint_level,
+    install_player_preferences_runtime,
+    persist_prompt_mode,
+    style_text,
+)
 from mud.quests import QUESTS_BY_KEY
 from mud.room_runtime import (
     WORLD as LIVE_WORLD,
@@ -13,6 +18,7 @@ from mud.room_runtime import (
     _puddle_here,
     _render_business_status,
 )
+from mud.social_experience import install_social_experience_runtime
 from mud.world import NPCS_BY_KEY
 
 
@@ -281,6 +287,12 @@ def install_room_prompt_experience_runtime(player_session_class, world_service=N
     """Make moment-to-moment text play readable without turning it into a HUD dump."""
     if getattr(player_session_class, "_room_prompt_experience_runtime_installed", False):
         return
+
+    # Presentation preferences and social communication are part of the same
+    # player-facing shell. Install them immediately beneath this final room/prompt
+    # layer so normal game commands still flow through the complete older stack.
+    install_player_preferences_runtime(player_session_class)
+    install_social_experience_runtime(player_session_class)
 
     world = world_service or LIVE_WORLD
     previous_show_current_room = player_session_class.show_current_room
