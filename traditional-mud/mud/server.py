@@ -31,6 +31,10 @@ from mud.forest_elf_priest_start import (
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 from mud.human_blackwall_opening import install_human_blackwall_content, install_human_blackwall_runtime
 from mud.human_cathedral_faith import install_human_cathedral_content, install_human_cathedral_runtime
+from mud.human_necromancer_start import (
+    install_human_necromancer_content,
+    install_human_necromancer_runtime,
+)
 from mud.moon_elf_beliefs import install_moon_elf_belief_runtime
 from mud.moon_elf_city import install_moon_elf_city_content, install_moon_elf_city_runtime
 from mud.moon_elf_third_chair import install_third_chair_content, install_third_chair_runtime
@@ -100,6 +104,10 @@ install_forest_elf_priest_content()
 install_goblin_world()
 install_human_blackwall_content()
 install_human_cathedral_content()
+# Human Necromancers continue from the shared Blackwall opening into controlled
+# civic salvage: check for life first, use one precise Life Tap, recover remains,
+# and leave the old gallery structurally safer than they found it.
+install_human_necromancer_content()
 # High Horizon must exist before PlayerSession imports the shared room and race
 # registries so new Moon Elves enter a real starter city rather than a fallback.
 install_moon_elf_city_content()
@@ -225,6 +233,9 @@ install_dwarf_runtime(PlayerSession, WORLD)
 install_dwarf_first_shift_runtime(PlayerSession, WORLD)
 install_human_blackwall_runtime(PlayerSession, WORLD)
 install_human_cathedral_runtime(PlayerSession, WORLD)
+# Human Necromancers get their first deeper class-specific extension only after
+# the shared Blackwall opening, framed as civic salvage rather than spectacle.
+install_human_necromancer_runtime(PlayerSession, WORLD)
 install_undead_runtime(PlayerSession, WORLD)
 install_troll_runtime(PlayerSession, WORLD)
 install_troll_raid_runtime(PlayerSession, WORLD)
