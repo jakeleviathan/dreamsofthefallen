@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from weakref import WeakSet
 
+from mud.player_preferences import hint_level
+
 
 INTRO_FLAG = "mud_basics_introduced"
 STUCK_HINT_FLAG = "mud_basics_stuck_hint_shown"
@@ -58,6 +60,7 @@ async def _send_basics(session) -> None:
         "TALK <name> or EXAMINE <thing> - interact with people and the world.\r\n"
         "SAY <message> - speak aloud to other players in the room.\r\n"
         "HELP - a short command overview. COMMANDS - the full list.\r\n"
+        "SETTINGS - presentation, accessibility, and automatic hint preferences.\r\n"
         "You do not need to memorize any of this. Your opening will teach things as they become useful.\r\n"
     )
 
@@ -83,6 +86,9 @@ async def _say(session, message: str) -> None:
             continue
         other_character = getattr(other, "character", None)
         if other_character is None or getattr(other_character, "current_room", None) != current_room:
+            continue
+        allows = getattr(other, "social_allows_message_from", None)
+        if callable(allows) and not allows(character.name):
             continue
         try:
             await other.send(f'{character.name} says, "{speech}"\r\n')
@@ -138,10 +144,10 @@ def _command_progress_flag(normalized: str) -> str | None:
 def install_new_player_guidance_runtime(player_session_class) -> None:
     """Teach MUD basics quietly through play instead of a mandatory tutorial.
 
-    The first room gets one concise explanation of typed commands. SAY and BASICS
-    are real commands. If a new player enters multiple unknown commands before
-    they have demonstrated basic navigation/interactions, one extra hint appears
-    and then stays out of the way.
+    The first room gets one concise explanation of typed commands when automatic
+    hints are enabled. SAY and BASICS are real commands. GENTLE waits for two
+    unknown commands before a single rescue hint; FULL gives that rescue after
+    the first miss; OFF never injects automatic help.
     """
     if getattr(player_session_class, "_new_player_guidance_runtime_installed", False):
         return
@@ -154,7 +160,7 @@ def install_new_player_guidance_runtime(player_session_class) -> None:
             if getattr(self, "character", None) is None:
                 return
             _ACTIVE_SESSIONS.add(self)
-            if not _is_beginner_character(self):
+            if not _is_beginner_character(self) or hint_level(self) == "off":
                 return
             flags = _flags(self)
             if INTRO_FLAG in flags:
@@ -164,6 +170,10 @@ def install_new_player_guidance_runtime(player_session_class) -> None:
                 "Try LOOK to take in the room again. Try SAY HELLO to speak aloud.\r\n"
                 "To move, type one of the exits you see, such as NORTH. Type BASICS any time for a tiny refresher.\r\n"
             )
+            if hint_level(self) == "full":
+                await self.send(
+                    "FULL hints are enabled, so the game will be a little quicker to point out useful commands when you appear stuck. SETTINGS can change this any time.\r\n"
+                )
             _grant(self, INTRO_FLAG)
 
         player_session_class.enter_character = enter_character
@@ -214,6 +224,9 @@ def install_new_player_guidance_runtime(player_session_class) -> None:
 
         if not _is_beginner_character(self):
             return
+        level = hint_level(self)
+        if level == "off":
+            return
         flags = _flags(self)
         if CONFIDENT_FLAG in flags or STUCK_HINT_FLAG in flags:
             return
@@ -222,7 +235,8 @@ def install_new_player_guidance_runtime(player_session_class) -> None:
 
         misses = int(getattr(self, "_new_player_unknown_commands", 0)) + 1
         self._new_player_unknown_commands = misses
-        if misses < 2:
+        threshold = 1 if level == "full" else 2
+        if misses < threshold:
             return
 
         await self.send(
