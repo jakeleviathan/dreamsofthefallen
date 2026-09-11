@@ -152,7 +152,7 @@ class MoonElfBeliefTests(unittest.TestCase):
         self.assertIn("healing, protection, and clarity", text)
         self.assertIn("clearview mending", text)
         self.assertIn("second view ward", text)
-        self.assertIn("power is granted", text)
+        self.assertIn("magic is granted", text)
         self.assertIn("power is accessed", text)
         self.assertIn("neither explanation has been proven", text)
 
