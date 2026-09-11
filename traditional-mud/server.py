@@ -6,10 +6,10 @@ from mud.economy_loop import install_economy_loop_runtime
 
 
 # Product-level economy layers sit outside the authored race/quest runtimes.
-# Trade is installed first so the economy command shell remains the outer prompt
-# while player movement still flows through trade and can invalidate open deals.
-install_trade_experience_runtime(PlayerSession)
+# Economy installs first; trade remains the outermost command layer so movement,
+# combat, and disconnects always get a chance to invalidate an open deal.
 install_economy_loop_runtime(PlayerSession, WORLD)
+install_trade_experience_runtime(PlayerSession)
 
 
 HOST = "0.0.0.0"
