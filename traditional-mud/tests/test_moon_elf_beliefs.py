@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from mud.character_options import RACES_BY_KEY
 from mud.moon_elf_beliefs import (
     MOON_ELF_BELIEF_INTRO_FLAG,
+    MOON_ELF_RELIGION_GRANTS_PRIEST_PATH,
+    MOON_ELF_RELIGION_HAS_PERSONAL_DEITY,
     MOON_PHASE_MEANINGS,
     belief_summary_lines,
     forest_elf_rivalry_lines,
@@ -14,6 +16,9 @@ from mud.moon_elf_beliefs import (
     install_moon_elf_belief_runtime,
     journal_lines,
     phase_meaning,
+    prayer_lines,
+    religion_lines,
+    shrine_lines,
 )
 
 
@@ -64,9 +69,38 @@ class MoonElfBeliefTests(unittest.TestCase):
         text = " ".join(belief_summary_lines()).lower()
         self.assertIn("moon is not a god", text)
         self.assertIn("symbol of perspective", text)
+        self.assertIn("sacred", text)
+        self.assertIn("not because it is believed to be a person", text)
         self.assertIn("rather than fate", text)
         self.assertIn("clarity and honesty", text)
         self.assertIn("privacy and beginnings", text)
+
+    def test_sacred_tradition_is_reverent_without_personal_lunar_deity(self):
+        self.assertFalse(MOON_ELF_RELIGION_HAS_PERSONAL_DEITY)
+        self.assertFalse(MOON_ELF_RELIGION_GRANTS_PRIEST_PATH)
+        text = " ".join(religion_lines()).lower()
+        self.assertIn("no personal lunar deity", text)
+        self.assertIn("sacred lens", text)
+        self.assertIn("does not require believing that the moon thinks", text)
+        self.assertIn("reverent language", text)
+        self.assertIn("philosophy", text)
+        self.assertIn("invite reflection rather than enforce obedience", text)
+        self.assertIn("does not itself create a priest-class patron path", text)
+
+    def test_shrines_are_for_perspective_not_bargaining_for_favors(self):
+        text = " ".join(shrine_lines()).lower()
+        self.assertIn("perspective rather than places to bargain for miracles", text)
+        self.assertIn("open-air alcoves", text)
+        self.assertIn("does not need an idol", text)
+        self.assertIn("no answer is ready yet", text)
+
+    def test_prayer_can_be_reverent_philosophical_or_silent(self):
+        text = " ".join(prayer_lines()).lower()
+        self.assertIn("no single required", text)
+        self.assertIn("old companion", text)
+        self.assertIn("silence", text)
+        self.assertIn("not persuading a supernatural listener", text)
+        self.assertIn("reverent language and philosophical language comfortably coexist", text)
 
     def test_all_four_existing_astralis_phases_have_cultural_modes(self):
         self.assertEqual(
@@ -118,7 +152,8 @@ class MoonElfBeliefTests(unittest.TestCase):
         asyncio.run(session.enter_character())
         first_output = "".join(session.outputs).lower()
         self.assertIn("moon is not a god", first_output)
-        self.assertIn("distance can change understanding", first_output)
+        self.assertIn("sacred lens", first_output)
+        self.assertIn("reverently", first_output)
         self.assertIn(MOON_ELF_BELIEF_INTRO_FLAG, session.database.flags)
 
         session.outputs.clear()
@@ -130,6 +165,28 @@ class MoonElfBeliefTests(unittest.TestCase):
         beliefs_output = "".join(session.outputs).lower()
         self.assertIn("elven lunar tradition", beliefs_output)
         self.assertIn("change your mind", beliefs_output)
+
+        session.outputs.clear()
+        session.command = "religion"
+        asyncio.run(session.playing_prompt())
+        religion_output = "".join(session.outputs).lower()
+        self.assertIn("sacred lunar tradition", religion_output)
+        self.assertIn("no personal lunar deity", religion_output)
+        self.assertIn("invite reflection", religion_output)
+
+        session.outputs.clear()
+        session.command = "shrine"
+        asyncio.run(session.playing_prompt())
+        shrine_output = "".join(session.outputs).lower()
+        self.assertIn("shrines of perspective", shrine_output)
+        self.assertIn("bargain for miracles", shrine_output)
+
+        session.outputs.clear()
+        session.command = "prayer"
+        asyncio.run(session.playing_prompt())
+        prayer_output = "".join(session.outputs).lower()
+        self.assertIn("prayer and reflection", prayer_output)
+        self.assertIn("no single required", prayer_output)
 
         session.outputs.clear()
         session.command = "moon"
