@@ -7,10 +7,6 @@ from mud.quests import QUESTS_BY_KEY
 from mud.world import NPCS_BY_KEY, ROOMS_BY_KEY
 
 
-# Keep the command index honest: these class abilities currently have executable
-# gameplay handlers. Other authored future abilities remain visible through the
-# normal ABILITIES/progression systems when appropriate, but HELP ALL does not
-# advertise them as working commands before their effects exist.
 EXECUTABLE_CLASS_ABILITY_KEYS = frozenset(
     {
         "taunt",
@@ -49,9 +45,6 @@ RACIAL_ACTIVE_NAMES: dict[str, str] = {
     "sporekin": "Chorus Bloom",
 }
 
-# These are stable culture/status commands, not one-off quest verbs. Quest verbs
-# are surfaced from the character's live objective below so this file does not
-# have to duplicate every authored starter sequence.
 RACE_CULTURE_COMMANDS: dict[str, tuple[str, ...]] = {
     "forest_elf": ("HOME", "FOREST OPENING"),
     "moon_elf": (
@@ -159,9 +152,6 @@ def _racial_lines(session) -> tuple[str, ...]:
         lines.append(f"Passive: {race.passive_name}")
     command = RACIAL_COMMAND_SYNTAX.get(race_key)
     if command:
-        # The live server installs the full racial definitions before play. The
-        # fallback name keeps this help layer independently testable and prevents
-        # a missing display field from hiding a known executable racial command.
         ability_name = race.ability_name or RACIAL_ACTIVE_NAMES.get(race_key, "Racial ability")
         lines.append(f"{command} - {ability_name}")
     return tuple(lines)
@@ -179,10 +169,11 @@ def _quick_help_text(session) -> str:
         "\r\n--- Help ---",
         "LOOK and EXITS show where you are. Move with NORTH/SOUTH/EAST/WEST/UP/DOWN (or N/S/E/W/U/D).",
         "EXAMINE <thing>, SEARCH <thing>, TOUCH <thing>, LISTEN, READ <thing>, and TALK <person> interact with the world.",
-        "SAY <message> speaks aloud to players in your room. BASICS gives the tiny new-player version at any time.",
+        "SAY <message> speaks in the room. CHAT, OOC, TELL, and REPLY handle broader player communication; CHANNELS explains them.",
+        "SETTINGS controls prompt style, color/contrast, hint level, Mudlet enhancements, and screen-reader mode.",
         "QUESTS shows your quest journal. ABILITIES shows your class abilities. RACIAL shows your racial kit.",
         "ATTACK <target>, USE <ability>, and FLEE cover the basic combat loop.",
-        "INVENTORY and EQUIPMENT show what you carry and wear. Your opening teaches class basics naturally as you progress.",
+        "INVENTORY and EQUIPMENT show what you carry and wear. BASICS gives the tiny new-player refresher.",
     ]
     active = _active_quests(session)
     if active:
@@ -217,9 +208,29 @@ def _full_help_text(session) -> str:
         "LISTEN [thing] - listen to the room or a supported feature",
         "READ <thing> - read an item, note, sign, or authored text",
         "TALK <person> - speak to someone in the room",
-        "SAY <message> - speak aloud to other players in the room",
-        "BASICS - show the tiny new-player command refresher",
         "FEATURES / DETAILS / LANDMARKS - review visible room features",
+        "",
+        "[Communication & Social]",
+        "SAY <message> - speak to people in your current room",
+        "CHAT <message> - world chat",
+        "OOC <message> - out-of-character world channel",
+        "TELL <name> <message> - send a private message to an online character",
+        "REPLY <message> - answer the most recent private sender",
+        "CHANNELS - show communication options and whether CHAT/OOC are muted",
+        "CHANNEL CHAT ON|OFF / CHANNEL OOC ON|OFF - control channel reception",
+        "FRIENDS / FRIEND <name> / UNFRIEND <name> - manage your personal contact list",
+        "IGNORES / IGNORE <name> / UNIGNORE <name> - block another character's SAY, CHAT, OOC, and tells",
+        "WHO - list characters currently connected",
+        "",
+        "[Settings & Accessibility]",
+        "SETTINGS / PREFERENCES - unified player settings screen",
+        "PROMPT QUIET|COMPACT|FULL - choose and save prompt detail",
+        "SET COLOR AUTO|ON|OFF - ANSI color behavior",
+        "SET CONTRAST STANDARD|HIGH - visual contrast",
+        "SET HINTS OFF|GENTLE|FULL - automatic guidance level",
+        "SET MUDLET ON|OFF - server-supplied Mudlet HUD/GMCP enhancements",
+        "SET SCREENREADER ON|OFF - plain output, quiet prompt, no ANSI or server-supplied HUD state",
+        "SETTINGS RESET - restore recommended defaults",
         "",
         "[Character & Progression]",
         "SCORE / STATUS / SHEET - character overview",
@@ -330,18 +341,10 @@ async def _delegate_prompt(self, previous_playing_prompt, command: str) -> None:
 
 
 def install_command_help_runtime(player_session_class) -> None:
-    """Install one quiet HELP screen plus a contextual, categorized full index.
-
-    This runtime is deliberately installed last. It owns HELP before older
-    feature layers can append several separate help paragraphs, while delegating
-    every non-help command through the complete existing runtime stack.
-    """
+    """Install one quiet HELP screen plus a contextual, categorized full index."""
     if getattr(player_session_class, "_command_help_runtime_installed", False):
         return
 
-    # The newcomer layer sits immediately beneath HELP: it teaches typed-command
-    # basics, provides real SAY/BASICS commands, and stays quiet once the player
-    # demonstrates that they understand the interaction model.
     install_new_player_guidance_runtime(player_session_class)
     previous_playing_prompt = player_session_class.playing_prompt
 
