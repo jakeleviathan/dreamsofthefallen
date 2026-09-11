@@ -5,6 +5,7 @@ from datetime import datetime
 from mud.character_options import CLASSES_BY_KEY, RACES_BY_KEY
 from mud.database import MAX_CHARACTERS_PER_ACCOUNT
 from mud.security import hash_password, verify_password
+from mud.world import ROOMS_BY_KEY
 
 
 GOTHIC_WELCOME_BANNER = "\r\n".join(
@@ -99,6 +100,24 @@ def _find_roster_character(characters, target: str):
             return characters[slot - 1]
         return None
     return next((character for character in characters if character.name.lower() == normalized), None)
+
+
+def _location_name(character) -> str:
+    if not character.current_room:
+        return "Not entered yet"
+    room = ROOMS_BY_KEY.get(character.current_room)
+    return room.name if room is not None else character.current_room.replace("_", " ").title()
+
+
+def _most_recent_character(database, characters):
+    candidates = []
+    for character in characters:
+        value = _last_played_value(database, character.id)
+        if value:
+            candidates.append((value, character))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda item: item[0])[1]
 
 
 def install_login_experience(player_session_class) -> None:
@@ -225,11 +244,12 @@ def install_login_experience(player_session_class) -> None:
         characters = self.database.list_characters(self.account.id)
         used_slots = len(characters)
         remaining_slots = max(0, MAX_CHARACTERS_PER_ACCOUNT - used_slots)
+        recent_character = _most_recent_character(self.database, characters)
 
         await self.send(
-            "\r\n+--------------------------------------------------------------------------+\r\n"
-            "|                            CHARACTER ROSTER                              |\r\n"
-            "+--------------------------------------------------------------------------+\r\n"
+            "\r\n+--------------------------------------------------------------------------------------+\r\n"
+            "|                                   CHARACTER ROSTER                                   |\r\n"
+            "+--------------------------------------------------------------------------------------+\r\n"
         )
         for slot in range(1, MAX_CHARACTERS_PER_ACCOUNT + 1):
             if slot <= used_slots:
@@ -239,17 +259,21 @@ def install_login_experience(player_session_class) -> None:
                 race_name = race.name if race else (character.race or "Unknown")
                 class_name = character_class.name if character_class else (character.character_class or "Unknown")
                 last_played = format_last_played(_last_played_value(self.database, character.id))
+                location = _location_name(character)
                 await self.send(
-                    f"| {slot}. {character.name:<18} {race_name:<12} {class_name:<12} Last: {last_played:<18} |\r\n"
+                    f"| {slot}. {character.name:<18} Lv {character.level:<3} {race_name:<12} {class_name:<12}                      |\r\n"
+                    f"|    Location: {location:<36} Last: {last_played:<23} |\r\n"
                 )
             else:
-                await self.send(f"| {slot}. [ Empty ]{' ' * 59}|\r\n")
+                await self.send(f"| {slot}. [ Empty ]{' ' * 69}|\r\n")
         await self.send(
-            "+--------------------------------------------------------------------------+\r\n"
+            "+--------------------------------------------------------------------------------------+\r\n"
             f"Slots used: {used_slots}/{MAX_CHARACTERS_PER_ACCOUNT}"
             + (f"    Empty slots: {remaining_slots}\r\n" if remaining_slots else "    Character slots are full.\r\n")
-            + "Commands: ENTER <slot or name>    CREATE    QUIT\r\n"
         )
+        if recent_character is not None:
+            await self.send(f"Last played: {recent_character.name}\r\n")
+        await self.send("Commands: ENTER <slot or name>    PLAY LAST    CREATE    QUIT\r\n")
 
         choice = await self.prompt("Roster: ")
         if choice is None:
@@ -261,6 +285,7 @@ def install_login_experience(player_session_class) -> None:
         if lowered in {"help", "?"}:
             await self.send(
                 "\r\nENTER <slot or name> - play an existing character.\r\n"
+                "PLAY LAST - immediately enter the character you played most recently.\r\n"
                 "CREATE - begin making a new character in an empty slot.\r\n"
                 "QUIT - disconnect.\r\n"
             )
@@ -282,6 +307,16 @@ def install_login_experience(player_session_class) -> None:
                 )
                 return
             await self.character_creation_flow()
+            return
+        if lowered in {"play last", "last", "resume", "continue"}:
+            if recent_character is None:
+                await self.send(
+                    "\r\nThere is no previously played character on this account yet. Use ENTER or CREATE.\r\n"
+                )
+                return
+            _touch_last_played(self.database, recent_character.id)
+            self.character = recent_character
+            await self.enter_character()
             return
 
         target = normalized
