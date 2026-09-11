@@ -130,7 +130,7 @@ class MoonElfCityTests(unittest.TestCase):
 
     def test_city_scenes_are_rich_and_buildable(self):
         service = WorldService(
-            legacy_rooms={room.key: room for room in world.ROOMS if room.key in MOON_ELF_CITY_ROOM_KEYS},
+            rooms={room.key: room for room in world.ROOMS if room.key in MOON_ELF_CITY_ROOM_KEYS},
             augmentations=moon_elf_city_augmentations(),
         )
         context = PlayerRoomContext(
@@ -197,7 +197,7 @@ class MoonElfCityTests(unittest.TestCase):
             pass
 
         world_service = WorldService(
-            legacy_rooms={room.key: room for room in world.ROOMS if room.key in MOON_ELF_CITY_ROOM_KEYS},
+            rooms={room.key: room for room in world.ROOMS if room.key in MOON_ELF_CITY_ROOM_KEYS},
             augmentations=moon_elf_city_augmentations(),
         )
         install_moon_elf_city_runtime(Session, world_service)
