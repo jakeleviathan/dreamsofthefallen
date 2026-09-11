@@ -37,6 +37,17 @@ RACIAL_COMMAND_SYNTAX: dict[str, str] = {
     "sporekin": "CHORUS BLOOM",
 }
 
+RACIAL_ACTIVE_NAMES: dict[str, str] = {
+    "human": "Adapt",
+    "forest_elf": "Slipstep",
+    "moon_elf": "Reconsider",
+    "dwarf": "Brace",
+    "goblin": "Scrounge",
+    "troll": "Bloodscent",
+    "undead": "Stillness",
+    "sporekin": "Chorus Bloom",
+}
+
 # These are stable culture/status commands, not one-off quest verbs. Quest verbs
 # are surfaced from the character's live objective below so this file does not
 # have to duplicate every authored starter sequence.
@@ -138,15 +149,20 @@ def _racial_lines(session) -> tuple[str, ...]:
     character = getattr(session, "character", None)
     if character is None:
         return ()
-    race = RACES_BY_KEY.get(character.race or "")
+    race_key = character.race or ""
+    race = RACES_BY_KEY.get(race_key)
     if race is None:
         return ()
     lines: list[str] = ["RACIAL - show your racial passive, at-will, and cooldown"]
     if race.passive_name:
         lines.append(f"Passive: {race.passive_name}")
-    command = RACIAL_COMMAND_SYNTAX.get(race.key)
-    if command and race.ability_name:
-        lines.append(f"{command} - {race.ability_name}")
+    command = RACIAL_COMMAND_SYNTAX.get(race_key)
+    if command:
+        # The live server installs the full racial definitions before play. The
+        # fallback name keeps this help layer independently testable and prevents
+        # a missing display field from hiding a known executable racial command.
+        ability_name = race.ability_name or RACIAL_ACTIVE_NAMES.get(race_key, "Racial ability")
+        lines.append(f"{command} - {ability_name}")
     return tuple(lines)
 
 
