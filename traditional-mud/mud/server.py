@@ -21,6 +21,7 @@ from mud.racial_abilities import (
 )
 from mud.sporekin_depth import install_sporekin_depth_content, install_sporekin_depth_runtime
 from mud.starter_class_moments import install_starter_class_moment_runtime
+from mud.command_help import install_command_help_runtime
 from mud.undead_start import install_undead_content, install_undead_runtime
 from mud.troll_start import install_troll_content, install_troll_runtime
 from mud.troll_raid_opening import install_troll_raid_content, install_troll_raid_runtime
@@ -158,9 +159,12 @@ enforce_first_piling_swamp_access(WORLD)
 install_equipment_runtime(PlayerSession)
 # One universal accessory slot extends the base seven-slot equipment pass.
 install_accessory_runtime(PlayerSession)
-# The pre-character experience is installed last because it owns only the
-# opening/login/account/roster screens and should not disturb any in-world layer.
+# The pre-character experience owns only opening/login/account/roster screens.
 install_login_experience(PlayerSession)
+# Command help is intentionally absolute outermost: one HELP stays concise, while
+# COMMANDS/HELP ALL can summarize the fully assembled runtime without every inner
+# feature layer appending its own help paragraph.
+install_command_help_runtime(PlayerSession)
 
 
 class MudServer:
