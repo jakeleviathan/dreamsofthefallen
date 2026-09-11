@@ -14,6 +14,11 @@ from mud.human_cathedral_faith import install_human_cathedral_content, install_h
 from mud.moon_elf_beliefs import install_moon_elf_belief_runtime
 from mud.moon_elf_city import install_moon_elf_city_content, install_moon_elf_city_runtime
 from mud.moon_elf_third_chair import install_third_chair_content, install_third_chair_runtime
+from mud.racial_abilities import (
+    install_fast_learner_database_hook,
+    install_racial_ability_definitions,
+    install_racial_ability_runtime,
+)
 from mud.undead_start import install_undead_content, install_undead_runtime
 from mud.troll_start import install_troll_content, install_troll_runtime
 from mud.troll_raid_opening import install_troll_raid_content, install_troll_raid_runtime
@@ -48,6 +53,10 @@ install_troll_content()
 install_troll_raid_content()
 install_troll_survivor_choice_content()
 install_troll_choice_echo_content()
+# Lock all eight racial passive/at-will identities before PlayerSession imports
+# RACES for character creation, then make Human Fast Learner executable.
+install_racial_ability_definitions()
+install_fast_learner_database_hook()
 
 from mud.goblin_deep_mire import install_goblin_deep_mire_runtime
 from mud.goblin_clans import install_goblin_clan_content, install_goblin_clan_runtime
@@ -127,6 +136,9 @@ install_goblin_clan_followup_runtime(PlayerSession, WORLD)
 # Goblins complete this richer six-part introduction first; legacy Goblins with
 # existing salvage progress are grandfathered and never rewound.
 install_rattlefen_opening_runtime(PlayerSession, WORLD)
+# Racial kits sit outside race-specific quest layers so every class/race
+# combination receives the same passive and at-will without room duplication.
+install_racial_ability_runtime(PlayerSession)
 # Apply the authoritative First Piling branch gate last so no later content
 # registration can accidentally expose the beginner swamp before Ruskle's lesson.
 enforce_first_piling_swamp_access(WORLD)
