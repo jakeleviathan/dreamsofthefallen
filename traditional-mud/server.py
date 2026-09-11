@@ -13,6 +13,7 @@ from mud.server import MudServer, PlayerSession, WORLD
 from mud.trade_experience import install_trade_experience_runtime
 from mud.economy_loop import install_economy_loop_runtime
 from mud.economy_balance import install_economy_balance_runtime
+from mud.forest_elf_reading_forest import install_reading_forest_runtime
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
@@ -35,6 +36,12 @@ validate_starter_loop_contract(
 # every race immediately. Race-specific runtimes still own quest initialization
 # and first-arrival narration so their show-don't-tell openings remain intact.
 install_starter_room_database_hook(Database)
+
+# Deepen the existing Forest Elf Old River Path without replacing its authored
+# home/Heartseed sequence: quiet birds become a real warning, the Barkjaw is an
+# avoidable ambush, a trapped stag becomes a persistent choice, and that choice
+# can pay off later when Hollowbacks appear deeper in the forest.
+install_reading_forest_runtime(PlayerSession, WORLD)
 
 # Product-level economy layers sit outside the authored race/quest runtimes.
 # Base economy installs first, the balance/incentive pass sits above it, and trade
