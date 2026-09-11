@@ -4,6 +4,7 @@ import asyncio
 import unittest
 from dataclasses import dataclass
 
+import mud.mechanics as mechanics
 import mud.quests as quests
 import mud.world as world
 from mud.forest_elf_brute_start import (
@@ -113,6 +114,7 @@ class ForestElfBruteStartTests(unittest.TestCase):
         self.npcs_by_key = dict(world.NPCS_BY_KEY)
         self.quest_tuple = quests.QUESTS
         self.quest_map = dict(quests.QUESTS_BY_KEY)
+        self.druid_abilities = mechanics.FIXED_CLASS_ABILITIES.get("druid", ())
         install_forest_elf_stewardship_content()
         install_forest_elf_brute_content()
 
@@ -126,6 +128,7 @@ class ForestElfBruteStartTests(unittest.TestCase):
         quests.QUESTS = self.quest_tuple
         quests.QUESTS_BY_KEY.clear()
         quests.QUESTS_BY_KEY.update(self.quest_map)
+        mechanics.FIXED_CLASS_ABILITIES["druid"] = self.druid_abilities
 
     def test_content_adds_safe_path_worksite_and_brute_mentor(self):
         self.assertIs(quests.QUESTS_BY_KEY[FOREST_ELF_BRUTE_QUEST_KEY], FOREST_ELF_BRUTE_QUEST)
