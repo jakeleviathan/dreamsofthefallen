@@ -4,7 +4,13 @@ from dataclasses import replace
 
 import mud.character_options as character_options
 import mud.world as legacy_world
-from mud.room_engine import DescriptionLayer, ExitDefinition, FeatureDefinition, RoomAugmentation, ViewCondition
+from mud.room_engine import (
+    DescriptionLayer,
+    ExitDefinition,
+    FeatureDefinition,
+    RoomAugmentation,
+    ViewCondition,
+)
 from mud.world import NpcDefinition, RoomDefinition
 
 
@@ -40,14 +46,14 @@ MOON_ELF_PENTHOUSE_ACCESS_FLAG = "moon_elf_high_aerie_access"
 GOVERNMENT_LINES: tuple[str, ...] = (
     "High Horizon is governed by the Horizon Council, a small rotating council of civic stewards rather than a monarch or hereditary ruling house.",
     "Council seats turn over on staggered civic terms. The schedule is administrative, not an omen read from the moon, and no seat belongs permanently to a family.",
-    "Before a major vote, the strongest advocate for a proposal must present a Counterview: the best serious case against the position they currently favor.",
+    "Before a major vote, the strongest advocate for a proposal must present a Counterview: the strongest serious case against the position they currently favor.",
     "Major decisions are recorded with the evidence considered, the dissenting arguments, and the conditions that would justify reopening the decision later.",
     "Changing one's mind in public after the facts change is treated as responsible government rather than humiliation. Refusing to reconsider merely to look consistent is not admired.",
     "The Horizon Council is a civic institution, not a priesthood. The Moon Elf religious tradition and its eventual deity or deities remain separate questions.",
 )
 
 CITY_LINES: tuple[str, ...] = (
-    "High Horizon occupies a broad mountain ridge in the Moon Peaks, where pale stone streets, narrow bridges, terraced homes, and open plazas are arranged to preserve long views of the sky and surrounding ranges.",
+    "High Horizon occupies a broad mountain ridge in the Moon Peaks, where pale stone streets, narrow bridges, terraced homes, and open plazas preserve long views of the sky and surrounding ranges.",
     "The city is calm without being sleepy. By night, tea rooms, small markets, musicians, observatories, journal houses, and public terraces remain active beneath shielded lamps and moonlight.",
     "Mirror frames, weather chimes, horizon rails, and viewing platforms are ordinary civic furniture. They reflect a culture that likes to compare what can be seen from more than one angle.",
     "The tallest landmark is Skyglass Spire, a true vertical city tower: part observatory, part residence, part public lookout, and unmistakably a fantasy skyscraper rising above the ridge.",
@@ -55,7 +61,7 @@ CITY_LINES: tuple[str, ...] = (
 
 SPIRE_LINES: tuple[str, ...] = (
     "Skyglass Spire rises dozens of stories above High Horizon in pale structural ribs, dark skyglass, stacked balconies, hanging gardens, residences, observatory floors, and public viewing decks.",
-    "It is intentionally a skyscraper translated into Moon Elf architecture rather than a modern glass office block. Its height serves the same civic love of long horizons that shaped the rest of the city.",
+    "It is intentionally a fantasy skyscraper translated into Moon Elf architecture rather than a modern glass office block. Its height serves the same civic love of long horizons that shaped the rest of the city.",
     "The public route reaches the Horizon Deck near the crown. Above it is the High Aerie Penthouse, a private suite and observatory residence reserved for future personal ownership rather than ordinary starter access.",
 )
 
@@ -89,7 +95,7 @@ MOON_ELF_ROOMS: tuple[RoomDefinition, ...] = (
         region_key=MOON_ELF_REGION_KEY,
         description=(
             "An open civic court occupies a sheltered notch in the ridge, roofed only around its edges. Curved benches face a low speaking floor rather than a raised throne. Behind it, a long wall carries the current Horizon Council roster, upcoming term rotations, public petitions, and decisions scheduled for review. "
-            "The room is built to make government visible without making it grandiose. People come and go with journals under their arms, listening from the edge before deciding whether they have anything useful to add."
+            "The room makes government visible without making it grandiose. People come and go with journals under their arms, listening from the edge before deciding whether they have anything useful to add."
         ),
         exits={"south": MOON_ELF_START_ROOM_KEY, "east": MOON_ELF_MOONMIRROR_WALK_KEY},
         npc_keys=("moon_elf_horizon_steward",),
@@ -137,7 +143,11 @@ MOON_ELF_ROOMS: tuple[RoomDefinition, ...] = (
             "A stepped residential terrace rises above the central plaza, planted with hardy flowers, dwarf pines, sheltered herb beds, and little courts where neighbors share tables out of the strongest wind. Tuned metal chimes hang beneath several eaves, not as charms but as practical weather indicators whose pitch changes before a front crosses the ridge. "
             "From here, the city feels lived in rather than ceremonial: laundry dries behind screens, children race along the inner stairs, and older residents argue amiably about whether tonight will actually stay clear."
         ),
-        exits={"down": MOON_ELF_START_ROOM_KEY, "north": MOON_ELF_MOONMIRROR_WALK_KEY, "east": MOON_ELF_HORIZON_DECK_KEY},
+        exits={
+            "down": MOON_ELF_START_ROOM_KEY,
+            "north": MOON_ELF_MOONMIRROR_WALK_KEY,
+            "east": MOON_ELF_HORIZON_DECK_KEY,
+        },
         tags=("safe", "residential", "weather", "gardens", "high_city"),
     ),
     RoomDefinition(
@@ -160,7 +170,11 @@ MOON_ELF_ROOMS: tuple[RoomDefinition, ...] = (
             "The public deck near the crown of Skyglass Spire circles the tower in a broad ring of stone, skyglass, and sheltered viewing bays. The entire starter city is visible below: Skycourt benches, mirror frames, market lamps, terraced roofs, and the ridge roads dropping toward distant valleys. "
             "Above the public deck, a private ascent continues to the High Aerie Penthouse. Its upper balconies are visible through the tower ribs, close enough to feel real and high enough to remain unmistakably separate from the public route."
         ),
-        exits={"down": MOON_ELF_SPIRE_LOBBY_KEY, "west": MOON_ELF_WIND_TERRACE_KEY, "up": MOON_ELF_PENTHOUSE_KEY},
+        exits={
+            "down": MOON_ELF_SPIRE_LOBBY_KEY,
+            "west": MOON_ELF_WIND_TERRACE_KEY,
+            "up": MOON_ELF_PENTHOUSE_KEY,
+        },
         tags=("safe", "observation", "public_lookout", "spire", "penthouse_below"),
     ),
     RoomDefinition(
@@ -244,12 +258,22 @@ def _exit(direction: str, destination: str, name: str, text: str, **kwargs) -> E
     return ExitDefinition(direction=direction, destination_key=destination, name=name, travel_text=text, **kwargs)
 
 
-def _day(key: str, text: str) -> DescriptionLayer:
-    return DescriptionLayer(key, text, priority=40, condition=ViewCondition(time_buckets=("day",)))
+def _day(text: str) -> DescriptionLayer:
+    return DescriptionLayer(
+        "moon_elf_day",
+        text,
+        priority=40,
+        condition=ViewCondition(time_buckets=("day",)),
+    )
 
 
-def _night(key: str, text: str) -> DescriptionLayer:
-    return DescriptionLayer(key, text, priority=50, condition=ViewCondition(time_buckets=("night",)))
+def _night(text: str) -> DescriptionLayer:
+    return DescriptionLayer(
+        "moon_elf_night",
+        text,
+        priority=50,
+        condition=ViewCondition(time_buckets=("night",)),
+    )
 
 
 def moon_elf_city_augmentations() -> dict[str, RoomAugmentation]:
@@ -279,8 +303,8 @@ def moon_elf_city_augmentations() -> dict[str, RoomAugmentation]:
             ),
             features=(
                 _feature("rotating_roster", "Rotating Council Roster", "a public board listing current stewards and the dates their terms turn over", "The terms are staggered so the entire council cannot be replaced at once. No family owns a seat, and the rotation schedule is a civic calendar rather than a lunar omen.", aliases=("roster", "council roster", "steward board", "term board")),
-                _feature("counterview_floor", "Counterview Floor", "a marked half-circle opposite the ordinary speaking position", "For major proposals, the principal advocate crosses to this mark and states the strongest serious argument against their own position before debate continues. It is designed to make perspective a procedure instead of a slogan.", aliases=("counterview", "counterview floor", "opposing mark", "marked floor")),
-                _feature("revision_ledger", "Revision Ledger", "an open civic ledger recording why major decisions were made and what could reopen them", "Each entry names the evidence considered, dissenting views, the final decision, and a short list of conditions that would justify review. Several entries end with later corrections rather than pretending the first decision was eternal.", aliases=("ledger", "revision ledger", "decision ledger", "civic ledger")),
+                _feature("counterview_floor", "Counterview Floor", "a marked half-circle opposite the ordinary speaking position", "For major proposals, the principal advocate crosses to this mark and states the strongest serious argument against their own position before debate continues. It makes perspective a procedure instead of a slogan.", aliases=("counterview", "counterview floor", "opposing mark", "marked floor")),
+                _feature("revision_ledger", "Revision Ledger", "an open civic ledger recording why major decisions were made and what could reopen them", "Each entry names the evidence considered, dissenting views, the final decision, and conditions that would justify review. Several entries end with later corrections rather than pretending the first decision was eternal.", aliases=("ledger", "revision ledger", "decision ledger", "civic ledger")),
             ),
             description_layers=(
                 _day("Day sessions are brisk and administrative, with road maintenance, water storage, trade rules, and building petitions taking most of the floor time."),
@@ -288,7 +312,9 @@ def moon_elf_city_augmentations() -> dict[str, RoomAugmentation]:
             ),
         ),
         MOON_ELF_JOURNAL_GALLERY_KEY: RoomAugmentation(
-            exit_overrides=(_exit("east", MOON_ELF_START_ROOM_KEY, "High Horizon Plaza", "You leave the reading alcoves and return east to the plaza."),),
+            exit_overrides=(
+                _exit("east", MOON_ELF_START_ROOM_KEY, "High Horizon Plaza", "You leave the reading alcoves and return east to the plaza."),
+            ),
             features=(
                 _feature("family_cabinets", "Family Cabinets", "rows of lockable cabinets holding private and donated generational journals", "Different families set different access rules. Some shelves are public, some open only to relatives, and some remain sealed until a date written into the binding agreement.", aliases=("cabinets", "family journals", "journal cabinets", "shelves")),
                 _feature("correction_ribbons", "Correction Ribbons", "colored ribbons linking old entries to later revisions", "A blue ribbon means later evidence changed the conclusion; silver marks a remembered disagreement; white indicates a writer who explicitly withdrew an earlier claim. The old page stays intact.", aliases=("ribbons", "correction ribbons", "markers", "journal ribbons")),
@@ -305,7 +331,7 @@ def moon_elf_city_augmentations() -> dict[str, RoomAugmentation]:
             ),
             features=(
                 _feature("teaching_mirrors", "Teaching Mirrors", "adjustable silvered frames used to compare reflected angles", "The frames are mounted with simple degree marks and alignment pins. Students can stand at different points and compare how one object appears under changed distance and angle.", aliases=("mirrors", "teaching mirrors", "mirror frames", "silvered frames")),
-                _feature("moonlight_channels", "Moonlight Channels", "shallow polished channels carrying reflected light toward lower courtyards", "On clear nights, selected mirrors direct soft moonlight into otherwise shaded stairs and garden courts. The system is civic lighting with philosophical aesthetics, not a magical oracle.", aliases=("channels", "moonlight channels", "light channels")),
+                _feature("moonlight_channels", "Moonlight Channels", "shallow polished channels carrying reflected light toward lower courtyards", "On clear nights, selected mirrors direct soft moonlight into shaded stairs and garden courts. The system is civic lighting with philosophical aesthetics, not a magical oracle.", aliases=("channels", "moonlight channels", "light channels")),
             ),
             description_layers=(
                 _day("Most mirrors are folded partly inward against the bright sun, leaving the promenade to walkers and students measuring distant landmarks."),
@@ -351,7 +377,7 @@ def moon_elf_city_augmentations() -> dict[str, RoomAugmentation]:
                 _feature("ascent_cages", "Ascent Cages", "quiet counterweighted passenger cages moving through enclosed shafts", "Inspection windows show braided cable, braking teeth, guide rails, and enormous stone counterweights. The engineering is elegant because it is maintained, not because the mechanisms are hidden behind magic.", aliases=("cages", "lifts", "elevators", "ascent cages"), listen="Far above, a soft bell marks a cage arriving at another floor."),
             ),
             description_layers=(
-                _day("Residents, couriers, and observatory workers share the public cages with tourists headed for the Horizon Deck."),
+                _day("Residents, couriers, and observatory workers share the public cages with visitors headed for the Horizon Deck."),
                 _night("The vestibule grows quieter but never closes; the tower is residential, and people keep coming home long after the market begins to thin."),
             ),
         ),
@@ -371,7 +397,7 @@ def moon_elf_city_augmentations() -> dict[str, RoomAugmentation]:
             ),
             features=(
                 _feature("ridge_panorama", "Ridge Panorama", "a nearly complete view of High Horizon and the surrounding Moon Peaks", "From here the city's planning becomes obvious: open plazas, terraced roofs, mirror walks, windbreak walls, and public sight lines all preserve different ways of seeing the same landscape.", aliases=("panorama", "view", "ridge panorama", "city view")),
-                _feature("viewing_lenses", "Viewing Lenses", "public mounted lenses aimed at roads, passes, weather stations, and distant summits", "Each lens is labeled with what it is actually for. The city apparently considers accurate distance viewing useful enough that nobody needs to dress it up as divination.", aliases=("lenses", "viewing lenses", "telescopes", "scopes")),
+                _feature("viewing_lenses", "Viewing Lenses", "public mounted lenses aimed at roads, passes, weather stations, and distant summits", "Each lens is labeled with what it is actually for. The city considers accurate distance viewing useful enough that nobody needs to dress it up as divination.", aliases=("lenses", "viewing lenses", "telescopes", "scopes")),
                 _feature("private_ascent", "Private Ascent", "a separate cage and stair behind a locked skyglass door leading to the penthouse above", "A small plaque reads HIGH AERIE - PRIVATE RESIDENCE. There is no ceremonial warning and no claim that the resident is politically important. It is simply a very desirable home at the top of a skyscraper.", aliases=("private ascent", "penthouse lift", "private lift", "skyglass door")),
             ),
             description_layers=(
@@ -380,7 +406,9 @@ def moon_elf_city_augmentations() -> dict[str, RoomAugmentation]:
             ),
         ),
         MOON_ELF_PENTHOUSE_KEY: RoomAugmentation(
-            exit_overrides=(_exit("down", MOON_ELF_HORIZON_DECK_KEY, "Horizon Deck", "You take the private ascent down to the public Horizon Deck."),),
+            exit_overrides=(
+                _exit("down", MOON_ELF_HORIZON_DECK_KEY, "Horizon Deck", "You take the private ascent down to the public Horizon Deck."),
+            ),
             features=(
                 _feature("moonward_salon", "Moonward Salon", "a broad living room wrapped in curved windows, bookshelves, and deep seating", "The room is luxurious without becoming sterile: low tables, layered rugs, books, blankets, warm lamps, and a long hearth make the enormous view feel like part of a home rather than a museum.", aliases=("salon", "living room", "moonward salon", "windows")),
                 _feature("private_observatory", "Private Observatory", "a compact observatory built into the highest enclosed corner of the suite", "The instruments are for astronomy, weather, distant roads, and the pleasure of looking. A writing desk beside them makes it easy to record a view and later admit that the first interpretation was wrong.", aliases=("observatory", "private observatory", "instruments", "telescope")),
@@ -412,12 +440,14 @@ def _patch_moon_elf_city_lore() -> None:
         ),
         lore=lore,
     )
-    character_options.RACES = tuple(replacement if race.key == "moon_elf" else race for race in character_options.RACES)
+    character_options.RACES = tuple(
+        replacement if race.key == "moon_elf" else race for race in character_options.RACES
+    )
     character_options.RACES_BY_KEY["moon_elf"] = replacement
 
 
 def install_moon_elf_city_content(world_service=None) -> None:
-    """Register High Horizon, its civic government, and the Skyglass Spire."""
+    """Register High Horizon, its civic government, and Skyglass Spire."""
     _patch_moon_elf_city_lore()
 
     known_rooms = set(legacy_world.ROOMS_BY_KEY)
@@ -445,17 +475,23 @@ def install_moon_elf_city_content(world_service=None) -> None:
 def _prepare_moon_elf_city(session) -> bool:
     if session.character is None or session.character.race != "moon_elf":
         return False
+
+    character_id = session.character.id
     changed = False
     if not session.character.current_room:
-        session.database.set_character_room(session.character.id, MOON_ELF_START_ROOM_KEY)
+        session.database.set_character_room(character_id, MOON_ELF_START_ROOM_KEY)
         changed = True
+
     if not session.character.bind_room:
-        session.database.set_bind_room(session.character.id, MOON_ELF_START_ROOM_KEY)
+        bind_target = session.character.current_room or MOON_ELF_START_ROOM_KEY
+        session.database.set_bind_room(character_id, bind_target)
         changed = True
+
     if changed:
         refreshed = session.database.get_character_by_name(session.character.name)
         if refreshed is not None:
             session.character = refreshed
+
     return changed
 
 
@@ -496,6 +532,7 @@ def install_moon_elf_city_runtime(player_session_class, world_service) -> None:
         await previous_enter_character(self)
         if self.character is None or self.character.race != "moon_elf":
             return
+
         _prepare_moon_elf_city(self)
         flags = self.database.list_flags(self.character.id)
         if MOON_ELF_CITY_INTRO_FLAG not in flags:
@@ -542,7 +579,9 @@ def install_moon_elf_city_runtime(player_session_class, world_service) -> None:
             if MOON_ELF_PENTHOUSE_ACCESS_FLAG in flags:
                 await self.send("Your private ascent access is active. From the Horizon Deck, travel UP.\r\n")
             else:
-                await self.send("The private ascent is not yet unlocked for this character. The suite remains visible above the public Horizon Deck.\r\n")
+                await self.send(
+                    "The private ascent is not yet unlocked for this character. The suite remains visible above the public Horizon Deck.\r\n"
+                )
             return
 
         await _delegate_prompt(self, previous_playing_prompt, command)
