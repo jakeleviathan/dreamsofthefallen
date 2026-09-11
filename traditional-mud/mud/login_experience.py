@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from mud.character_creation_experience import install_character_creation_experience
 from mud.character_options import CLASSES_BY_KEY, RACES_BY_KEY
 from mud.database import MAX_CHARACTERS_PER_ACCOUNT
 from mud.security import hash_password, verify_password
@@ -124,6 +125,11 @@ def install_login_experience(player_session_class) -> None:
     """Replace the pre-character Telnet flow with the approved screen-by-screen UX."""
     if getattr(player_session_class, "_login_experience_installed", False):
         return
+
+    # Character creation belongs to the same pre-character experience. Install
+    # its hook-first race browser here so the server gets one coherent UX layer.
+    if hasattr(player_session_class, "choose_creation_option"):
+        install_character_creation_experience(player_session_class)
 
     import mud.session as session_module
 
