@@ -12,6 +12,10 @@ from mud.forest_elf_necromancer_start import (
     install_forest_elf_necromancer_content,
     install_forest_elf_necromancer_runtime,
 )
+from mud.forest_elf_druid_start import (
+    install_forest_elf_druid_content,
+    install_forest_elf_druid_runtime,
+)
 from mud.goblin_start import goblin_room_augmentations, install_goblin_world
 from mud.human_blackwall_opening import install_human_blackwall_content, install_human_blackwall_runtime
 from mud.human_cathedral_faith import install_human_cathedral_content, install_human_cathedral_runtime
@@ -53,6 +57,9 @@ install_forest_elf_home_content()
 # The first dedicated Forest Elf class extension adds a public death-work grove
 # to Hearthwalk, then waits until the shared racial opening is complete.
 install_forest_elf_necromancer_content()
+# Forest Elf Druids receive a gentler post-opening capstone in the nursery's
+# Warmhouse: one healing spell surrounded by ordinary care and patient release.
+install_forest_elf_druid_content()
 install_goblin_world()
 install_human_blackwall_content()
 install_human_cathedral_content()
@@ -141,6 +148,9 @@ install_forest_elf_homecoming_runtime(PlayerSession)
 # Forest Elf Necromancers continue from the Hushed Verge observation into a
 # grounded lesson about ordinary death, restraint, and their first Life Tap.
 install_forest_elf_necromancer_runtime(PlayerSession, WORLD)
+# Forest Elf Druids finish the shared opening with a quiet recovery shift that
+# teaches Minor Heal, ordinary aftercare, patience, and non-ownership.
+install_forest_elf_druid_runtime(PlayerSession, WORLD)
 install_dwarf_runtime(PlayerSession, WORLD)
 install_dwarf_first_shift_runtime(PlayerSession, WORLD)
 install_human_blackwall_runtime(PlayerSession, WORLD)
