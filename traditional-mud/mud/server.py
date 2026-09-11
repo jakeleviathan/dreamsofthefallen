@@ -50,6 +50,10 @@ from mud.moon_elf_brute_start import (
     install_moon_elf_brute_content,
     install_moon_elf_brute_runtime,
 )
+from mud.moon_elf_druid_start import (
+    install_moon_elf_druid_content,
+    install_moon_elf_druid_runtime,
+)
 from mud.racial_abilities import (
     install_fast_learner_database_hook,
     install_racial_ability_definitions,
@@ -114,6 +118,9 @@ install_moon_elf_wizard_content()
 # Moon Elf Brutes apply perspective to physical responsibility: read the load
 # from two sides, brace it, then use only the strength the crew actually needs.
 install_moon_elf_brute_content()
+# Moon Elf Druids apply perspective to care itself: compare the struggling bed
+# from two views, correct the environmental cause, then use Nurture and observe.
+install_moon_elf_druid_content()
 install_undead_content()
 install_troll_content()
 install_troll_raid_content()
@@ -188,6 +195,9 @@ install_moon_elf_wizard_runtime(PlayerSession, WORLD)
 # Moon Elf Brutes learn that strength magnifies the cost of incomplete judgment:
 # compare the load, brace it, take only the needed weight, and hold for the crew.
 install_moon_elf_brute_runtime(PlayerSession, WORLD)
+# Moon Elf Druids learn that even compassionate intervention needs evidence:
+# diagnose from two views, remove the stressor, nurture once, then wait and watch.
+install_moon_elf_druid_runtime(PlayerSession, WORLD)
 install_seasonal_runtime(PlayerSession, WORLD)
 install_forest_elf_nurture_runtime(PlayerSession, WORLD)
 install_forest_elf_stewardship_runtime(PlayerSession, WORLD)
