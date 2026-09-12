@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 
 OFFICIAL_MUDLET_HUD_PACKAGE = "DreamsOfTheFallenHUD"
-OFFICIAL_MUDLET_HUD_VERSION = "1.0.0"
+OFFICIAL_MUDLET_HUD_VERSION = "2.0.0"
 OFFICIAL_MUDLET_HUD_URL = "https://mud.lvthn.io/DreamsOfTheFallenHUD.mpackage"
 
 
