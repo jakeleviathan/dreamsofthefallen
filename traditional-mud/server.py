@@ -34,6 +34,7 @@ from mud.class_progression import install_class_progression_runtime
 from mud.class_progression_tuning import apply_inherited_class_tuning
 from mud.class_world_integration import install_class_world_integration_runtime
 from mud.launch_vertical_slice import install_launch_vertical_slice_runtime
+from mud.living_world import install_living_world_runtime
 from mud.modern_client_experience import install_modern_client_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
@@ -160,6 +161,12 @@ install_class_world_integration_runtime(PlayerSession)
 # memorable one-time Waymeet trophies, makes Veyra's first arrival a real moment,
 # and adds emotes, social-hearth chat, and friend-presence texture.
 install_launch_vertical_slice_runtime(PlayerSession)
+# The living-world layer turns Astralis time into something players can feel.
+# A deterministic daily pulse drives transient merchants, roaming disturbances,
+# resource shifts, ambient stories, return mail, public chronicle entries, rare
+# sky events, and compact rented rooms. It deliberately creates curiosity rather
+# than login streaks: the dispatch reports what changed but never punishes absence.
+install_living_world_runtime(PlayerSession)
 # Keep the plain Telnet game authoritative, then expose the complete assembled
 # state as modern GMCP surfaces for capable clients. This outermost presentation
 # layer drives the official Mudlet mapper, panels, hotbar, context actions,
