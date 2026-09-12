@@ -8,8 +8,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mud.class_progression import install_class_progression_content
-from mud.class_progression_tuning import apply_inherited_class_tuning
 from mud.client_gui import OFFICIAL_MUDLET_HUD_VERSION, configured_mudlet_gui_offer
 from mud.database import Database
 from mud.mechanics import CombatantState
@@ -21,7 +19,7 @@ from mud.modern_client_experience import (
     push_modern_state,
     stable_room_number,
 )
-from mud.server import WORLD
+from mud.room_engine import WorldService
 from mud.stats import CharacterStats
 
 
@@ -55,10 +53,6 @@ class DummySession:
 
 
 class ModernClientExperienceTests(unittest.TestCase):
-    def setUp(self) -> None:
-        install_class_progression_content()
-        apply_inherited_class_tuning()
-
     def _session(self, root: Path) -> DummySession:
         database = Database(root / "modern.db")
         account = database.create_account("modern_test", "x")
@@ -71,6 +65,14 @@ class ModernClientExperienceTests(unittest.TestCase):
         )
         return DummySession(database, character)
 
+    @staticmethod
+    def _world() -> WorldService:
+        # Unit tests intentionally use a fresh base world. Importing mud.server at
+        # discovery time assembles every authored runtime into shared module state
+        # and contaminates unrelated isolation tests. Production assembly is
+        # verified separately in a subprocess below.
+        return WorldService()
+
     def test_room_numbers_are_stable_positive_mapper_ids(self):
         first = stable_room_number("human_demon_gate")
         second = stable_room_number("human_ashen_way")
@@ -82,7 +84,7 @@ class ModernClientExperienceTests(unittest.TestCase):
     def test_room_snapshot_exposes_visible_mapper_data_without_text_scraping(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             session = self._session(Path(temp_dir))
-            snapshot = _room_snapshot(session, WORLD)
+            snapshot = _room_snapshot(session, self._world())
             self.assertIsNotNone(snapshot)
             assert snapshot is not None
             self.assertEqual(snapshot["key"], "human_demon_gate")
@@ -94,7 +96,7 @@ class ModernClientExperienceTests(unittest.TestCase):
     def test_onboarding_is_persistent_and_gets_out_of_the_way(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             session = self._session(Path(temp_dir))
-            room = _room_snapshot(session, WORLD)
+            room = _room_snapshot(session, self._world())
             self.assertEqual(_onboarding_snapshot(session, room)["stage"], "movement")
             _mark_onboarding_command(session, "north")
             self.assertEqual(_onboarding_snapshot(session, room)["stage"], "reference")
@@ -108,7 +110,7 @@ class ModernClientExperienceTests(unittest.TestCase):
     def test_full_push_emits_modern_structured_surfaces(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             session = self._session(Path(temp_dir))
-            asyncio.run(push_modern_state(session, WORLD, full=True))
+            asyncio.run(push_modern_state(session, self._world(), full=True))
             packages = {package for package, _payload in session.telnet.messages}
             self.assertTrue(
                 {
