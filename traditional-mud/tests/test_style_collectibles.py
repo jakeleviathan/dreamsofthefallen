@@ -11,6 +11,7 @@ from pathlib import Path
 
 import mud.command_guide as guide
 import mud.style_collectibles as style
+from mud.style_collectibles_tuning import apply_style_collectibles_tuning
 from mud.database import Database
 
 
@@ -75,7 +76,9 @@ class StyleCollectiblesTests(unittest.TestCase):
                     (first.id, "fragrance_blackglass_no7", now, now + 3600),
                 )
             style._install_xp_bonus_hook()
-            # Ten awards of 1 XP should become 11 total, not 20 through minimum-one rounding.
+            apply_style_collectibles_tuning()
+            # Ten awards of 1 XP should become exactly 11 total, not 10 because
+            # of float drift and not 20 through minimum-one rounding.
             for _ in range(10):
                 db.add_experience(first.id, 1)
             refreshed = db.get_character_by_name(first.name)
@@ -142,9 +145,11 @@ class StyleCollectiblesTests(unittest.TestCase):
 import server
 import mud.style_collectibles as style
 import mud.command_guide as guide
+from mud.database import Database
 assert server.PlayerSession._style_collectibles_runtime_installed
 assert server.PlayerSession._command_guide_runtime_installed
 assert server.PlayerSession._modern_client_runtime_installed
+assert getattr(Database, "_style_xp_precision_tuned", False)
 assert "style_listener_echo_veil" in style.crafting.ITEMS_BY_KEY
 assert len(style.FRAGRANCES) == 9
 assert len(guide.COMMANDS) >= 100
