@@ -44,6 +44,8 @@ from mud.style_collectibles import install_style_collectibles_runtime
 from mud.style_collectibles_tuning import apply_style_collectibles_tuning
 from mud.command_guide import install_command_guide_runtime
 from mud.modern_client_experience import install_modern_client_runtime
+from mud.production_hardening import install_production_hardening_runtime, install_production_server_runtime
+from mud.production_operator import install_production_operator_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
@@ -218,6 +220,13 @@ install_command_guide_runtime(PlayerSession, WORLD)
 # layer drives the official Mudlet mapper, panels, hotbar, context actions,
 # onboarding hints, party frames, and subtle event cues without changing rules.
 install_modern_client_runtime(PlayerSession, WORLD)
+# Production hardening sits outside the complete game/presentation stack. It
+# enforces one authenticated connection per account, records live session/combat
+# evidence for alpha tuning, provides optional invitation gating, and adds a
+# backup/integrity supervisor around the actual server process.
+install_production_hardening_runtime(PlayerSession)
+install_production_operator_runtime(PlayerSession)
+install_production_server_runtime(MudServer)
 
 
 HOST = "0.0.0.0"
