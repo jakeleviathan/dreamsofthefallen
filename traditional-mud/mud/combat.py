@@ -168,10 +168,10 @@ SEWER_RAT = EnemyDefinition(
     name="Sewer Rat",
     aliases=("rat", "sewer rat"),
     description="an oversized city rat with wet fur and yellow teeth",
-    # Production-alpha pacing: trim the first real fight slightly rather than
-    # increasing its repeatable reward. The Vermin Pens should teach combat,
-    # not become the most efficient place to spend the first hour.
-    max_hp=18,
+    # Production-alpha pacing keeps the established 20-HP training contract but
+    # gives a new player slightly more time between retaliatory bites. The XP
+    # stays low so the Vermin Pens remain instruction rather than a grind route.
+    max_hp=20,
     armor_class=3,
     auto_attack_damage=2,
     auto_attack_interval=3.4,
@@ -185,9 +185,8 @@ SMALL_IMP = EnemyDefinition(
     name="Small Imp",
     aliases=("imp", "small imp"),
     description="a knee-high horned imp with ember-bright eyes and a mean little grin",
-    # Same principle as the rat: a modest time-to-kill reduction and a little
-    # more reaction room, while preserving the existing 20 XP so grinding this
-    # cage does not overtake authored quest progression.
+    # The tougher tutorial target gets a modest time-to-kill reduction and a
+    # little more reaction room, while preserving its existing 20 XP reward.
     max_hp=24,
     armor_class=5,
     auto_attack_damage=3,
