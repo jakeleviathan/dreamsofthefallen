@@ -16,6 +16,8 @@ from mud.economy_balance import install_economy_balance_runtime
 from mud.forest_elf_reading_forest import install_reading_forest_runtime
 from mud.starter_signature_moments import install_signature_moment_runtime
 from mud.waymeet_frontier import install_waymeet_runtime
+from mud.gloamworks_dungeon import install_gloamworks_runtime
+from mud.greywake_march import install_greywake_runtime
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
@@ -50,8 +52,16 @@ install_reading_forest_runtime(PlayerSession, WORLD)
 install_signature_moment_runtime(PlayerSession, WORLD)
 # Waymeet is the first shared post-homeland zone. It gives level 2-5 characters a
 # common social hub, repeatable hunting contracts, merchants, gathering/crafting,
-# and a dangerous road problem that points toward the first future dungeon.
+# and a dangerous road problem that points toward the first dungeon.
 install_waymeet_runtime(PlayerSession, WORLD)
+# The Gloamworks turns that hint into the first real cooperative dungeon: 18
+# industrial/alien rooms, perception splits, two minibosses, and a two-player
+# witness seal guarding the Buried Regent encounter.
+install_gloamworks_runtime(PlayerSession, WORLD)
+# Greywake carries the shared world beyond the dungeon into levels 5-10 with
+# three competing practical factions, a multi-quest regional arc, a shared
+# Gloam Surge world event, and the road ending at Veyra's outer gate.
+install_greywake_runtime(PlayerSession, WORLD)
 
 # Product-level economy layers sit outside the authored race/quest runtimes.
 # Base economy installs first, the balance/incentive pass sits above it, and trade
