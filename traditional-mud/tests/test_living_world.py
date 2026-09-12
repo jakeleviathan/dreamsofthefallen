@@ -152,7 +152,8 @@ class LivingWorldTests(unittest.TestCase):
                 ).fetchone()
             self.assertIsNotNone(row)
             self.assertIn("away for 3 Astralis days", row["body"])
-            self.assertIn("no missed reward", row["body"].lower())
+            self.assertIn("missed reward", row["body"].lower())
+            self.assertIn("nothing in this letter", row["body"].lower())
             self.assertIn("Day 13", row["subject"])
 
     def test_chronicle_records_a_server_first_only_once(self):
