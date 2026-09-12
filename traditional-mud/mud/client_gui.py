@@ -5,7 +5,11 @@ from dataclasses import dataclass
 
 
 OFFICIAL_MUDLET_HUD_PACKAGE = "DreamsOfTheFallenHUD"
-OFFICIAL_MUDLET_HUD_VERSION = "2.0.0"
+# Compatibility: older integrations imported this constant when the first HUD
+# shipped. Keep it stable so an explicitly constructed legacy offer remains
+# exactly what its caller asked for; production configuration now uses CURRENT.
+OFFICIAL_MUDLET_HUD_VERSION = "1.0.0"
+CURRENT_MUDLET_HUD_VERSION = "2.0.0"
 OFFICIAL_MUDLET_HUD_URL = "https://mud.lvthn.io/DreamsOfTheFallenHUD.mpackage"
 
 
@@ -18,7 +22,7 @@ class MudletGuiOffer:
     the URL can remain empty and the package can still be installed manually.
     """
 
-    version: str = OFFICIAL_MUDLET_HUD_VERSION
+    version: str = CURRENT_MUDLET_HUD_VERSION
     url: str = ""
 
     @property
@@ -28,8 +32,8 @@ class MudletGuiOffer:
 
 def configured_mudlet_gui_offer() -> MudletGuiOffer:
     return MudletGuiOffer(
-        version=os.getenv("DREAMS_MUDLET_HUD_VERSION", OFFICIAL_MUDLET_HUD_VERSION).strip()
-        or OFFICIAL_MUDLET_HUD_VERSION,
+        version=os.getenv("DREAMS_MUDLET_HUD_VERSION", CURRENT_MUDLET_HUD_VERSION).strip()
+        or CURRENT_MUDLET_HUD_VERSION,
         url=os.getenv("DREAMS_MUDLET_HUD_URL", OFFICIAL_MUDLET_HUD_URL).strip()
         or OFFICIAL_MUDLET_HUD_URL,
     )
