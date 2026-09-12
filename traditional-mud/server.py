@@ -31,6 +31,7 @@ from mud.party_loot import install_party_loot_hooks
 from mud.party_quality import install_party_quality_runtime
 from mud.death_recovery import RESURRECTION_ABILITY, install_death_recovery_runtime
 from mud.class_progression import install_class_progression_runtime
+from mud.class_progression_tuning import apply_inherited_class_tuning
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
@@ -142,6 +143,9 @@ for _priest_path_key, _abilities in tuple(PRIEST_DEITY_ABILITIES.items()):
 # craftable signature items whose affinities reinforce each class without
 # reintroducing class-locked equipment.
 install_class_progression_runtime(PlayerSession)
+# Promote the older level-one session-only costs/cooldowns into ability data so
+# the expanded runtime, CLASS display, and legacy direct commands all agree.
+apply_inherited_class_tuning()
 
 
 HOST = "0.0.0.0"
