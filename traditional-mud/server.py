@@ -29,7 +29,8 @@ from mud.gravewatch_party import install_gravewatch_party_runtime
 from mud.party_system import install_party_runtime
 from mud.party_loot import install_party_loot_hooks
 from mud.party_quality import install_party_quality_runtime
-from mud.death_recovery import install_death_recovery_runtime
+from mud.death_recovery import RESURRECTION_ABILITY, install_death_recovery_runtime
+from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
@@ -128,6 +129,12 @@ install_party_quality_runtime(PlayerSession)
 # until RELEASE applies the XP penalty and returns them to bind, while level-5+
 # Priests can RESURRECT them in place before release and avoid that XP loss.
 install_death_recovery_runtime(PlayerSession)
+# Moon Elf Witnesses are a Priest path but deliberately are not a fourth deity.
+# The inner world registers that path dynamically, so finish the shared Priest
+# utility pass over every registered path after all authored content is loaded.
+for _priest_path_key, _abilities in tuple(PRIEST_DEITY_ABILITIES.items()):
+    if not any(_ability.key == RESURRECTION_ABILITY.key for _ability in _abilities):
+        PRIEST_DEITY_ABILITIES[_priest_path_key] = _abilities + (RESURRECTION_ABILITY,)
 
 
 HOST = "0.0.0.0"
