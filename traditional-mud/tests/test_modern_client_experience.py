@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mud.client_gui import OFFICIAL_MUDLET_HUD_VERSION, configured_mudlet_gui_offer
+from mud.client_gui import CURRENT_MUDLET_HUD_VERSION, configured_mudlet_gui_offer
 from mud.database import Database
 from mud.mechanics import CombatantState
 from mud.modern_client_experience import (
@@ -134,7 +134,7 @@ class ModernClientExperienceTests(unittest.TestCase):
 
     def test_official_client_offer_and_sources_are_version_two(self):
         self.assertEqual(MODERN_CLIENT_VERSION, "2.0.0")
-        self.assertEqual(OFFICIAL_MUDLET_HUD_VERSION, "2.0.0")
+        self.assertEqual(CURRENT_MUDLET_HUD_VERSION, "2.0.0")
         self.assertEqual(configured_mudlet_gui_offer().version, "2.0.0")
 
         root = Path(__file__).resolve().parents[1]
