@@ -8,7 +8,6 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-import mud.economy_loop as economy
 from mud.database import Database
 from mud.gravewatch_keep import (
     ARCHER_KEY,
@@ -46,7 +45,6 @@ from mud.gravewatch_keep import (
     captain_definition_for_flags,
     courtyard_pull_complete,
     gravewatch_augmentations,
-    install_gravewatch_content,
 )
 from mud.mechanics import PROGRESSION_RULES
 from mud.veyra_city import VEYRA_EAST_RIVER_GATE_KEY, VEYRA_RESIDENT_FLAG
@@ -100,7 +98,7 @@ class GravewatchKeepTests(unittest.TestCase):
         self.assertEqual(set(by_key), set(GRAVEWATCH_ROOM_KEYS))
         self.assertTrue(all(room.region_key == "gravewatch_keep" for room in GRAVEWATCH_ROOMS))
 
-    def test_vayra_river_gate_opens_gravewatch_at_level_eight_for_residents(self):
+    def test_veyra_river_gate_opens_gravewatch_at_level_eight_for_residents(self):
         entry = gravewatch_augmentations()[VEYRA_EAST_RIVER_GATE_KEY].extra_exits[0]
         self.assertEqual(entry.destination_key, GRAVEWATCH_RIVER_MILE_KEY)
         self.assertEqual(entry.condition.min_level, 8)
@@ -175,11 +173,27 @@ class GravewatchKeepTests(unittest.TestCase):
             tempdir.cleanup()
 
     def test_skeletons_feed_necromancer_catalysts_and_wights_feed_smithing_material(self):
-        install_gravewatch_content()
-        self.assertEqual(economy.LOOT_TABLES[SENTRY_KEY][0].item_key, "bone_chips")
-        self.assertEqual(economy.LOOT_TABLES[CHAMPION_KEY][0].quantity, 2)
-        self.assertEqual(economy.LOOT_TABLES[CAPTAIN_KEY][0].item_key, OLD_GARRISON_IRON_KEY)
-        self.assertEqual(economy.LOOT_TABLES[CHAPLAIN_KEY][0].item_key, OLD_GARRISON_IRON_KEY)
+        # Run this through the canonical production assembler in a subprocess so
+        # the test verifies the real install without mutating mud.world globals in
+        # this unittest process. The legacy room-content tests intentionally own
+        # their original 26-room registry and should not depend on test order.
+        project_root = Path(__file__).resolve().parents[1]
+        script = (
+            "import server; "
+            "import mud.economy_loop as economy; "
+            "from mud.gravewatch_keep import SENTRY_KEY, CHAMPION_KEY, CAPTAIN_KEY, CHAPLAIN_KEY, OLD_GARRISON_IRON_KEY; "
+            "assert economy.LOOT_TABLES[SENTRY_KEY][0].item_key == 'bone_chips'; "
+            "assert economy.LOOT_TABLES[CHAMPION_KEY][0].quantity == 2; "
+            "assert economy.LOOT_TABLES[CAPTAIN_KEY][0].item_key == OLD_GARRISON_IRON_KEY; "
+            "assert economy.LOOT_TABLES[CHAPLAIN_KEY][0].item_key == OLD_GARRISON_IRON_KEY; "
+            "print('GRAVEWATCH_LOOT_OK')"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script], cwd=project_root, capture_output=True, text=True,
+            timeout=30, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertIn("GRAVEWATCH_LOOT_OK", result.stdout)
 
     def test_production_server_assembles_gravewatch(self):
         project_root = Path(__file__).resolve().parents[1]
