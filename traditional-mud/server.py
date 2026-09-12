@@ -30,6 +30,7 @@ from mud.party_system import install_party_runtime
 from mud.party_loot import install_party_loot_hooks
 from mud.party_quality import install_party_quality_runtime
 from mud.death_recovery import RESURRECTION_ABILITY, install_death_recovery_runtime
+from mud.class_progression import install_class_progression_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
@@ -135,6 +136,12 @@ install_death_recovery_runtime(PlayerSession)
 for _priest_path_key, _abilities in tuple(PRIEST_DEITY_ABILITIES.items()):
     if not any(_ability.key == RESURRECTION_ABILITY.key for _ability in _abilities):
         PRIEST_DEITY_ABILITIES[_priest_path_key] = _abilities + (RESURRECTION_ABILITY,)
+# Class progression sits outside the assembled combat/equipment/death stack. It
+# turns levels 1-9 into readable role growth, makes the early authored ability
+# stubs executable, adds support targeting/group tools, and registers five
+# craftable signature items whose affinities reinforce each class without
+# reintroducing class-locked equipment.
+install_class_progression_runtime(PlayerSession)
 
 
 HOST = "0.0.0.0"
