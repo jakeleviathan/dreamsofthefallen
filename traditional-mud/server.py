@@ -38,6 +38,7 @@ from mud.living_world import install_living_world_runtime
 from mud.living_world_depth import install_living_world_depth_runtime
 from mud.living_world_depth_tuning import apply_living_world_depth_tuning
 from mud.living_world_continuity import install_living_world_continuity_runtime
+from mud.social_pastimes import install_social_pastimes_runtime
 from mud.modern_client_experience import install_modern_client_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
@@ -184,6 +185,11 @@ install_living_world_depth_runtime(PlayerSession)
 # Existing temporary player notes remain the lightweight way to leave a mark;
 # returning visitors can now acknowledge that a player's note is still present.
 install_living_world_continuity_runtime(PlayerSession)
+# Social pastimes make the hearths and markets fun even when nobody needs XP:
+# tavern bones, player arm wrestling, knife targets, a five-round mug game,
+# market riddles and guess jars, plus the traveling Crooked Lantern Company.
+# Prizes are deliberately statless keepsakes and bragging rights, never power.
+install_social_pastimes_runtime(PlayerSession)
 # Keep the plain Telnet game authoritative, then expose the complete assembled
 # state as modern GMCP surfaces for capable clients. This outermost presentation
 # layer drives the official Mudlet mapper, panels, hotbar, context actions,
