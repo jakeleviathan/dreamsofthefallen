@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -20,3 +23,41 @@ jobs:
           python-version: "3.12"
       - name: Run regression suite
         run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Build official Mudlet package
+        run: python mudlet/DreamsOfTheFallenHUD/build_package.py
+      - name: Verify modern Mudlet package
+        run: |
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+
+          package = Path("mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage")
+          assert package.exists() and package.stat().st_size > 1000
+          with zipfile.ZipFile(package) as zf:
+              names = set(zf.namelist())
+              assert {"DreamsOfTheFallenHUD.xml", "config.lua"} <= names
+              xml = zf.read("DreamsOfTheFallenHUD.xml").decode("utf-8")
+              config = zf.read("config.lua").decode("utf-8")
+          for marker in ("Dreams.Room", "Dreams.Party", "Dreams.Quests", "Dreams.Inventory", "Dreams.Abilities", "Dreams.Context", "Dreams.Onboarding", "Geyser.Mapper"):
+              assert marker in xml, marker
+          assert 'version = "2.0.0"' in config
+          print("MODERN_MUDLET_PACKAGE_OK")
+          PY
+      - name: Upload official Mudlet package
+        uses: actions/upload-artifact@v4
+        with:
+          name: DreamsOfTheFallenHUD
+          path: traditional-mud/mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage
+          if-no-files-found: error
+      - name: Commit rebuilt package on main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.xml mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage
+          if git diff --cached --quiet; then
+            echo "Mudlet package already current."
+          else
+            git commit -m "Build DreamsOfTheFallenHUD package 2.0 [skip ci]"
+            git push
+          fi
