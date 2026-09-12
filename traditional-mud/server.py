@@ -40,6 +40,9 @@ from mud.living_world_depth_tuning import apply_living_world_depth_tuning
 from mud.living_world_continuity import install_living_world_continuity_runtime
 from mud.social_pastimes import install_social_pastimes_runtime
 from mud.waymeet_adventure_runtime import install_waymeet_adventure_runtime
+from mud.style_collectibles import install_style_collectibles_runtime
+from mud.style_collectibles_tuning import apply_style_collectibles_tuning
+from mud.command_guide import install_command_guide_runtime
 from mud.modern_client_experience import install_modern_client_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
@@ -197,6 +200,19 @@ install_social_pastimes_runtime(PlayerSession)
 # reactions, and the Vault of the First Echo capstone whose Listener learns from
 # repeated class abilities and tries to imitate a breath at half health.
 install_waymeet_adventure_runtime(PlayerSession, WORLD)
+# Style is now a first-class social progression surface separate from combat gear:
+# designer fashion slots, rarity/collection metadata, heritage provenance chains,
+# boss and seasonal bragging-rights pieces, and collectible fragrances whose only
+# mechanical benefit is a modest timed character-XP bonus.
+install_style_collectibles_runtime(PlayerSession, WORLD)
+# Keep the advertised +10% scent bonus exact even when XP arrives one point at a
+# time. Decimal remainder banking prevents binary-float drift without ever
+# rounding each tiny award up to a free whole XP point.
+apply_style_collectibles_tuning()
+# The command guide sits over the assembled game so HELP HERE can react to the
+# actual room, combat state, authored feature verbs, region systems, and style
+# counter instead of asking players to memorize a giant static command wall.
+install_command_guide_runtime(PlayerSession, WORLD)
 # Keep the plain Telnet game authoritative, then expose the complete assembled
 # state as modern GMCP surfaces for capable clients. This outermost presentation
 # layer drives the official Mudlet mapper, panels, hotbar, context actions,
