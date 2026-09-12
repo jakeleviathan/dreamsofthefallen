@@ -23,6 +23,7 @@ from mud.sablewater_reach import install_sablewater_runtime
 from mud.veyra_living_core import install_veyra_living_core_runtime
 from mud.veyra_underclock import install_underclock_runtime
 from mud.gravewatch_keep import install_gravewatch_runtime
+from mud.gravewatch_repeatable import install_gravewatch_repeatable_runtime
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
@@ -89,6 +90,10 @@ install_underclock_runtime(PlayerSession, WORLD)
 # pulls, cramped chapel fighting, and one hard final commander with no hidden
 # machine or metaphysical puzzle. Good fundamentals are the mechanic.
 install_gravewatch_runtime(PlayerSession, WORLD)
+# After the one-time Gravewatch clear, Sergeant Toma can issue fresh patrol
+# slates that reset only the dungeon-run state. Rewards and story completion stay
+# permanent while the keep remains useful as a repeatable traditional delve.
+install_gravewatch_repeatable_runtime(PlayerSession)
 
 # Product-level economy layers sit outside the authored race/quest runtimes.
 # Base economy installs first, the balance/incentive pass sits above it, and trade
