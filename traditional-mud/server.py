@@ -29,6 +29,7 @@ from mud.gravewatch_party import install_gravewatch_party_runtime
 from mud.party_system import install_party_runtime
 from mud.party_loot import install_party_loot_hooks
 from mud.party_quality import install_party_quality_runtime
+from mud.death_recovery import install_death_recovery_runtime
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
@@ -123,6 +124,10 @@ install_party_loot_hooks()
 # calls, a compact HUD, separation warnings, aggro/danger callouts, party-wide
 # loot visibility, and explicit shared-victory participation summaries.
 install_party_quality_runtime(PlayerSession)
+# Death is the outermost lifecycle rule: fallen characters remain where they die
+# until RELEASE applies the XP penalty and returns them to bind, while level-5+
+# Priests can RESURRECT them in place before release and avoid that XP loss.
+install_death_recovery_runtime(PlayerSession)
 
 
 HOST = "0.0.0.0"
