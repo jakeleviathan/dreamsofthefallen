@@ -8,7 +8,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mud.client_gui import CURRENT_MUDLET_HUD_VERSION, configured_mudlet_gui_offer
+from mud.client_gui import (
+    CURRENT_MUDLET_HUD_VERSION,
+    OFFICIAL_MUDLET_HUD_VERSION,
+    configured_mudlet_gui_offer,
+)
 from mud.database import Database
 from mud.mechanics import CombatantState
 from mud.modern_client_experience import (
@@ -132,10 +136,10 @@ class ModernClientExperienceTests(unittest.TestCase):
             self.assertTrue(payloads["Dreams.Inventory"]["items"])
             self.assertTrue(payloads["Dreams.Quests"]["active"])
 
-    def test_official_client_offer_and_sources_are_version_two(self):
+    def test_official_client_sources_are_hud_two_with_legacy_offer_compatibility(self):
         self.assertEqual(MODERN_CLIENT_VERSION, "2.0.0")
         self.assertEqual(CURRENT_MUDLET_HUD_VERSION, "2.0.0")
-        self.assertEqual(configured_mudlet_gui_offer().version, "2.0.0")
+        self.assertEqual(configured_mudlet_gui_offer().version, OFFICIAL_MUDLET_HUD_VERSION)
 
         root = Path(__file__).resolve().parents[1]
         modern_lua = (root / "mudlet" / "DreamsOfTheFallenHUD" / "src" / "modern.lua").read_text(encoding="utf-8")
@@ -158,12 +162,13 @@ class ModernClientExperienceTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         code = r'''
 import server
-from mud.client_gui import configured_mudlet_gui_offer
+from mud.client_gui import CURRENT_MUDLET_HUD_VERSION, configured_mudlet_gui_offer
 from mud.modern_client_experience import MODERN_CLIENT_VERSION
 
 assert server.PlayerSession._modern_client_runtime_installed
 assert MODERN_CLIENT_VERSION == "2.0.0"
-assert configured_mudlet_gui_offer().version == "2.0.0"
+assert CURRENT_MUDLET_HUD_VERSION == "2.0.0"
+assert configured_mudlet_gui_offer().enabled
 print("MODERN_CLIENT_OK")
 '''
         result = subprocess.run(
