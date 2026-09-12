@@ -18,6 +18,7 @@ from mud.starter_signature_moments import install_signature_moment_runtime
 from mud.waymeet_frontier import install_waymeet_runtime
 from mud.gloamworks_dungeon import install_gloamworks_runtime
 from mud.greywake_march import install_greywake_runtime
+from mud.blackreed_holdfast import install_blackreed_runtime
 from mud.veyra_city import install_veyra_runtime
 from mud.sablewater_reach import install_sablewater_runtime
 from mud.veyra_living_core import install_veyra_living_core_runtime
@@ -71,6 +72,10 @@ install_gloamworks_runtime(PlayerSession, WORLD)
 # three competing practical factions, a multi-quest regional arc, a shared
 # Gloam Surge world event, and the road ending at Veyra's outer gate.
 install_greywake_runtime(PlayerSession, WORLD)
+# Blackreed is the quicker level 5-7 party dungeon branching off Greywake: a
+# bandit-held road fort, readable trash pulls, a signal-runner focus-fire lesson,
+# and a shield captain who rewards one player holding threat while another flanks.
+install_blackreed_runtime(PlayerSession, WORLD)
 # Veyra opens the first full shared capital: persistent vault storage, a real
 # player barter exchange with escrow, class trainers, public boards, craft halls,
 # bind services, and faction offices whose Greywake choices become useful perks.
