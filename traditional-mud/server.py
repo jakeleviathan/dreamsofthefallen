@@ -33,6 +33,7 @@ from mud.death_recovery import RESURRECTION_ABILITY, install_death_recovery_runt
 from mud.class_progression import install_class_progression_runtime
 from mud.class_progression_tuning import apply_inherited_class_tuning
 from mud.class_world_integration import install_class_world_integration_runtime
+from mud.modern_client_experience import install_modern_client_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
@@ -152,6 +153,11 @@ apply_inherited_class_tuning()
 # component, and connect first-tier signature gear to Gravewatch, the Tollhouse,
 # the Underclock, and a second craftable equipment tier.
 install_class_world_integration_runtime(PlayerSession)
+# Keep the plain Telnet game authoritative, then expose the complete assembled
+# state as modern GMCP surfaces for capable clients. This outermost presentation
+# layer drives the official Mudlet mapper, panels, hotbar, context actions,
+# onboarding hints, party frames, and subtle event cues without changing rules.
+install_modern_client_runtime(PlayerSession, WORLD)
 
 
 HOST = "0.0.0.0"
