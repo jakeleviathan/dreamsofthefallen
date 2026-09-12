@@ -15,6 +15,7 @@ from mud.economy_loop import install_economy_loop_runtime
 from mud.economy_balance import install_economy_balance_runtime
 from mud.forest_elf_reading_forest import install_reading_forest_runtime
 from mud.starter_signature_moments import install_signature_moment_runtime
+from mud.waymeet_frontier import install_waymeet_runtime
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
@@ -47,6 +48,10 @@ install_reading_forest_runtime(PlayerSession, WORLD)
 # existing starter arcs: a small action or choice where culture and mechanics are
 # the same thing, rather than another lore speech or another full tutorial chain.
 install_signature_moment_runtime(PlayerSession, WORLD)
+# Waymeet is the first shared post-homeland zone. It gives level 2-5 characters a
+# common social hub, repeatable hunting contracts, merchants, gathering/crafting,
+# and a dangerous road problem that points toward the first future dungeon.
+install_waymeet_runtime(PlayerSession, WORLD)
 
 # Product-level economy layers sit outside the authored race/quest runtimes.
 # Base economy installs first, the balance/incentive pass sits above it, and trade
