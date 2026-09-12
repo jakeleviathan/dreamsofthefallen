@@ -8,7 +8,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import mud.combat as combat
 import mud.social_experience as social
 import mud.waymeet_frontier as waymeet
 from mud.database import Database
@@ -27,8 +26,6 @@ from mud.launch_vertical_slice import (
     _broadcast_tavern,
     _maybe_send_veyra_arrival,
     _notify_friend_presence,
-    apply_first_hours_combat_tuning,
-    install_launch_vertical_slice_content,
     journey_stage_for,
 )
 from mud.starter_race_loops import STARTER_RACE_LOOPS, STARTER_RACE_LOOPS_BY_RACE
@@ -55,9 +52,9 @@ class DummySession:
 
 class LaunchVerticalSliceTests(unittest.TestCase):
     def setUp(self) -> None:
+        # Do not install world content into shared module registries in this test
+        # process. Production assembly is verified in its own subprocess below.
         social._ACTIVE_SESSIONS.clear()
-        waymeet.install_waymeet_content()
-        install_launch_vertical_slice_content()
 
     def tearDown(self) -> None:
         social._ACTIVE_SESSIONS.clear()
@@ -105,19 +102,15 @@ class LaunchVerticalSliceTests(unittest.TestCase):
         self.assertIn("order that interests you", text)
 
     def test_waymeet_pacing_tuning_is_modest_and_keeps_danger_curve(self):
-        original_damage = {
-            key: combat.ENEMIES_BY_KEY[key].auto_attack_damage for key in WAYMEET_PACING_HP
-        }
-        original_rewards = {
-            key: combat.ENEMIES_BY_KEY[key].xp_reward for key in WAYMEET_PACING_HP
-        }
-        apply_first_hours_combat_tuning()
-        tuned = [combat.ENEMIES_BY_KEY[key] for key in WAYMEET_PACING_HP]
-        self.assertEqual([enemy.max_hp for enemy in tuned], [24, 34, 48, 54, 66])
-        self.assertEqual([enemy.max_hp for enemy in tuned], sorted(enemy.max_hp for enemy in tuned))
-        for key in WAYMEET_PACING_HP:
-            self.assertEqual(combat.ENEMIES_BY_KEY[key].auto_attack_damage, original_damage[key])
-            self.assertEqual(combat.ENEMIES_BY_KEY[key].xp_reward, original_rewards[key])
+        authored = {enemy.key: enemy for enemy in waymeet.WAYMEET_ENEMIES}
+        tuned_hp = [WAYMEET_PACING_HP[enemy.key] for enemy in waymeet.WAYMEET_ENEMIES]
+        self.assertEqual(tuned_hp, [24, 34, 48, 54, 66])
+        self.assertEqual(tuned_hp, sorted(tuned_hp))
+        for enemy_key, target_hp in WAYMEET_PACING_HP.items():
+            self.assertGreater(target_hp, 0)
+            self.assertLess(target_hp, authored[enemy_key].max_hp)
+            self.assertGreater(authored[enemy_key].auto_attack_damage, 0)
+            self.assertGreater(authored[enemy_key].xp_reward, 0)
 
     def test_five_first_specimen_trophies_are_real_tradeable_accessories(self):
         self.assertEqual(len(NOTABLE_FIND_BY_ENEMY), 5)
@@ -157,7 +150,6 @@ class LaunchVerticalSliceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             first = self._session(root, name="Aster")
-            # Reuse the same database/account namespace through a separate account.
             database = first.database
             account = database.create_account("account_bram", "x")
             second_character = database.create_character(account.id, "Bram", "dwarf", "wizard")
