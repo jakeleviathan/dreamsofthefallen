@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
+from mud.alpha_ux import alpha_ux_summary
 from mud.production_hardening import (
     active_session_snapshot,
     alpha_allowlist,
@@ -41,6 +42,7 @@ async def _health(session) -> None:
     audit = audit_inventory_integrity(session.database)
     backup = last_backup_row(session.database)
     summary = combat_summary(session.database, 24)
+    ux = alpha_ux_summary(session.database, 24)
     sessions = active_session_snapshot()
 
     await session.send("\r\n--- Production Health ---\r\n")
@@ -59,6 +61,9 @@ async def _health(session) -> None:
     await session.send(
         f"24h combat sample  : {summary.fights} completed fights, {summary.victories} victories, "
         f"{summary.deaths} deaths, average {summary.average_seconds:.1f}s\r\n"
+        f"24h UX sample      : {int(ux.get('events_command', 0))} commands, "
+        f"{int(ux.get('stalled_without_movement', 0))} characters with 12+ commands and no movement, "
+        f"{int(ux.get('reports_stuck', 0))} stuck reports\r\n"
     )
     if not audit.healthy:
         await session.send(
@@ -97,6 +102,23 @@ async def _combat_metrics(session, hours: int) -> None:
         f"Average duration : {summary.average_seconds:.1f}s\r\n"
         f"Average level    : {summary.average_level:.1f}\r\n"
         "Use these numbers with actual player observation; they are tuning evidence, not an automatic balance target.\r\n"
+    )
+
+
+async def _ux_metrics(session, hours: int) -> None:
+    summary = alpha_ux_summary(session.database, hours)
+    await session.send(
+        f"\r\n--- Alpha UX Metrics: last {int(summary['hours'])}h ---\r\n"
+        f"Commands observed       : {int(summary.get('events_command', 0))}\r\n"
+        f"Average command latency : {float(summary.get('average_command_latency_ms', 0.0)):.1f} ms\r\n"
+        f"Room changes            : {int(summary.get('events_room_change', 0))}\r\n"
+        f"Inventory gains         : {int(summary.get('events_inventory_gain', 0))}\r\n"
+        f"Quest state changes     : {int(summary.get('events_quest_state_change', 0))}\r\n"
+        f"Stalled before movement : {int(summary.get('stalled_without_movement', 0))}\r\n"
+        f"BUG reports             : {int(summary.get('reports_bug', 0))}\r\n"
+        f"FEEDBACK reports        : {int(summary.get('reports_feedback', 0))}\r\n"
+        f"STUCK reports           : {int(summary.get('reports_stuck', 0))}\r\n"
+        "Command telemetry stores command families, not SAY/TELL/CHAT message contents. Use this as friction evidence, then reproduce the actual experience manually.\r\n"
     )
 
 
@@ -154,7 +176,7 @@ def install_production_operator_runtime(player_session_class) -> None:
             return
         normalized = " ".join(command.strip().lower().split())
 
-        if normalized in {"staff health", "staff backup", "staff item audit", "staff sessions", "staff alpha"} or normalized.startswith("staff combat"):
+        if normalized in {"staff health", "staff backup", "staff item audit", "staff sessions", "staff alpha"} or normalized.startswith("staff combat") or normalized.startswith("staff ux"):
             if not _authorized(self):
                 await self.send("ADMIN staff mode is required for production controls.\r\n")
                 return
@@ -175,17 +197,21 @@ def install_production_operator_runtime(player_session_class) -> None:
                 return
             parts = normalized.split()
             hours = int(parts[2]) if len(parts) == 3 and parts[2].isdigit() else 24
-            await _combat_metrics(self, hours)
+            if normalized.startswith("staff ux"):
+                await _ux_metrics(self, hours)
+            else:
+                await _combat_metrics(self, hours)
             return
 
         await _delegate(self, previous_prompt, command)
         if normalized in {"staff", "staff help"} and _role_for(self) != "player":
             await self.send(
                 "\r\nProduction controls (ADMIN+ in STAFF ON mode):\r\n"
-                "STAFF HEALTH - database, inventory, backup, sessions, and 24h combat summary\r\n"
+                "STAFF HEALTH - database, inventory, backup, sessions, combat, and UX summary\r\n"
                 "STAFF BACKUP - create and validate an online backup immediately\r\n"
                 "STAFF ITEM AUDIT - read-only item/provenance invariant scan\r\n"
-                "STAFF COMBAT [hours] - early-combat duration/death evidence for tuning\r\n"
+                "STAFF COMBAT [hours] - combat duration/death evidence for tuning\r\n"
+                "STAFF UX [hours] - movement, command latency, friction, and player-report evidence\r\n"
                 "STAFF SESSIONS - authenticated session registry\r\n"
                 "STAFF ALPHA - closed-alpha gate status\r\n"
             )

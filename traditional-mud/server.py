@@ -57,6 +57,7 @@ from mud.content_foundry import install_content_foundry_runtime
 from mud.content_density import install_content_density_runtime
 from mud.planar_realms import install_planar_realms_runtime
 from mud.command_guide import install_command_guide_runtime
+from mud.alpha_ux import install_alpha_ux_runtime
 from mud.modern_client_experience import install_modern_client_runtime
 from mud.production_hardening import install_production_hardening_runtime, install_production_server_runtime
 from mud.production_operator import install_production_operator_runtime
@@ -122,9 +123,11 @@ install_content_density_runtime(PlayerSession, WORLD)
 # is intentionally no seven-plane checklist for players to complete.
 install_planar_realms_runtime(PlayerSession, WORLD)
 
-# Discovery/help and modern-client presentation intentionally sit outside the
-# complete content stack so they see the final assembled world.
+# Discovery/help, alpha friction telemetry, and modern-client presentation sit
+# outside the assembled content stack. The alpha layer wraps the command guide so
+# HELP HERE and ordinary actions can be measured without revealing hidden content.
 install_command_guide_runtime(PlayerSession, WORLD)
+install_alpha_ux_runtime(PlayerSession)
 install_modern_client_runtime(PlayerSession, WORLD)
 install_production_hardening_runtime(PlayerSession)
 install_production_operator_runtime(PlayerSession)
