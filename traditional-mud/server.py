@@ -39,6 +39,7 @@ from mud.living_world_depth import install_living_world_depth_runtime
 from mud.living_world_depth_tuning import apply_living_world_depth_tuning
 from mud.living_world_continuity import install_living_world_continuity_runtime
 from mud.social_pastimes import install_social_pastimes_runtime
+from mud.waymeet_adventure_runtime import install_waymeet_adventure_runtime
 from mud.modern_client_experience import install_modern_client_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
@@ -190,6 +191,12 @@ install_living_world_continuity_runtime(PlayerSession)
 # market riddles and guess jars, plus the traveling Crooked Lantern Company.
 # Prizes are deliberately statless keepsakes and bragging rights, never power.
 install_social_pastimes_runtime(PlayerSession)
+# The outer-road adventure ring gives levels 2-10 somewhere substantial to
+# explore for its own sake: three distinct early dungeons, explicit SEARCH /
+# LISTEN / CLIMB / PULL / TOUCH interactions, optional secrets, telegraphed boss
+# reactions, and the Vault of the First Echo capstone whose Listener learns from
+# repeated class abilities and tries to imitate a breath at half health.
+install_waymeet_adventure_runtime(PlayerSession, WORLD)
 # Keep the plain Telnet game authoritative, then expose the complete assembled
 # state as modern GMCP surfaces for capable clients. This outermost presentation
 # layer drives the official Mudlet mapper, panels, hotbar, context actions,
