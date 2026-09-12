@@ -151,7 +151,10 @@ assert server.PlayerSession._command_guide_runtime_installed
 assert server.PlayerSession._modern_client_runtime_installed
 assert getattr(Database, "_style_xp_precision_tuned", False)
 assert "style_listener_echo_veil" in style.crafting.ITEMS_BY_KEY
-assert len(style.FRAGRANCES) == 9
+# The launch boutique still owns the original nine scents; production now adds
+# one dungeon-crafted House of Nine Vapors fragrance on top of that catalog.
+assert len(style.FRAGRANCES) == 10
+assert "fragrance_afterimage_no9" in style.FRAGRANCE_BY_KEY
 assert len(guide.COMMANDS) >= 100
 print("STYLE_GUIDE_OK")
 '''
