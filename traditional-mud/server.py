@@ -35,6 +35,8 @@ from mud.class_progression_tuning import apply_inherited_class_tuning
 from mud.class_world_integration import install_class_world_integration_runtime
 from mud.launch_vertical_slice import install_launch_vertical_slice_runtime
 from mud.living_world import install_living_world_runtime
+from mud.living_world_depth import install_living_world_depth_runtime
+from mud.living_world_depth_tuning import apply_living_world_depth_tuning
 from mud.modern_client_experience import install_modern_client_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
@@ -167,6 +169,14 @@ install_launch_vertical_slice_runtime(PlayerSession)
 # sky events, and compact rented rooms. It deliberately creates curiosity rather
 # than login streaks: the dispatch reports what changed but never punishes absence.
 install_living_world_runtime(PlayerSession)
+# The depth pass adds density instead of another progression ladder: recurring
+# travelers keep schedules, a weekly factor appears for one Astralis day, quiet
+# ambient scenes rotate through lived-in spaces, longer problems unfold over
+# several days, and rate-limited player notes let the community leave small marks.
+# Normalize authored time-of-day labels and preserve the posting cooldown even
+# when a player removes their note before installing the runtime wrappers.
+apply_living_world_depth_tuning()
+install_living_world_depth_runtime(PlayerSession)
 # Keep the plain Telnet game authoritative, then expose the complete assembled
 # state as modern GMCP surfaces for capable clients. This outermost presentation
 # layer drives the official Mudlet mapper, panels, hotbar, context actions,
