@@ -3,9 +3,21 @@ import asyncio
 # Compatibility for an older Dwarf first-shift symbol typo that only appears
 # when the fully assembled live WORLD is passed back through that installer.
 import mud.dwarf_first_shift as dwarf_first_shift
+import mud.crafting as crafting
 
 if not hasattr(dwarf_first_shift, "BELLOWSWORKS_SHIFT_FLOOR_KEY"):
     dwarf_first_shift.BELLOWSWORKS_SHIFT_FLOOR_KEY = dwarf_first_shift.DWARF_BELLOWSWORKS_FLOOR_KEY
+
+# Newer content modules use one small registration helper rather than duplicating
+# the tuple/dictionary mutation needed by the legacy crafting registry. Keep the
+# helper here for backwards-compatible production assembly until crafting itself
+# owns this API.
+if not hasattr(crafting, "register_item"):
+    def _register_item(item) -> None:
+        if item.key not in crafting.ITEMS_BY_KEY:
+            crafting.ITEMS = crafting.ITEMS + (item,)
+        crafting.ITEMS_BY_KEY[item.key] = item
+    crafting.register_item = _register_item
 
 from mud.server import MudServer, PlayerSession, WORLD
 from mud.trade_experience import install_trade_experience_runtime
@@ -43,6 +55,7 @@ from mud.style_collectibles_tuning import apply_style_collectibles_tuning
 from mud.iconic_items import install_iconic_items
 from mud.content_foundry import install_content_foundry_runtime
 from mud.content_density import install_content_density_runtime
+from mud.planar_realms import install_planar_realms_runtime
 from mud.command_guide import install_command_guide_runtime
 from mud.modern_client_experience import install_modern_client_runtime
 from mud.production_hardening import install_production_hardening_runtime, install_production_server_runtime
@@ -103,6 +116,11 @@ apply_style_collectibles_tuning()
 install_iconic_items()
 install_content_foundry_runtime(PlayerSession, WORLD)
 install_content_density_runtime(PlayerSession, WORLD)
+
+# Planar content is installed after the physical world is complete but before
+# help/GMCP presentation. Its entrances remain contextual and undisclosed: there
+# is intentionally no seven-plane checklist for players to complete.
+install_planar_realms_runtime(PlayerSession, WORLD)
 
 # Discovery/help and modern-client presentation intentionally sit outside the
 # complete content stack so they see the final assembled world.
