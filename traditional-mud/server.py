@@ -32,6 +32,7 @@ from mud.party_quality import install_party_quality_runtime
 from mud.death_recovery import RESURRECTION_ABILITY, install_death_recovery_runtime
 from mud.class_progression import install_class_progression_runtime
 from mud.class_progression_tuning import apply_inherited_class_tuning
+from mud.class_world_integration import install_class_world_integration_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
@@ -146,6 +147,11 @@ install_class_progression_runtime(PlayerSession)
 # Promote the older level-one session-only costs/cooldowns into ability data so
 # the expanded runtime, CLASS display, and legacy direct commands all agree.
 apply_inherited_class_tuning()
+# Field commissions make those class kits matter in the authored world. Level-8
+# characters prove their role inside existing dungeons, earn a tradable artisan
+# component, and connect first-tier signature gear to Gravewatch, the Tollhouse,
+# the Underclock, and a second craftable equipment tier.
+install_class_world_integration_runtime(PlayerSession)
 
 
 HOST = "0.0.0.0"
