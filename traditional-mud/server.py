@@ -43,6 +43,7 @@ from mud.style_collectibles_tuning import apply_style_collectibles_tuning
 from mud.iconic_items import install_iconic_items
 from mud.content_foundry import install_content_foundry_runtime
 from mud.content_density import install_content_density_runtime
+from mud.planar_realms import install_planar_realms_runtime
 from mud.command_guide import install_command_guide_runtime
 from mud.modern_client_experience import install_modern_client_runtime
 from mud.production_hardening import install_production_hardening_runtime, install_production_server_runtime
@@ -103,6 +104,11 @@ apply_style_collectibles_tuning()
 install_iconic_items()
 install_content_foundry_runtime(PlayerSession, WORLD)
 install_content_density_runtime(PlayerSession, WORLD)
+
+# Planar content is installed after the physical world is complete but before
+# help/GMCP presentation. Its entrances remain contextual and undisclosed: there
+# is intentionally no seven-plane checklist for players to complete.
+install_planar_realms_runtime(PlayerSession, WORLD)
 
 # Discovery/help and modern-client presentation intentionally sit outside the
 # complete content stack so they see the final assembled world.
