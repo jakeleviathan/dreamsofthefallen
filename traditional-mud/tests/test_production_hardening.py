@@ -130,8 +130,11 @@ class ProductionHardeningTests(unittest.TestCase):
             self.assertEqual(row["outcome"], "victory")
             self.assertEqual(int(row["xp_reward"]), SEWER_RAT.xp_reward)
 
-    def test_first_session_combat_tuning_shortens_fights_without_raising_grind_xp(self):
-        self.assertEqual(SEWER_RAT.max_hp, 18)
+    def test_first_session_combat_tuning_eases_pressure_without_raising_grind_xp(self):
+        # Preserve the long-standing 20-HP rat contract used by lower-level
+        # combat tests while slowing retaliation. The imp receives the small
+        # TTK reduction. Neither repeatable target gets a larger XP payout.
+        self.assertEqual(SEWER_RAT.max_hp, 20)
         self.assertGreaterEqual(SEWER_RAT.auto_attack_interval, 3.4)
         self.assertEqual(SEWER_RAT.xp_reward, 15)
         self.assertEqual(SMALL_IMP.max_hp, 24)
