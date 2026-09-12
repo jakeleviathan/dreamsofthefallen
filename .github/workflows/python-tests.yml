@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
@@ -49,15 +49,3 @@ jobs:
           name: DreamsOfTheFallenHUD
           path: traditional-mud/mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage
           if-no-files-found: error
-      - name: Commit rebuilt package on main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.xml mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage
-          if git diff --cached --quiet; then
-            echo "Mudlet package already current."
-          else
-            git commit -m "Build DreamsOfTheFallenHUD package 2.0 [skip ci]"
-            git push
-          fi
