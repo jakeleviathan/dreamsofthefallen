@@ -24,6 +24,9 @@ from mud.veyra_living_core import install_veyra_living_core_runtime
 from mud.veyra_underclock import install_underclock_runtime
 from mud.gravewatch_keep import install_gravewatch_runtime
 from mud.gravewatch_repeatable import install_gravewatch_repeatable_runtime
+from mud.gravewatch_party import install_gravewatch_party_runtime
+from mud.party_system import install_party_runtime
+from mud.party_loot import install_party_loot_hooks
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
@@ -96,11 +99,20 @@ install_gravewatch_runtime(PlayerSession, WORLD)
 install_gravewatch_repeatable_runtime(PlayerSession)
 
 # Product-level economy layers sit outside the authored race/quest runtimes.
-# Base economy installs first, the balance/incentive pass sits above it, and trade
-# remains outermost so movement, combat, and disconnects always invalidate deals.
+# Base economy installs first, then the balance pass. Gravewatch's small party
+# bridge sits above authored progression so officer/pull credit can be shared by
+# characters who actually fought together without duplicating personal rewards.
 install_economy_loop_runtime(PlayerSession, WORLD)
 install_economy_balance_runtime(PlayerSession)
+install_gravewatch_party_runtime(PlayerSession)
+# Trade still owns its safety invalidation rules. Parties then sit outermost so a
+# leader's movement can safely drive followers through the complete live movement
+# stack, and shared combat sees the final loot/quest behavior beneath it.
 install_trade_experience_runtime(PlayerSession)
+install_party_runtime(PlayerSession)
+# Existing common and uncommon monster drops obey party ROUNDROBIN/KILLER rules.
+# Quest rewards remain personal and are intentionally not redirected.
+install_party_loot_hooks()
 
 
 HOST = "0.0.0.0"
