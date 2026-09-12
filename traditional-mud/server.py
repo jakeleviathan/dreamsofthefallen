@@ -18,6 +18,8 @@ from mud.starter_signature_moments import install_signature_moment_runtime
 from mud.waymeet_frontier import install_waymeet_runtime
 from mud.gloamworks_dungeon import install_gloamworks_runtime
 from mud.greywake_march import install_greywake_runtime
+from mud.veyra_city import install_veyra_runtime
+from mud.sablewater_reach import install_sablewater_runtime
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
@@ -62,6 +64,14 @@ install_gloamworks_runtime(PlayerSession, WORLD)
 # three competing practical factions, a multi-quest regional arc, a shared
 # Gloam Surge world event, and the road ending at Veyra's outer gate.
 install_greywake_runtime(PlayerSession, WORLD)
+# Veyra opens the first full shared capital: persistent vault storage, a real
+# player barter exchange with escrow, class trainers, public boards, craft halls,
+# bind services, and faction offices whose Greywake choices become useful perks.
+install_veyra_runtime(PlayerSession, WORLD)
+# Sablewater gives the midgame another direction entirely separate from Gloam:
+# a level 6-10 river region and the Drowned Tollhouse, an old civic-machine
+# dungeon whose problem is obsolete law and neglected waterworks, not anomaly.
+install_sablewater_runtime(PlayerSession, WORLD)
 
 # Product-level economy layers sit outside the authored race/quest runtimes.
 # Base economy installs first, the balance/incentive pass sits above it, and trade
