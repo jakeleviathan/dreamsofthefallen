@@ -68,6 +68,7 @@ from mud.alpha_ux import install_alpha_ux_runtime
 from mud.modern_client_experience import install_modern_client_runtime
 from mud.production_hardening import install_production_hardening_runtime, install_production_server_runtime
 from mud.production_operator import install_production_operator_runtime
+from mud.room_presentation import install_room_presentation_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
@@ -182,6 +183,10 @@ _LIVE_ROOMS = live_rooms_for_world(WORLD)
 validate_authored_exit_targets(_LIVE_ROOMS)
 validate_starter_route_walks(_LIVE_ROOMS)
 install_universal_location_repair_runtime(PlayerSession, WORLD)
+
+# Keep room presentation outermost so every authored area gets the same readable
+# visual hierarchy without requiring per-room markup.
+install_room_presentation_runtime(PlayerSession, WORLD)
 
 HOST = "0.0.0.0"
 PORT = 4000
