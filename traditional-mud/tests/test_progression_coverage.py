@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
+import os
 import re
+import subprocess
+import sys
 import unittest
+from pathlib import Path
 
-import server  # production import installs the real world and class progression
-from mud import quests
 from mud.mechanics import PROGRESSION_RULES, class_abilities_for_level
 from mud.progression_coverage import (
     AUDIT_MAX_LEVEL,
@@ -18,6 +21,54 @@ from mud.progression_coverage import (
 
 
 class ProgressionCoverageTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        root = Path(__file__).resolve().parents[1]
+        code = r'''
+import json
+import re
+
+import server
+from mud import quests
+from mud.mechanics import class_abilities_for_level
+
+unlocks = []
+for class_key in ("brute", "wizard", "druid", "necromancer"):
+    unlocks.extend(
+        ability.unlock_level or 1
+        for ability in class_abilities_for_level(class_key, 60)
+    )
+for deity_key in ("zerjz", "tenebrous", "leviathan"):
+    unlocks.extend(
+        ability.unlock_level or 1
+        for ability in class_abilities_for_level("priest", 60, deity_key)
+    )
+
+tagged_levels = []
+for room in server.WORLD.legacy_rooms.values():
+    for tag in room.tags:
+        if tag.startswith("level_"):
+            tagged_levels.extend(int(value) for value in re.findall(r"\d+", tag))
+
+print(json.dumps({
+    "max_class_unlock": max(unlocks),
+    "max_room_level": max(tagged_levels),
+    "quest_count": len(quests.QUESTS_BY_KEY),
+    "max_quest_level": max(quest.minimum_level for quest in quests.QUESTS_BY_KEY.values()),
+}))
+'''
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            env={**os.environ, "PYTHONPATH": str(root)},
+            timeout=30,
+        )
+        if result.returncode != 0:
+            raise AssertionError(result.stderr or result.stdout)
+        cls.production = json.loads(result.stdout.strip().splitlines()[-1])
+
     def test_xp_curve_round_trips_every_level_one_through_sixty(self):
         previous_floor = -1
         for level in range(1, AUDIT_MAX_LEVEL + 1):
@@ -42,34 +93,16 @@ class ProgressionCoverageTests(unittest.TestCase):
                 self.assertTrue(all((ability.unlock_level or 1) <= level for ability in abilities))
 
     def test_current_class_unlock_ceiling_matches_live_ability_registry(self):
-        unlocks = []
-        for class_key in ("brute", "wizard", "druid", "necromancer"):
-            unlocks.extend(
-                ability.unlock_level or 1
-                for ability in class_abilities_for_level(class_key, AUDIT_MAX_LEVEL)
-            )
-        for deity_key in ("zerjz", "tenebrous", "leviathan"):
-            unlocks.extend(
-                ability.unlock_level or 1
-                for ability in class_abilities_for_level("priest", AUDIT_MAX_LEVEL, deity_key)
-            )
-        self.assertEqual(max(unlocks), CURRENT_CLASS_ABILITY_CEILING)
+        self.assertEqual(self.production["max_class_unlock"], CURRENT_CLASS_ABILITY_CEILING)
         self.assertEqual(CURRENT_CLASS_ABILITY_CEILING, 20)
 
     def test_live_authored_room_tags_reach_twenty_and_no_higher(self):
-        tagged_levels = []
-        for room in server.WORLD.legacy_rooms.values():
-            for tag in room.tags:
-                if not tag.startswith("level_"):
-                    continue
-                tagged_levels.extend(int(value) for value in re.findall(r"\d+", tag))
-        self.assertTrue(tagged_levels)
-        self.assertEqual(max(tagged_levels), CURRENT_AUTHORED_ZONE_CEILING)
+        self.assertEqual(self.production["max_room_level"], CURRENT_AUTHORED_ZONE_CEILING)
         self.assertEqual(CURRENT_AUTHORED_ZONE_CEILING, 20)
 
     def test_live_quest_entry_gates_now_reach_level_twenty(self):
-        self.assertGreater(len(quests.QUESTS_BY_KEY), 100)
-        self.assertEqual(max(quest.minimum_level for quest in quests.QUESTS_BY_KEY.values()), 20)
+        self.assertGreater(self.production["quest_count"], 100)
+        self.assertEqual(self.production["max_quest_level"], 20)
 
     def test_levels_beyond_current_authored_zone_ceiling_are_marked_unsupported(self):
         self.assertTrue(level_coverage(CURRENT_AUTHORED_ZONE_CEILING).authored_zone_support)
