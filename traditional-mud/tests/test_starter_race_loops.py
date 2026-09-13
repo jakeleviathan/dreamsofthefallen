@@ -9,6 +9,12 @@ from types import SimpleNamespace
 
 from mud.character_options import RACES_BY_KEY
 from mud.database import Database
+from mud.location_safety import (
+    live_rooms_for_world,
+    repair_invalid_character_location,
+    validate_authored_exit_targets,
+    validate_starter_route_walks,
+)
 from mud.starter_race_loops import (
     STARTER_RACE_LOOPS,
     STARTER_RACE_LOOPS_BY_RACE,
@@ -85,14 +91,96 @@ class StarterRaceLoopTests(unittest.TestCase):
                 self.assertIsNotNone(starting_room_for_race(race_key))
         self.assertIsNone(starting_room_for_race("not_a_race"))
 
+    def test_global_exit_contract_rejects_any_advertised_missing_destination(self):
+        rooms = {
+            "a": SimpleNamespace(exits={"north": "b"}),
+            "b": SimpleNamespace(exits={"south": "a"}),
+        }
+        validate_authored_exit_targets(rooms)
+
+        broken = dict(rooms)
+        broken["a"] = SimpleNamespace(exits={"north": "deleted_room"})
+        with self.assertRaises(RuntimeError):
+            validate_authored_exit_targets(broken)
+
+    def test_every_racial_start_can_be_walked_into_a_real_second_room(self):
+        rooms = {}
+        for index, loop in enumerate(STARTER_RACE_LOOPS, start=1):
+            next_key = f"starter_test_next_{index}"
+            rooms[loop.starting_room_key] = SimpleNamespace(exits={"out": next_key})
+            rooms[next_key] = SimpleNamespace(exits={"back": loop.starting_room_key})
+
+        validate_authored_exit_targets(rooms)
+        validate_starter_route_walks(rooms)
+
+    def test_stale_saved_locations_are_repaired_for_all_eight_races(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            database = HookedDatabase(Path(tempdir) / "repair-all-races.db")
+            account = database.create_account("repairloops", "hash")
+            live_rooms = {
+                loop.starting_room_key: SimpleNamespace(exits={})
+                for loop in STARTER_RACE_LOOPS
+            }
+
+            for index, loop in enumerate(STARTER_RACE_LOOPS, start=1):
+                with self.subTest(race=loop.race_key):
+                    character = database.create_character(
+                        account.id,
+                        f"Repair{index}",
+                        loop.race_key,
+                        "wizard",
+                    )
+                    database.set_character_room(character.id, "deleted_development_room")
+                    database.set_bind_room(character.id, "deleted_bind_room")
+                    stale = database.get_character_by_name(character.name)
+                    session = SimpleNamespace(character=stale, database=database)
+
+                    self.assertTrue(repair_invalid_character_location(session, live_rooms))
+                    self.assertEqual(session.character.current_room, loop.starting_room_key)
+                    self.assertEqual(session.character.bind_room, loop.starting_room_key)
+
+    def test_valid_travel_is_never_teleported_back_to_a_racial_start(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            database = HookedDatabase(Path(tempdir) / "repair-valid-travel.db")
+            account = database.create_account("validtravel", "hash")
+            character = database.create_character(
+                account.id,
+                "Traveler",
+                "human",
+                "wizard",
+            )
+            database.set_character_room(character.id, "shared_valid_destination")
+            database.set_bind_room(character.id, "shared_valid_destination")
+            traveled = database.get_character_by_name(character.name)
+            live_rooms = {
+                loop.starting_room_key: SimpleNamespace(exits={})
+                for loop in STARTER_RACE_LOOPS
+            }
+            live_rooms["shared_valid_destination"] = SimpleNamespace(exits={})
+            session = SimpleNamespace(character=traveled, database=database)
+
+            self.assertFalse(repair_invalid_character_location(session, live_rooms))
+            self.assertEqual(session.character.current_room, "shared_valid_destination")
+            self.assertEqual(session.character.bind_room, "shared_valid_destination")
+
     def test_production_entrypoint_assembles_and_validates_all_eight_starts(self):
         # Importing the production entrypoint installs every authored content
-        # layer and then runs the real starter-loop validator. Do it in a child
-        # process so those production registry mutations cannot leak into the
-        # rest of the unit test suite.
+        # layer, validates every advertised room destination, walks outward from
+        # all eight racial starts, and installs the universal stale-location guard.
+        # Do it in a child process so production registry mutations cannot leak.
         project_root = Path(__file__).resolve().parents[1]
+        code = r'''
+import server
+from mud.location_safety import live_rooms_for_world, validate_authored_exit_targets, validate_starter_route_walks
+
+assert server.PlayerSession._universal_location_repair_runtime_installed
+rooms = live_rooms_for_world(server.WORLD)
+validate_authored_exit_targets(rooms)
+validate_starter_route_walks(rooms)
+print('STARTER_LOCATION_SAFETY_OK')
+'''
         result = subprocess.run(
-            [sys.executable, "-c", "import server; print('STARTER_CONTRACT_OK')"],
+            [sys.executable, "-c", code],
             cwd=project_root,
             capture_output=True,
             text=True,
@@ -100,7 +188,7 @@ class StarterRaceLoopTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
-        self.assertIn("STARTER_CONTRACT_OK", result.stdout)
+        self.assertIn("STARTER_LOCATION_SAFETY_OK", result.stdout)
 
 
 if __name__ == "__main__":
