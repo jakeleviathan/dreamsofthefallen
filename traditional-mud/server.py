@@ -76,6 +76,7 @@ from mud.world import ROOMS_BY_KEY
 from mud.starter_race_loops import install_starter_room_database_hook, validate_starter_loop_contract
 from mud.location_safety import (
     install_universal_location_repair_runtime,
+    live_rooms_for_world,
     validate_authored_exit_targets,
     validate_starter_route_walks,
 )
@@ -167,9 +168,12 @@ install_production_server_runtime(MudServer)
 # Final world safety is deliberately installed last. Every authored exit in the
 # assembled live world must resolve, every racial start must support a real walk,
 # and stale saved locations for any race are repaired before the rest of the
-# enter-character stack can inspect them.
-validate_authored_exit_targets(WORLD.legacy_rooms)
-validate_starter_route_walks(WORLD.legacy_rooms)
+# enter-character stack can inspect them. The live registry is the union of the
+# legacy global registry and the room service because both registration paths are
+# still used by production content.
+_LIVE_ROOMS = live_rooms_for_world(WORLD)
+validate_authored_exit_targets(_LIVE_ROOMS)
+validate_starter_route_walks(_LIVE_ROOMS)
 install_universal_location_repair_runtime(PlayerSession, WORLD)
 
 HOST = "0.0.0.0"
