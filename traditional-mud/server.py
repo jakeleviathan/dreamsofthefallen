@@ -61,6 +61,7 @@ from mud.midgame_three_roads_tuning import apply_midgame_three_roads_tuning
 from mud.frontier_convergence import install_frontier_convergence_runtime
 from mud.eight_roads_midgame import install_eight_roads_runtime
 from mud.broken_reach_midgame import install_broken_reach_runtime
+from mud.broken_reach_tuning import apply_broken_reach_route_tuning
 from mud.style_collectibles import install_style_collectibles_runtime
 from mud.style_collectibles_tuning import apply_style_collectibles_tuning
 from mud.iconic_items import install_iconic_items
@@ -155,11 +156,15 @@ install_frontier_convergence_runtime(PlayerSession, WORLD)
 # Road, and Sporekin Rainroot. All eight roads remain open to every race. Any
 # three independent witness threads, plus the mapped Outerworks, open Meridian.
 install_eight_roads_runtime(PlayerSession, WORLD)
-# Broken Reach is the broad shared 11-20 exploration region south of Waymeet.
+# Broken Reach is the broad shared 11-20 exploration region beyond Waymeet.
 # It adds caravan disappearances, the morally gray Grinning Men, three competing
 # regional claims, a full House Beneath the Hill dungeon, optional oddities, and
 # a level-20 event that removes the old surface span and opens a buried bypass.
 install_broken_reach_runtime(PlayerSession, WORLD)
+# Preserve the existing level-2 Old Toll Road and Veyra->Sablewater SOUTH exits.
+# Broken Reach continues south from the old toll road and approaches Veyra from
+# the west, so adding the new region never steals an older player's route.
+apply_broken_reach_route_tuning(WORLD)
 install_style_collectibles_runtime(PlayerSession, WORLD)
 apply_style_collectibles_tuning()
 
