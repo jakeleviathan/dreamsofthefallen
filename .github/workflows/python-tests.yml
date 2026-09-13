@@ -52,7 +52,7 @@ jobs:
           root = Path('.')
           # Build outside the directory being traversed. Keeping the output under
           # root previously let the archive include a zero-length copy of itself.
-          out = root.parent / 'DreamsOfTheFallenServer.zip'
+          out = Path('..') / 'DreamsOfTheFallenServer.zip'
           excluded_parts = {'__pycache__', '.pytest_cache'}
           excluded_prefixes = ('tests/', 'backups/', 'logs/')
           excluded_names = {'mud.db'}
