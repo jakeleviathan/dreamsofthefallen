@@ -13,8 +13,8 @@ from mud.first_ten_progression import (
     RACE_FIRST_TEN_ARCS,
     install_first_ten_content,
     install_first_ten_runtime,
-    validate_first_ten_contract,
 )
+from mud.priest_early_progression import PRIEST_FOUNDATION_ABILITIES
 from mud.starter_race_loops import STARTER_RACE_LOOPS_BY_RACE
 
 
@@ -98,8 +98,9 @@ class _FakeSession:
 class FirstTenProgressionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from mud.priest_early_progression import install_priest_early_progression_content
-        install_priest_early_progression_content()
+        # Register the new non-Priest capstones and racial quests in this process.
+        # Priest foundation installation is deliberately tested in subprocesses so
+        # the historic level-one deity catalog tests remain isolated and exact.
         install_first_ten_content()
 
     def test_all_eight_races_have_three_real_post_opening_beats(self):
@@ -117,13 +118,36 @@ class FirstTenProgressionTests(unittest.TestCase):
                 expected = CLASS_CAPSTONE_ABILITIES[class_key].key
                 level_ten = mechanics.class_abilities_for_level(class_key, 10)
                 self.assertIn(expected, {ability.key for ability in level_ten})
-        for deity_key in mechanics.PRIEST_DEITY_ABILITIES:
-            with self.subTest(priest_path=deity_key):
-                keys = {ability.key for ability in mechanics.class_abilities_for_level("priest", 10, deity_key)}
-                self.assertIn("divine_concord", keys)
+
+        # Priest's complete 1-10 foundation is installed by the production entrypoint.
+        # Check its canonical definition here without mutating the shared deity registry.
+        priest_capstones = {
+            ability.key: ability.unlock_level for ability in PRIEST_FOUNDATION_ABILITIES
+        }
+        self.assertEqual(priest_capstones.get("divine_concord"), 10)
 
     def test_contract_validator_accepts_complete_first_ten(self):
-        validate_first_ten_contract()
+        root = Path(__file__).resolve().parents[1]
+        code = r'''
+from mud.priest_early_progression import install_priest_early_progression_content
+from mud.first_ten_progression import install_first_ten_content, validate_first_ten_contract
+
+install_priest_early_progression_content()
+install_first_ten_content()
+validate_first_ten_contract()
+print("FIRST_TEN_CONTRACT_OK")
+'''
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            env={**os.environ, "PYTHONPATH": str(root)},
+            timeout=30,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertIn("FIRST_TEN_CONTRACT_OK", result.stdout)
 
     def test_goblin_level_four_arc_is_persistent_playable_content(self):
         class Session(_FakeSession):
@@ -148,19 +172,31 @@ class FirstTenProgressionTests(unittest.TestCase):
         self.assertIn("The Sinking Heap complete", text)
         self.assertIn("Goblin usefulness", text)
 
-    def test_heritage_command_exposes_level_gates(self):
+    def test_heritage_command_exposes_current_act_and_future_level_gates(self):
         class Session(_FakeSession):
             _first_ten_runtime_installed = False
 
         install_first_ten_runtime(Session)
+
+        # First, a normal level-four Goblin sees the immediately playable home crisis.
         session = Session()
         session.commands = ["heritage"]
         asyncio.run(session.playing_prompt())
         text = "".join(session.messages)
         self.assertIn("Level 1-10 Heritage Arc", text)
         self.assertIn("Act II - The Sinking Heap: active", text)
-        self.assertIn("Act III - Useful to Strangers: unlocks at level 8", text)
-        self.assertIn("Capstone - The Heap That Stayed Up: unlocks at level 10", text)
+
+        # Once that act is complete, HERITAGE shows the next two level gates without
+        # starting them early or turning all three acts into simultaneous quests.
+        gated = Session()
+        act_two = RACE_FIRST_TEN_ARCS["goblin"].act_two
+        gated.database.grant_flag(gated.character.id, act_two.completion_flag("goblin"))
+        gated.commands = ["heritage"]
+        asyncio.run(gated.playing_prompt())
+        gated_text = "".join(gated.messages)
+        self.assertIn("Act II - The Sinking Heap: complete", gated_text)
+        self.assertIn("Act III - Useful to Strangers: unlocks at level 8", gated_text)
+        self.assertIn("Capstone - The Heap That Stayed Up: unlocks at level 10", gated_text)
 
     def test_production_entrypoint_installs_first_ten_runtime(self):
         root = Path(__file__).resolve().parents[1]
