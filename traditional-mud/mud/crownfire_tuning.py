@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import replace
 
 import mud.crownfire_march_31_40 as crownfire
+import mud.quests as quests
 import mud.world as legacy_world
+from mud.access import ContentGate
 from mud.room_engine import ExitDefinition, RoomAugmentation, ViewCondition
 
 
@@ -13,6 +15,43 @@ _REGION_KEYS = {
     crownfire.REDOUBT_REGION_KEY,
     crownfire.PALACE_REGION_KEY,
 }
+
+
+def normalize_crownfire_quest_definitions() -> None:
+    """Repair compact positional quest construction into the canonical schema.
+
+    The quest dataclass stores an optional ContentGate between minimum_level and
+    description. Crownfire's compact constructor intentionally gets normalized
+    here so the production registry carries real prose descriptions and objective
+    steps instead of shifting those values one field to the left.
+    """
+
+    normalized = []
+    for quest in crownfire.CROWNFIRE_QUESTS:
+        if isinstance(quest.gate, str) and isinstance(quest.description, tuple) and not quest.objective_steps:
+            quest = replace(
+                quest,
+                gate=ContentGate(),
+                description=quest.gate,
+                objective_steps=quest.description,
+            )
+        normalized.append(quest)
+
+    crownfire.CROWNFIRE_QUESTS = tuple(normalized)
+    by_key = {quest.key: quest for quest in crownfire.CROWNFIRE_QUESTS}
+    crownfire.ARRIVAL_QUEST = by_key[crownfire.ARRIVAL_QUEST_KEY]
+    crownfire.BLOCKADE_QUEST = by_key[crownfire.BLOCKADE_QUEST_KEY]
+    crownfire.REDOUBT_QUEST = by_key[crownfire.REDOUBT_QUEST_KEY]
+    crownfire.DESERTER_QUEST = by_key[crownfire.DESERTER_QUEST_KEY]
+    crownfire.PALACE_QUEST = by_key[crownfire.PALACE_QUEST_KEY]
+    crownfire.CAPSTONE_QUEST = by_key[crownfire.CAPSTONE_QUEST_KEY]
+
+    for quest in crownfire.CROWNFIRE_QUESTS:
+        if quest.key in quests.QUESTS_BY_KEY:
+            quests.QUESTS = tuple(quest if old.key == quest.key else old for old in quests.QUESTS)
+        else:
+            quests.QUESTS = quests.QUESTS + (quest,)
+        quests.QUESTS_BY_KEY[quest.key] = quest
 
 
 def _without_extra(augmentation: RoomAugmentation, direction: str, destination_key: str) -> RoomAugmentation:
@@ -41,13 +80,9 @@ def _add_override(augmentation: RoomAugmentation, exit_def: ExitDefinition) -> R
 
 
 def apply_crownfire_room_field_tuning(world_service) -> None:
-    """Normalize Crownfire room fields and make progression gates real exits.
+    """Normalize Crownfire quests/rooms and make progression gates real exits."""
 
-    Crownfire's compact authored room helper used the legacy RoomDefinition field
-    order incorrectly for description/region. The authored topology also includes
-    static links that are meant to become available only after story milestones.
-    Normalize both here before the production world-safety audit.
-    """
+    normalize_crownfire_quest_definitions()
 
     reverse_exits = {
         crownfire.TRIBUNAL_YARD_KEY: {"east": crownfire.MORROWGATE_COUNCIL_KEY},
