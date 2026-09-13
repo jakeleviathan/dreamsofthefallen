@@ -125,7 +125,7 @@ markers = (
     "_death_recovery_runtime_installed",
     "_class_progression_runtime_installed",
     "_living_world_runtime_installed",
-    "_planar_realms_runtime_installed",
+    "_planar_realms_installed",
     "_alpha_ux_runtime_installed",
     "_modern_client_runtime_installed",
 )
