@@ -14,7 +14,6 @@ import mud.midgame_depth as depth
 import mud.upper_class_progression as upper
 from mud.combat import EnemyDefinition, EnemyState
 from mud.mechanics import CombatantState
-from mud.room_engine import PlayerRoomContext
 from mud.stats import CharacterStats
 
 
@@ -139,8 +138,9 @@ class CrownfireDesignTests(unittest.TestCase):
         self.assertIn("manufactured crisis", crownfire.PALACE_QUEST.description)
         self.assertIn("no hidden machine", crownfire.CAPSTONE_QUEST.description.lower())
         self.assertIn("the orders are his", crownfire.CAPSTONE_QUEST.description.lower())
-        self.assertEqual(crownfire.MARSHAL_DASK.name, "Marshal Corven Dask")
-        self.assertIn("gold signet", crownfire.MARSHAL_DASK.description)
+        dask = next(enemy for enemy in crownfire.CROWNFIRE_ENEMIES if enemy.key == crownfire.MARSHAL_DASK_KEY)
+        self.assertEqual(dask.name, "Marshal Corven Dask")
+        self.assertIn("gold signet", dask.description)
 
     def test_level_band_has_six_authored_steps_up_to_forty(self):
         self.assertEqual(
@@ -161,10 +161,8 @@ class ProductionUpperMidgameTests(unittest.TestCase):
 import json
 import server
 from mud import crafting, quests
-from mud.broken_reach_midgame import HILL_WARDEN_KEY
 from mud.crownfire_march_31_40 import (
     CROWNFIRE_ROOM_KEYS,
-    CROWNFIRE_REGION_KEY,
     MARCHWARD_POST_KEY,
     GALLOWS_MILE_KEY,
     REDOUBT_GATE_KEY,
