@@ -225,7 +225,7 @@ for class_key in ("brute", "wizard", "druid", "necromancer"):
     max_unlock = max(max_unlock, max(a.unlock_level or 1 for a in class_abilities_for_level(class_key, 60)))
 for deity_key in ("zerjz", "tenebrous", "leviathan"):
     max_unlock = max(max_unlock, max(a.unlock_level or 1 for a in class_abilities_for_level("priest", 60, deity_key)))
-assert max_unlock == 30
+assert max_unlock == 40
 
 low = PlayerRoomContext(1, "goblin", "priest", 30, frozenset({SALT_COMPLETE}))
 assert "north" not in {e.direction for e in server.WORLD.build_view(SALTWIND_GATE_KEY, low).exits}
@@ -287,7 +287,7 @@ print(json.dumps({
 
     def test_actual_production_entrypoint_assembles_the_whole_new_band(self):
         self.assertEqual(self.production["rooms"], 33)
-        self.assertEqual(self.production["max_unlock"], 30)
+        self.assertEqual(self.production["max_unlock"], 40)
         self.assertEqual(self.production["max_quest"], 40)
         self.assertEqual(self.production["production"], "ok")
 

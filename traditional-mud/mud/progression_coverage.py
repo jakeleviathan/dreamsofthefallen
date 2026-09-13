@@ -7,7 +7,7 @@ from mud.mechanics import PROGRESSION_RULES, class_abilities_for_level
 
 AUDIT_MAX_LEVEL = 60
 CURRENT_AUTHORED_ZONE_CEILING = 40
-CURRENT_CLASS_ABILITY_CEILING = 30
+CURRENT_CLASS_ABILITY_CEILING = 40
 HARD_LEVEL_CAP: int | None = None
 
 
@@ -55,6 +55,17 @@ CONTENT_BANDS: tuple[ContentBand, ...] = (
     ContentBand(15, 16, "Ashcross shared frontier", ("dangerous road network", "deep-forest pockets", "abandoned causeways", "multi-racial frontier town")),
     ContentBand(17, 18, "Meridian Outerworks", ("Flood Ring loop", "Root Gallery loop", "Outerworks Lockwarden", "delver return route")),
     ContentBand(19, 20, "Meridian Vault convergence", ("Any three independent road witnesses", "Nameless Custodian", "level-20 class milestones")),
+    ContentBand(
+        15,
+        36,
+        "Optional roadside discoveries",
+        (
+            "House of Fifty Chairs",
+            "Quiet Bell watchtower",
+            "Blue Salt Sink",
+            "Noonwatch civilian tower",
+        ),
+    ),
     ContentBand(
         21,
         30,

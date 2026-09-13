@@ -94,7 +94,7 @@ print(json.dumps({
 
     def test_current_class_unlock_ceiling_matches_live_ability_registry(self):
         self.assertEqual(self.production["max_class_unlock"], CURRENT_CLASS_ABILITY_CEILING)
-        self.assertEqual(CURRENT_CLASS_ABILITY_CEILING, 30)
+        self.assertEqual(CURRENT_CLASS_ABILITY_CEILING, 40)
 
     def test_live_authored_room_tags_reach_forty_and_no_higher(self):
         self.assertEqual(self.production["max_room_level"], CURRENT_AUTHORED_ZONE_CEILING)
