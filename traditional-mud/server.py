@@ -62,6 +62,7 @@ from mud.frontier_convergence import install_frontier_convergence_runtime
 from mud.eight_roads_midgame import install_eight_roads_runtime
 from mud.broken_reach_midgame import install_broken_reach_runtime
 from mud.broken_reach_tuning import apply_broken_reach_route_tuning
+from mud.salt_kingdoms_midgame import install_salt_kingdoms_runtime
 from mud.style_collectibles import install_style_collectibles_runtime
 from mud.style_collectibles_tuning import apply_style_collectibles_tuning
 from mud.iconic_items import install_iconic_items
@@ -165,6 +166,11 @@ install_broken_reach_runtime(PlayerSession, WORLD)
 # Broken Reach continues south from the old toll road and approaches Veyra from
 # the west, so adding the new region never steals an older player's route.
 apply_broken_reach_route_tuning(WORLD)
+# Whitewake and the Salt Kingdoms deliberately begin after the Broken Reach
+# capstone. This layer owns levels 21-30: a major dry-harbor city, two very
+# different dungeons, water politics, and a level-30 hydraulic choice that
+# physically changes travel through the basin for that character.
+install_salt_kingdoms_runtime(PlayerSession, WORLD)
 install_style_collectibles_runtime(PlayerSession, WORLD)
 apply_style_collectibles_tuning()
 
