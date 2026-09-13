@@ -53,6 +53,7 @@ from mud.living_world_continuity import install_living_world_continuity_runtime
 from mud.social_pastimes import install_social_pastimes_runtime
 from mud.waymeet_adventure_runtime import install_waymeet_adventure_runtime
 from mud.midgame_three_roads import install_midgame_12_20_runtime
+from mud.midgame_three_roads_tuning import apply_midgame_three_roads_tuning
 from mud.style_collectibles import install_style_collectibles_runtime
 from mud.style_collectibles_tuning import apply_style_collectibles_tuning
 from mud.iconic_items import install_iconic_items
@@ -118,6 +119,7 @@ install_waymeet_adventure_runtime(PlayerSession, WORLD)
 # Moon Elf highroad above. Their three witness threads reconverge only at the
 # level 19-20 Meridian Vault, where level 20 becomes a real class milestone.
 install_midgame_12_20_runtime(PlayerSession, WORLD)
+apply_midgame_three_roads_tuning()
 install_style_collectibles_runtime(PlayerSession, WORLD)
 apply_style_collectibles_tuning()
 
