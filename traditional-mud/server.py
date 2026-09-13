@@ -46,6 +46,7 @@ from mud.class_progression import install_class_progression_runtime
 from mud.class_progression_tuning import apply_inherited_class_tuning
 from mud.priest_early_progression import install_priest_early_progression_runtime
 from mud.first_ten_progression import install_first_ten_runtime
+from mud.first_ten_adventures import install_first_ten_adventures_runtime
 from mud.class_world_integration import install_class_world_integration_runtime
 from mud.launch_vertical_slice import install_launch_vertical_slice_runtime
 from mud.living_world import install_living_world_runtime
@@ -125,10 +126,12 @@ for _priest_path_key, _abilities in tuple(PRIEST_DEITY_ABILITIES.items()):
 install_class_progression_runtime(PlayerSession)
 apply_inherited_class_tuning()
 # Priests own a complete executable foundation through level 10. The first-ten
-# pass then adds level-10 capstones for the other four classes and three racial
-# story milestones (4, 8, 10) for every one of the eight origins.
+# pass adds level-10 capstones and the three racial milestones. The adventure
+# layer then turns every milestone into a routed story with a recurring homeland
+# contact, a real story turn, shared-world travel, and a persistent capstone item.
 install_priest_early_progression_runtime(PlayerSession)
 install_first_ten_runtime(PlayerSession)
+install_first_ten_adventures_runtime(PlayerSession, WORLD)
 install_class_world_integration_runtime(PlayerSession)
 install_launch_vertical_slice_runtime(PlayerSession)
 install_living_world_runtime(PlayerSession)
