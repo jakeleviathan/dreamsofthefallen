@@ -73,9 +73,9 @@ def apply_crownfire_room_field_tuning(world_service) -> None:
         legacy_world.ROOMS_BY_KEY[room.key] = room
         world_service.legacy_rooms[room.key] = room
 
-    # Static dungeon links are present in the legacy topology so old-style map
-    # walkers can understand return paths. The advanced room service owns the
-    # actual player-facing gate through explicit exit overrides.
+    # Static dungeon links remain in the legacy topology for return-path auditing.
+    # The advanced room service owns the player-facing story gates through explicit
+    # exit overrides.
     gallows = world_service.augmentations.get(crownfire.GALLOWS_MILE_KEY, RoomAugmentation())
     gallows = _without_extra(gallows, "east", crownfire.REDOUBT_GATE_KEY)
     gallows = _add_override(
@@ -108,6 +108,20 @@ def apply_crownfire_room_field_tuning(world_service) -> None:
         ),
     )
     world_service.augmentations[crownfire.MORROWGATE_RAMPART_KEY] = rampart
+
+    command = world_service.augmentations.get(crownfire.PALACE_COMMAND_KEY, RoomAugmentation())
+    command = _add_override(
+        command,
+        ExitDefinition(
+            direction="north",
+            destination_key=crownfire.PALACE_TREATY_KEY,
+            name="Treaty Chamber",
+            travel_text="With Dask's campaign ledger secured, you enter the treaty chamber where the marshal has made his final stand.",
+            condition=ViewCondition(required_flags=(crownfire.PALACE_COMPLETE_FLAG,), min_level=40),
+            hidden_when_unavailable=True,
+        ),
+    )
+    world_service.augmentations[crownfire.PALACE_COMMAND_KEY] = command
 
     # Post-capstone routes deliberately use directions not already owned by the
     # base city/fort map, so the ending never steals a normal travel command.
@@ -160,6 +174,7 @@ def apply_crownfire_room_field_tuning(world_service) -> None:
         for key in (
             crownfire.GALLOWS_MILE_KEY,
             crownfire.MORROWGATE_RAMPART_KEY,
+            crownfire.PALACE_COMMAND_KEY,
             crownfire.MORROWGATE_COUNCIL_KEY,
             crownfire.REFUGEE_FORD_KEY,
             crownfire.REDOUBT_GATE_KEY,
