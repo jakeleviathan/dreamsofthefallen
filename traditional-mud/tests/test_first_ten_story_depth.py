@@ -88,7 +88,6 @@ from types import SimpleNamespace
 import server
 import mud.first_ten_progression as first_ten
 from mud.first_ten_adventures import ADVENTURE_ROUTES
-from mud.first_ten_story_depth import STORY_PARTNERS
 from mud.room_engine import PlayerRoomContext
 from mud.starter_race_loops import STARTER_RACE_LOOPS_BY_RACE
 
@@ -138,10 +137,6 @@ async def main():
     assert handled
     before = "".join(session.messages)
     assert "still think a good fix and a good system are the same thing" in before
-    assert STORY_PARTNERS["goblin"].name in " ".join(
-        npc.name for npc in server.WORLD.scene(session.character.current_room).npc_keys
-        if False
-    ) if False else True
 
     session.messages.clear()
     for step in route.steps:
