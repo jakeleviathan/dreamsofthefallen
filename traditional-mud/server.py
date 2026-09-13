@@ -54,6 +54,7 @@ from mud.social_pastimes import install_social_pastimes_runtime
 from mud.waymeet_adventure_runtime import install_waymeet_adventure_runtime
 from mud.midgame_three_roads import install_midgame_12_20_runtime
 from mud.midgame_three_roads_tuning import apply_midgame_three_roads_tuning
+from mud.frontier_convergence import install_frontier_convergence_runtime
 from mud.style_collectibles import install_style_collectibles_runtime
 from mud.style_collectibles_tuning import apply_style_collectibles_tuning
 from mud.iconic_items import install_iconic_items
@@ -120,6 +121,11 @@ install_waymeet_adventure_runtime(PlayerSession, WORLD)
 # level 19-20 Meridian Vault, where level 20 becomes a real class milestone.
 install_midgame_12_20_runtime(PlayerSession, WORLD)
 apply_midgame_three_roads_tuning()
+# The Three Roads now share a true frontier convergence layer. Levels 15-16 meet
+# at rough multi-racial Ashcross, while levels 17-18 open the looping Meridian
+# Outerworks. Completing that mapped route plus all three regional witnesses
+# gives the level 19-20 Meridian Vault a physical approach instead of a jump.
+install_frontier_convergence_runtime(PlayerSession, WORLD)
 install_style_collectibles_runtime(PlayerSession, WORLD)
 apply_style_collectibles_tuning()
 
