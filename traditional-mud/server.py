@@ -44,6 +44,7 @@ from mud.party_quality import install_party_quality_runtime
 from mud.death_recovery import RESURRECTION_ABILITY, install_death_recovery_runtime
 from mud.class_progression import install_class_progression_runtime
 from mud.class_progression_tuning import apply_inherited_class_tuning
+from mud.upper_class_progression import install_upper_class_progression_runtime
 from mud.priest_early_progression import install_priest_early_progression_runtime
 from mud.first_ten_progression import install_first_ten_runtime
 from mud.first_ten_adventures import install_first_ten_adventures_runtime
@@ -63,6 +64,9 @@ from mud.eight_roads_midgame import install_eight_roads_runtime
 from mud.broken_reach_midgame import install_broken_reach_runtime
 from mud.broken_reach_tuning import apply_broken_reach_route_tuning
 from mud.salt_kingdoms_midgame import install_salt_kingdoms_runtime
+from mud.midgame_depth import install_midgame_depth_runtime
+from mud.crownfire_march_31_40 import install_crownfire_runtime
+from mud.crownfire_tuning import apply_crownfire_room_field_tuning
 from mud.style_collectibles import install_style_collectibles_runtime
 from mud.style_collectibles_tuning import apply_style_collectibles_tuning
 from mud.iconic_items import install_iconic_items
@@ -129,6 +133,12 @@ for _priest_path_key, _abilities in tuple(PRIEST_DEITY_ABILITIES.items()):
         PRIEST_DEITY_ABILITIES[_priest_path_key] = _abilities + (RESURRECTION_ABILITY,)
 install_class_progression_runtime(PlayerSession)
 apply_inherited_class_tuning()
+# The physical world now carries players through level 30, so each class also
+# receives an executable 21-30 progression pass. Identities deepen rather than
+# branch into talent trees: Brutes hold lines, Wizards sequence spells, Druids
+# blend terrain and recovery, Necromancers manage life/resources, and each Priest
+# path earns its own level-30 culmination.
+install_upper_class_progression_runtime(PlayerSession)
 # Priests own a complete executable foundation through level 10. The first-ten
 # pass adds level-10 capstones and the three racial milestones. The adventure
 # layer turns each milestone into a routed story; the story-depth layer then adds
@@ -171,6 +181,18 @@ apply_broken_reach_route_tuning(WORLD)
 # different dungeons, water politics, and a level-30 hydraulic choice that
 # physically changes travel through the basin for that character.
 install_salt_kingdoms_runtime(PlayerSession, WORLD)
+# The depth pass gives the 17-30 boss band readable encounter mechanics, restrained
+# named objects, and optional hidden rooms/side stories without replacing the
+# main regional progression.
+install_midgame_depth_runtime(PlayerSession, WORLD)
+# Crownfire begins only after the Salt Kingdoms level-30 capstone. Unlike the
+# previous ancient-system mysteries, its level 31-40 crisis is contemporary and
+# intentional: Marshal Corven Dask manufactures raids, blockades, conscription,
+# and protection revenue through the living Gilded Host.
+install_crownfire_runtime(PlayerSession, WORLD)
+# Normalize Crownfire's compact authored room helper into the legacy room field
+# order before the final world safety audit.
+apply_crownfire_room_field_tuning(WORLD)
 install_style_collectibles_runtime(PlayerSession, WORLD)
 apply_style_collectibles_tuning()
 
