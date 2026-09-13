@@ -81,6 +81,13 @@ from mud.location_safety import (
     validate_starter_route_walks,
 )
 
+# The advanced room service must use the same mutable registry that authored
+# content installers populate. Pointing it at the canonical dictionary instead
+# of a copied snapshot means Goblin rooms (and any later dynamically registered
+# rooms) are immediately visible to LOOK, EXITS, movement, and validation.
+WORLD.legacy_rooms = ROOMS_BY_KEY
+WORLD._scene_cache.clear()
+
 validate_starter_loop_contract(rooms_by_key=ROOMS_BY_KEY, quests_by_key=QUESTS_BY_KEY, race_keys=set(RACES_BY_KEY))
 validate_starter_matrix_contract(quests_by_key=QUESTS_BY_KEY)
 install_starter_room_database_hook(Database)

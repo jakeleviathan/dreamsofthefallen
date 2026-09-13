@@ -177,6 +177,72 @@ print("GOBLIN_PRIEST_PRODUCTION_OK")
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
         self.assertIn("GOBLIN_PRIEST_PRODUCTION_OK", result.stdout)
 
+    def test_production_world_walks_fresh_goblin_through_starter_route(self):
+        root = Path(__file__).resolve().parents[1]
+        code = r'''
+import server
+from mud.goblin_runtime import GOBLIN_STARTER_ROUTE
+from mud.room_engine import PlayerRoomContext
+from mud.world import ROOMS_BY_KEY
+
+# Production WORLD must be bound to the authoritative mutable registry, not a
+# startup snapshot. Any room registered into ROOMS_BY_KEY must be visible here.
+assert server.WORLD.legacy_rooms is ROOMS_BY_KEY
+assert set(ROOMS_BY_KEY) <= set(server.WORLD.legacy_rooms)
+
+fresh_goblin = PlayerRoomContext(
+    character_id=999999,
+    race_key="goblin",
+    class_key="priest",
+    level=1,
+    character_flags=frozenset(),
+    hour=12,
+)
+
+steps = (
+    ("goblin_clattergate", "north", "goblin_sorting_spine"),
+    ("goblin_sorting_spine", "east", "goblin_patchwork_plaza"),
+    ("goblin_patchwork_plaza", "north", "goblin_floodgate_walk"),
+)
+assert GOBLIN_STARTER_ROUTE == tuple([step[0] for step in steps] + [steps[-1][2]])
+
+current = GOBLIN_STARTER_ROUTE[0]
+for expected_current, direction, destination in steps:
+    assert current == expected_current, (current, expected_current)
+    scene = server.WORLD.scene(current)
+    assert scene is not None, f"production WORLD is missing {current}"
+    view = server.WORLD.build_view(current, fresh_goblin)
+    assert view is not None, f"production WORLD cannot build a view for {current}"
+    assert any(
+        visible.direction == direction and visible.destination_key == destination
+        for visible in view.exits
+    ), (current, direction, destination, view.exits)
+    resolution = server.WORLD.resolve_exit(current, direction, fresh_goblin)
+    assert resolution.allowed, (current, direction, resolution.message)
+    assert resolution.exit is not None
+    assert resolution.exit.destination_key == destination, (
+        current,
+        direction,
+        resolution.exit.destination_key,
+        destination,
+    )
+    current = destination
+
+assert current == "goblin_floodgate_walk"
+print("GOBLIN_PRODUCTION_STARTER_ROUTE_OK")
+'''
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            env={**os.environ, "PYTHONPATH": str(root)},
+            timeout=30,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertIn("GOBLIN_PRODUCTION_STARTER_ROUTE_OK", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
