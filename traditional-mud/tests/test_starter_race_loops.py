@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from mud.character_options import RACES_BY_KEY
 from mud.database import Database
 from mud.location_safety import (
+    live_rooms_for_world,
     repair_invalid_character_location,
     validate_authored_exit_targets,
     validate_starter_route_walks,
@@ -170,11 +171,12 @@ class StarterRaceLoopTests(unittest.TestCase):
         project_root = Path(__file__).resolve().parents[1]
         code = r'''
 import server
-from mud.location_safety import validate_authored_exit_targets, validate_starter_route_walks
+from mud.location_safety import live_rooms_for_world, validate_authored_exit_targets, validate_starter_route_walks
 
 assert server.PlayerSession._universal_location_repair_runtime_installed
-validate_authored_exit_targets(server.WORLD.legacy_rooms)
-validate_starter_route_walks(server.WORLD.legacy_rooms)
+rooms = live_rooms_for_world(server.WORLD)
+validate_authored_exit_targets(rooms)
+validate_starter_route_walks(rooms)
 print('STARTER_LOCATION_SAFETY_OK')
 '''
         result = subprocess.run(
