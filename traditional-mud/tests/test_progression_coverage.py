@@ -94,22 +94,22 @@ print(json.dumps({
 
     def test_current_class_unlock_ceiling_matches_live_ability_registry(self):
         self.assertEqual(self.production["max_class_unlock"], CURRENT_CLASS_ABILITY_CEILING)
-        self.assertEqual(CURRENT_CLASS_ABILITY_CEILING, 20)
+        self.assertEqual(CURRENT_CLASS_ABILITY_CEILING, 30)
 
-    def test_live_authored_room_tags_reach_thirty_and_no_higher(self):
+    def test_live_authored_room_tags_reach_forty_and_no_higher(self):
         self.assertEqual(self.production["max_room_level"], CURRENT_AUTHORED_ZONE_CEILING)
-        self.assertEqual(CURRENT_AUTHORED_ZONE_CEILING, 30)
+        self.assertEqual(CURRENT_AUTHORED_ZONE_CEILING, 40)
 
-    def test_live_quest_entry_gates_now_reach_level_thirty(self):
+    def test_live_quest_entry_gates_now_reach_level_forty(self):
         self.assertGreater(self.production["quest_count"], 100)
-        self.assertEqual(self.production["max_quest_level"], 30)
+        self.assertEqual(self.production["max_quest_level"], 40)
 
     def test_levels_beyond_current_authored_zone_ceiling_are_marked_unsupported(self):
         self.assertTrue(level_coverage(CURRENT_AUTHORED_ZONE_CEILING).authored_zone_support)
         self.assertFalse(level_coverage(CURRENT_AUTHORED_ZONE_CEILING + 1).authored_zone_support)
         self.assertFalse(level_coverage(AUDIT_MAX_LEVEL).authored_zone_support)
 
-    def test_current_content_bands_stop_at_level_thirty(self):
+    def test_current_content_bands_stop_at_level_forty(self):
         self.assertEqual(max(band.end_level for band in CONTENT_BANDS), CURRENT_AUTHORED_ZONE_CEILING)
 
     def test_audit_does_not_invent_a_level_sixty_cap(self):
