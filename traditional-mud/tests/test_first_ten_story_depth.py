@@ -171,7 +171,7 @@ async def main():
     )
     view = server.WORLD.build_view(route.steps[1].room_key, context)
     assert view is not None
-    assert "whole structure" in view.description or "whole span" in view.description
+    assert "weight traveling" in view.description
     assert "claim board" in view.description
 
 asyncio.run(main())
