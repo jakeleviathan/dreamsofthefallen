@@ -30,7 +30,7 @@ class SaltKingdomsDesignTests(unittest.TestCase):
         self.assertIn("tide instrument", salt.GLASS_KEEL_QUEST.description)
         self.assertIn("Keelspire", salt.FACTION_QUEST.description)
         self.assertIn("obvious guardian", salt.UNDERTIDE_QUEST.description)
-        self.assertIn("physically", salt.CAPSTONE_QUEST.objective_steps[-1][1])
+        self.assertIn("permanently changes routes", salt.CAPSTONE_QUEST.objective_steps[-1][1])
 
     def test_actual_production_entrypoint_installs_region_and_all_three_map_endings(self):
         root = Path(__file__).resolve().parents[1]
@@ -190,7 +190,7 @@ class SaltKingdomsProgressionTests(unittest.TestCase):
             self.assertEqual(session.database.quests[salt.UNDERTIDE_QUEST_KEY]["current_step"], "listen_water")
             text = "".join(session.messages)
             self.assertIn("emergency response", text)
-            self.assertIn("keep this failed distributor", text)
+            self.assertIn("keep one broken hub from rupturing everything", text)
 
         asyncio.run(run())
 
