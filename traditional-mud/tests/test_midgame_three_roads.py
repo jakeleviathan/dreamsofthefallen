@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import unittest
+from pathlib import Path
 
-import server  # production import assembles the real game
-from mud.mechanics import class_abilities_for_level
 from mud.midgame_three_roads import (
     DWARF_COMPLETE_FLAG,
     DWARF_QUEST,
@@ -13,6 +15,7 @@ from mud.midgame_three_roads import (
     LEVEL_20_ABILITIES,
     MERIDIAN_QUEST,
     MERIDIAN_REGION_KEY,
+    MIDGAME_ITEMS,
     MIDGAME_ROOMS,
     MOON_COMPLETE_FLAG,
     MOON_QUEST,
@@ -26,29 +29,90 @@ from mud.midgame_three_roads import (
     VEYRA_EAST_RIVER_GATE_KEY,
     VEYRA_NORTH_WATERWORKS_KEY,
     VEYRA_SCHOLARS_RISE_KEY,
+    midgame_augmentations,
 )
 
 
 class ThreeRoadsMidgameTests(unittest.TestCase):
-    def test_production_world_contains_full_midgame_room_wave(self):
+    def test_full_midgame_room_wave_has_four_distinct_regions(self):
         self.assertEqual(len(MIDGAME_ROOMS), 51)
-        for room in MIDGAME_ROOMS:
-            self.assertIn(room.key, server.WORLD.legacy_rooms)
-
         regions = {room.region_key for room in MIDGAME_ROOMS}
         self.assertEqual(
             regions,
             {TROLL_REGION_KEY, DWARF_REGION_KEY, MOON_REGION_KEY, MERIDIAN_REGION_KEY},
         )
 
+    def test_production_server_assembles_the_complete_midgame(self):
+        root = Path(__file__).resolve().parents[1]
+        code = r'''
+import server
+from mud.crafting import ITEMS_BY_KEY
+from mud.mechanics import class_abilities_for_level
+from mud.midgame_three_roads import (
+    DWARF_WITNESS_ITEM_KEY,
+    LEVEL_20_ABILITIES,
+    MIDGAME_ROOMS,
+    MOON_WITNESS_ITEM_KEY,
+    TROLL_WITNESS_ITEM_KEY,
+    VEYRA_EAST_RIVER_GATE_KEY,
+    VEYRA_NORTH_WATERWORKS_KEY,
+    VEYRA_SCHOLARS_RISE_KEY,
+)
+
+assert server.PlayerSession._midgame_12_20_runtime_installed
+assert all(room.key in server.WORLD.legacy_rooms for room in MIDGAME_ROOMS)
+
+for room_key, direction, minimum_level in (
+    (VEYRA_NORTH_WATERWORKS_KEY, "north", 12),
+    (VEYRA_EAST_RIVER_GATE_KEY, "east", 12),
+    (VEYRA_SCHOLARS_RISE_KEY, "up", 13),
+):
+    exits = [
+        exit_def
+        for exit_def in server.WORLD.augmentations[room_key].extra_exits
+        if exit_def.direction == direction
+    ]
+    assert exits and exits[-1].condition.min_level == minimum_level
+
+assert {
+    TROLL_WITNESS_ITEM_KEY,
+    DWARF_WITNESS_ITEM_KEY,
+    MOON_WITNESS_ITEM_KEY,
+}.issubset(ITEMS_BY_KEY)
+
+for class_key, ability in LEVEL_20_ABILITIES.items():
+    if class_key == "priest":
+        for deity_key in ("zerjz", "tenebrous", "leviathan"):
+            assert ability.key in {
+                item.key for item in class_abilities_for_level("priest", 20, deity_key)
+            }
+    else:
+        assert ability.key in {
+            item.key for item in class_abilities_for_level(class_key, 20)
+        }
+
+print("MIDGAME_PRODUCTION_OK")
+'''
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            env={**os.environ, "PYTHONPATH": str(root)},
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertIn("MIDGAME_PRODUCTION_OK", result.stdout)
+
     def test_three_roads_branch_from_veyra_at_intended_levels(self):
+        augmentations = midgame_augmentations()
         cases = (
             (VEYRA_NORTH_WATERWORKS_KEY, "north", 12),
             (VEYRA_EAST_RIVER_GATE_KEY, "east", 12),
             (VEYRA_SCHOLARS_RISE_KEY, "up", 13),
         )
         for room_key, direction, minimum_level in cases:
-            augmentation = server.WORLD.augmentations[room_key]
+            augmentation = augmentations[room_key]
             exits = [exit_def for exit_def in augmentation.extra_exits if exit_def.direction == direction]
             self.assertTrue(exits, (room_key, direction))
             self.assertEqual(exits[-1].condition.min_level, minimum_level)
@@ -66,11 +130,10 @@ class ThreeRoadsMidgameTests(unittest.TestCase):
         )
 
     def test_each_regional_thread_has_a_physical_witness(self):
-        from mud.crafting import ITEMS_BY_KEY
-
-        self.assertIn(TROLL_WITNESS_ITEM_KEY, ITEMS_BY_KEY)
-        self.assertIn(DWARF_WITNESS_ITEM_KEY, ITEMS_BY_KEY)
-        self.assertIn(MOON_WITNESS_ITEM_KEY, ITEMS_BY_KEY)
+        item_keys = {item.key for item in MIDGAME_ITEMS}
+        self.assertIn(TROLL_WITNESS_ITEM_KEY, item_keys)
+        self.assertIn(DWARF_WITNESS_ITEM_KEY, item_keys)
+        self.assertIn(MOON_WITNESS_ITEM_KEY, item_keys)
 
     def test_level_twenty_gives_every_class_a_major_unlock(self):
         expected = {
@@ -82,16 +145,8 @@ class ThreeRoadsMidgameTests(unittest.TestCase):
         }
         self.assertEqual(set(LEVEL_20_ABILITIES), set(expected))
 
-        for class_key in ("brute", "wizard", "druid", "necromancer"):
-            abilities = class_abilities_for_level(class_key, 20)
-            self.assertIn(expected[class_key], {ability.key for ability in abilities})
-            ability = next(ability for ability in abilities if ability.key == expected[class_key])
-            self.assertEqual(ability.unlock_level, 20)
-
-        for deity_key in ("zerjz", "tenebrous", "leviathan"):
-            abilities = class_abilities_for_level("priest", 20, deity_key)
-            self.assertIn("last_light", {ability.key for ability in abilities})
-            ability = next(ability for ability in abilities if ability.key == "last_light")
+        for class_key, ability in LEVEL_20_ABILITIES.items():
+            self.assertEqual(ability.key, expected[class_key])
             self.assertEqual(ability.unlock_level, 20)
 
     def test_necromancer_milestone_is_a_real_upgraded_undead_servant(self):
