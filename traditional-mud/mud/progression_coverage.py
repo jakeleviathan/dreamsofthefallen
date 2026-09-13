@@ -6,7 +6,7 @@ from mud.mechanics import PROGRESSION_RULES, class_abilities_for_level
 
 
 AUDIT_MAX_LEVEL = 60
-CURRENT_AUTHORED_ZONE_CEILING = 20
+CURRENT_AUTHORED_ZONE_CEILING = 30
 CURRENT_CLASS_ABILITY_CEILING = 20
 HARD_LEVEL_CAP: int | None = None
 
@@ -27,6 +27,17 @@ CONTENT_BANDS: tuple[ContentBand, ...] = (
     ContentBand(8, 10, "Veyra early midgame", ("Veyra", "Underclock", "Gravewatch Keep", "Vault of the First Echo", "class field commissions")),
     ContentBand(8, 11, "Upper early-midgame", ("Drowned Tollhouse",)),
     ContentBand(
+        11,
+        20,
+        "Broken Reach shared midgame",
+        (
+            "caravan disappearances",
+            "Grinning Men and the three claims",
+            "House Beneath the Hill",
+            "level-20 underroad map change",
+        ),
+    ),
+    ContentBand(
         12,
         18,
         "Eight Roads regional journey",
@@ -44,6 +55,18 @@ CONTENT_BANDS: tuple[ContentBand, ...] = (
     ContentBand(15, 16, "Ashcross shared frontier", ("dangerous road network", "deep-forest pockets", "abandoned causeways", "multi-racial frontier town")),
     ContentBand(17, 18, "Meridian Outerworks", ("Flood Ring loop", "Root Gallery loop", "Outerworks Lockwarden", "delver return route")),
     ContentBand(19, 20, "Meridian Vault convergence", ("Any three independent road witnesses", "Nameless Custodian", "level-20 class milestones")),
+    ContentBand(
+        21,
+        30,
+        "Salt Kingdoms and Whitewake Basin",
+        (
+            "Keelspire dry-harbor city",
+            "Glass Keel shipwreck dungeon",
+            "Three Thirsts water politics",
+            "Undertide Engine",
+            "level-30 water-routing map change",
+        ),
+    ),
 )
 
 
