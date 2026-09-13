@@ -26,9 +26,10 @@ CONTENT_BANDS: tuple[ContentBand, ...] = (
     ContentBand(6, 8, "Road to Veyra", ("Sablewater Reach", "Greywake faction chain")),
     ContentBand(8, 10, "Veyra early midgame", ("Veyra", "Underclock", "Gravewatch Keep", "Vault of the First Echo", "class field commissions")),
     ContentBand(8, 11, "Upper early-midgame", ("Drowned Tollhouse",)),
-    ContentBand(12, 16, "Three Roads: Troll country", ("Thornwake", "Troll civil-war choices", "Splitroot Hollow")),
-    ContentBand(12, 18, "Three Roads: industrial and high-road branches", ("Deepwheel Dwarven corridor", "Counterstar Moon Elf highroad")),
-    ContentBand(19, 20, "Three Roads convergence", ("Meridian Vault", "Nameless Custodian", "level-20 class milestones")),
+    ContentBand(12, 18, "Three Roads regional journey", ("Thornwake Troll country", "Deepwheel Dwarven corridor", "Counterstar Moon Elf highroad")),
+    ContentBand(15, 16, "Ashcross shared frontier", ("dangerous road network", "deep-forest pockets", "abandoned causeways", "multi-racial frontier town")),
+    ContentBand(17, 18, "Meridian Outerworks", ("Flood Ring loop", "Root Gallery loop", "Outerworks Lockwarden", "delver return route")),
+    ContentBand(19, 20, "Meridian Vault convergence", ("Three regional witnesses", "Nameless Custodian", "level-20 class milestones")),
 )
 
 
