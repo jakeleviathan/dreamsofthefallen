@@ -6,7 +6,7 @@ from mud.mechanics import PROGRESSION_RULES, class_abilities_for_level
 
 
 AUDIT_MAX_LEVEL = 60
-CURRENT_AUTHORED_ZONE_CEILING = 11
+CURRENT_AUTHORED_ZONE_CEILING = 12
 CURRENT_CLASS_ABILITY_CEILING = 9
 HARD_LEVEL_CAP: int | None = None
 
@@ -26,6 +26,7 @@ CONTENT_BANDS: tuple[ContentBand, ...] = (
     ContentBand(6, 8, "Road to Veyra", ("Sablewater Reach", "Greywake faction chain")),
     ContentBand(8, 10, "Veyra early midgame", ("Veyra", "Underclock", "Gravewatch Keep", "Vault of the First Echo", "class field commissions")),
     ContentBand(8, 11, "High end of current authored combat", ("Drowned Tollhouse",)),
+    ContentBand(10, 12, "Optional deep challenge", ("White Room Annex",)),
 )
 
 
