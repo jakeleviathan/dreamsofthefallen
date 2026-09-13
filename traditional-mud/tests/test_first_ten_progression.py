@@ -95,6 +95,30 @@ class _FakeSession:
         return None
 
 
+def _install_runtime_for_fake_session(session_class):
+    """Satisfy the production contract without polluting global Priest catalogs.
+
+    Production installs the Priest 1-10 foundation immediately before this runtime.
+    These small fake-session tests do not boot the production entrypoint, so we
+    temporarily expose the canonical Priest foundation only while the installer
+    validates its dependency, then restore the exact original deity registries.
+    """
+    original = {
+        path_key: tuple(abilities)
+        for path_key, abilities in mechanics.PRIEST_DEITY_ABILITIES.items()
+    }
+    try:
+        for path_key, current in tuple(mechanics.PRIEST_DEITY_ABILITIES.items()):
+            by_key = {ability.key: ability for ability in current}
+            for definition in PRIEST_FOUNDATION_ABILITIES:
+                by_key[definition.key] = definition
+            mechanics.PRIEST_DEITY_ABILITIES[path_key] = tuple(by_key.values())
+        install_first_ten_runtime(session_class)
+    finally:
+        mechanics.PRIEST_DEITY_ABILITIES.clear()
+        mechanics.PRIEST_DEITY_ABILITIES.update(original)
+
+
 class FirstTenProgressionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -153,7 +177,7 @@ print("FIRST_TEN_CONTRACT_OK")
         class Session(_FakeSession):
             _first_ten_runtime_installed = False
 
-        install_first_ten_runtime(Session)
+        _install_runtime_for_fake_session(Session)
         session = Session()
         beat = RACE_FIRST_TEN_ARCS["goblin"].act_two
 
@@ -176,7 +200,7 @@ print("FIRST_TEN_CONTRACT_OK")
         class Session(_FakeSession):
             _first_ten_runtime_installed = False
 
-        install_first_ten_runtime(Session)
+        _install_runtime_for_fake_session(Session)
 
         # First, a normal level-four Goblin sees the immediately playable home crisis.
         session = Session()
