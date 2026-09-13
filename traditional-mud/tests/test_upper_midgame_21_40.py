@@ -13,8 +13,16 @@ import mud.crownfire_march_31_40 as crownfire
 import mud.midgame_depth as depth
 import mud.upper_class_progression as upper
 from mud.combat import EnemyDefinition, EnemyState
+from mud.crownfire_tuning import normalize_crownfire_quest_definitions
 from mud.mechanics import CombatantState
+from mud.midgame_depth_tuning import apply_midgame_depth_quest_tuning
 from mud.stats import CharacterStats
+
+# Direct design tests import the content modules without importing the production
+# entrypoint, so apply the same canonical quest normalization that server.py gets
+# through the late-midgame tuning layer.
+normalize_crownfire_quest_definitions()
+apply_midgame_depth_quest_tuning()
 
 
 class UpperClassProgressionDesignTests(unittest.TestCase):
@@ -117,6 +125,8 @@ class MidgameDepthDesignTests(unittest.TestCase):
             {"Warden Service Niche", "Captain's Private Locker", "Dry Inspection Gallery"},
         )
         self.assertTrue(all(quest.style == "freeform" for quest in depth.SIDE_QUESTS))
+        self.assertTrue(all(quest.description for quest in depth.SIDE_QUESTS))
+        self.assertTrue(all(quest.objective_steps for quest in depth.SIDE_QUESTS))
 
     def test_three_existing_bosses_have_distinct_first_clear_mechanics(self):
         self.assertEqual(len(depth.WARDEN_BAR_FLAGS), 2)
@@ -169,6 +179,9 @@ from mud.crownfire_march_31_40 import (
     BLOCKADE_COMPLETE_FLAG,
     MORROWGATE_RAMPART_KEY,
     PALACE_APPROACH_KEY,
+    PALACE_COMMAND_KEY,
+    PALACE_TREATY_KEY,
+    PALACE_COMPLETE_FLAG,
     REDOUBT_COMPLETE_FLAG,
     DESERTER_COMPLETE_FLAG,
     MORROWGATE_COUNCIL_KEY,
@@ -180,7 +193,7 @@ from mud.crownfire_march_31_40 import (
     EXILE_ENDING_FLAG,
     JUDGMENT_ENDING_FLAG,
 )
-from mud.midgame_depth import HIDDEN_ROOMS, NAMED_DEPTH_ITEMS
+from mud.midgame_depth import HIDDEN_ROOMS, NAMED_DEPTH_ITEMS, SIDE_QUESTS
 from mud.mechanics import class_abilities_for_level
 from mud.room_engine import PlayerRoomContext
 from mud.salt_kingdoms_midgame import CAPSTONE_COMPLETE_FLAG as SALT_COMPLETE, SALTWIND_GATE_KEY
@@ -193,6 +206,10 @@ assert server.PlayerSession._crownfire_31_40_installed
 for room in HIDDEN_ROOMS:
     assert room.key in ROOMS_BY_KEY
     assert room.key in server.WORLD.legacy_rooms
+for quest in SIDE_QUESTS:
+    live = quests.QUESTS_BY_KEY[quest.key]
+    assert live.description
+    assert live.objective_steps
 for key in CROWNFIRE_ROOM_KEYS:
     assert key in ROOMS_BY_KEY, key
     assert key in server.WORLD.legacy_rooms, key
@@ -229,6 +246,14 @@ assert "east" not in {e.direction for e in server.WORLD.build_view(MORROWGATE_RA
 open_palace = PlayerRoomContext(1, "goblin", "priest", 37, frozenset({REDOUBT_COMPLETE_FLAG, DESERTER_COMPLETE_FLAG}))
 palace = server.WORLD.resolve_exit(MORROWGATE_RAMPART_KEY, "east", open_palace)
 assert palace.allowed and palace.exit.destination_key == PALACE_APPROACH_KEY
+
+level_39 = PlayerRoomContext(1, "goblin", "priest", 39, frozenset({PALACE_COMPLETE_FLAG}))
+assert "north" not in {e.direction for e in server.WORLD.build_view(PALACE_COMMAND_KEY, level_39).exits}
+level_40_locked = PlayerRoomContext(1, "goblin", "priest", 40, frozenset())
+assert "north" not in {e.direction for e in server.WORLD.build_view(PALACE_COMMAND_KEY, level_40_locked).exits}
+level_40_ready = PlayerRoomContext(1, "goblin", "priest", 40, frozenset({PALACE_COMPLETE_FLAG}))
+treaty = server.WORLD.resolve_exit(PALACE_COMMAND_KEY, "north", level_40_ready)
+assert treaty.allowed and treaty.exit.destination_key == PALACE_TREATY_KEY
 
 trial = PlayerRoomContext(1, "goblin", "priest", 40, frozenset({TRIAL_ENDING_FLAG}))
 trial_exit = server.WORLD.resolve_exit(MORROWGATE_COUNCIL_KEY, "west", trial)
