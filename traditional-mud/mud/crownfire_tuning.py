@@ -6,6 +6,7 @@ import mud.crownfire_march_31_40 as crownfire
 import mud.quests as quests
 import mud.world as legacy_world
 from mud.access import ContentGate
+from mud.midgame_depth_tuning import apply_midgame_depth_quest_tuning
 from mud.room_engine import ExitDefinition, RoomAugmentation, ViewCondition
 
 
@@ -21,9 +22,8 @@ def normalize_crownfire_quest_definitions() -> None:
     """Repair compact positional quest construction into the canonical schema.
 
     The quest dataclass stores an optional ContentGate between minimum_level and
-    description. Crownfire's compact constructor intentionally gets normalized
-    here so the production registry carries real prose descriptions and objective
-    steps instead of shifting those values one field to the left.
+    description. Crownfire's compact constructor gets normalized here so the
+    production registry carries real prose descriptions and objective steps.
     """
 
     normalized = []
@@ -80,8 +80,12 @@ def _add_override(augmentation: RoomAugmentation, exit_def: ExitDefinition) -> R
 
 
 def apply_crownfire_room_field_tuning(world_service) -> None:
-    """Normalize Crownfire quests/rooms and make progression gates real exits."""
+    """Normalize late-midgame quests/rooms and make progression gates real exits."""
 
+    # Midgame depth is installed immediately before Crownfire in production. Its
+    # three optional stories used the same compact quest authoring shape, so
+    # normalize those definitions here before the final world/quest audit too.
+    apply_midgame_depth_quest_tuning()
     normalize_crownfire_quest_definitions()
 
     reverse_exits = {
