@@ -25,6 +25,8 @@ from mud.economy_loop import install_economy_loop_runtime
 from mud.economy_balance import install_economy_balance_runtime
 from mud.forest_elf_reading_forest import install_reading_forest_runtime
 from mud.starter_signature_moments import install_signature_moment_runtime
+from mud.starter_class_moments import install_starter_class_moment_runtime
+from mud.starter_matrix_quality import validate_starter_matrix_contract
 from mud.waymeet_frontier import install_waymeet_runtime
 from mud.gloamworks_dungeon import install_gloamworks_runtime
 from mud.greywake_march import install_greywake_runtime
@@ -69,10 +71,15 @@ from mud.world import ROOMS_BY_KEY
 from mud.starter_race_loops import install_starter_room_database_hook, validate_starter_loop_contract
 
 validate_starter_loop_contract(rooms_by_key=ROOMS_BY_KEY, quests_by_key=QUESTS_BY_KEY, race_keys=set(RACES_BY_KEY))
+validate_starter_matrix_contract(quests_by_key=QUESTS_BY_KEY)
 install_starter_room_database_hook(Database)
 
 install_reading_forest_runtime(PlayerSession, WORLD)
 install_signature_moment_runtime(PlayerSession, WORLD)
+# The class-specific opening beat is a real production runtime, not merely a
+# catalog/test fixture. Every one of the 8 races now receives the appropriate
+# Brute, Wizard, Druid, Priest, or Necromancer practice inside its authored start.
+install_starter_class_moment_runtime(PlayerSession)
 install_waymeet_runtime(PlayerSession, WORLD)
 install_gloamworks_runtime(PlayerSession, WORLD)
 install_greywake_runtime(PlayerSession, WORLD)
