@@ -44,6 +44,7 @@ from mud.party_quality import install_party_quality_runtime
 from mud.death_recovery import RESURRECTION_ABILITY, install_death_recovery_runtime
 from mud.class_progression import install_class_progression_runtime
 from mud.class_progression_tuning import apply_inherited_class_tuning
+from mud.priest_early_progression import install_priest_early_progression_runtime
 from mud.class_world_integration import install_class_world_integration_runtime
 from mud.launch_vertical_slice import install_launch_vertical_slice_runtime
 from mud.living_world import install_living_world_runtime
@@ -108,6 +109,9 @@ for _priest_path_key, _abilities in tuple(PRIEST_DEITY_ABILITIES.items()):
         PRIEST_DEITY_ABILITIES[_priest_path_key] = _abilities + (RESURRECTION_ABILITY,)
 install_class_progression_runtime(PlayerSession)
 apply_inherited_class_tuning()
+# Priests now have a common playable core from level 1 through the level-10
+# capstone while retaining each deity's distinct starter spell.
+install_priest_early_progression_runtime(PlayerSession)
 install_class_world_integration_runtime(PlayerSession)
 install_launch_vertical_slice_runtime(PlayerSession)
 install_living_world_runtime(PlayerSession)
