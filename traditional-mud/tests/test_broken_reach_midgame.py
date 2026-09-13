@@ -51,6 +51,7 @@ from mud.broken_reach_midgame import (
     CAPSTONE_COMPLETE_FLAG,
 )
 from mud.room_engine import PlayerRoomContext
+from mud.waymeet_adventure_arc import OLD_TOLL_ROAD as WAYMEET_OLD_TOLL_ROAD
 from mud.waymeet_frontier import WAYMEET_BROKEN_MILE_KEY
 from mud.veyra_city import VEYRA_SOUTH_SPRAWL_KEY
 from mud.world import ROOMS_BY_KEY
@@ -62,10 +63,15 @@ for key in BROKEN_REACH_ROOM_KEYS:
 
 low = PlayerRoomContext(1, "goblin", "priest", 9, frozenset())
 level11 = PlayerRoomContext(1, "goblin", "priest", 11, frozenset())
-assert "south" not in {item.direction for item in server.WORLD.build_view(WAYMEET_BROKEN_MILE_KEY, low).exits}
-entry = server.WORLD.resolve_exit(WAYMEET_BROKEN_MILE_KEY, "south", level11)
+# Broken Reach must not steal the existing level-2 south route from the Broken Mile.
+early_road = server.WORLD.resolve_exit(WAYMEET_BROKEN_MILE_KEY, "south", level11)
+assert early_road.allowed and early_road.exit.destination_key == WAYMEET_OLD_TOLL_ROAD
+# It continues beyond that familiar early-game road only once the midgame gate is reached.
+assert "south" not in {item.direction for item in server.WORLD.build_view(WAYMEET_OLD_TOLL_ROAD, low).exits}
+entry = server.WORLD.resolve_exit(WAYMEET_OLD_TOLL_ROAD, "south", level11)
 assert entry.allowed and entry.exit.destination_key == OLD_TOLL_ROAD_KEY
-veyra_back = server.WORLD.resolve_exit(VEYRA_SOUTH_SPRAWL_KEY, "south", level11)
+# Veyra's SOUTH exit still belongs to Sablewater; Broken Reach returns from the west.
+veyra_back = server.WORLD.resolve_exit(VEYRA_SOUTH_SPRAWL_KEY, "west", level11)
 assert veyra_back.allowed and veyra_back.exit.destination_key == FAR_WATCH_KEY
 
 before = PlayerRoomContext(1, "goblin", "priest", 19, frozenset())
@@ -214,7 +220,7 @@ class BrokenReachProgressionTests(unittest.TestCase):
             self.assertIn(reach.CAPSTONE_COMPLETE_FLAG, session.database.flags)
             self.assertEqual(session.database.items.get(reach.UNDERROAD_WRIT_KEY), 1)
             self.assertEqual(session.database.quests[reach.CAPSTONE_QUEST_KEY]["status"], "completed")
-            self.assertIn("surface span is gone", "".join(session.messages))
+            self.assertIn("map has permanently changed", "".join(session.messages))
 
         asyncio.run(run())
 
