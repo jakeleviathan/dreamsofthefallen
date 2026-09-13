@@ -6,8 +6,8 @@ from mud.mechanics import PROGRESSION_RULES, class_abilities_for_level
 
 
 AUDIT_MAX_LEVEL = 60
-CURRENT_AUTHORED_ZONE_CEILING = 11
-CURRENT_CLASS_ABILITY_CEILING = 9
+CURRENT_AUTHORED_ZONE_CEILING = 20
+CURRENT_CLASS_ABILITY_CEILING = 20
 HARD_LEVEL_CAP: int | None = None
 
 
@@ -25,7 +25,10 @@ CONTENT_BANDS: tuple[ContentBand, ...] = (
     ContentBand(5, 7, "March and group play", ("Greywake March", "Blackreed Holdfast", "King's Scar")),
     ContentBand(6, 8, "Road to Veyra", ("Sablewater Reach", "Greywake faction chain")),
     ContentBand(8, 10, "Veyra early midgame", ("Veyra", "Underclock", "Gravewatch Keep", "Vault of the First Echo", "class field commissions")),
-    ContentBand(8, 11, "High end of current authored combat", ("Drowned Tollhouse",)),
+    ContentBand(8, 11, "Upper early-midgame", ("Drowned Tollhouse",)),
+    ContentBand(12, 16, "Three Roads: Troll country", ("Thornwake", "Troll civil-war choices", "Splitroot Hollow")),
+    ContentBand(12, 18, "Three Roads: industrial and high-road branches", ("Deepwheel Dwarven corridor", "Counterstar Moon Elf highroad")),
+    ContentBand(19, 20, "Three Roads convergence", ("Meridian Vault", "Nameless Custodian", "level-20 class milestones")),
 )
 
 
