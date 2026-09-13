@@ -6,8 +6,8 @@ from mud.mechanics import PROGRESSION_RULES, class_abilities_for_level
 
 
 AUDIT_MAX_LEVEL = 60
-CURRENT_AUTHORED_ZONE_CEILING = 30
-CURRENT_CLASS_ABILITY_CEILING = 20
+CURRENT_AUTHORED_ZONE_CEILING = 40
+CURRENT_CLASS_ABILITY_CEILING = 30
 HARD_LEVEL_CAP: int | None = None
 
 
@@ -65,6 +65,18 @@ CONTENT_BANDS: tuple[ContentBand, ...] = (
             "Three Thirsts water politics",
             "Undertide Engine",
             "level-30 water-routing map change",
+        ),
+    ),
+    ContentBand(
+        31,
+        40,
+        "Crownfire March",
+        (
+            "Morrowgate under deliberate blockade",
+            "Gilded Host false-banner campaign",
+            "Brass Redoubt",
+            "Banner Palace",
+            "Marshal Corven Dask and the level-40 aftermath",
         ),
     ),
 )
