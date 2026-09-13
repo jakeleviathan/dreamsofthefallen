@@ -50,7 +50,9 @@ jobs:
           import zipfile
 
           root = Path('.')
-          out = Path('DreamsOfTheFallenServer.zip')
+          # Build outside the directory being traversed. Keeping the output under
+          # root previously let the archive include a zero-length copy of itself.
+          out = root.parent / 'DreamsOfTheFallenServer.zip'
           excluded_parts = {'__pycache__', '.pytest_cache'}
           excluded_prefixes = ('tests/', 'backups/', 'logs/')
           excluded_names = {'mud.db'}
@@ -71,6 +73,30 @@ jobs:
           assert out.exists() and out.stat().st_size > 10000
           print(f'SERVER_SOURCE_BUNDLE_OK {out.stat().st_size} bytes')
           PY
+      - name: Verify runnable server source bundle
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          bundle = Path('..') / 'DreamsOfTheFallenServer.zip'
+          with zipfile.ZipFile(bundle) as zf:
+              bad = zf.testzip()
+              assert bad is None, bad
+              names = set(zf.namelist())
+
+          required = {
+              'DreamsOfTheFallenServer/server.py',
+              'DreamsOfTheFallenServer/mud/__init__.py',
+              'DreamsOfTheFallenServer/README.md',
+              'DreamsOfTheFallenServer/PRODUCTION_RUNBOOK.md',
+          }
+          assert required <= names, sorted(required - names)
+          assert not any(name.endswith('/DreamsOfTheFallenServer.zip') for name in names)
+          assert not any('/tests/' in name for name in names)
+          assert not any(name.endswith('/mud.db') for name in names)
+          print('SERVER_SOURCE_BUNDLE_VERIFIED')
+          PY
       - name: Upload official Mudlet package
         uses: actions/upload-artifact@v4
         with:
@@ -81,5 +107,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DreamsOfTheFallenServer
-          path: traditional-mud/DreamsOfTheFallenServer.zip
+          path: DreamsOfTheFallenServer.zip
           if-no-files-found: error
