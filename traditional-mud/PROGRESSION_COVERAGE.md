@@ -5,20 +5,21 @@ This document answers a narrow production question: **how far can a character ac
 ## Bottom line
 
 - There is currently **no hard character level cap** in the XP engine. `level_for_experience()` keeps calculating levels as XP increases.
-- The current class progression pass is fully authored through **level 9**. Every class has a working level-1 identity and additional tools through level 9; there are no new class ability unlocks above level 9 yet.
-- Current authored zone/combat content reaches through approximately **level 12**. The Drowned Tollhouse carries the main level 10-11 tail, while the optional White Room Annex is tagged through level 12.
-- The coherent, densely supported vertical slice is therefore **levels 1-10, with real tail content through levels 11-12**.
-- Levels **13-60 are mechanically reachable but are not presently an authored progression game**. A character can earn the XP, but the server does not yet supply level-specific zones, class unlocks, stat growth, gear tiers, or a designed content ladder for those levels.
+- The authored class progression now has a deliberate major milestone at **level 20**. The original level 1-9 kits remain the foundation, and every class receives a new defining level-20 tool.
+- Current authored zone/combat content now reaches through **level 20**.
+- Levels 12-20 stop being one guided corridor. From Veyra, players can travel north into Troll country, east into the Dwarven industrial corridor, or upward along the Moon Elf highroad. Those routes overlap in level range and can be tackled in different orders.
+- The three regional investigations converge at levels 19-20 in the Meridian Vault, an ancient complex that none of the three cultures can fully explain.
+- Levels **21-60 are mechanically reachable but are not yet a complete authored progression ladder**. A character can earn the XP, but those levels still need level-specific regions, encounters, rewards, and later class milestones.
 
-That means it is incorrect to describe Dreams of the Fallen as a completed level-60 game today. Level 60 is useful as a long-range audit target, not the current playable content ceiling.
+Dreams of the Fallen should therefore be described as an authored **level 1-20 game today**, with the engine and XP audit continuing through level 60.
 
 ## What was audited
 
-The production server was imported, not just isolated modules. The audit checks the actual assembled registries and progression rules.
+The production server is imported, not just isolated modules. The audit checks the actual assembled registries and progression rules.
 
 ### XP and level math
 
-The XP curve works past level 10 and has no hard stop. Exact cumulative XP landmarks under the current provisional formula are:
+The XP curve works past level 20 and has no hard stop. Exact cumulative XP landmarks under the current provisional formula are:
 
 | Level reached | Total XP required |
 | ---: | ---: |
@@ -32,27 +33,27 @@ The XP curve works past level 10 and has no hard stop. Exact cumulative XP landm
 | 50 | 3,633,600 |
 | 60 | 7,122,475 |
 
-The formula itself is valid through level 60 and beyond. That is **mechanical reachability**, not proof of sufficient content.
+The formula itself is valid through level 60 and beyond. That is **mechanical reachability**, not proof of authored content after level 20.
 
 ### Five-class level sweep, 1-60
 
-All five classes were checked at every level from 1 through 60. Priest was checked for all three spiritual paths.
+All five classes are checked at every level from 1 through 60. Priest is checked for all three spiritual paths.
 
 Current final class unlocks are:
 
 | Class | Last authored unlock |
 | --- | --- |
-| Brute | Level 8 — Rallying Roar |
-| Wizard | Level 9 — Rift Lance |
-| Druid | Level 9 — Verdant Pulse |
-| Priest | Level 9 — Sanctuary; Resurrection is level 5 and common support unlocks fill the path |
-| Necromancer | Level 9 — Wither |
+| Brute | Level 20 — **Unbroken Stance**, a major threat/survival stance that seizes attention, restores health, and hardens the front line |
+| Wizard | Level 20 — **Starbreaker**, a high-impact single-target arcane strike |
+| Druid | Level 20 — **Deep Roots**, a party-wide recovery and protection pulse |
+| Priest | Level 20 — **Last Light**, a stronger party recovery and sanctuary effect available across all Priest paths |
+| Necromancer | Level 20 — **Raise Grave Knight**, upgrading the persistent undead-servant identity beyond the early Skeleton |
 
-The ability lists remain legal at levels 10-60, but they stop growing. Existing abilities can continue improving through use-based skill progression.
+Existing abilities still improve through the use-based ability progression system. Level 20 is intentionally a noticeable class milestone rather than simply another numerical level.
 
 ### Stats
 
-Leveling currently does **not** grant automatic innate stat points or a level-based HP/mana/stat growth curve. Character power comes primarily from starting race/class stats, equipment, ability unlocks, skill use, and authored item progression. That is viable for the current early game, but it is another reason levels 12-60 should not be presented as finished progression yet.
+Leveling still does **not** grant automatic innate stat points or a generic level-based stat-growth curve. Character power comes from race/class foundations, equipment, ability unlocks, skill use, authored rewards, and encounter knowledge. Future 21-60 work should decide whether that remains the long-term philosophy or whether later level bands need an additional growth layer.
 
 ### Authored content bands
 
@@ -63,11 +64,26 @@ Leveling currently does **not** grant automatic innate stat points or a level-ba
 | 5-7 | Greywake March, Blackreed Holdfast, King's Scar and stronger shared/group encounters |
 | 6-8 | Sablewater Reach and the road/faction progression toward Veyra |
 | 8-10 | Veyra, Underclock, Gravewatch Keep, Vault of the First Echo, five class field commissions and broader midgame systems |
-| 8-11 | Drowned Tollhouse, including rooms explicitly tagged for level 10-11 |
-| 10-12 | Optional White Room Annex deep challenge |
-| 13-60 | No complete authored level-specific progression ladder yet |
+| 8-11 | Drowned Tollhouse and the upper edge of the original Veyra-era combat ladder |
+| 12-16 | **Thornwake Troll country**: deep forest, hunting culture, priests, strongholds, and a civil conflict with a real player choice rather than an evil-Troll extermination plot |
+| 12-18 | **Deepwheel Dwarven corridor**: freight rails, pressure infrastructure, checkpoints, steam lifts, registries, and increasingly deep mountain travel |
+| 13-18 | **Counterstar highroad**: thin air, huge sky, old Moon Elf observing stations, contradictory charts, and evidence that changes with altitude |
+| 19-20 | **Meridian Vault**: all three investigations identify the same impossible coordinate, opening an ancient multi-cultural capstone dungeon and the level-20 class milestone |
+| 21-60 | No complete authored level-specific progression ladder yet |
 
-There are also level-agnostic systems—crafting, economy, social play, collectibles, hidden planes, living-world events, secrets, repeatables and exploration—that can continue entertaining a character outside a strict level band. They do not substitute for a complete 13-60 combat/progression ladder.
+### The level 12-20 world shape
+
+The key production change is structural: **Veyra becomes a hub instead of the next link in a single chain.** A level-12 character can head north or east, while the high road opens shortly afterward. Each branch has its own culture, enemies, local conflict, boss, evidence, and persistent choice. No branch is presented as the one canonical order.
+
+The three stories share an underlying physical anomaly without sharing an explanation:
+
+- Troll roots have spent decades growing around a perfectly straight absence.
+- Dwarven instruments independently register a location below mapped zero depth.
+- Moon Elf observation plates turn an apparently missing star into a line pointing down through the range.
+
+Only after completing all three regional witness threads can a level-19 character reach the Meridian Vault. The final complex deliberately does **not** resolve into an easy prophecy, creator reveal, or singular villain. It establishes that Astralis contains structures older and stranger than the cultures currently living above them.
+
+There are also level-agnostic systems—crafting, economy, social play, collectibles, hidden planes, living-world events, secrets, repeatables and exploration—that continue to add breadth around the progression ladder. They complement the 1-20 path rather than replacing future 21-60 authored progression.
 
 ## Production guardrail
 
