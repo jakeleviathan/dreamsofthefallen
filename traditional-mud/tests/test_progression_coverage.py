@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
 import unittest
 
-import server  # noqa: F401 - production import installs the real class progression
+import server  # production import installs the real world and class progression
+from mud import quests
 from mud.mechanics import PROGRESSION_RULES, class_abilities_for_level
 from mud.progression_coverage import (
     AUDIT_MAX_LEVEL,
@@ -52,6 +54,20 @@ class ProgressionCoverageTests(unittest.TestCase):
                 for ability in class_abilities_for_level("priest", AUDIT_MAX_LEVEL, deity_key)
             )
         self.assertEqual(max(unlocks), CURRENT_CLASS_ABILITY_CEILING)
+
+    def test_live_authored_room_tags_reach_eleven_and_no_higher(self):
+        tagged_levels = []
+        for room in server.WORLD.legacy_rooms.values():
+            for tag in room.tags:
+                if not tag.startswith("level_"):
+                    continue
+                tagged_levels.extend(int(value) for value in re.findall(r"\d+", tag))
+        self.assertTrue(tagged_levels)
+        self.assertEqual(max(tagged_levels), CURRENT_AUTHORED_ZONE_CEILING)
+
+    def test_live_quest_entry_gates_currently_top_out_at_level_eight(self):
+        self.assertGreater(len(quests.QUESTS_BY_KEY), 100)
+        self.assertEqual(max(quest.minimum_level for quest in quests.QUESTS_BY_KEY.values()), 8)
 
     def test_levels_beyond_current_authored_zone_ceiling_are_marked_unsupported(self):
         self.assertTrue(level_coverage(CURRENT_AUTHORED_ZONE_CEILING).authored_zone_support)
