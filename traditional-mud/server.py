@@ -74,6 +74,11 @@ from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
 from mud.world import ROOMS_BY_KEY
 from mud.starter_race_loops import install_starter_room_database_hook, validate_starter_loop_contract
+from mud.location_safety import (
+    install_universal_location_repair_runtime,
+    validate_authored_exit_targets,
+    validate_starter_route_walks,
+)
 
 validate_starter_loop_contract(rooms_by_key=ROOMS_BY_KEY, quests_by_key=QUESTS_BY_KEY, race_keys=set(RACES_BY_KEY))
 validate_starter_matrix_contract(quests_by_key=QUESTS_BY_KEY)
@@ -158,6 +163,14 @@ install_modern_client_runtime(PlayerSession, WORLD)
 install_production_hardening_runtime(PlayerSession)
 install_production_operator_runtime(PlayerSession)
 install_production_server_runtime(MudServer)
+
+# Final world safety is deliberately installed last. Every authored exit in the
+# assembled live world must resolve, every racial start must support a real walk,
+# and stale saved locations for any race are repaired before the rest of the
+# enter-character stack can inspect them.
+validate_authored_exit_targets(WORLD.legacy_rooms)
+validate_starter_route_walks(WORLD.legacy_rooms)
+install_universal_location_repair_runtime(PlayerSession, WORLD)
 
 HOST = "0.0.0.0"
 PORT = 4000
