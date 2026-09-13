@@ -45,6 +45,7 @@ from mud.death_recovery import RESURRECTION_ABILITY, install_death_recovery_runt
 from mud.class_progression import install_class_progression_runtime
 from mud.class_progression_tuning import apply_inherited_class_tuning
 from mud.upper_class_progression import install_upper_class_progression_runtime
+from mud.late_class_progression import install_late_class_progression_runtime
 from mud.priest_early_progression import install_priest_early_progression_runtime
 from mud.first_ten_progression import install_first_ten_runtime
 from mud.first_ten_adventures import install_first_ten_adventures_runtime
@@ -67,6 +68,7 @@ from mud.salt_kingdoms_midgame import install_salt_kingdoms_runtime
 from mud.midgame_depth import install_midgame_depth_runtime
 from mud.crownfire_march_31_40 import install_crownfire_runtime
 from mud.crownfire_tuning import apply_crownfire_room_field_tuning
+from mud.roadside_discoveries import install_roadside_discoveries_runtime
 from mud.style_collectibles import install_style_collectibles_runtime
 from mud.style_collectibles_tuning import apply_style_collectibles_tuning
 from mud.iconic_items import install_iconic_items
@@ -139,6 +141,11 @@ apply_inherited_class_tuning()
 # blend terrain and recovery, Necromancers manage life/resources, and each Priest
 # path earns its own level-30 culmination.
 install_upper_class_progression_runtime(PlayerSession)
+# Crownfire already carries the world through 40. This pass closes the mechanical
+# gap with executable class abilities at 32, 35, 38, and 40 while preserving the
+# fixed-class philosophy: Brutes hold the line, Wizards sequence, Druids shape
+# terrain and recovery, Necromancers spend resources, and Priest paths diverge.
+install_late_class_progression_runtime(PlayerSession)
 # Priests own a complete executable foundation through level 10. The first-ten
 # pass adds level-10 capstones and the three racial milestones. The adventure
 # layer turns each milestone into a routed story; the story-depth layer then adds
@@ -193,6 +200,10 @@ install_crownfire_runtime(PlayerSession, WORLD)
 # Normalize Crownfire's compact authored room helper into the legacy room field
 # order before the final world safety audit.
 apply_crownfire_room_field_tuning(WORLD)
+# Add small places that are intentionally not another main story: a buried room
+# of fifty chairs, a bell-less watchtower, a blue salt sink, and a civilian noon
+# signal tower. They reward curiosity without becoming mandatory progression.
+install_roadside_discoveries_runtime(PlayerSession, WORLD)
 install_style_collectibles_runtime(PlayerSession, WORLD)
 apply_style_collectibles_tuning()
 
