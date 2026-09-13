@@ -3,10 +3,27 @@ from __future__ import annotations
 from collections import deque
 from typing import Mapping
 
+import mud.world as legacy_world
 from mud.starter_race_loops import STARTER_RACE_LOOPS, starting_room_for_race
 
 
 DEFAULT_STARTER_WALK_DEPTH = 4
+
+
+def live_rooms_for_world(world_service) -> dict[str, object]:
+    """Return the complete authored room registry used by the live server.
+
+    Dreams of the Fallen still has two compatible registration paths while the
+    world is being migrated: older content writes to mud.world.ROOMS_BY_KEY,
+    while newer runtime layers also populate the room service's legacy_rooms.
+    Neither mapping is guaranteed to be complete on its own, so safety checks and
+    stale-location repair must use their union. Runtime-service definitions win
+    when both registries intentionally replace the same room key.
+    """
+
+    rooms: dict[str, object] = dict(legacy_world.ROOMS_BY_KEY)
+    rooms.update(getattr(world_service, "legacy_rooms", {}) or {})
+    return rooms
 
 
 def validate_authored_exit_targets(rooms_by_key: Mapping[str, object]) -> None:
@@ -130,8 +147,9 @@ def install_universal_location_repair_runtime(player_session_class, world_servic
     previous_enter_character = player_session_class.enter_character
 
     async def enter_character(self) -> None:
-        rooms = getattr(world_service, "legacy_rooms", {})
-        repaired = repair_invalid_character_location(self, rooms)
+        repaired = repair_invalid_character_location(
+            self, live_rooms_for_world(world_service)
+        )
         await previous_enter_character(self)
         if repaired and self.character is not None:
             await self.send(
