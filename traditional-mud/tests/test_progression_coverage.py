@@ -54,8 +54,9 @@ class ProgressionCoverageTests(unittest.TestCase):
                 for ability in class_abilities_for_level("priest", AUDIT_MAX_LEVEL, deity_key)
             )
         self.assertEqual(max(unlocks), CURRENT_CLASS_ABILITY_CEILING)
+        self.assertEqual(CURRENT_CLASS_ABILITY_CEILING, 20)
 
-    def test_live_authored_room_tags_reach_eleven_and_no_higher(self):
+    def test_live_authored_room_tags_reach_twenty_and_no_higher(self):
         tagged_levels = []
         for room in server.WORLD.legacy_rooms.values():
             for tag in room.tags:
@@ -64,17 +65,18 @@ class ProgressionCoverageTests(unittest.TestCase):
                 tagged_levels.extend(int(value) for value in re.findall(r"\d+", tag))
         self.assertTrue(tagged_levels)
         self.assertEqual(max(tagged_levels), CURRENT_AUTHORED_ZONE_CEILING)
+        self.assertEqual(CURRENT_AUTHORED_ZONE_CEILING, 20)
 
-    def test_live_quest_entry_gates_currently_top_out_at_level_eight(self):
+    def test_live_quest_entry_gates_now_reach_level_twenty(self):
         self.assertGreater(len(quests.QUESTS_BY_KEY), 100)
-        self.assertEqual(max(quest.minimum_level for quest in quests.QUESTS_BY_KEY.values()), 8)
+        self.assertEqual(max(quest.minimum_level for quest in quests.QUESTS_BY_KEY.values()), 20)
 
     def test_levels_beyond_current_authored_zone_ceiling_are_marked_unsupported(self):
         self.assertTrue(level_coverage(CURRENT_AUTHORED_ZONE_CEILING).authored_zone_support)
         self.assertFalse(level_coverage(CURRENT_AUTHORED_ZONE_CEILING + 1).authored_zone_support)
         self.assertFalse(level_coverage(AUDIT_MAX_LEVEL).authored_zone_support)
 
-    def test_current_content_bands_do_not_claim_content_above_level_eleven(self):
+    def test_current_content_bands_stop_at_level_twenty(self):
         self.assertEqual(max(band.end_level for band in CONTENT_BANDS), CURRENT_AUTHORED_ZONE_CEILING)
 
     def test_audit_does_not_invent_a_level_sixty_cap(self):
