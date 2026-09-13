@@ -6,9 +6,9 @@ This document answers a narrow production question: **how far can a character ac
 
 - There is currently **no hard character level cap** in the XP engine. `level_for_experience()` keeps calculating levels as XP increases.
 - The current class progression pass is fully authored through **level 9**. Every class has a working level-1 identity and additional tools through level 9; there are no new class ability unlocks above level 9 yet.
-- Current authored zone/combat content reaches through approximately **level 11**. The upper edge is the Drowned Tollhouse, whose deeper rooms are tagged for levels 10-11.
-- The coherent, densely supported vertical slice is therefore **levels 1-10, with real tail content into level 11**.
-- Levels **12-60 are mechanically reachable but are not presently an authored progression game**. A character can earn the XP, but the server does not yet supply level-specific zones, class unlocks, stat growth, gear tiers, or a designed content ladder for those levels.
+- Current authored zone/combat content reaches through approximately **level 12**. The Drowned Tollhouse carries the main level 10-11 tail, while the optional White Room Annex is tagged through level 12.
+- The coherent, densely supported vertical slice is therefore **levels 1-10, with real tail content through levels 11-12**.
+- Levels **13-60 are mechanically reachable but are not presently an authored progression game**. A character can earn the XP, but the server does not yet supply level-specific zones, class unlocks, stat growth, gear tiers, or a designed content ladder for those levels.
 
 That means it is incorrect to describe Dreams of the Fallen as a completed level-60 game today. Level 60 is useful as a long-range audit target, not the current playable content ceiling.
 
@@ -64,9 +64,10 @@ Leveling currently does **not** grant automatic innate stat points or a level-ba
 | 6-8 | Sablewater Reach and the road/faction progression toward Veyra |
 | 8-10 | Veyra, Underclock, Gravewatch Keep, Vault of the First Echo, five class field commissions and broader midgame systems |
 | 8-11 | Drowned Tollhouse, including rooms explicitly tagged for level 10-11 |
-| 12-60 | No complete authored level-specific progression ladder yet |
+| 10-12 | Optional White Room Annex deep challenge |
+| 13-60 | No complete authored level-specific progression ladder yet |
 
-There are also level-agnostic systems—crafting, economy, social play, collectibles, hidden planes, living-world events, secrets, repeatables and exploration—that can continue entertaining a character outside a strict level band. They do not substitute for a complete 12-60 combat/progression ladder.
+There are also level-agnostic systems—crafting, economy, social play, collectibles, hidden planes, living-world events, secrets, repeatables and exploration—that can continue entertaining a character outside a strict level band. They do not substitute for a complete 13-60 combat/progression ladder.
 
 ## Production guardrail
 
