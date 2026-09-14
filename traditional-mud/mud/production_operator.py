@@ -2,6 +2,12 @@ from __future__ import annotations
 
 import asyncio
 
+from mud.alpha_hardening import (
+    hardening_readiness,
+    install_alpha_hardening_runtime,
+    recent_observations,
+    record_observation,
+)
 from mud.alpha_ux import alpha_ux_summary
 from mud.production_hardening import (
     active_session_snapshot,
@@ -122,6 +128,69 @@ async def _ux_metrics(session, hours: int) -> None:
     )
 
 
+async def _hardening_report(session, hours: int) -> None:
+    from mud.room_runtime import WORLD
+
+    report = hardening_readiness(session.database, WORLD, hours)
+    await session.send(f"\r\n--- 1-40 Alpha Hardening Gate: {report.status} ---\r\n")
+    await session.send(
+        f"First-ten matrix : {report.first_ten.walkable_starts}/{report.first_ten.combinations} walkable starts; "
+        f"{report.first_ten.level_ten_kits}/{report.first_ten.combinations} level-10 class kits\r\n"
+        f"Gear curve       : {'GREEN' if report.gear.ready else 'REVIEW'}; tier medians "
+        + ", ".join(f"L{point.checkpoint}=T{point.tier}:{point.median_power:.1f}" for point in report.gear.checkpoints)
+        + "\r\n"
+        f"Solo combat      : {report.combat.solo_cells_ready}/{report.combat.solo_cells_total} class/level cells have at least 5 real fights\r\n"
+        f"Group combat     : {report.combat.group_bands_ready}/{report.combat.group_bands_total} level bands have at least 3 real party fights\r\n"
+        f"Outside cohort   : {report.playtest.meaningful_testers}/20 meaningful testers; "
+        f"{report.playtest.race_class_combinations_seen}/40 race/class combinations seen\r\n"
+        f"Friction reports : {report.playtest.stuck_reports} STUCK, {report.playtest.bug_reports} BUG, "
+        f"{report.playtest.observations} staff observations\r\n"
+    )
+    if report.first_ten.problems:
+        await session.send("First-ten problems:\r\n")
+        for problem in report.first_ten.problems[:20]:
+            await session.send(f"  - {problem}\r\n")
+    if report.gear.catalog_problems:
+        await session.send("Gear-curve review:\r\n")
+        for problem in report.gear.catalog_problems[:20]:
+            await session.send(f"  - {problem}\r\n")
+    if report.combat.warnings:
+        await session.send("Combat review:\r\n")
+        for warning in report.combat.warnings[:20]:
+            await session.send(f"  - {warning}\r\n")
+    if not report.ready_for_41_50:
+        await session.send(
+            "Expansion gate remains closed. Keep polishing 1-40 until static checks are green, "
+            "all class/level combat cells and group bands have real samples, and at least 20 outside testers complete a meaningful session.\r\n"
+        )
+    else:
+        await session.send("Hardening evidence is complete enough to begin authored 41-50 work without skipping the alpha pass.\r\n")
+
+
+async def _hardening_note(session, payload: str) -> None:
+    parts = payload.strip().split(maxsplit=1)
+    if len(parts) != 2:
+        await session.send("Usage: STAFF HARDENING NOTE <onboarding|combat|gear|group|navigation|story|other> <observation>\r\n")
+        return
+    category, note = parts
+    try:
+        record_observation(session.database, category, note)
+    except ValueError as exc:
+        await session.send(f"{exc}\r\n")
+        return
+    await session.send("Hardening observation saved. Record what the player did, not what you coached them to do.\r\n")
+
+
+async def _hardening_notes(session, hours: int) -> None:
+    rows = recent_observations(session.database, hours)
+    await session.send(f"\r\n--- Hardening Observations: last {hours}h ---\r\n")
+    if not rows:
+        await session.send("No staff observations recorded in this window.\r\n")
+        return
+    for row in rows:
+        await session.send(f"{row['created_at']} [{row['category'].upper()}] {row['note']}\r\n")
+
+
 async def _sessions(session) -> None:
     rows = active_session_snapshot()
     await session.send("\r\n--- Authenticated Sessions ---\r\n")
@@ -160,6 +229,10 @@ def install_production_operator_runtime(player_session_class) -> None:
     if getattr(player_session_class, "_production_operator_runtime_installed", False):
         return
 
+    # The hardening layer sits immediately outside production combat telemetry so
+    # each newly opened combat row can be tagged with the real class, level, race,
+    # room, and party size before the staff console summarizes it.
+    install_alpha_hardening_runtime(player_session_class)
     previous_prompt = player_session_class.playing_prompt
 
     async def playing_prompt(self) -> None:
@@ -176,7 +249,13 @@ def install_production_operator_runtime(player_session_class) -> None:
             return
         normalized = " ".join(command.strip().lower().split())
 
-        if normalized in {"staff health", "staff backup", "staff item audit", "staff sessions", "staff alpha"} or normalized.startswith("staff combat") or normalized.startswith("staff ux"):
+        production_command = (
+            normalized in {"staff health", "staff backup", "staff item audit", "staff sessions", "staff alpha"}
+            or normalized.startswith("staff combat")
+            or normalized.startswith("staff ux")
+            or normalized.startswith("staff hardening")
+        )
+        if production_command:
             if not _authorized(self):
                 await self.send("ADMIN staff mode is required for production controls.\r\n")
                 return
@@ -195,6 +274,22 @@ def install_production_operator_runtime(player_session_class) -> None:
             if normalized == "staff alpha":
                 await _alpha(self)
                 return
+            if normalized.startswith("staff hardening note "):
+                await _hardening_note(self, command.strip()[len("staff hardening note "):])
+                return
+            if normalized == "staff hardening note":
+                await _hardening_note(self, "")
+                return
+            if normalized.startswith("staff hardening notes"):
+                parts = normalized.split()
+                hours = int(parts[3]) if len(parts) == 4 and parts[3].isdigit() else 24 * 30
+                await _hardening_notes(self, hours)
+                return
+            if normalized.startswith("staff hardening"):
+                parts = normalized.split()
+                hours = int(parts[2]) if len(parts) == 3 and parts[2].isdigit() else 24 * 30
+                await _hardening_report(self, hours)
+                return
             parts = normalized.split()
             hours = int(parts[2]) if len(parts) == 3 and parts[2].isdigit() else 24
             if normalized.startswith("staff ux"):
@@ -212,6 +307,9 @@ def install_production_operator_runtime(player_session_class) -> None:
                 "STAFF ITEM AUDIT - read-only item/provenance invariant scan\r\n"
                 "STAFF COMBAT [hours] - combat duration/death evidence for tuning\r\n"
                 "STAFF UX [hours] - movement, command latency, friction, and player-report evidence\r\n"
+                "STAFF HARDENING [hours] - 1-40 matrix, gear curve, combat/group samples, and outside-playtest gate\r\n"
+                "STAFF HARDENING NOTE <category> <text> - record an uncoached playtest observation\r\n"
+                "STAFF HARDENING NOTES [hours] - review recent observation notes\r\n"
                 "STAFF SESSIONS - authenticated session registry\r\n"
                 "STAFF ALPHA - closed-alpha gate status\r\n"
             )
