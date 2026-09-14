@@ -59,6 +59,7 @@ async def _send_basics(session) -> None:
         "EXITS - see where you can go. Type a direction such as NORTH to move.\r\n"
         "TALK <name> or EXAMINE <thing> - interact with people and the world.\r\n"
         "SAY <message> - speak aloud to other players in the room.\r\n"
+        "GOALS - one current objective without spoilers. QUESTS or JOURNAL - the full quest journal.\r\n"
         "HELP - a short command overview. COMMANDS - the full list.\r\n"
         "SETTINGS - presentation, accessibility, and automatic hint preferences.\r\n"
         "You do not need to memorize any of this. Your opening will teach things as they become useful.\r\n"
@@ -247,3 +248,11 @@ def install_new_player_guidance_runtime(player_session_class) -> None:
 
     player_session_class.playing_prompt = playing_prompt
     player_session_class._new_player_guidance_runtime_installed = True
+
+    # The broader 1-10 polish sits immediately outside the tiny first-login guide:
+    # it adds GOALS, culturally framed core verbs, movement rescue, and tracking
+    # for first look/move/fight/ability use without turning the opening into a checklist.
+    from mud.early_game_polish import install_early_game_polish_runtime
+    from mud.room_runtime import WORLD
+
+    install_early_game_polish_runtime(player_session_class, WORLD)
