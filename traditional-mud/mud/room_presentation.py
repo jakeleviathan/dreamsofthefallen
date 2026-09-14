@@ -3,6 +3,7 @@ from __future__ import annotations
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
 from mud.combat import ENEMIES_BY_KEY
+from mud.movement_system import install_movement_runtime
 from mud.room_engine import PlayerRoomContext
 from mud.world import NPCS_BY_KEY
 
@@ -149,7 +150,12 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
 
 
 def install_room_presentation_runtime(player_session_class, world_service) -> None:
-    """Make the color-coded room renderer the outermost SHOW/LOOK presentation."""
+    """Make movement/fatigue and the color room renderer final player layers."""
+
+    # Room presentation is the final production assembly hook. Install the travel
+    # system here so every authored movement wrapper (party follow, gated exits,
+    # race-specific routes, and location safety) is already in place underneath it.
+    install_movement_runtime(player_session_class, world_service)
 
     if getattr(player_session_class, "_room_presentation_runtime_installed", False):
         return
