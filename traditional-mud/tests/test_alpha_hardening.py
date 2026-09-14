@@ -58,14 +58,17 @@ def add_character(database: Database, name: str, race: str, class_key: str, leve
 
 
 class AlphaHardeningDesignTests(unittest.TestCase):
-    def test_gear_curve_has_four_readable_checkpoints_and_rising_power(self):
+    def test_gear_curve_always_exposes_four_checkpoint_measurements(self):
+        # This module-level audit may run before production content installers have
+        # expanded the shared item registry. Its job here is to prove the audit is
+        # deterministic and honest about whatever catalog is currently assembled.
+        # The production-entrypoint test below is the authoritative green/red gear
+        # gate after every live content installer has run.
         audit = audit_gear_curve()
         self.assertEqual(tuple(point.checkpoint for point in audit.checkpoints), CHECKPOINTS)
         self.assertEqual(tuple(point.tier for point in audit.checkpoints), (1, 2, 3, 4))
-        self.assertTrue(all(point.items > 0 for point in audit.checkpoints))
-        self.assertTrue(all(len(point.slots) >= 4 for point in audit.checkpoints))
-        self.assertTrue(audit.monotonic_power, audit.catalog_problems)
-        self.assertTrue(audit.ready, audit.catalog_problems)
+        self.assertTrue(all(point.items >= 0 for point in audit.checkpoints))
+        self.assertTrue(all(point.median_power >= 0 for point in audit.checkpoints))
 
     def test_combat_audit_uses_real_class_level_and_party_context(self):
         database = make_database()
@@ -127,9 +130,13 @@ class AlphaHardeningDesignTests(unittest.TestCase):
         ensure_alpha_hardening_schema(database)
         races = ("human", "forest_elf", "moon_elf", "dwarf", "goblin", "troll", "undead", "sporekin")
         classes = ("brute", "wizard", "druid", "priest", "necromancer")
-        with database.connect() as db:
-            for i in range(OUTSIDE_PLAYTESTER_TARGET):
-                character_id = add_character(database, f"Tester{i}", races[i % len(races)], classes[i % len(classes)], 6)
+
+        # Keep each test player's character creation and telemetry writes in short,
+        # committed transactions. This mirrors production SQLite usage and avoids
+        # holding one writer open while another connection creates the next player.
+        for i in range(OUTSIDE_PLAYTESTER_TARGET):
+            character_id = add_character(database, f"Tester{i}", races[i % len(races)], classes[i % len(classes)], 6)
+            with database.connect() as db:
                 for _ in range(MEANINGFUL_COMMANDS):
                     db.execute(
                         "INSERT INTO alpha_ux_events (character_id, event_key, command_verb) VALUES (?, 'command', 'look')",
@@ -244,6 +251,9 @@ assert matrix.walkable_starts == 40
 assert matrix.level_ten_kits == 40
 gear = audit_gear_curve()
 assert gear.ready, gear.catalog_problems
+assert all(point.items > 0 for point in gear.checkpoints), gear.checkpoints
+assert all(len(point.slots) >= 4 for point in gear.checkpoints), gear.checkpoints
+assert gear.monotonic_power, gear.checkpoints
 print("ALPHA_HARDENING_1_40_OK")
 '''
         result = subprocess.run(
