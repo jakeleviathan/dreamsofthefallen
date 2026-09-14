@@ -75,6 +75,7 @@ from mud.iconic_items import install_iconic_items
 from mud.content_foundry import install_content_foundry_runtime
 from mud.content_density import install_content_density_runtime
 from mud.planar_realms import install_planar_realms_runtime
+from mud.item_naming import install_authored_item_names
 from mud.command_guide import install_command_guide_runtime
 from mud.alpha_ux import install_alpha_ux_runtime
 from mud.modern_client_experience import install_modern_client_runtime
@@ -221,6 +222,11 @@ install_content_density_runtime(PlayerSession, WORLD)
 # help/GMCP presentation. Its entrances remain contextual and undisclosed: there
 # is intentionally no seven-plane checklist for players to complete.
 install_planar_realms_runtime(PlayerSession, WORLD)
+
+# Replace any surviving development-era item labels only after every item-producing
+# content installer has run. Stable item keys remain untouched, so old characters,
+# recipes, loot tables, and equipped rows immediately inherit the authored names.
+install_authored_item_names()
 
 # Discovery/help, alpha friction telemetry, and modern-client presentation sit
 # outside the assembled content stack. The alpha layer wraps the command guide so
