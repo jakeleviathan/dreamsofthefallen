@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from weakref import WeakSet
 
+from mud.early_game_polish import install_early_game_polish_runtime
 from mud.player_preferences import hint_level
 
 
@@ -252,7 +253,6 @@ def install_new_player_guidance_runtime(player_session_class) -> None:
     # The broader 1-10 polish sits immediately outside the tiny first-login guide:
     # it adds GOALS, culturally framed core verbs, movement rescue, and tracking
     # for first look/move/fight/ability use without turning the opening into a checklist.
-    from mud.early_game_polish import install_early_game_polish_runtime
     from mud.room_runtime import WORLD
 
     install_early_game_polish_runtime(player_session_class, WORLD)
