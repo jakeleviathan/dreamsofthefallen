@@ -17,7 +17,7 @@ ABILITY_FLAG = "early_polish_used_ability"
 EXIT_RESCUE_FLAG = "early_polish_exit_rescue_seen"
 
 RACE_VERB_FLAVOR: dict[str, str] = {
-    "human": "Read the street, question people, and follow the gate roads; civic life is part of the tutorial.",
+    "human": "LOOK at the street, question people, and follow the gate roads; civic life is part of the tutorial.",
     "forest_elf": "Read the forest itself: LOOK, LISTEN, EXAMINE, and then follow the path the signs justify.",
     "moon_elf": "Compare viewpoints before acting: LOOK, EXAMINE, TALK, and move only when the route makes sense.",
     "dwarf": "Treat the city like a worksite: LOOK, EXAMINE gauges or machinery, TALK to the responsible worker, then follow posted routes.",
