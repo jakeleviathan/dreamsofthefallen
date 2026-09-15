@@ -38,9 +38,9 @@ jobs:
               assert {"DreamsOfTheFallenHUD.xml", "config.lua"} <= names
               xml = zf.read("DreamsOfTheFallenHUD.xml").decode("utf-8")
               config = zf.read("config.lua").decode("utf-8")
-          for marker in ("Dreams.Room", "Dreams.Party", "Dreams.Quests", "Dreams.Inventory", "Dreams.Abilities", "Dreams.Context", "Dreams.Onboarding", "Geyser.Mapper"):
+          for marker in ("Dreams.Room", "Dreams.Map", "Dreams.Party", "Dreams.Quests", "Dreams.Inventory", "Dreams.Abilities", "Dreams.Context", "Dreams.Onboarding", "Geyser.Mapper"):
               assert marker in xml, marker
-          assert 'version = "2.0.0"' in config
+          assert 'version = "2.1.0"' in config
           print("MODERN_MUDLET_PACKAGE_OK")
           PY
       - name: Build runnable server source bundle
