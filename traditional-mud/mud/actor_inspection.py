@@ -130,6 +130,23 @@ def _inspection_target(command: str) -> str | None:
     return None
 
 
+def normalize_inspection_synonym(command: str) -> str:
+    """Normalize common MUD inspection phrasing without changing bare LOOK.
+
+    LOOK AT <thing> should behave exactly like LOOK <thing> everywhere, including
+    room features. INSPECT <thing> is likewise a natural EXAMINE synonym. The
+    established INSPECT ITEM <name> command is preserved for inventory details.
+    """
+
+    stripped = command.strip()
+    normalized = " ".join(stripped.lower().split())
+    if normalized.startswith("look at "):
+        return "look " + stripped[len("look at "):].strip()
+    if normalized.startswith("inspect ") and not normalized.startswith("inspect item "):
+        return "examine " + stripped[len("inspect "):].strip()
+    return command
+
+
 async def handle_actor_inspection(session, command: str, world_service) -> bool:
     """Handle LOOK/LOOK AT/EXAMINE/INSPECT only when the target is an actor.
 
@@ -169,11 +186,12 @@ def install_actor_inspection_runtime(player_session_class, world_service) -> Non
         if await handle_actor_inspection(self, command, world_service):
             return
 
+        delegated_command = normalize_inspection_synonym(command)
         had_prompt = "prompt" in self.__dict__
         old_prompt = self.__dict__.get("prompt")
 
         async def replay(_text: str):
-            return command
+            return delegated_command
 
         self.prompt = replay
         try:
