@@ -136,6 +136,11 @@ def visible_target_candidates(session, world_service, *, kind: str) -> tuple[Tar
         return _inventory_candidates(session, equipment_only=False)
     if kind == "equipment":
         return _inventory_candidates(session, equipment_only=True)
+    if kind == "actor":
+        return _dedupe_candidates(
+            list(visible_target_candidates(session, world_service, kind="npc"))
+            + list(visible_target_candidates(session, world_service, kind="enemy"))
+        )
 
     character = getattr(session, "character", None)
     if character is None:
@@ -213,6 +218,20 @@ def _parse_target_command(command: str) -> tuple[str, str, str] | None:
         if normalized.startswith(prefix):
             target = stripped[len(prefix):].strip()
             return prefix.strip(), target, "equipment"
+
+    # Conventional MUD inspection should work for every visible person/creature.
+    # LOOK AT is canonicalized to LOOK; feature/object commands remain untouched
+    # when no visible actor matches the target and therefore continue to their
+    # existing authored handlers.
+    for prefix, verb in (
+        ("look at ", "look"),
+        ("look ", "look"),
+        ("examine ", "examine"),
+        ("inspect ", "inspect"),
+    ):
+        if normalized.startswith(prefix):
+            target = stripped[len(prefix):].strip()
+            return verb, target, "actor"
 
     return None
 
