@@ -59,6 +59,19 @@ local function roomIndex(data)
   return result
 end
 
+local function storedCoordinate(id)
+  if H.mapCoordinates[id] then return H.mapCoordinates[id] end
+  if getRoomCoordinates then
+    local ok, x, y, z = pcall(getRoomCoordinates, id)
+    if ok and tonumber(x) and tonumber(y) then
+      local value = {tonumber(x), tonumber(y), tonumber(z) or 0}
+      H.mapCoordinates[id] = value
+      return value
+    end
+  end
+  return nil
+end
+
 local function chooseCoordinate(candidate, occupied)
   local key = table.concat(candidate, ":")
   if not occupied[key] then return candidate end
@@ -86,9 +99,16 @@ function H.updateMapper()
     return
   end
 
-  -- Rebuild local coordinates outward from the current room. Existing coordinates
-  -- are used when possible so the map feels stable while the character explores.
-  local currentCoord = H.mapCoordinates[current] or {0, 0, 0}
+  -- Each character gets separate Mudlet mapper areas. This prevents a player who
+  -- switches alts in one Mudlet profile from seeing rooms only another character
+  -- has discovered, while still allowing each character's map to persist locally.
+  local characterLabel = tostring(data.character_name or "Explorer")
+
+  -- Rebuild local coordinates outward from the current room. Pull coordinates
+  -- back out of Mudlet's persistent mapper database after a client restart so the
+  -- explored graph does not jump back to the origin every time Mudlet relaunches.
+  for id, _room in pairs(rooms) do storedCoordinate(id) end
+  local currentCoord = storedCoordinate(current) or {0, 0, 0}
   H.mapCoordinates[current] = currentCoord
   local occupied = {}
   for id, coord in pairs(H.mapCoordinates) do
@@ -129,9 +149,20 @@ function H.updateMapper()
   -- an unvisited place remains text-only until the player actually goes there.
   for id, room in pairs(rooms) do
     local coord = H.mapCoordinates[id] or {0, 0, 0}
-    ensureRoom(id, room.name, room.zone, coord[1], coord[2], coord[3])
+    local scopedZone = tostring(room.zone or "Astralis") .. " · " .. characterLabel
+    ensureRoom(id, room.name, scopedZone, coord[1], coord[2], coord[3])
   end
   for id, room in pairs(rooms) do
+    -- HUD 2.0 speculatively created exits to visible-but-unvisited destinations.
+    -- Clear any such old standard-direction exits from rooms now owned by the
+    -- discovery mapper, then add back only the server-authorized discovered ones.
+    if setExit then
+      for direction, _delta in pairs(directionDelta) do
+        if not (room.exits or {})[direction] then
+          pcall(setExit, id, -1, direction)
+        end
+      end
+    end
     for direction, targetValue in pairs(room.exits or {}) do
       local target = tonumber(targetValue)
       if target and rooms[target] and setExit then
