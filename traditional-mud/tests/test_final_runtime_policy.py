@@ -3,7 +3,11 @@ from __future__ import annotations
 import unittest
 from types import SimpleNamespace
 
-from mud.final_runtime_policy import _presentation_text, install_accessibility_policy_runtime
+from mud.final_runtime_policy import (
+    _presentation_text,
+    install_accessibility_policy_runtime,
+    install_prompt_policy_runtime,
+)
 
 
 class _Telnet:
@@ -22,6 +26,7 @@ class _Session:
         self.account = None
         self.character = None
         self.sent: list[str] = []
+        self.prompt_requests: list[str] = []
         self._player_color_mode = "on"
         self._player_contrast_mode = "standard"
         self._mudlet_enhancements_enabled = True
@@ -29,6 +34,13 @@ class _Session:
 
     async def send(self, text: str) -> None:
         self.sent.append(text)
+
+    async def prompt(self, text: str) -> str | None:
+        self.prompt_requests.append(text)
+        return "look"
+
+    def current_prompt_text(self) -> str:
+        return "[HP 10/10  MP 8/8] > "
 
     async def enter_character(self) -> None:
         return None
@@ -78,6 +90,20 @@ class FinalRuntimePolicyTests(unittest.IsolatedAsyncioTestCase):
         )
         output = _presentation_text(session, "\x1b[90mRegion\x1b[0m")
         self.assertIn("\x1b[1;97mRegion", output)
+
+    async def test_outer_generic_prompt_uses_saved_room_prompt_text(self):
+        install_prompt_policy_runtime(_Session)
+        session = _Session()
+        session.character = SimpleNamespace(name="Prompttest")
+        await session.prompt("\r\n> ")
+        self.assertEqual(session.prompt_requests[-1], "\r\n[HP 10/10  MP 8/8] > ")
+
+    async def test_login_or_specific_question_is_not_rewritten(self):
+        install_prompt_policy_runtime(_Session)
+        session = _Session()
+        session.character = None
+        await session.prompt("Account name: ")
+        self.assertEqual(session.prompt_requests[-1], "Account name: ")
 
 
 if __name__ == "__main__":
