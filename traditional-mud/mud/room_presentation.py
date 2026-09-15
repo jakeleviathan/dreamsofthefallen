@@ -6,6 +6,7 @@ from mud.combat import ENEMIES_BY_KEY
 from mud.database import Database
 from mud.fantasy_drugs import install_perception_runtime
 from mud.movement_system import install_movement_runtime
+from mud.partial_target_matching import install_partial_target_matching_runtime
 from mud.quest_experience import install_quest_experience_runtime
 from mud.room_engine import PlayerRoomContext
 from mud.world import NPCS_BY_KEY
@@ -180,3 +181,9 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     # the authoritative world state, while this layer adds subjective prose and
     # the drug-only Veiled Interval without falsifying HP, inventory, or combat.
     install_perception_runtime(player_session_class, world_service)
+
+    # Input matching sits outside every authored TALK/ATTACK handler. A unique
+    # visible abbreviation such as TALK RIVETER, TALK NIX, or KILL STALK can be
+    # expanded to the actor's full displayed name before the existing quest or
+    # combat runtime sees it; ambiguous abbreviations are never guessed.
+    install_partial_target_matching_runtime(player_session_class, world_service)
