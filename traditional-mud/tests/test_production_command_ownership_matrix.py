@@ -18,6 +18,7 @@ class ProductionCommandOwnershipMatrixTests(unittest.TestCase):
 import asyncio
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import server
 from mud.database import Database
@@ -62,6 +63,7 @@ async def run_case(index, race, class_name, room_key, command, marker):
         session.combatant = None
         session.current_opponent = None
         session._movement_resting = False
+        session.telnet = SimpleNamespace(gmcp_enabled=False)
         output = []
 
         async def prompt(_text):
