@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from mud.player_preferences import color_enabled, load_preferences, mudlet_enhancements_enabled
+from mud.runtime_remediation import install_runtime_remediation
 
 
 _ANSI_SGR = re.compile(r"\x1b\[([0-9;]*)m")
@@ -150,4 +151,9 @@ def install_final_runtime_policy(player_session_class) -> None:
 
     install_accessibility_policy_runtime(player_session_class)
     install_prompt_policy_runtime(player_session_class)
+
+    # Audit remediations intentionally sit after every authored/global command
+    # wrapper so ownership decisions cannot be changed by later install order.
+    install_runtime_remediation(player_session_class)
+
     player_session_class._final_runtime_policy_installed = True
