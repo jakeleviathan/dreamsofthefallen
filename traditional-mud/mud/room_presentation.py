@@ -9,6 +9,12 @@ from mud.database import Database
 from mud.exploration_map import install_exploration_map_runtime
 from mud.exploration_map_gmcp import install_exploration_map_gmcp_runtime
 from mud.fantasy_drugs import install_perception_runtime
+from mud.goblin_swamp import (
+    GOBLIN_APOTHECARY_BLIND_KEY,
+    GOBLIN_SWAMP_GATHERING,
+    GOBLIN_SWAMP_ROOM_KEYS,
+    _handle_swamp_gathering,
+)
 from mud.inventory_inspection import install_inventory_inspection_runtime
 from mud.mana_regeneration import install_mana_regeneration_runtime
 from mud.movement_system import install_movement_runtime
@@ -28,6 +34,17 @@ ENEMY = "\x1b[1;91m"
 EXIT = "\x1b[94m"
 BUSINESS = "\x1b[95m"
 DIVIDER = "\x1b[90m"
+
+
+_SWAMP_GATHERING_COMMANDS = {
+    "gather",
+    "harvest",
+    "herbalism",
+    "herbs",
+    "pick",
+    "collect",
+    "fill",
+}
 
 
 def _paint(style: str, text: str) -> str:
@@ -159,6 +176,114 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     return tuple(lines)
 
 
+async def _show_goblin_swamp_resources(session) -> None:
+    character = getattr(session, "character", None)
+    if character is None:
+        return
+
+    room_key = character.current_room or ""
+    nodes = GOBLIN_SWAMP_GATHERING.nodes_in_room(room_key)
+
+    await session.send("\r\n--- Local Economy ---\r\n")
+    if nodes:
+        await session.send("Resources:\r\n")
+        for state in nodes:
+            definition = state.definition
+            resource = definition.resource
+            if resource is None:
+                requirement = "Collect"
+            else:
+                label = resource.gathering_skill_key.replace("_", " ").title()
+                requirement = f"{label} {resource.minimum_skill}"
+            status = (
+                "depleted"
+                if state.remaining_uses <= 0
+                else f"{state.remaining_uses} uses available"
+            )
+            await session.send(
+                f"- {definition.name} [{requirement}] - {status}\r\n"
+            )
+    else:
+        await session.send("Resources: none in this room.\r\n")
+
+    if room_key == GOBLIN_APOTHECARY_BLIND_KEY:
+        await session.send(
+            "Stations: Field Alchemy Bench (Mortar and Pestle, Alchemy Table).\r\n"
+        )
+    else:
+        await session.send("Stations: none in this room.\r\n")
+
+    await session.send(
+        "Use GATHER <resource>, HERBALISM, or COLLECT WATER as appropriate.\r\n"
+    )
+
+
+async def _delegate_command(self, previous_playing_prompt, command: str) -> None:
+    had_instance_prompt = "prompt" in self.__dict__
+    previous_instance_prompt = self.__dict__.get("prompt")
+
+    async def replay_prompt(_text: str) -> str:
+        return command
+
+    self.prompt = replay_prompt
+    try:
+        await previous_playing_prompt(self)
+    finally:
+        if had_instance_prompt:
+            self.prompt = previous_instance_prompt
+        else:
+            self.__dict__.pop("prompt", None)
+
+
+def install_goblin_swamp_gathering_bridge(player_session_class) -> None:
+    """Keep the authored Goblin swamp nodes authoritative over generic economy routing.
+
+    The global economy loop was added outside the older Goblin starter runtime and
+    therefore sees HERBALISM/GATHER/RESOURCES first. Without this final bridge it
+    reports that Reedfen has no node even though the room visibly contains the
+    authored Reedfen Greenleaf patch. Route those commands back to the swamp's
+    own gathering service before the generic economy layer can claim them.
+    """
+
+    if getattr(player_session_class, "_goblin_swamp_gathering_bridge_installed", False):
+        return
+
+    previous_playing_prompt = player_session_class.playing_prompt
+
+    async def playing_prompt(self) -> None:
+        character = getattr(self, "character", None)
+        if character is None or character.current_room not in GOBLIN_SWAMP_ROOM_KEYS:
+            await previous_playing_prompt(self)
+            return
+
+        await self.send_client_state()
+        command = await self.prompt("\r\n> ")
+        if command is None:
+            state = getattr(self, "state", None)
+            disconnected = getattr(type(state), "DISCONNECTED", None) if state is not None else None
+            if disconnected is not None:
+                self.state = disconnected
+            return
+
+        normalized = " ".join(command.strip().lower().split())
+        if normalized in {"resources", "resource", "nodes"}:
+            await _show_goblin_swamp_resources(self)
+            return
+
+        first = normalized.split(maxsplit=1)[0] if normalized else ""
+        if first in _SWAMP_GATHERING_COMMANDS:
+            canonical = normalized
+            if first == "herbs":
+                canonical = "herbalism" + normalized[len(first):]
+            if await _handle_swamp_gathering(self, canonical):
+                return
+
+        await _delegate_command(self, previous_playing_prompt, command)
+
+    player_session_class.playing_prompt = playing_prompt
+    player_session_class._goblin_swamp_gathering_bridge_installed = True
+
+
 def install_room_presentation_runtime(player_session_class, world_service) -> None:
     """Make final progression/travel systems and color room rendering player-facing."""
 
@@ -216,3 +341,9 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     # KILL STALK, ITEM TOKEN, or EQUIP SCRAP expands to the full displayed name
     # before the existing runtime sees it. Ambiguity is never guessed.
     install_partial_target_matching_runtime(player_session_class, world_service)
+
+    # The global economy loop predates the richer Goblin swamp node service but
+    # wraps it in production. Put a final room-local router outside both systems
+    # so visible Greenleaf/Bitterroot/clean-water sources match what HERBALISM,
+    # GATHER and RESOURCES actually report to the player.
+    install_goblin_swamp_gathering_bridge(player_session_class)
