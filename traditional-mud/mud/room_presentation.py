@@ -6,6 +6,8 @@ from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
 from mud.combat import ENEMIES_BY_KEY
 from mud.contextual_command_routing import install_contextual_command_routing_guard
 from mud.database import Database
+from mud.exploration_map import install_exploration_map_runtime
+from mud.exploration_map_gmcp import install_exploration_map_gmcp_runtime
 from mud.fantasy_drugs import install_perception_runtime
 from mud.inventory_inspection import install_inventory_inspection_runtime
 from mud.mana_regeneration import install_mana_regeneration_runtime
@@ -202,6 +204,12 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     # LOOK AT, EXAMINE, and INSPECT work on static NPCs, moving NPCs, and enemies
     # without stealing feature/object commands when the target is not an actor.
     install_actor_inspection_runtime(player_session_class, world_service)
+
+    # The exploration layer remembers only rooms this character has actually
+    # entered. Plain Telnet gets MAP/MAP 1..4 while GMCP clients receive the same
+    # no-spoiler graph through Dreams.Map for the graphical Mudlet mapper.
+    install_exploration_map_runtime(player_session_class, world_service)
+    install_exploration_map_gmcp_runtime(player_session_class, world_service)
 
     # Input matching sits outside every authored TALK/ATTACK/item/inspection
     # handler. A unique visible abbreviation such as TALK NIX, LOOK PEL,

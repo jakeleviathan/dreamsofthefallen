@@ -167,7 +167,7 @@ def _culture_commands(session) -> tuple[str, ...]:
 def _quick_help_text(session) -> str:
     lines = [
         "\r\n--- Help ---",
-        "LOOK and EXITS show where you are. Move with NORTH/SOUTH/EAST/WEST/UP/DOWN (or N/S/E/W/U/D).",
+        "LOOK and EXITS show where you are; MAP shows the nearby rooms this character has personally discovered. Move with NORTH/SOUTH/EAST/WEST/UP/DOWN (or N/S/E/W/U/D).",
         "EXAMINE <thing>, SEARCH <thing>, TOUCH <thing>, LISTEN, READ <thing>, and TALK <person> interact with the world.",
         "SAY <message> speaks in the room. CHAT, OOC, TELL, and REPLY handle broader player communication; CHANNELS explains them.",
         "SETTINGS controls prompt style, color/contrast, hint level, Mudlet enhancements, and screen-reader mode.",
@@ -201,6 +201,7 @@ def _full_help_text(session) -> str:
         "[Movement & Exploration]",
         "LOOK (L) - show the current room",
         "EXITS - show available routes",
+        "MAP / MAP 1..4 - show your persistent discovered-room map at a local radius",
         "NORTH/SOUTH/EAST/WEST/UP/DOWN (N/S/E/W/U/D) - travel",
         "EXAMINE <thing> - inspect a room feature, object, or clue",
         "SEARCH <thing> - search an authored feature when supported",

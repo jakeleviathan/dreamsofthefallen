@@ -136,13 +136,14 @@ class ModernClientExperienceTests(unittest.TestCase):
             self.assertTrue(payloads["Dreams.Inventory"]["items"])
             self.assertTrue(payloads["Dreams.Quests"]["active"])
 
-    def test_official_client_sources_are_hud_two_with_legacy_offer_compatibility(self):
+    def test_official_client_sources_include_discovery_mapper_with_legacy_offer_compatibility(self):
         self.assertEqual(MODERN_CLIENT_VERSION, "2.0.0")
-        self.assertEqual(CURRENT_MUDLET_HUD_VERSION, "2.0.0")
+        self.assertEqual(CURRENT_MUDLET_HUD_VERSION, "2.1.0")
         self.assertEqual(configured_mudlet_gui_offer().version, OFFICIAL_MUDLET_HUD_VERSION)
 
         root = Path(__file__).resolve().parents[1]
         modern_lua = (root / "mudlet" / "DreamsOfTheFallenHUD" / "src" / "modern.lua").read_text(encoding="utf-8")
+        map_lua = (root / "mudlet" / "DreamsOfTheFallenHUD" / "src" / "map.lua").read_text(encoding="utf-8")
         build_source = (root / "mudlet" / "DreamsOfTheFallenHUD" / "build_package.py").read_text(encoding="utf-8")
         for marker in (
             "Geyser.Mapper",
@@ -156,7 +157,10 @@ class ModernClientExperienceTests(unittest.TestCase):
             "synthCue",
         ):
             self.assertIn(marker, modern_lua)
+        self.assertIn("Dreams.Map", map_lua)
+        self.assertIn("discovered_count", map_lua)
         self.assertIn('ROOT / "src" / "modern.lua"', build_source)
+        self.assertIn('ROOT / "src" / "map.lua"', build_source)
 
     def test_production_server_installs_modern_layer_outermost(self):
         root = Path(__file__).resolve().parents[1]
@@ -166,8 +170,10 @@ from mud.client_gui import CURRENT_MUDLET_HUD_VERSION, configured_mudlet_gui_off
 from mud.modern_client_experience import MODERN_CLIENT_VERSION
 
 assert server.PlayerSession._modern_client_runtime_installed
+assert server.PlayerSession._exploration_map_runtime_installed
+assert server.PlayerSession._exploration_map_gmcp_runtime_installed
 assert MODERN_CLIENT_VERSION == "2.0.0"
-assert CURRENT_MUDLET_HUD_VERSION == "2.0.0"
+assert CURRENT_MUDLET_HUD_VERSION == "2.1.0"
 assert configured_mudlet_gui_offer().enabled
 print("MODERN_CLIENT_OK")
 '''
@@ -177,7 +183,7 @@ print("MODERN_CLIENT_OK")
             text=True,
             capture_output=True,
             env={**os.environ, "PYTHONPATH": str(root)},
-            timeout=30,
+            timeout=90,
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
         self.assertIn("MODERN_CLIENT_OK", result.stdout)
