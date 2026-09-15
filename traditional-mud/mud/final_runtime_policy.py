@@ -150,4 +150,10 @@ def install_final_runtime_policy(player_session_class) -> None:
 
     install_accessibility_policy_runtime(player_session_class)
     install_prompt_policy_runtime(player_session_class)
+
+    # Audit remediations intentionally sit after every authored/global command
+    # wrapper so ownership decisions cannot be changed by later install order.
+    from mud.runtime_remediation import install_runtime_remediation
+    install_runtime_remediation(player_session_class)
+
     player_session_class._final_runtime_policy_installed = True
