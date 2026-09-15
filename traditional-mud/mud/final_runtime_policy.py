@@ -46,8 +46,6 @@ def _install_telnet_gmcp_policy(session) -> None:
     previous_send_gmcp = telnet.send_gmcp
 
     async def send_gmcp(package: str, payload=None) -> bool:
-        # Account preferences are authoritative even for outer runtime layers
-        # that call telnet.send_gmcp directly instead of send_client_state.
         if getattr(session, "account", None) is not None:
             try:
                 load_preferences(session)
@@ -62,13 +60,7 @@ def _install_telnet_gmcp_policy(session) -> None:
 
 
 def install_accessibility_policy_runtime(player_session_class) -> None:
-    """Make color, screen-reader and Mudlet settings authoritative everywhere.
-
-    Earlier preference wrappers could only govern the systems installed beneath
-    them. Newer room/map/movement/perception layers sit outside that stack, so a
-    final transport-level policy is required: text is filtered at PlayerSession.send
-    and every GMCP packet is checked at the individual TelnetConnection instance.
-    """
+    """Make color, screen-reader and Mudlet settings authoritative everywhere."""
 
     if getattr(player_session_class, "_accessibility_policy_runtime_installed", False):
         return
@@ -93,9 +85,6 @@ def install_accessibility_policy_runtime(player_session_class) -> None:
 
     player_session_class.send = send
 
-    # Preferences must be loaded before the entering-room presentation, not
-    # afterward, otherwise a saved COLOR OFF or SCREENREADER setting can leak one
-    # colored/GMCP-rich room during login.
     previous_enter_character = getattr(player_session_class, "enter_character", None)
     if previous_enter_character is not None:
         async def enter_character(self) -> None:
@@ -109,8 +98,56 @@ def install_accessibility_policy_runtime(player_session_class) -> None:
     player_session_class._accessibility_policy_runtime_installed = True
 
 
+def _is_generic_play_prompt(text: str) -> bool:
+    return text.replace("\r", "").replace("\n", "").strip() == ">"
+
+
+def _preferred_play_prompt(session, requested: str) -> str:
+    """Replace only generic gameplay prompts, never login/menu questions."""
+
+    if getattr(session, "character", None) is None or not _is_generic_play_prompt(requested):
+        return requested
+
+    # current_prompt_text is installed by the room/prompt experience and already
+    # honors QUIET/COMPACT/FULL plus screen-reader quiet mode. Import lazily as a
+    # fallback so this policy stays safe in focused tests that omit that runtime.
+    current = getattr(session, "current_prompt_text", None)
+    if callable(current):
+        text = current()
+    else:
+        from mud.room_prompt_experience import prompt_text
+        text = prompt_text(session, leading_newline=False)
+
+    if requested.startswith("\r\n"):
+        return "\r\n" + text
+    if requested.startswith("\n"):
+        return "\n" + text
+    return text
+
+
+def install_prompt_policy_runtime(player_session_class) -> None:
+    """Make prompt preference ownership independent of command-wrapper order."""
+
+    if getattr(player_session_class, "_prompt_policy_runtime_installed", False):
+        return
+
+    previous_prompt = player_session_class.prompt
+
+    async def prompt(self, text: str) -> str | None:
+        if getattr(self, "account", None) is not None:
+            try:
+                load_preferences(self)
+            except Exception:
+                pass
+        return await previous_prompt(self, _preferred_play_prompt(self, text))
+
+    player_session_class.prompt = prompt
+    player_session_class._prompt_policy_runtime_installed = True
+
+
 def install_final_runtime_policy(player_session_class) -> None:
     """Anchor final cross-cutting policies after the production stack is assembled."""
 
     install_accessibility_policy_runtime(player_session_class)
+    install_prompt_policy_runtime(player_session_class)
     player_session_class._final_runtime_policy_installed = True
