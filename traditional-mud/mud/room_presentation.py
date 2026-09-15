@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from mud.actor_inspection import install_actor_inspection_runtime
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
 from mud.combat import ENEMIES_BY_KEY
@@ -195,9 +196,13 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     # and richer recreational-drug inspection without falsifying real inventory.
     install_perception_runtime(player_session_class, world_service)
 
-    # Input matching sits outside every authored TALK/ATTACK/item handler. A unique
-    # visible abbreviation such as TALK RIVETER, TALK NIX, KILL STALK, ITEM TOKEN,
-    # or EQUIP SCRAP can be expanded to the full displayed name before the existing
-    # quest, combat, inventory, or equipment runtime sees it. Ambiguity is never
-    # guessed.
+    # Every visible actor now behaves like a conventional MUD target. LOOK,
+    # LOOK AT, EXAMINE, and INSPECT work on static NPCs, moving NPCs, and enemies
+    # without stealing feature/object commands when the target is not an actor.
+    install_actor_inspection_runtime(player_session_class, world_service)
+
+    # Input matching sits outside every authored TALK/ATTACK/item/inspection
+    # handler. A unique visible abbreviation such as TALK NIX, LOOK PEL,
+    # KILL STALK, ITEM TOKEN, or EQUIP SCRAP expands to the full displayed name
+    # before the existing runtime sees it. Ambiguity is never guessed.
     install_partial_target_matching_runtime(player_session_class, world_service)
