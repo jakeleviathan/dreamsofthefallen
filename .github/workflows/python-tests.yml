@@ -21,6 +21,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Upload diagnostic test tree
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-tests
+          path: traditional-mud/tests
+          if-no-files-found: error
       - name: Run regression suite
         run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Build official Mudlet package
