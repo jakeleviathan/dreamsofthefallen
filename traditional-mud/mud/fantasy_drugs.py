@@ -4,7 +4,6 @@ from dataclasses import dataclass, replace
 from time import monotonic
 
 import mud.crafting as crafting
-import mud.world as legacy_world
 from mud.astralis_time import ASTRALIS_CLOCK
 from mud.broken_reach_midgame import ECHO_WELL_KEY
 from mud.crafting import ItemDefinition
@@ -31,74 +30,52 @@ class PerceptionDrug:
 
 DRUGS: tuple[PerceptionDrug, ...] = (
     PerceptionDrug(
-        key="moonwake",
-        name="Moonwake Resin",
-        item_key="recreational_moonwake_resin",
-        duration_seconds=600.0,
-        aliases=("moonwake", "moonwake resin"),
-        color="\x1b[95m",
-        onset_text=(
-            "The bitter resin softens under your tongue. Nothing becomes stronger or faster; instead, timing loosens. "
-            "Your shadow seems to remember each movement a fraction late."
-        ),
-        room_overlay=(
-            "For a moment the room seems to happen twice: once now, and once just before you notice it. "
-            "Shadows lag half a heartbeat behind the things that cast them."
-        ),
-        talk_echo="The speaker's final word seems to arrive once from their mouth and once from a moment that has not quite happened yet.",
-        thesis="Time feels layered rather than accelerated.",
+        "moonwake",
+        "Moonwake Resin",
+        "recreational_moonwake_resin",
+        600.0,
+        ("moonwake", "moonwake resin"),
+        "\x1b[95m",
+        "The bitter resin softens under your tongue. Nothing becomes stronger or faster; instead, timing loosens. Your shadow seems to remember each movement a fraction late.",
+        "For a moment the room seems to happen twice: once now, and once just before you notice it. Shadows lag half a heartbeat behind the things that cast them.",
+        "The speaker's final word seems to arrive once from their mouth and once from a moment that has not quite happened yet.",
+        "Time feels layered rather than accelerated.",
     ),
     PerceptionDrug(
-        key="choircap",
-        name="Choircap Spores",
-        item_key="recreational_choircap_spores",
-        duration_seconds=600.0,
-        aliases=("choircap", "choircap spores"),
-        color="\x1b[92m",
-        onset_text=(
-            "The pale spores dissolve across your breath. Your body remains entirely your own, but the word 'you' briefly feels insufficient. "
-            "Nearby intentions brush the edge of awareness like thoughts remembered from somebody else."
-        ),
-        room_overlay=(
-            "The edges between observer and observed feel unusually thin. For one breath, the room is not around you so much as included in us. "
-            "The thought passes before you can decide whose grammar it used."
-        ),
-        talk_echo="For an instant the sentence feels remembered instead of heard, as though you and the speaker reached it from opposite sides.",
-        thesis="Individual perception briefly resembles a tiny, unreliable chorus.",
+        "choircap",
+        "Choircap Spores",
+        "recreational_choircap_spores",
+        600.0,
+        ("choircap", "choircap spores"),
+        "\x1b[92m",
+        "The pale spores dissolve across your breath. Your body remains entirely your own, but the word 'you' briefly feels insufficient. Nearby intentions brush the edge of awareness like thoughts remembered from somebody else.",
+        "The edges between observer and observed feel unusually thin. For one breath, the room is not around you so much as included in us. The thought passes before you can decide whose grammar it used.",
+        "For an instant the sentence feels remembered instead of heard, as though you and the speaker reached it from opposite sides.",
+        "Individual perception briefly resembles a tiny, unreliable chorus.",
     ),
     PerceptionDrug(
-        key="blue_emberleaf",
-        name="Blue Emberleaf",
-        item_key="recreational_blue_emberleaf",
-        duration_seconds=480.0,
-        aliases=("blue emberleaf", "emberleaf"),
-        color="\x1b[96m",
-        onset_text=(
-            "The curled blue leaf burns with almost no heat. A dry sweetness settles behind your teeth and ordinary sounds begin leaving faint colors in their wake."
-        ),
-        room_overlay=(
-            "Hard edges leave blue-green afterimages when you look away. A footstep seems briefly amber; distant metal rings silver-white. "
-            "Nothing has changed, but your senses have stopped agreeing about how to report it."
-        ),
-        talk_echo="The voice leaves a narrow ribbon of color in the air, brightening on emphasized words before fading.",
-        thesis="Sound, color, texture, and distance become mildly synesthetic.",
+        "blue_emberleaf",
+        "Blue Emberleaf",
+        "recreational_blue_emberleaf",
+        480.0,
+        ("blue emberleaf", "emberleaf"),
+        "\x1b[96m",
+        "The curled blue leaf burns with almost no heat. A dry sweetness settles behind your teeth and ordinary sounds begin leaving faint colors in their wake.",
+        "Hard edges leave blue-green afterimages when you look away. A footstep seems briefly amber; distant metal rings silver-white. Nothing has changed, but your senses have stopped agreeing about how to report it.",
+        "The voice leaves a narrow ribbon of color in the air, brightening on emphasized words before fading.",
+        "Sound, color, texture, and distance become mildly synesthetic.",
     ),
     PerceptionDrug(
-        key="hushglass",
-        name="Hushglass Tincture",
-        item_key="recreational_hushglass_tincture",
-        duration_seconds=720.0,
-        aliases=("hushglass", "hushglass tincture"),
-        color="\x1b[90m",
-        onset_text=(
-            "The clear tincture tastes like cold stone and then almost like nothing. Corners acquire depth behind themselves. "
-            "Several perfectly ordinary directions begin to feel less convincing than one impossible direction you cannot yet name."
-        ),
-        room_overlay=(
-            "The room's boundaries look technically correct but emotionally unpersuasive. Corners seem to continue somewhere behind their own angles."
-        ),
-        talk_echo="Meaning seems to arrive from slightly behind the words, as if the sentence had to pass through a thin wall to reach you.",
-        thesis="Boundaries and directions feel negotiable without becoming mechanically false.",
+        "hushglass",
+        "Hushglass Tincture",
+        "recreational_hushglass_tincture",
+        720.0,
+        ("hushglass", "hushglass tincture"),
+        "\x1b[90m",
+        "The clear tincture tastes like cold stone and then almost like nothing. Corners acquire depth behind themselves. Several perfectly ordinary directions begin to feel less convincing than one impossible direction you cannot yet name.",
+        "The room's boundaries look technically correct but emotionally unpersuasive. Corners seem to continue somewhere behind their own angles.",
+        "Meaning seems to arrive from slightly behind the words, as if the sentence had to pass through a thin wall to reach you.",
+        "Boundaries and directions feel negotiable without becoming mechanically false.",
     ),
 )
 DRUGS_BY_KEY = {drug.key: drug for drug in DRUGS}
@@ -257,7 +234,13 @@ _SOURCE_ACTIONS: dict[tuple[str, str], tuple[str, str]] = {
 
 
 def install_perception_content(world_service) -> None:
-    """Register the recreational items and shared drug-only dimension."""
+    """Register recreational items and the perception-only shared dimension.
+
+    The Veiled Interval deliberately belongs to WORLD's private room registry, not
+    the sober legacy ROOMS/ROOMS_BY_KEY catalog. That keeps ordinary Astralis room
+    audits, maps, and discovery surfaces from learning that the place exists while
+    still giving every altered session the same underlying multiplayer room keys.
+    """
 
     for item in DRUG_ITEMS:
         if item.key not in crafting.ITEMS_BY_KEY:
@@ -265,9 +248,6 @@ def install_perception_content(world_service) -> None:
         crafting.ITEMS_BY_KEY[item.key] = item
 
     for room in _INTERVAL_ROOM_DEFS:
-        legacy_world.ROOMS_BY_KEY[room.key] = room
-        if not any(existing.key == room.key for existing in legacy_world.ROOMS):
-            legacy_world.ROOMS = legacy_world.ROOMS + (room,)
         world_service.legacy_rooms[room.key] = room
         cache = getattr(world_service, "_scene_cache", None)
         if cache is not None:
@@ -320,7 +300,7 @@ def interval_view(drug_key: str, room_key: str) -> tuple[str, str]:
 
 
 def _should_follow(character_id: int, day_number: int) -> bool:
-    """Deterministic one-in-four chance so behavior is testable and not farmable by reconnecting."""
+    """Deterministic one-in-four chance so the afterecho is testable and reconnect-safe."""
 
     return ((int(character_id) * 17 + int(day_number) * 11) % 4) == 0
 
@@ -442,6 +422,17 @@ async def _show_status(session) -> None:
         f"Perception: {drug.name} ({remaining // 60}m {remaining % 60}s remaining). {drug.thesis}\r\n"
         "Mechanical HP, mana, movement, equipment and inventory remain truthful. Perceptual prose and unusual routes may not be.\r\n"
     )
+
+
+def _social_command(normalized: str) -> bool:
+    """Commands that remain usable while players share the Interval together."""
+
+    exact = {"who", "friends", "party", "group", "nearby", "reply", "r"}
+    prefixes = (
+        "say ", "'", "tell ", "reply ", "emote ", "party ", "group ",
+        "chat ", "world ", "ooc ", "friend ", "ignore ",
+    )
+    return normalized in exact or normalized.startswith(prefixes)
 
 
 def install_perception_runtime(player_session_class, world_service) -> None:
@@ -582,6 +573,10 @@ def install_perception_runtime(player_session_class, world_service) -> None:
                         return await _leave_interval(self)
                     _set_room(self, destination)
                     return await _show_interval(self, drug)
+            if _social_command(normalized):
+                # Same underlying room key means ordinary SAY/TELL/PARTY systems can
+                # still connect players whose individual descriptions disagree.
+                return await _delegate_prompt(self, original_playing_prompt, command)
             await self.send("That direction does not exist in the version of this place you can currently perceive. Type LOOK to see its perceived exits.\r\n")
             return
 
