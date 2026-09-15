@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import subprocess
 import sys
@@ -10,6 +11,7 @@ from types import SimpleNamespace
 
 from mud.database import Database
 from mud.quest_experience import (
+    _flush_reward_events,
     install_quest_experience_database_hook,
     quest_experience_reward,
 )
@@ -18,6 +20,20 @@ from mud.stats import CharacterStats
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class _Session:
+    def __init__(self, database, character):
+        self.database = database
+        self.character = character
+        self.outputs: list[str] = []
+        self.client_state_sends = 0
+
+    async def send(self, text: str) -> None:
+        self.outputs.append(text)
+
+    async def send_client_state(self) -> None:
+        self.client_state_sends += 1
 
 
 class QuestExperienceTests(unittest.TestCase):
@@ -35,39 +51,67 @@ class QuestExperienceTests(unittest.TestCase):
         quest = SimpleNamespace(style="structured", minimum_level=11)
         self.assertEqual(quest_experience_reward(quest), 269)
 
-    def test_real_quest_completion_awards_xp_once(self):
+    def _make_character(self, database: Database, name: str):
+        account = database.create_account(
+            f"{name.lower()}account",
+            "not-a-real-password-hash",
+        )
+        return database.create_character(
+            account.id,
+            name,
+            "human",
+            "brute",
+            CharacterStats(),
+        )
+
+    def test_fallback_reward_is_deferred_until_command_finishes(self):
         install_quest_experience_database_hook(Database)
         with tempfile.TemporaryDirectory() as tempdir:
             database = Database(Path(tempdir) / "quest-xp.db")
-            account = database.create_account("QuestXpTester", "not-a-real-password-hash")
-            character = database.create_character(
-                account.id,
-                "Questxp",
-                "human",
-                "brute",
-                CharacterStats(),
-            )
-
-            self.assertEqual(character.experience, 0)
-            self.assertEqual(
-                database.get_quest(character.id, HUMAN_CATHEDRAL_SUMMONS.key)["status"],
-                "active",
-            )
+            character = self._make_character(database, "Questxp")
 
             database.complete_quest(character.id, HUMAN_CATHEDRAL_SUMMONS.key)
-            after_first = database.get_character_by_name(character.name)
-            self.assertIsNotNone(after_first)
+
+            # complete_quest itself must not pay immediately because older
+            # authored content may award tuned XP immediately afterward.
+            after_complete = database.get_character_by_name(character.name)
+            self.assertEqual(after_complete.experience, 0)
+
+            session = _Session(database, after_complete)
+            asyncio.run(_flush_reward_events(session))
+
+            refreshed = database.get_character_by_name(character.name)
             expected = quest_experience_reward(HUMAN_CATHEDRAL_SUMMONS)
-            self.assertEqual(after_first.experience, expected)
+            self.assertEqual(refreshed.experience, expected)
+            self.assertIn(
+                f"you gain {expected} experience",
+                "".join(session.outputs),
+            )
 
-            # Re-completing an already completed quest cannot farm the reward.
+            # Re-completing an already completed quest cannot farm fallback XP.
             database.complete_quest(character.id, HUMAN_CATHEDRAL_SUMMONS.key)
-            after_second = database.get_character_by_name(character.name)
-            self.assertEqual(after_second.experience, expected)
+            asyncio.run(_flush_reward_events(session))
+            again = database.get_character_by_name(character.name)
+            self.assertEqual(again.experience, expected)
 
-            events = database._quest_experience_events[character.id]
-            self.assertEqual(len(events), 1)
-            self.assertEqual(events[0]["experience"], expected)
+    def test_authored_reward_suppresses_universal_fallback(self):
+        install_quest_experience_database_hook(Database)
+        with tempfile.TemporaryDirectory() as tempdir:
+            database = Database(Path(tempdir) / "authored-xp.db")
+            character = self._make_character(database, "Authoredxp")
+
+            database.complete_quest(character.id, HUMAN_CATHEDRAL_SUMMONS.key)
+            database.add_experience(character.id, 17)
+
+            session = _Session(
+                database,
+                database.get_character_by_name(character.name),
+            )
+            asyncio.run(_flush_reward_events(session))
+
+            refreshed = database.get_character_by_name(character.name)
+            self.assertEqual(refreshed.experience, 17)
+            self.assertNotIn("Quest reward -", "".join(session.outputs))
 
     def test_production_server_installs_quest_xp_outer_runtime(self):
         code = r'''
