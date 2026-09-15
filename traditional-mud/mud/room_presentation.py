@@ -3,6 +3,7 @@ from __future__ import annotations
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
 from mud.combat import ENEMIES_BY_KEY
+from mud.contextual_command_routing import install_contextual_command_routing_guard
 from mud.database import Database
 from mud.fantasy_drugs import install_perception_runtime
 from mud.inventory_inspection import install_inventory_inspection_runtime
@@ -162,6 +163,12 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     # already assembled underneath them.
     install_movement_runtime(player_session_class, world_service)
     install_quest_experience_runtime(player_session_class, Database)
+
+    # Scope older global verb fallbacks before the final prompt wrappers are
+    # installed. This keeps SEARCH/LISTEN/CLIMB/PULL/TOUCH owned by the content
+    # that actually authored the current room instead of allowing Waymeet's
+    # helpful local fallback text to swallow commands elsewhere in Astralis.
+    install_contextual_command_routing_guard(player_session_class)
 
     if getattr(player_session_class, "_room_presentation_runtime_installed", False):
         return
