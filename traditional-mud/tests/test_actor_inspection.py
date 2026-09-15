@@ -98,7 +98,8 @@ class ActorInspectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("shovel-shaped head", output)
         self.assertIn("ATTACK Bog Snapper", output)
         self.assertNotIn("22", output)
-        self.assertNotIn("AC", output)
+        self.assertNotIn("Armor Class", output)
+        self.assertNotIn("AC: 4", output)
 
     async def test_mobile_npc_inspection_uses_live_room_presence(self):
         definition = MobileNpcDefinition(
