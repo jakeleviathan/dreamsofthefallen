@@ -12,8 +12,7 @@ class QuestExperienceRules:
     Structured quests carry the larger default reward; discovery quests carry a
     smaller reward so optional exploration matters without becoming the dominant
     leveling strategy. Rewards are based on the quest's authored minimum level,
-    not how long a player waits before turning it in, and completion can only pay
-    once because only an active -> completed transition is eligible.
+    not how long a player waits before turning it in.
     """
 
     structured_fraction: float = 0.25
@@ -26,7 +25,7 @@ QUEST_EXPERIENCE_RULES = QuestExperienceRules()
 
 
 def quest_experience_reward(quest) -> int:
-    """Return the one-time XP reward for an authored quest definition."""
+    """Return the fallback XP reward for an authored quest definition."""
 
     explicit = getattr(quest, "experience_reward", None)
     if explicit is not None:
@@ -42,8 +41,6 @@ def quest_experience_reward(quest) -> int:
             int(round(requirement * QUEST_EXPERIENCE_RULES.discovery_fraction)),
         )
 
-    # Structured is the normal story path and the safe default for any older
-    # authored quest that predates the style distinction.
     return max(
         QUEST_EXPERIENCE_RULES.minimum_structured_reward,
         int(round(requirement * QUEST_EXPERIENCE_RULES.structured_fraction)),
@@ -59,6 +56,17 @@ def _character_progress(database, character_id: int) -> tuple[int, int] | None:
     if row is None:
         return None
     return int(row["level"]), int(row["experience"])
+
+
+def _progress_advanced(
+    progress: tuple[int, int] | None,
+    old_level: int,
+    old_experience: int,
+) -> bool:
+    if progress is None:
+        return False
+    level, experience = progress
+    return level > old_level or (level == old_level and experience > old_experience)
 
 
 def _queue_reward_event(database, character_id: int, event: dict) -> None:
@@ -77,7 +85,13 @@ def _drain_reward_events(database, character_id: int) -> list[dict]:
 
 
 def install_quest_experience_database_hook(database_class) -> None:
-    """Make every registered authored quest completion grant XP exactly once."""
+    """Queue fallback quest XP without stacking on authored rewards.
+
+    Older content frequently calls ``complete_quest`` and then awards its own
+    hand-tuned XP. The universal system therefore waits until the command has
+    finished. If XP/level progress changed after completion, the authored reward
+    wins. Otherwise the universal formula fills the gap exactly once.
+    """
 
     if getattr(database_class, "_quest_experience_hook_installed", False):
         return
@@ -99,35 +113,26 @@ def install_quest_experience_database_hook(database_class) -> None:
         ):
             return result
 
-        # Content modules register quests during server assembly, so import the
-        # live registry at completion time rather than freezing an early snapshot.
         from mud.quests import QUESTS_BY_KEY
 
         quest = QUESTS_BY_KEY.get(quest_key)
         if quest is None:
             return result
 
-        old_level, old_experience = before_progress
         reward = quest_experience_reward(quest)
         if reward <= 0:
             return result
 
-        self.add_experience(character_id, reward)
-        after_progress = _character_progress(self, character_id)
-        if after_progress is None:
-            return result
-
-        new_level, new_experience = after_progress
-        actual_gain = max(0, new_experience - old_experience)
+        old_level, old_experience = before_progress
         _queue_reward_event(
             self,
             character_id,
             {
                 "quest_key": quest_key,
                 "quest_name": getattr(quest, "name", quest_key),
-                "experience": actual_gain,
+                "fallback_experience": reward,
                 "old_level": old_level,
-                "new_level": new_level,
+                "old_experience": old_experience,
             },
         )
         return result
@@ -146,23 +151,41 @@ async def _flush_reward_events(session) -> None:
     if not events:
         return
 
+    # Snapshot before applying any fallback rewards. Content that supplied an
+    # authored reward after complete_quest has already advanced this progress.
+    progress_before_fallback = _character_progress(database, character.id)
+
+    for event in events:
+        old_level = int(event.get("old_level", 1))
+        old_experience = int(event.get("old_experience", 0))
+
+        if _progress_advanced(
+            progress_before_fallback,
+            old_level,
+            old_experience,
+        ):
+            # Authored content already paid this completion. Do not stack the
+            # formula-driven fallback or duplicate its player-facing message.
+            continue
+
+        reward = max(0, int(event.get("fallback_experience", 0)))
+        if reward <= 0:
+            continue
+
+        database.add_experience(character.id, reward)
+        after_progress = _character_progress(database, character.id)
+        name = str(event.get("quest_name", "Quest"))
+        await session.send(f"Quest reward - {name}: you gain {reward} experience.\r\n")
+
+        if after_progress is not None and after_progress[0] > old_level:
+            await session.send(
+                f"*** You have reached level {after_progress[0]}! ***\r\n"
+            )
+
     refreshed = database.get_character_by_name(character.name)
     if refreshed is not None:
         session.character = refreshed
 
-    for event in events:
-        gained = int(event.get("experience", 0))
-        name = str(event.get("quest_name", "Quest"))
-        if gained > 0:
-            await session.send(f"Quest reward - {name}: you gain {gained} experience.\r\n")
-
-        old_level = int(event.get("old_level", 1))
-        new_level = int(event.get("new_level", old_level))
-        if new_level > old_level:
-            await session.send(f"*** You have reached level {new_level}! ***\r\n")
-
-    # Level changes can unlock abilities and increase maximum movement. Existing
-    # client-state wrappers rebuild those derived values for the HUD immediately.
     try:
         await session.send_client_state()
     except Exception:
@@ -170,7 +193,7 @@ async def _flush_reward_events(session) -> None:
 
 
 def install_quest_experience_runtime(player_session_class, database_class) -> None:
-    """Install persistent quest XP plus player-facing reward messages."""
+    """Install fallback quest XP plus player-facing reward messages."""
 
     install_quest_experience_database_hook(database_class)
 
