@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import mud.room_runtime as room_runtime
 from mud.actor_inspection import install_actor_inspection_runtime
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
@@ -73,13 +74,7 @@ def _section_header(label: str, color: str) -> str:
 
 
 def render_room_lines(session, world_service) -> tuple[str, ...]:
-    """Return one consistently formatted, ANSI-colored room view.
-
-    The renderer deliberately colors labels and important nouns rather than whole
-    paragraphs. This keeps the traditional MUD reading experience intact while
-    making rooms much easier to scan in Mudlet and ordinary ANSI-capable Telnet
-    clients.
-    """
+    """Return one consistently formatted, ANSI-colored room view."""
 
     character = getattr(session, "character", None)
     if character is None:
@@ -100,7 +95,6 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         _paint(DIVIDER, "-" * 64),
     ]
 
-    # Preserve authored paragraph breaks, but give the prose its own visual block.
     for index, paragraph in enumerate(view.description.split("\n\n")):
         if index:
             lines.append("")
@@ -176,6 +170,63 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     return tuple(lines)
 
 
+async def _capture_send_calls(session, render) -> list[str]:
+    """Capture one room-render pass without affecting other player sessions."""
+
+    captured: list[str] = []
+    had_instance_send = "send" in session.__dict__
+    prior_instance_send = session.__dict__.get("send")
+
+    async def capture(text: str) -> None:
+        captured.append(text)
+
+    session.send = capture
+    try:
+        await render()
+    finally:
+        if had_instance_send:
+            session.send = prior_instance_send
+        else:
+            session.__dict__.pop("send", None)
+    return captured
+
+
+def _remove_contiguous_subsequence(full: list[str], core: list[str]) -> list[str]:
+    """Remove the legacy room core while retaining pre/post authored overlays."""
+
+    if not core:
+        return full
+    width = len(core)
+    for index in range(0, len(full) - width + 1):
+        if full[index : index + width] == core:
+            return full[:index] + full[index + width :]
+    return []
+
+
+async def _legacy_room_overlays(session, original_show_current_room) -> list[str]:
+    """Run the old presentation chain once and return only its overlay output.
+
+    The advanced room runtime is the point where the old core name/description/
+    people/exits view is rendered. We capture that core independently, then run
+    the fully assembled older show_current_room chain and subtract the core.
+    This preserves wrappers that append meaningful state after the room—seasonal
+    culture, Gloam warnings, visitors, resource/station notices, floodpick state,
+    pastime nudges, and similar authored context—without printing two room views.
+    Capturing is done on the individual session instance, so concurrent players
+    cannot interfere with one another.
+    """
+
+    async def no_fallback(_session) -> None:
+        return None
+
+    core = await _capture_send_calls(
+        session,
+        lambda: room_runtime._render_current_room(session, no_fallback),
+    )
+    full = await _capture_send_calls(session, lambda: original_show_current_room(session))
+    return _remove_contiguous_subsequence(full, core)
+
+
 async def _show_goblin_swamp_resources(session) -> None:
     character = getattr(session, "character", None)
     if character is None:
@@ -236,14 +287,7 @@ async def _delegate_command(self, previous_playing_prompt, command: str) -> None
 
 
 def install_goblin_swamp_gathering_bridge(player_session_class) -> None:
-    """Keep the authored Goblin swamp nodes authoritative over generic economy routing.
-
-    The global economy loop was added outside the older Goblin starter runtime and
-    therefore sees HERBALISM/GATHER/RESOURCES first. Without this final bridge it
-    reports that Reedfen has no node even though the room visibly contains the
-    authored Reedfen Greenleaf patch. Route those commands back to the swamp's
-    own gathering service before the generic economy layer can claim them.
-    """
+    """Keep the authored Goblin swamp nodes authoritative over generic economy routing."""
 
     if getattr(player_session_class, "_goblin_swamp_gathering_bridge_installed", False):
         return
@@ -287,17 +331,9 @@ def install_goblin_swamp_gathering_bridge(player_session_class) -> None:
 def install_room_presentation_runtime(player_session_class, world_service) -> None:
     """Make final progression/travel systems and color room rendering player-facing."""
 
-    # Room presentation is the final production assembly hook. Install travel and
-    # quest-progression systems here so all authored quest/movement wrappers are
-    # already assembled underneath them.
     install_movement_runtime(player_session_class, world_service)
     install_mana_regeneration_runtime(player_session_class, world_service)
     install_quest_experience_runtime(player_session_class, Database)
-
-    # Scope older global verb fallbacks before the final prompt wrappers are
-    # installed. This keeps SEARCH/LISTEN/CLIMB/PULL/TOUCH owned by the content
-    # that actually authored the current room instead of allowing Waymeet's
-    # helpful local fallback text to swallow commands elsewhere in Astralis.
     install_contextual_command_routing_guard(player_session_class)
 
     if getattr(player_session_class, "_room_presentation_runtime_installed", False):
@@ -310,40 +346,22 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
         if not lines:
             await original_show_current_room(self)
             return
+
+        # Compute the older overlays before sending the semantic core. Running
+        # the old chain once preserves any overlay side effects (seen flags,
+        # contextual state) while capture prevents its legacy core from leaking.
+        overlays = await _legacy_room_overlays(self, original_show_current_room)
         await self.send("\r\n".join(lines) + "\r\n")
+        for text in overlays:
+            await self.send(text)
 
     player_session_class.show_current_room = show_current_room
     player_session_class._room_presentation_runtime_installed = True
 
-    # ITEM/INSPECT ITEM becomes universal before perception wraps the prompt loop:
-    # equipment still gets slot/stat details, while quest items, materials and
-    # curios finally expose their authored description too.
     install_inventory_inspection_runtime(player_session_class)
-
-    # Altered perception is intentionally outermost over ordinary item/room state:
-    # the world remains authoritative, while this layer can add subjective prose
-    # and richer recreational-drug inspection without falsifying real inventory.
     install_perception_runtime(player_session_class, world_service)
-
-    # Every visible actor now behaves like a conventional MUD target. LOOK,
-    # LOOK AT, EXAMINE, and INSPECT work on static NPCs, moving NPCs, and enemies
-    # without stealing feature/object commands when the target is not an actor.
     install_actor_inspection_runtime(player_session_class, world_service)
-
-    # The exploration layer remembers only rooms this character has actually
-    # entered. Plain Telnet gets MAP/MAP 1..4 while GMCP clients receive the same
-    # no-spoiler graph through Dreams.Map for the graphical Mudlet mapper.
     install_exploration_map_runtime(player_session_class, world_service)
     install_exploration_map_gmcp_runtime(player_session_class, world_service)
-
-    # Input matching sits outside every authored TALK/ATTACK/item/inspection
-    # handler. A unique visible abbreviation such as TALK NIX, LOOK PEL,
-    # KILL STALK, ITEM TOKEN, or EQUIP SCRAP expands to the full displayed name
-    # before the existing runtime sees it. Ambiguity is never guessed.
     install_partial_target_matching_runtime(player_session_class, world_service)
-
-    # The global economy loop predates the richer Goblin swamp node service but
-    # wraps it in production. Put a final room-local router outside both systems
-    # so visible Greenleaf/Bitterroot/clean-water sources match what HERBALISM,
-    # GATHER and RESOURCES actually report to the player.
     install_goblin_swamp_gathering_bridge(player_session_class)
