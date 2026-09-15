@@ -4,6 +4,7 @@ from dataclasses import dataclass, replace
 
 import mud.crafting as crafting
 import mud.stats as stats
+from mud.quest_display_names import install_unique_quest_display_names
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,11 +100,12 @@ def _rename_definition(item):
 
 
 def install_authored_item_names() -> None:
-    """Replace development labels without migrating any persistent item keys.
+    """Normalize late-bound player-facing names without changing stable keys.
 
-    Content modules register items during production assembly, so this pass runs
-    after all world/item installers have finished.  Recipes, inventories, loot,
-    equipped rows, and old characters continue to reference the exact same keys.
+    Content modules register items and quests during production assembly, so this
+    pass runs after those world/content installers have finished. Recipes,
+    inventories, loot, equipped rows, quest progress, and old characters continue
+    to reference the exact same persistent keys.
     """
 
     renamed_by_key: dict[str, object] = {}
@@ -128,3 +130,7 @@ def install_authored_item_names() -> None:
     harness = AUTHORED_ITEM_PRESENTATIONS["brute_training_harness"]
     stats.BRUTE_STARTER_ARMOR = replace(stats.BRUTE_STARTER_ARMOR, name=harness.name)
     stats.STARTER_ARMOR_BY_CLASS["brute"] = stats.BRUTE_STARTER_ARMOR
+
+    # Quest progress is persisted by quest key, never by display title. Normalize
+    # duplicate player-facing titles only after every authored quest is registered.
+    install_unique_quest_display_names()
