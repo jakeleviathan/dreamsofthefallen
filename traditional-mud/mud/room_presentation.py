@@ -10,6 +10,7 @@ from mud.database import Database
 from mud.exploration_map import install_exploration_map_runtime
 from mud.exploration_map_gmcp import install_exploration_map_gmcp_runtime
 from mud.fantasy_drugs import install_perception_runtime
+from mud.final_runtime_policy import install_final_runtime_policy
 from mud.goblin_swamp import (
     GOBLIN_APOTHECARY_BLIND_KEY,
     GOBLIN_SWAMP_GATHERING,
@@ -204,17 +205,7 @@ def _remove_contiguous_subsequence(full: list[str], core: list[str]) -> list[str
 
 
 async def _legacy_room_overlays(session, original_show_current_room) -> list[str]:
-    """Run the old presentation chain once and return only its overlay output.
-
-    The advanced room runtime is the point where the old core name/description/
-    people/exits view is rendered. We capture that core independently, then run
-    the fully assembled older show_current_room chain and subtract the core.
-    This preserves wrappers that append meaningful state after the room—seasonal
-    culture, Gloam warnings, visitors, resource/station notices, floodpick state,
-    pastime nudges, and similar authored context—without printing two room views.
-    Capturing is done on the individual session instance, so concurrent players
-    cannot interfere with one another.
-    """
+    """Run the old presentation chain once and return only its overlay output."""
 
     async def no_fallback(_session) -> None:
         return None
@@ -347,9 +338,6 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
             await original_show_current_room(self)
             return
 
-        # Compute the older overlays before sending the semantic core. Running
-        # the old chain once preserves any overlay side effects (seen flags,
-        # contextual state) while capture prevents its legacy core from leaking.
         overlays = await _legacy_room_overlays(self, original_show_current_room)
         await self.send("\r\n".join(lines) + "\r\n")
         for text in overlays:
@@ -365,3 +353,8 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     install_exploration_map_gmcp_runtime(player_session_class, world_service)
     install_partial_target_matching_runtime(player_session_class, world_service)
     install_goblin_swamp_gathering_bridge(player_session_class)
+
+    # Final cross-cutting policies are deliberately installed after every room,
+    # perception, mapper and command wrapper so saved accessibility/client choices
+    # remain authoritative regardless of which subsystem produced the output.
+    install_final_runtime_policy(player_session_class)
