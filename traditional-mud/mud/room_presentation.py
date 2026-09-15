@@ -5,6 +5,7 @@ from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
 from mud.combat import ENEMIES_BY_KEY
 from mud.database import Database
 from mud.fantasy_drugs import install_perception_runtime
+from mud.inventory_inspection import install_inventory_inspection_runtime
 from mud.movement_system import install_movement_runtime
 from mud.partial_target_matching import install_partial_target_matching_runtime
 from mud.quest_experience import install_quest_experience_runtime
@@ -177,13 +178,19 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     player_session_class.show_current_room = show_current_room
     player_session_class._room_presentation_runtime_installed = True
 
-    # Altered perception is intentionally outermost: the ordinary renderer remains
-    # the authoritative world state, while this layer adds subjective prose and
-    # the drug-only Veiled Interval without falsifying HP, inventory, or combat.
+    # ITEM/INSPECT ITEM becomes universal before perception wraps the prompt loop:
+    # equipment still gets slot/stat details, while quest items, materials and
+    # curios finally expose their authored description too.
+    install_inventory_inspection_runtime(player_session_class)
+
+    # Altered perception is intentionally outermost over ordinary item/room state:
+    # the world remains authoritative, while this layer can add subjective prose
+    # and richer recreational-drug inspection without falsifying real inventory.
     install_perception_runtime(player_session_class, world_service)
 
-    # Input matching sits outside every authored TALK/ATTACK handler. A unique
-    # visible abbreviation such as TALK RIVETER, TALK NIX, or KILL STALK can be
-    # expanded to the actor's full displayed name before the existing quest or
-    # combat runtime sees it; ambiguous abbreviations are never guessed.
+    # Input matching sits outside every authored TALK/ATTACK/item handler. A unique
+    # visible abbreviation such as TALK RIVETER, TALK NIX, KILL STALK, ITEM TOKEN,
+    # or EQUIP SCRAP can be expanded to the full displayed name before the existing
+    # quest, combat, inventory, or equipment runtime sees it. Ambiguity is never
+    # guessed.
     install_partial_target_matching_runtime(player_session_class, world_service)
