@@ -41,23 +41,21 @@ def _presentation_text(session, text: str) -> str:
 
 def _install_telnet_gmcp_policy(session) -> None:
     telnet = getattr(session, "telnet", None)
-    if telnet is None or getattr(telnet, "_dotf_preference_gmcp_policy", False):
+    if telnet is None or getattr(session, "_dotf_preference_gmcp_policy", False):
         return
 
-    previous_send_gmcp = telnet.send_gmcp
-
-    async def send_gmcp(package: str, payload=None) -> bool:
+    def gmcp_send_allowed(_package: str, _payload=None) -> bool:
         if getattr(session, "account", None) is not None:
             try:
                 load_preferences(session)
             except Exception:
                 pass
-        if not mudlet_enhancements_enabled(session):
-            return False
-        return await previous_send_gmcp(package, payload)
+        return mudlet_enhancements_enabled(session)
 
-    telnet.send_gmcp = send_gmcp
-    telnet._dotf_preference_gmcp_policy = True
+    # TelnetConnection is a slotted dataclass, so policy must use its declared
+    # callback slot instead of replacing send_gmcp on the individual instance.
+    telnet.gmcp_send_allowed = gmcp_send_allowed
+    session._dotf_preference_gmcp_policy = True
 
 
 def install_accessibility_policy_runtime(player_session_class) -> None:
