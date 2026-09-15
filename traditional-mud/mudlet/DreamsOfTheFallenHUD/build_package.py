@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parent
 SOURCE_PATHS = (
     ROOT / "src" / "hud.lua",
     ROOT / "src" / "modern.lua",
+    ROOT / "src" / "map.lua",
 )
 XML_PATH = ROOT / "DreamsOfTheFallenHUD.xml"
 PACKAGE_PATH = ROOT / "DreamsOfTheFallenHUD.mpackage"
