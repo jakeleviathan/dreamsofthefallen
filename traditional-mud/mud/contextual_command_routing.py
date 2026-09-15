@@ -153,6 +153,11 @@ async def _delegate_command(self, previous_playing_prompt, command: str) -> None
 def _install_authored_economy_router(player_session_class) -> None:
     if getattr(player_session_class, "_authored_economy_router_installed", False):
         return
+    # Some focused unit tests use a tiny stand-in class only to validate the
+    # Waymeet helper scoping. Production PlayerSession always has playing_prompt;
+    # don't force unrelated test doubles to implement a command loop.
+    if not hasattr(player_session_class, "playing_prompt"):
+        return
 
     previous_playing_prompt = player_session_class.playing_prompt
 
