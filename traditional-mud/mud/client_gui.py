@@ -9,7 +9,7 @@ OFFICIAL_MUDLET_HUD_PACKAGE = "DreamsOfTheFallenHUD"
 # existing automatic-install contract. The package source and structured Dreams
 # protocol can advance independently; CURRENT identifies the built HUD release.
 OFFICIAL_MUDLET_HUD_VERSION = "1.0.0"
-CURRENT_MUDLET_HUD_VERSION = "2.0.0"
+CURRENT_MUDLET_HUD_VERSION = "2.1.0"
 OFFICIAL_MUDLET_HUD_URL = "https://mud.lvthn.io/DreamsOfTheFallenHUD.mpackage"
 
 
