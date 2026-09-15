@@ -81,6 +81,7 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         _paint(DIVIDER, "-" * 64),
     ]
 
+    # Preserve authored paragraph breaks, but give the prose its own visual block.
     for index, paragraph in enumerate(view.description.split("\n\n")):
         if index:
             lines.append("")
@@ -159,12 +160,17 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
 def install_room_presentation_runtime(player_session_class, world_service) -> None:
     """Make final progression/travel systems and color room rendering player-facing."""
 
-    # Room presentation is the final production assembly hook. Install resource,
-    # travel, and quest-progression systems here after authored content is assembled.
+    # Room presentation is the final production assembly hook. Install travel and
+    # quest-progression systems here so all authored quest/movement wrappers are
+    # already assembled underneath them.
     install_movement_runtime(player_session_class, world_service)
     install_mana_regeneration_runtime(player_session_class, world_service)
     install_quest_experience_runtime(player_session_class, Database)
 
+    # Scope older global verb fallbacks before the final prompt wrappers are
+    # installed. This keeps SEARCH/LISTEN/CLIMB/PULL/TOUCH owned by the content
+    # that actually authored the current room instead of allowing Waymeet's
+    # helpful local fallback text to swallow commands elsewhere in Astralis.
     install_contextual_command_routing_guard(player_session_class)
 
     if getattr(player_session_class, "_room_presentation_runtime_installed", False):
@@ -182,7 +188,23 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     player_session_class.show_current_room = show_current_room
     player_session_class._room_presentation_runtime_installed = True
 
+    # ITEM/INSPECT ITEM becomes universal before perception wraps the prompt loop:
+    # equipment still gets slot/stat details, while quest items, materials and
+    # curios finally expose their authored description too.
     install_inventory_inspection_runtime(player_session_class)
+
+    # Altered perception is intentionally outermost over ordinary item/room state:
+    # the world remains authoritative, while this layer can add subjective prose
+    # and richer recreational-drug inspection without falsifying real inventory.
     install_perception_runtime(player_session_class, world_service)
+
+    # Every visible actor now behaves like a conventional MUD target. LOOK,
+    # LOOK AT, EXAMINE, and INSPECT work on static NPCs, moving NPCs, and enemies
+    # without stealing feature/object commands when the target is not an actor.
     install_actor_inspection_runtime(player_session_class, world_service)
+
+    # Input matching sits outside every authored TALK/ATTACK/item/inspection
+    # handler. A unique visible abbreviation such as TALK NIX, LOOK PEL,
+    # KILL STALK, ITEM TOKEN, or EQUIP SCRAP expands to the full displayed name
+    # before the existing runtime sees it. Ambiguity is never guessed.
     install_partial_target_matching_runtime(player_session_class, world_service)
