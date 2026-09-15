@@ -27,6 +27,11 @@ async def push_discovered_map_state(session, world_service) -> bool:
 
     note_room_visited(session)
     payload = build_discovered_map_snapshot(session, world_service, MAX_MAP_RADIUS)
+    # Mudlet's mapper database persists across sessions and characters. Carry the
+    # character identity explicitly so the client can keep each character's map in
+    # its own mapper area rather than leaking one alt's exploration to another.
+    payload["character_id"] = int(character.id)
+    payload["character_name"] = str(character.name)
     cache = getattr(session, "_exploration_map_gmcp_cache", None)
     if cache == payload:
         return False
