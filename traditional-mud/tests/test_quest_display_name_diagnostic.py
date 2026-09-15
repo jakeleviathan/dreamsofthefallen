@@ -7,15 +7,27 @@ import server  # noqa: F401 - production entrypoint installs all authored conten
 import mud.quests as quests
 
 
-class QuestDisplayNameDiagnosticTests(unittest.TestCase):
-    def test_report_duplicate_production_quest_names(self):
+class QuestDisplayNameRegressionTests(unittest.TestCase):
+    def test_production_quest_display_names_are_unique(self):
+        # Audit the union because legacy installers append to QUESTS while some
+        # newer registration paths may update QUESTS_BY_KEY directly.
+        definitions_by_key = {quest.key: quest for quest in quests.QUESTS}
+        definitions_by_key.update(quests.QUESTS_BY_KEY)
+
         by_name: dict[str, list[str]] = defaultdict(list)
-        for quest in quests.QUESTS:
+        for quest in definitions_by_key.values():
             by_name[quest.name].append(quest.key)
+
         duplicates = {
-            name: keys for name, keys in by_name.items() if len(keys) > 1
+            name: tuple(sorted(keys))
+            for name, keys in sorted(by_name.items())
+            if len(keys) > 1
         }
-        self.assertFalse(duplicates, f"duplicate quest display names: {duplicates}")
+        self.assertEqual(duplicates, {}, f"duplicate quest display names: {duplicates}")
+
+    def test_quest_registry_keys_remain_stable_identifiers(self):
+        for key, quest in quests.QUESTS_BY_KEY.items():
+            self.assertEqual(key, quest.key)
 
 
 if __name__ == "__main__":
