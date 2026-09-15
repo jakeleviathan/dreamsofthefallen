@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+import mud.crafting as crafting
 from mud.combat import ENEMIES_BY_KEY
 from mud.world import NPCS_BY_KEY
 
@@ -52,9 +53,10 @@ def _match_score(query: str, candidate: TargetCandidate) -> int:
     """Return a deterministic score for a traditional-MUD-style abbreviation.
 
     Exact authored names/aliases win first. Otherwise a player may type a
-    distinctive whole word (NIX, RIVETER, RAT), a trailing phrase (NIX HOOK), or
-    a unique prefix (RIV, HOOKS, SEW). One-character prefixes are deliberately
-    not expanded because they are too easy to trigger accidentally.
+    distinctive whole word (NIX, RIVETER, RAT, TOKEN), a trailing phrase
+    (NIX HOOK, EARTH TOKEN), or a unique prefix (RIV, HOOKS, SEW, TOK). One-
+    character prefixes are deliberately not expanded because they are too easy
+    to trigger accidentally.
     """
 
     if not query:
@@ -87,7 +89,8 @@ def _match_score(query: str, candidate: TargetCandidate) -> int:
 
 def _dedupe_candidates(candidates: list[TargetCandidate]) -> tuple[TargetCandidate, ...]:
     # Multiple systems can surface the same named actor (for example a static
-    # room listing plus a mobile state). The player only sees one name, so do not
+    # room listing plus a mobile state). Likewise two inventory registries can
+    # point at the same visible item name. The player sees one target, so do not
     # create a fake ambiguity merely because two registries describe it.
     deduped: dict[tuple[str, str], TargetCandidate] = {}
     for candidate in candidates:
@@ -106,8 +109,33 @@ def _dedupe_candidates(candidates: list[TargetCandidate]) -> tuple[TargetCandida
     return tuple(deduped.values())
 
 
+def _inventory_candidates(session, *, equipment_only: bool = False) -> tuple[TargetCandidate, ...]:
+    character = getattr(session, "character", None)
+    database = getattr(session, "database", None)
+    if character is None or database is None:
+        return ()
+
+    candidates: list[TargetCandidate] = []
+    for row in database.list_items(character.id):
+        if int(row["quantity"]) <= 0:
+            continue
+        item_key = str(row["item_key"])
+        definition = crafting.ITEMS_BY_KEY.get(item_key)
+        if definition is None:
+            continue
+        if equipment_only and definition.equipment is None:
+            continue
+        candidates.append(TargetCandidate(definition.key, definition.name, "item"))
+    return _dedupe_candidates(candidates)
+
+
 def visible_target_candidates(session, world_service, *, kind: str) -> tuple[TargetCandidate, ...]:
-    """Return only actors that the current command is allowed to address."""
+    """Return only targets that the current command is allowed to address."""
+
+    if kind == "item":
+        return _inventory_candidates(session, equipment_only=False)
+    if kind == "equipment":
+        return _inventory_candidates(session, equipment_only=True)
 
     character = getattr(session, "character", None)
     if character is None:
@@ -172,11 +200,25 @@ def _parse_target_command(command: str) -> tuple[str, str, str] | None:
             target = stripped[len(prefix):].strip()
             return prefix.strip(), target, "enemy"
 
+    # Inventory inspection uses every carried item, not only equipment. This is
+    # what makes ITEM TOKEN resolve naturally to Stamped Earth Token.
+    if normalized.startswith("inspect item "):
+        return "inspect item", stripped[len("inspect item "):].strip(), "item"
+    if normalized.startswith("item "):
+        return "item", stripped[len("item "):].strip(), "item"
+
+    # Gear-specific commands only consider carried equipment, so a quest object
+    # named similarly to a weapon can never steal EQUIP/COMPARE targeting.
+    for prefix in ("equip ", "wear ", "wield ", "compare "):
+        if normalized.startswith(prefix):
+            target = stripped[len(prefix):].strip()
+            return prefix.strip(), target, "equipment"
+
     return None
 
 
 def resolve_target_command(session, command: str, world_service) -> TargetResolution:
-    """Expand a unique room-local NPC/enemy abbreviation to its visible name."""
+    """Expand a unique room-local or inventory abbreviation to its visible name."""
 
     parsed = _parse_target_command(command)
     if parsed is None:
@@ -203,17 +245,17 @@ def resolve_target_command(session, command: str, world_service) -> TargetResolu
     canonical = f"{verb} {candidate.name}"
     # Leave an already-canonical command alone. This matters for telemetry and
     # prevents cosmetic rewrites from making ordinary full-name input look new.
-    if normalize_target(raw_target) == normalize_target(candidate.name) and verb == command.strip().split(maxsplit=1)[0].lower():
+    if normalize_target(command) == normalize_target(canonical):
         return TargetResolution(command)
     return TargetResolution(canonical, matched_name=candidate.name)
 
 
 def install_partial_target_matching_runtime(player_session_class, world_service) -> None:
-    """Expand unique NPC/enemy abbreviations before any authored command layer.
+    """Expand unique NPC/enemy/item abbreviations before authored command layers.
 
-    Wrapping prompt rather than one particular TALK implementation is deliberate:
-    Dreams of the Fallen has many quest runtimes, each with its own authored NPC
-    dialogue. The rewritten full visible name therefore flows through the same
+    Wrapping prompt rather than one particular command implementation is
+    deliberate: Dreams of the Fallen has many quest runtimes and several item
+    systems. The rewritten full visible name therefore flows through the same
     handler the player would have reached by typing the complete name manually.
     """
 
