@@ -8,6 +8,7 @@ from mud.contextual_command_routing import install_contextual_command_routing_gu
 from mud.database import Database
 from mud.fantasy_drugs import install_perception_runtime
 from mud.inventory_inspection import install_inventory_inspection_runtime
+from mud.mana_regeneration import install_mana_regeneration_runtime
 from mud.movement_system import install_movement_runtime
 from mud.partial_target_matching import install_partial_target_matching_runtime
 from mud.quest_experience import install_quest_experience_runtime
@@ -163,6 +164,7 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     # quest-progression systems here so all authored quest/movement wrappers are
     # already assembled underneath them.
     install_movement_runtime(player_session_class, world_service)
+    install_mana_regeneration_runtime(player_session_class, world_service)
     install_quest_experience_runtime(player_session_class, Database)
 
     # Scope older global verb fallbacks before the final prompt wrappers are
