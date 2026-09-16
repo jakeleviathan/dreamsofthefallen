@@ -52,9 +52,23 @@ def _install_telnet_gmcp_policy(session) -> None:
                 pass
         return mudlet_enhancements_enabled(session)
 
-    # TelnetConnection is a slotted dataclass, so policy must use its declared
-    # callback slot instead of replacing send_gmcp on the individual instance.
-    telnet.gmcp_send_allowed = gmcp_send_allowed
+    # Production TelnetConnection is a slotted dataclass with a declared policy
+    # callback. Use that supported extension point rather than replacing a method
+    # on the individual slotted instance. Focused tests and compatible adapters
+    # may expose only send_gmcp; retain the older wrapping behavior for those
+    # non-production objects so the policy contract remains adapter-friendly.
+    if hasattr(telnet, "gmcp_send_allowed"):
+        telnet.gmcp_send_allowed = gmcp_send_allowed
+    else:
+        previous_send_gmcp = telnet.send_gmcp
+
+        async def send_gmcp(package: str, payload=None) -> bool:
+            if not gmcp_send_allowed(package, payload):
+                return False
+            return await previous_send_gmcp(package, payload)
+
+        telnet.send_gmcp = send_gmcp
+
     session._dotf_preference_gmcp_policy = True
 
 
