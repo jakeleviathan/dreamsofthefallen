@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from mud.character_options import RACES_BY_KEY
+from mud.enemy_lifecycle import install_enemy_lifecycle_runtime
 from mud.ground_items import install_ground_items_runtime
 from mud.mechanics import class_abilities_for_level
 from mud.new_player_guidance import install_new_player_guidance_runtime
@@ -349,6 +350,7 @@ def install_command_help_runtime(player_session_class) -> None:
     if getattr(player_session_class, "_command_help_runtime_installed", False):
         return
 
+    install_enemy_lifecycle_runtime(player_session_class)
     install_ground_items_runtime(player_session_class)
     install_new_player_guidance_runtime(player_session_class)
     previous_playing_prompt = player_session_class.playing_prompt
