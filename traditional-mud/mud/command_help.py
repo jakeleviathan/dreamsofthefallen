@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from mud.character_options import RACES_BY_KEY
+from mud.ground_items import install_ground_items_runtime
 from mud.mechanics import class_abilities_for_level
 from mud.new_player_guidance import install_new_player_guidance_runtime
 from mud.quests import QUESTS_BY_KEY
@@ -173,7 +174,7 @@ def _quick_help_text(session) -> str:
         "SETTINGS controls prompt style, color/contrast, hint level, Mudlet enhancements, and screen-reader mode.",
         "QUESTS shows your quest journal. ABILITIES shows your class abilities. RACIAL shows your racial kit.",
         "ATTACK <target>, USE <ability>, and FLEE cover the basic combat loop.",
-        "INVENTORY and EQUIPMENT show what you carry and wear. Your opening teaches class basics naturally as you progress. BASICS gives the tiny new-player refresher.",
+        "INVENTORY and EQUIPMENT show what you carry and wear. DROP leaves an item in the room; GET or TAKE picks a ground item up. Your opening teaches class basics naturally as you progress. BASICS gives the tiny new-player refresher.",
     ]
     active = _active_quests(session)
     if active:
@@ -247,6 +248,8 @@ def _full_help_text(session) -> str:
         "INVENTORY - carried items",
         "EQUIPMENT - worn and wielded gear",
         "EQUIP <item> / UNEQUIP <slot or item> / COMPARE <item> - manage gear",
+        "DROP <item> / DROP <quantity> <item> - leave carried items on the ground in your current room",
+        "GET <item> / TAKE <item> - pick up an item from the ground",
         "MENU / CHARACTERS - return toward character selection when supported",
         "QUIT - leave the game",
         "",
@@ -346,6 +349,7 @@ def install_command_help_runtime(player_session_class) -> None:
     if getattr(player_session_class, "_command_help_runtime_installed", False):
         return
 
+    install_ground_items_runtime(player_session_class)
     install_new_player_guidance_runtime(player_session_class)
     previous_playing_prompt = player_session_class.playing_prompt
 
