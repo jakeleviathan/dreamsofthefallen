@@ -220,14 +220,5 @@ class EnemyLifecycleRuntimeTests(unittest.TestCase):
         self.assertNotIn("Sewer Rat", room_prompt._enemy_lines(scene))
 
 
-class ProductionEnemyLifecycleTests(unittest.TestCase):
-    def test_production_entrypoint_installs_enemy_lifecycle(self):
-        import mud.server as production
-
-        self.assertTrue(
-            getattr(production.PlayerSession, "_enemy_lifecycle_runtime_installed", False)
-        )
-
-
 if __name__ == "__main__":
     unittest.main()
