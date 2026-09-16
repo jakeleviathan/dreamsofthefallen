@@ -25,8 +25,8 @@ class _Writer:
         return None
 
 
-class LiveTelnetSessionConstructionTests(unittest.TestCase):
-    def test_production_player_session_constructs_with_slotted_telnet_connection(self) -> None:
+class LiveTelnetSessionConstructionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_production_player_session_constructs_with_slotted_telnet_connection(self) -> None:
         """Regression for the live-only crash seen when Mudlet connected.
 
         The final accessibility policy used to replace ``telnet.send_gmcp`` on
@@ -45,20 +45,17 @@ class LiveTelnetSessionConstructionTests(unittest.TestCase):
             self.assertIsNotNone(session.telnet.gmcp_send_allowed)
             self.assertTrue(session._dotf_preference_gmcp_policy)
 
-            async def exercise_policy() -> None:
-                session.telnet.gmcp_enabled = True
+            session.telnet.gmcp_enabled = True
 
-                sent = await session.telnet.send_gmcp("Char.Status", {"name": "Probe"})
-                self.assertTrue(sent)
-                self.assertGreater(len(writer.data), 0)
+            sent = await session.telnet.send_gmcp("Char.Status", {"name": "Probe"})
+            self.assertTrue(sent)
+            self.assertGreater(len(writer.data), 0)
 
-                session._mudlet_enhancements_enabled = False
-                before = len(writer.data)
-                sent = await session.telnet.send_gmcp("Char.Status", {"name": "Blocked"})
-                self.assertFalse(sent)
-                self.assertEqual(len(writer.data), before)
-
-            asyncio.run(exercise_policy())
+            session._mudlet_enhancements_enabled = False
+            before = len(writer.data)
+            sent = await session.telnet.send_gmcp("Char.Status", {"name": "Blocked"})
+            self.assertFalse(sent)
+            self.assertEqual(len(writer.data), before)
 
 
 if __name__ == "__main__":
