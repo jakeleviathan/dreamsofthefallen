@@ -41,23 +41,35 @@ def _presentation_text(session, text: str) -> str:
 
 def _install_telnet_gmcp_policy(session) -> None:
     telnet = getattr(session, "telnet", None)
-    if telnet is None or getattr(telnet, "_dotf_preference_gmcp_policy", False):
+    if telnet is None or getattr(session, "_dotf_preference_gmcp_policy", False):
         return
 
-    previous_send_gmcp = telnet.send_gmcp
-
-    async def send_gmcp(package: str, payload=None) -> bool:
+    def gmcp_send_allowed(_package: str, _payload=None) -> bool:
         if getattr(session, "account", None) is not None:
             try:
                 load_preferences(session)
             except Exception:
                 pass
-        if not mudlet_enhancements_enabled(session):
-            return False
-        return await previous_send_gmcp(package, payload)
+        return mudlet_enhancements_enabled(session)
 
-    telnet.send_gmcp = send_gmcp
-    telnet._dotf_preference_gmcp_policy = True
+    # Real production TelnetConnection exposes an explicit policy adapter. Use
+    # that capability rather than inferring support from a similarly named data
+    # attribute. Focused tests and older adapters that expose only send_gmcp keep
+    # the compatibility wrapper, preserving the existing behavioral contract.
+    setter = getattr(telnet, "set_gmcp_send_policy", None)
+    if callable(setter):
+        setter(gmcp_send_allowed)
+    else:
+        previous_send_gmcp = telnet.send_gmcp
+
+        async def send_gmcp(package: str, payload=None) -> bool:
+            if not gmcp_send_allowed(package, payload):
+                return False
+            return await previous_send_gmcp(package, payload)
+
+        telnet.send_gmcp = send_gmcp
+
+    session._dotf_preference_gmcp_policy = True
 
 
 def install_accessibility_policy_runtime(player_session_class) -> None:

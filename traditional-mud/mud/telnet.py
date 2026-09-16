@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from mud.client_gui import configured_mudlet_gui_offer
@@ -35,6 +36,7 @@ class TelnetConnection:
     client_version: str | None = None
     gmcp_packages: set[str] = field(default_factory=set)
     client_gui_offer_sent: bool = False
+    gmcp_send_allowed: Callable[[str, object], bool] | None = None
 
     async def begin_negotiation(self) -> None:
         # Advertise server-side GMCP support. A supporting client replies DO GMCP.
@@ -45,8 +47,14 @@ class TelnetConnection:
         self.writer.write(text.encode("utf-8", errors="replace"))
         await self.writer.drain()
 
+    def set_gmcp_send_policy(self, callback: Callable[[str, object], bool] | None) -> None:
+        """Install the supported per-connection GMCP send policy callback."""
+        self.gmcp_send_allowed = callback
+
     async def send_gmcp(self, package: str, payload: dict | list | str | int | float | bool | None = None) -> bool:
         if not self.gmcp_enabled:
+            return False
+        if self.gmcp_send_allowed is not None and not self.gmcp_send_allowed(package, payload):
             return False
 
         # Client.GUI should be offered only once per connection. PlayerSession
