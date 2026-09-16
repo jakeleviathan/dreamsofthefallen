@@ -362,11 +362,14 @@ def install_ground_items_runtime(player_session_class) -> None:
         return
 
     previous_playing_prompt = player_session_class.playing_prompt
-    previous_show_current_room = player_session_class.show_current_room
+    previous_show_current_room = getattr(player_session_class, "show_current_room", None)
 
-    async def show_current_room(self) -> None:
-        await previous_show_current_room(self)
-        await _show_ground_items(self)
+    if previous_show_current_room is not None:
+        async def show_current_room(self) -> None:
+            await previous_show_current_room(self)
+            await _show_ground_items(self)
+
+        player_session_class.show_current_room = show_current_room
 
     async def playing_prompt(self) -> None:
         if self.character is None:
@@ -384,7 +387,7 @@ def install_ground_items_runtime(player_session_class) -> None:
             await drop_item_command(self, "")
             return
         if normalized.startswith("drop "):
-            await drop_item_command(self, command.strip().split(maxsplit=1)[1])
+            await drop_item_command(self, normalized[len("drop "):])
             return
 
         pickup_prefixes = ("get ", "take ", "pickup ", "pick up ")
@@ -393,7 +396,7 @@ def install_ground_items_runtime(player_session_class) -> None:
             return
         for prefix in pickup_prefixes:
             if normalized.startswith(prefix):
-                argument = command.strip()[len(prefix):]
+                argument = normalized[len(prefix):]
                 handled = await take_item_command(self, argument)
                 if handled:
                     return
@@ -401,6 +404,5 @@ def install_ground_items_runtime(player_session_class) -> None:
 
         await _delegate_prompt(self, previous_playing_prompt, command)
 
-    player_session_class.show_current_room = show_current_room
     player_session_class.playing_prompt = playing_prompt
     player_session_class._ground_items_runtime_installed = True
