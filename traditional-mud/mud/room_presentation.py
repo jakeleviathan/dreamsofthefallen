@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from time import time
+
 import mud.room_runtime as room_runtime
 from mud.actor_inspection import install_actor_inspection_runtime
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
 from mud.combat import ENEMIES_BY_KEY
 from mud.contextual_command_routing import install_contextual_command_routing_guard
+from mud.corpse_decay import corpse_decay_label
 from mud.corpse_loot import list_corpses
 from mud.database import Database
 from mud.enemy_lifecycle import static_enemy_available
@@ -156,8 +159,9 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         lines.extend(["", _section_header("Danger", ENEMY), *threats])
 
     database = getattr(session, "database", None)
+    current = time()
     corpses = (
-        list_corpses(database, view.key)
+        list_corpses(database, view.key, now=current)
         if database is not None and callable(getattr(database, "connect", None))
         else []
     )
@@ -170,7 +174,10 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         for corpse in corpses:
             seen[corpse.enemy_name] = seen.get(corpse.enemy_name, 0) + 1
             suffix = f" #{seen[corpse.enemy_name]}" if counts[corpse.enemy_name] > 1 else ""
-            corpse_lines.append(f"  {_paint(CORPSE, f'Corpse of {corpse.enemy_name}{suffix}')}")
+            decay = corpse_decay_label(corpse, now=current)
+            corpse_lines.append(
+                f"  {_paint(CORPSE, f'Corpse of {corpse.enemy_name}{suffix} ({decay})')}"
+            )
         lines.extend(["", _section_header("Corpses", CORPSE), *corpse_lines])
 
     if business is not None:
