@@ -194,10 +194,32 @@ class SwampGatherNodeDefinition:
     maximum_uses: int = 3
     respawn_world_hours: int = 1
 
+    def search_names(self) -> frozenset[str]:
+        names = {
+            self.name.lower(),
+            self.key.replace("_", " ").lower(),
+            self.output_item_key.replace("_", " ").lower(),
+            *(alias.lower() for alias in self.aliases),
+        }
+        item = crafting.ITEMS_BY_KEY.get(self.output_item_key)
+        if item is not None:
+            names.add(item.name.lower())
+        return frozenset(" ".join(name.replace("_", " ").split()) for name in names if name)
+
+    def match_quality(self, target: str) -> int:
+        """2 = exact alias/name, 1 = unique partial candidate, 0 = no match."""
+        normalized = " ".join(target.strip().lower().replace("_", " ").split())
+        if not normalized:
+            return 0
+        names = self.search_names()
+        if normalized in names:
+            return 2
+        if len(normalized) >= 2 and any(normalized in name for name in names):
+            return 1
+        return 0
+
     def matches(self, target: str) -> bool:
-        normalized = target.strip().lower()
-        names = {self.name.lower(), self.key.replace("_", " "), *(alias.lower() for alias in self.aliases)}
-        return normalized in names
+        return self.match_quality(target) > 0
 
 
 @dataclass(slots=True)
@@ -333,11 +355,16 @@ class GoblinSwampGatheringService:
             result.append(state)
         return tuple(result)
 
+    def resolve_candidates(self, room_key: str, target: str) -> tuple[SwampGatherNodeState, ...]:
+        nodes = self.nodes_in_room(room_key)
+        exact = tuple(state for state in nodes if state.definition.match_quality(target) == 2)
+        if exact:
+            return exact
+        return tuple(state for state in nodes if state.definition.match_quality(target) == 1)
+
     def resolve(self, room_key: str, target: str) -> SwampGatherNodeState | None:
-        for state in self.nodes_in_room(room_key):
-            if state.definition.matches(target):
-                return state
-        return None
+        matches = self.resolve_candidates(room_key, target)
+        return matches[0] if len(matches) == 1 else None
 
     def gather(self, database, character_id: int, state: SwampGatherNodeState) -> tuple[bool, str]:
         total_hour = ASTRALIS_CLOCK.now().total_hours
@@ -720,7 +747,12 @@ async def _handle_swamp_gathering(session, normalized: str) -> bool:
             return True
         return False
 
-    state = GOBLIN_SWAMP_GATHERING.resolve(room_key, target)
+    matches = GOBLIN_SWAMP_GATHERING.resolve_candidates(room_key, target)
+    if len(matches) > 1:
+        names = ", ".join(state.definition.name for state in matches)
+        await session.send(f"\r\nBe more specific: {names}.\r\n")
+        return True
+    state = matches[0] if matches else None
     if state is None:
         # Only claim the command if this is clearly a gathering attempt inside
         # the authored beginner swamp. Other command layers remain untouched.

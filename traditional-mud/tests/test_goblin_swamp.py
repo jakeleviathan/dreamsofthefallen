@@ -200,6 +200,21 @@ class GoblinSwampTests(unittest.TestCase):
         self.assertEqual(session.database.item_quantity(701, "bitterroot"), 1)
         self.assertEqual(session.database.get_trade_skill_progress(701, "herbalism")["skill_xp"], 6)
 
+    def test_unique_partial_node_names_work_for_gathering_verbs(self) -> None:
+        session = FakeSession(GOBLIN_ROOTSNAG_BANK_KEY)
+        session.database.skills[(701, "herbalism")] = 5
+
+        self.assertTrue(asyncio.run(_handle_swamp_gathering(session, "gather rootsnag")))
+        self.assertTrue(asyncio.run(_handle_swamp_gathering(session, "herbalism rootsn")))
+        self.assertTrue(asyncio.run(_handle_swamp_gathering(session, "harvest snag")))
+
+        self.assertEqual(session.database.item_quantity(701, "bitterroot"), 3)
+        self.assertEqual(
+            session.database.get_trade_skill_progress(701, "herbalism")["skill_xp"],
+            8,
+        )
+        self.assertFalse(any("do not recognize" in text.lower() for text in session.outputs))
+
     def test_bitterroot_explains_skill_gate_instead_of_failing_silently(self) -> None:
         session = FakeSession(GOBLIN_BITTERWATER_RUN_KEY)
         handled = asyncio.run(_handle_swamp_gathering(session, "gather bitterroot"))

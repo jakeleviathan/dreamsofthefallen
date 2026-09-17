@@ -85,6 +85,26 @@ class EconomyLoopTests(unittest.TestCase):
         self.assertEqual(self.db.get_trade_skill_progress(self.character.id, "mining")["skill_xp"], 1)
         self.assertIn("Iron Ore", "".join(session.outputs))
 
+    def test_generic_gathering_accepts_unique_partial_node_names(self):
+        mining = self._session_in("human_blackglass_arch", ["mine iron v"])
+        asyncio.run(mining.playing_prompt())
+        self.assertEqual(self.db.item_quantity(self.character.id, "iron_ore"), 1)
+
+        herbalism = self._session_in("forest_elf_old_river_path", ["herbalism green"])
+        asyncio.run(herbalism.playing_prompt())
+        self.assertEqual(self.db.item_quantity(self.character.id, "greenleaf"), 1)
+
+    def test_ambiguous_partial_resource_name_is_not_guessed(self):
+        session = self._session_in("forest_elf_greenway", ["gather patch"])
+        asyncio.run(session.playing_prompt())
+
+        output = "".join(session.outputs)
+        self.assertIn("Be more specific", output)
+        self.assertIn("Cotton Patch", output)
+        self.assertIn("Lavender Patch", output)
+        self.assertEqual(self.db.item_quantity(self.character.id, "raw_cotton"), 0)
+        self.assertEqual(self.db.item_quantity(self.character.id, "lavender_blossom"), 0)
+
     def test_real_room_station_allows_existing_crafting_recipe(self):
         session = self._session_in("dwarf_workshop_tier", ["craft smelt iron ingot"])
         self.db.add_item(self.character.id, "iron_ore", 2)

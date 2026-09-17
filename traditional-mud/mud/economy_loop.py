@@ -232,16 +232,32 @@ def _normalize(value: str) -> str:
     return " ".join(value.strip().lower().replace("_", " ").split())
 
 
-def _node_matches(node: ResourceNodeDefinition, target: str) -> bool:
-    wanted = _normalize(target)
-    return wanted in {
+def _node_search_names(node: ResourceNodeDefinition) -> frozenset[str]:
+    names = {
         _normalize(node.key),
         _normalize(node.name),
         _normalize(node.output_item_key),
-        _normalize(crafting.ITEMS_BY_KEY.get(node.output_item_key).name)
-        if node.output_item_key in crafting.ITEMS_BY_KEY
-        else "",
     }
+    output = crafting.ITEMS_BY_KEY.get(node.output_item_key)
+    if output is not None:
+        names.add(_normalize(output.name))
+    return frozenset(name for name in names if name)
+
+
+def _node_match_quality(node: ResourceNodeDefinition, target: str) -> int:
+    wanted = _normalize(target)
+    if not wanted:
+        return 0
+    names = _node_search_names(node)
+    if wanted in names:
+        return 2
+    if len(wanted) >= 2 and any(wanted in name for name in names):
+        return 1
+    return 0
+
+
+def _node_matches(node: ResourceNodeDefinition, target: str) -> bool:
+    return _node_match_quality(node, target) > 0
 
 
 def _resolve_node(session, target: str, skill_key: str | None = None) -> tuple[LiveNode | None, str | None]:
@@ -251,19 +267,15 @@ def _resolve_node(session, target: str, skill_key: str | None = None) -> tuple[L
         if skill_key is None or live.state.definition.gathering_skill_key == skill_key
     ]
     if target.strip():
-        exact = [live for live in nodes if _node_matches(live.state.definition, target)]
-        if not exact:
-            wanted = _normalize(target)
-            exact = [
-                live
-                for live in nodes
-                if wanted in _normalize(live.state.definition.name)
-                or wanted in _normalize(live.state.definition.key)
-            ]
-        if len(exact) == 1:
-            return exact[0], None
-        if len(exact) > 1:
-            return None, "Be more specific about which resource node you want."
+        exact = [live for live in nodes if _node_match_quality(live.state.definition, target) == 2]
+        matches = exact or [
+            live for live in nodes if _node_match_quality(live.state.definition, target) == 1
+        ]
+        if len(matches) == 1:
+            return matches[0], None
+        if len(matches) > 1:
+            names = ", ".join(live.state.definition.name for live in matches)
+            return None, f"Be more specific: {names}."
         return None, "There is no matching resource node here."
 
     if not nodes:
