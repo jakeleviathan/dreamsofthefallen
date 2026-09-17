@@ -1183,6 +1183,7 @@ class PlayerSession:
             if not success:
                 await self.send("You need Bone Chips in your inventory to raise a Skeleton.\r\n")
                 self.combatant.current_mana += mana_cost
+                self._ability_mastery_pending = None
                 return
             await self.send("Bone chips knit together at your feet. A Skeleton rises to serve you.\r\n")
             ability_mastery.mark_meaningful(self)
