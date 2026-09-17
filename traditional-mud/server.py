@@ -220,6 +220,12 @@ install_iconic_items()
 install_content_foundry_runtime(PlayerSession, WORLD)
 install_content_density_runtime(PlayerSession, WORLD)
 
+# Expand the daily living-world pulse only after every physical region above is
+# registered. This yields hundreds of concrete regional events while preserving
+# the original twelve authored anchors and all existing living-world mechanics.
+from mud.living_world_variety import apply_living_world_event_variety
+apply_living_world_event_variety(PlayerSession)
+
 # Planar content is installed after the physical world is complete but before
 # help/GMCP presentation. Its entrances remain contextual and undisclosed: there
 # is intentionally no seven-plane checklist for players to complete.
