@@ -101,13 +101,15 @@ class PlayerMailTests(unittest.TestCase):
     def test_compose_uses_multiline_editor_and_delivers_to_offline_character(self):
         temp, database, alice, bob = self.make_world()
         self.addCleanup(temp.cleanup)
-        session = _Session(
-            database,
-            alice,
-            prompts=["A road question", "Did you see the caravan?", "I can meet tomorrow.", "."],
-        )
+        session = _Session(database, alice)
 
         asyncio.run(post._compose_mail(session, bob.name))
+        self.assertEqual(session._player_mail_interaction["stage"], "subject")
+        asyncio.run(post._handle_mail_interaction(session, "A road question"))
+        self.assertEqual(session._player_mail_interaction["stage"], "body")
+        asyncio.run(post._handle_mail_interaction(session, "Did you see the caravan?"))
+        asyncio.run(post._handle_mail_interaction(session, "I can meet tomorrow."))
+        asyncio.run(post._handle_mail_interaction(session, "."))
 
         with database.connect() as db:
             row = db.execute(
@@ -217,8 +219,9 @@ class PlayerMailTests(unittest.TestCase):
         bob_session = _Session(database, bob)
         asyncio.run(post._read_mail(bob_session, read_id))
 
-        bob_session._prompts = ["yes"]
         asyncio.run(post._clear_mail(bob_session, read_only=True))
+        self.assertEqual(bob_session._player_mail_interaction["kind"], "clear")
+        asyncio.run(post._handle_mail_interaction(bob_session, "yes"))
         with database.connect() as db:
             read_row = db.execute("SELECT is_deleted FROM living_mail WHERE id = ?", (read_id,)).fetchone()
             unread_row = db.execute("SELECT is_deleted FROM living_mail WHERE id = ?", (unread_id,)).fetchone()
@@ -226,8 +229,8 @@ class PlayerMailTests(unittest.TestCase):
         self.assertEqual(int(unread_row["is_deleted"]), 0)
         self.assertEqual(post._unread_count(bob_session), 1)
 
-        bob_session._prompts = ["yes"]
         asyncio.run(post._clear_mail(bob_session, read_only=False))
+        asyncio.run(post._handle_mail_interaction(bob_session, "yes"))
         self.assertEqual(post._mail_rows(bob_session), [])
         self.assertEqual(post._unread_count(bob_session), 0)
 
@@ -236,15 +239,66 @@ class PlayerMailTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         sender = _Session(database, alice)
         mail_id = post._store_player_mail(sender, post.MailRecipient(bob.id, bob.name), "Keep me", "Body")
-        bob_session = _Session(database, bob, prompts=["no"])
+        bob_session = _Session(database, bob)
 
         asyncio.run(post._clear_mail(bob_session, read_only=False))
+        asyncio.run(post._handle_mail_interaction(bob_session, "no"))
 
         with database.connect() as db:
             row = db.execute("SELECT is_deleted FROM living_mail WHERE id = ?", (mail_id,)).fetchone()
         self.assertEqual(int(row["is_deleted"]), 0)
         self.assertIn("canceled", "".join(bob_session.outputs).lower())
 
+
+
+    def test_clear_confirmation_waits_for_a_new_command_instead_of_reusing_replay_prompt(self):
+        temp, database, alice, bob = self.make_world()
+        self.addCleanup(temp.cleanup)
+        sender = _Session(database, alice)
+        mail_id = post._store_player_mail(
+            sender, post.MailRecipient(bob.id, bob.name), "Read me", "Body"
+        )
+        session = _Session(database, bob, prompts=["mail clear read"])
+        asyncio.run(post._read_mail(session, mail_id))
+        session.outputs.clear()
+
+        asyncio.run(post._clear_mail(session, read_only=True))
+
+        # This is the production bug shown in Mudlet: nested prompt() used to
+        # receive the wrapper's replayed "mail clear read" and cancel instantly.
+        # The fixed flow stores modal state and waits for the next command cycle.
+        self.assertEqual(session._prompts, ["mail clear read"])
+        self.assertEqual(session._player_mail_interaction["kind"], "clear")
+        self.assertIn("Type YES to confirm", "".join(session.outputs))
+        self.assertNotIn("canceled", "".join(session.outputs).lower())
+
+        asyncio.run(post._handle_mail_interaction(session, "yes"))
+        with database.connect() as db:
+            row = db.execute(
+                "SELECT is_deleted FROM living_mail WHERE id = ?", (mail_id,)
+            ).fetchone()
+        self.assertEqual(int(row["is_deleted"]), 1)
+        self.assertIsNone(session._player_mail_interaction)
+
+    def test_mail_composer_waits_across_command_cycles_and_captures_command_like_body_lines(self):
+        temp, database, alice, bob = self.make_world()
+        self.addCleanup(temp.cleanup)
+        session = _Session(database, alice, prompts=["mail send BobPost"])
+
+        asyncio.run(post._compose_mail(session, bob.name))
+        self.assertEqual(session._prompts, ["mail send BobPost"])
+        asyncio.run(post._handle_mail_interaction(session, "Status update"))
+        asyncio.run(post._handle_mail_interaction(session, "help"))
+        asyncio.run(post._handle_mail_interaction(session, "mail"))
+        asyncio.run(post._handle_mail_interaction(session, "."))
+
+        with database.connect() as db:
+            row = db.execute(
+                "SELECT subject, body FROM living_mail WHERE character_id = ?",
+                (bob.id,),
+            ).fetchone()
+        self.assertEqual(row["subject"], "Status update")
+        self.assertEqual(row["body"], "help\nmail")
 
 class ProductionPlayerMailTests(unittest.TestCase):
     def test_production_installs_player_mail_and_catalogs_controls(self):
@@ -256,6 +310,7 @@ import server
 import mud.command_guide as guide
 
 assert server.PlayerSession._player_mail_runtime_installed
+assert server.PlayerSession.playing_prompt.__module__ == "mud.player_mail"
 syntaxes = {entry.syntax for entry in guide.COMMANDS}
 assert "MAIL / POST / INBOX" in syntaxes
 assert "MAIL SEND [TO] <player>" in syntaxes

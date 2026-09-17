@@ -226,10 +226,6 @@ install_content_density_runtime(PlayerSession, WORLD)
 # the original twelve authored anchors and all existing living-world mechanics.
 from mud.living_world_variety import apply_living_world_event_variety
 apply_living_world_event_variety(PlayerSession)
-# Persistent post extends the same mailbox with player-to-player letters, soft
-# deletion, bulk cleanup, ignore-list enforcement, and anti-spam limits.
-install_player_mail_runtime(PlayerSession)
-
 # Planar content is installed after the physical world is complete but before
 # help/GMCP presentation. Its entrances remain contextual and undisclosed: there
 # is intentionally no seven-plane checklist for players to complete.
@@ -276,9 +272,14 @@ validate_authored_exit_targets(_LIVE_ROOMS)
 validate_starter_route_walks(_LIVE_ROOMS)
 install_universal_location_repair_runtime(PlayerSession, WORLD)
 
-# Keep room presentation outermost so every authored area gets the same readable
-# visual hierarchy without requiring per-room markup.
+# Keep room presentation outside the authored gameplay stack so every area gets
+# the same readable visual hierarchy without requiring per-room markup.
 install_room_presentation_runtime(PlayerSession, WORLD)
+
+# Post is intentionally the final command wrapper. Its subject/body editor and
+# destructive-action confirmations are modal input: they must see the player's
+# next real line before any inner command wrapper can replay or consume it.
+install_player_mail_runtime(PlayerSession)
 
 HOST = "0.0.0.0"
 PORT = 4000

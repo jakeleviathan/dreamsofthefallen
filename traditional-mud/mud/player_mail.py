@@ -322,6 +322,14 @@ async def _notify_online_recipient(recipient: MailRecipient, sender_name: str) -
 
 
 async def _compose_mail(session, target_text: str) -> None:
+    """Begin a mail composition without nesting another prompt call.
+
+    Production has many command wrappers that replay a command into inner layers.
+    Asking session.prompt() again from inside one of those layers can receive the
+    replayed command instead of waiting for fresh player input. Mail composition
+    therefore spans normal command cycles as explicit session state.
+    """
+
     sender = _character(session)
     if sender is None:
         return
@@ -340,62 +348,97 @@ async def _compose_mail(session, target_text: str) -> None:
         await session.send(limit_error + "\r\n")
         return
 
-    subject_raw = await session.prompt(
-        f"Subject for {recipient.name} (max {MAIL_SUBJECT_LIMIT} characters; /cancel to stop): "
+    session._player_mail_interaction = {
+        "kind": "compose",
+        "recipient": recipient,
+        "stage": "subject",
+        "subject": "",
+        "lines": [],
+        "total": 0,
+    }
+    await session.send(
+        f"Subject for {recipient.name} (max {MAIL_SUBJECT_LIMIT} characters; /cancel to stop):\r\n"
     )
-    if subject_raw is None:
+
+
+async def _handle_compose_input(session, state: dict[str, object], raw: str) -> None:
+    sender = _character(session)
+    if sender is None:
+        session._player_mail_interaction = None
         return
-    if subject_raw.strip().lower() == "/cancel":
+
+    recipient = state.get("recipient")
+    if not isinstance(recipient, MailRecipient):
+        session._player_mail_interaction = None
+        await session.send("That draft could not be continued. Start again with MAIL SEND <player>.\r\n")
+        return
+
+    stripped = raw.strip()
+    if stripped.lower() == "/cancel":
+        session._player_mail_interaction = None
         await session.send("Letter canceled.\r\n")
         return
-    subject = _clean_text(subject_raw, limit=MAIL_SUBJECT_LIMIT)
-    if not subject:
-        await session.send("A letter needs a subject. Nothing was sent.\r\n")
-        return
 
-    await session.send(
-        f"Write up to {MAIL_BODY_LINE_LIMIT} lines ({MAIL_BODY_LIMIT} characters total). "
-        "Enter a single . on its own line to send, or /cancel to discard.\r\n"
-    )
-    lines: list[str] = []
-    total = 0
-    while True:
-        raw = await session.prompt("")
-        if raw is None:
+    stage = str(state.get("stage") or "subject")
+    if stage == "subject":
+        subject = _clean_text(raw, limit=MAIL_SUBJECT_LIMIT)
+        if not subject:
+            await session.send("A letter needs a subject. Type a subject, or /cancel to stop.\r\n")
             return
-        stripped = raw.strip()
-        if stripped.lower() == "/cancel":
-            await session.send("Letter canceled.\r\n")
+        state["subject"] = subject
+        state["stage"] = "body"
+        await session.send(
+            f"Write up to {MAIL_BODY_LINE_LIMIT} lines ({MAIL_BODY_LIMIT} characters total). "
+            "Enter a single . on its own line to send, or /cancel to discard.\r\n"
+        )
+        return
+
+    lines = state.get("lines")
+    if not isinstance(lines, list):
+        lines = []
+        state["lines"] = lines
+    total = int(state.get("total") or 0)
+
+    if stripped == ".":
+        body = "\n".join(str(value) for value in lines).strip()
+        if not body:
+            await session.send("The letter body is still empty. Write a line, or /cancel to stop.\r\n")
             return
-        if stripped == ".":
-            break
-        clean = _clean_text(raw, collapse=False)
-        prospective = total + len(clean) + (1 if lines else 0)
-        if len(lines) >= MAIL_BODY_LINE_LIMIT or prospective > MAIL_BODY_LIMIT:
-            await session.send(
-                "That would exceed the letter limit. Enter . to send what you have, or /cancel to discard it.\r\n"
-            )
-            continue
-        lines.append(clean)
-        total = prospective
 
-    body = "\n".join(lines).strip()
-    if not body:
-        await session.send("An empty letter was not sent.\r\n")
+        # Re-check mutable delivery rules after composition.
+        if _recipient_ignores_sender(session, recipient.id, sender.id):
+            session._player_mail_interaction = None
+            await session.send(f"{recipient.name} is no longer accepting messages from you.\r\n")
+            return
+        limit_error = _rate_limit_error(session, sender.id)
+        if limit_error:
+            session._player_mail_interaction = None
+            await session.send(limit_error + "\r\n")
+            return
+
+        subject = str(state.get("subject") or "").strip()
+        session._player_mail_interaction = None
+        _store_player_mail(session, recipient, subject, body)
+        await session.send(f"Letter sent to {recipient.name}.\r\n")
+        await _notify_online_recipient(recipient, sender.name)
         return
 
-    # Re-check the two mutable delivery rules after an interactive composition.
-    if _recipient_ignores_sender(session, recipient.id, sender.id):
-        await session.send(f"{recipient.name} is no longer accepting messages from you.\r\n")
+    clean = _clean_text(raw, collapse=False)
+    prospective = total + len(clean) + (1 if lines else 0)
+    if len(lines) >= MAIL_BODY_LINE_LIMIT:
+        await session.send(
+            f"The letter already has {MAIL_BODY_LINE_LIMIT} lines. Enter . to send it, or /cancel to discard it.\r\n"
+        )
         return
-    limit_error = _rate_limit_error(session, sender.id)
-    if limit_error:
-        await session.send(limit_error + "\r\n")
+    if prospective > MAIL_BODY_LIMIT:
+        await session.send(
+            f"That line would exceed the {MAIL_BODY_LIMIT}-character letter limit. "
+            "Enter . to send what you have, or /cancel to discard it.\r\n"
+        )
         return
 
-    _store_player_mail(session, recipient, subject, body)
-    await session.send(f"Letter sent to {recipient.name}.\r\n")
-    await _notify_online_recipient(recipient, sender.name)
+    lines.append(clean)
+    state["total"] = prospective
 
 
 async def _delete_mail(session, mail_id: int) -> None:
@@ -419,6 +462,8 @@ async def _delete_mail(session, mail_id: int) -> None:
 
 
 async def _clear_mail(session, *, read_only: bool) -> None:
+    """Begin a confirmed bulk-clear operation across normal command cycles."""
+
     character = _character(session)
     if character is None:
         return
@@ -439,13 +484,21 @@ async def _clear_mail(session, *, read_only: bool) -> None:
         return
 
     label = "read letters" if read_only else "letters"
-    answer = await session.prompt(
-        f"Clear {count} {label} from your inbox? Type YES to confirm: "
+    session._player_mail_interaction = {
+        "kind": "clear",
+        "read_only": bool(read_only),
+    }
+    await session.send(
+        f"Clear {count} {label} from your inbox? Type YES to confirm, or NO to cancel.\r\n"
     )
-    if answer is None or answer.strip().lower() != "yes":
-        await session.send("Inbox clear canceled.\r\n")
-        return
 
+
+async def _perform_clear_mail(session, *, read_only: bool) -> int:
+    character = _character(session)
+    if character is None:
+        return 0
+    ensure_player_mail_schema(session.database)
+    predicate = "AND is_read = 1" if read_only else ""
     with session.database.connect() as db:
         cursor = db.execute(
             f"""
@@ -455,7 +508,41 @@ async def _clear_mail(session, *, read_only: bool) -> None:
             """,
             (character.id,),
         )
-    await session.send(f"Cleared {int(cursor.rowcount)} {label} from your inbox.\r\n")
+    return int(cursor.rowcount)
+
+
+async def _handle_clear_input(session, state: dict[str, object], raw: str) -> None:
+    answer = raw.strip().lower()
+    if answer not in {"yes", "y", "no", "n", "cancel", "/cancel"}:
+        await session.send("Please type YES to clear the mail, or NO to cancel.\r\n")
+        return
+
+    session._player_mail_interaction = None
+    if answer not in {"yes", "y"}:
+        await session.send("Inbox clear canceled.\r\n")
+        return
+
+    read_only = bool(state.get("read_only"))
+    count = await _perform_clear_mail(session, read_only=read_only)
+    label = "read letters" if read_only else "letters"
+    await session.send(f"Cleared {count} {label} from your inbox.\r\n")
+
+
+async def _handle_mail_interaction(session, raw: str) -> bool:
+    state = getattr(session, "_player_mail_interaction", None)
+    if not isinstance(state, dict):
+        return False
+
+    kind = str(state.get("kind") or "")
+    if kind == "compose":
+        await _handle_compose_input(session, state, raw)
+        return True
+    if kind == "clear":
+        await _handle_clear_input(session, state, raw)
+        return True
+
+    session._player_mail_interaction = None
+    return False
 
 
 async def _show_mail_help(session) -> None:
@@ -509,6 +596,8 @@ def install_player_mail_runtime(player_session_class) -> None:
     previous_enter = getattr(player_session_class, "enter_character", None)
     if previous_enter is not None:
         async def enter_character(self) -> None:
+            # A draft or confirmation belongs only to the current character/session.
+            self._player_mail_interaction = None
             # Migrate before the living-world login layer creates or counts mail.
             ensure_player_mail_schema(self.database)
             await previous_enter(self)
@@ -527,6 +616,12 @@ def install_player_mail_runtime(player_session_class) -> None:
             state = getattr(self, "state", None)
             if state is not None and hasattr(type(state), "DISCONNECTED"):
                 self.state = type(state).DISCONNECTED
+            return
+
+        # Interactive mail state consumes the next real command line before any
+        # normal command parser sees it. This is why YES now works reliably even
+        # through the production stack's command-replay wrappers.
+        if await _handle_mail_interaction(self, command):
             return
 
         stripped = command.strip()
