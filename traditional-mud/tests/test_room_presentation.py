@@ -16,11 +16,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import server
+from mud.corpse_loot import create_corpse
 from mud.database import Database
 from mud.enemy_lifecycle import clear_static_enemy_respawn, mark_static_enemy_defeated
 from mud.goblin_swamp import GOBLIN_MUDGLASS_CROSSING_KEY, MIRE_TICK_SWARM
 from mud.room_presentation import (
     BUSINESS,
+    CORPSE,
     ENEMY,
     EXIT,
     FEATURE,
@@ -29,6 +31,7 @@ from mud.room_presentation import (
     TITLE,
     render_room_lines,
 )
+from mud.stats import CharacterStats
 
 class DB:
     def list_flags(self, _character_id):
@@ -60,9 +63,17 @@ assert server.PlayerSession._room_presentation_runtime_installed
 
 with tempfile.TemporaryDirectory() as temp:
     database = Database(Path(temp) / "room-presentation.db")
+    account = database.create_account("roompresentation", "hash")
+    owner = database.create_character(
+        account.id,
+        "RoomPresentation",
+        "goblin",
+        "priest",
+        CharacterStats(might=5, grace=5, love=5, mind=5, hp=5),
+    )
     respawn_session = SimpleNamespace(
         character=SimpleNamespace(
-            id=99,
+            id=owner.id,
             race="goblin",
             character_class="priest",
             level=1,
@@ -75,6 +86,7 @@ with tempfile.TemporaryDirectory() as temp:
     before = "\r\n".join(render_room_lines(respawn_session, server.WORLD))
     assert "Mire Tick Swarm" in before, before
     assert "[ Danger ]" in before, before
+    assert "[ Corpses ]" not in before, before
 
     mark_static_enemy_defeated(
         database,
@@ -82,9 +94,19 @@ with tempfile.TemporaryDirectory() as temp:
         MIRE_TICK_SWARM.key,
         120.0,
     )
+    create_corpse(
+        database,
+        GOBLIN_MUDGLASS_CROSSING_KEY,
+        MIRE_TICK_SWARM.key,
+        MIRE_TICK_SWARM.name,
+        owner_character_id=owner.id,
+        death_key="room-presentation:mire-tick",
+    )
     during = "\r\n".join(render_room_lines(respawn_session, server.WORLD))
-    assert "Mire Tick Swarm" not in during, during
     assert "[ Danger ]" not in during, during
+    assert f"{CORPSE}[ Corpses ]" in during, during
+    assert f"{CORPSE}Corpse of Mire Tick Swarm" in during, during
+    assert during.index("[ Corpses ]") < during.index("[ Exits ]"), during
 
     clear_static_enemy_respawn(
         database,
@@ -94,6 +116,7 @@ with tempfile.TemporaryDirectory() as temp:
     after = "\r\n".join(render_room_lines(respawn_session, server.WORLD))
     assert "Mire Tick Swarm" in after, after
     assert "[ Danger ]" in after, after
+    assert "[ Corpses ]" in after, after
 
 print("ROOM_PRESENTATION_OK")
 '''
@@ -109,10 +132,10 @@ print("ROOM_PRESENTATION_OK")
         self.assertIn("ROOM_PRESENTATION_OK", result.stdout)
 
     def test_palette_uses_distinct_semantic_colors(self):
-        from mud.room_presentation import BUSINESS, ENEMY, EXIT, FEATURE, NPC, REGION, TITLE
+        from mud.room_presentation import BUSINESS, CORPSE, ENEMY, EXIT, FEATURE, NPC, REGION, TITLE
 
-        semantic_colors = {TITLE, REGION, FEATURE, NPC, ENEMY, EXIT, BUSINESS}
-        self.assertEqual(len(semantic_colors), 7)
+        semantic_colors = {TITLE, REGION, FEATURE, NPC, ENEMY, CORPSE, EXIT, BUSINESS}
+        self.assertEqual(len(semantic_colors), 8)
         for color in semantic_colors:
             self.assertTrue(color.startswith("\x1b["))
             self.assertTrue(color.endswith("m"))
