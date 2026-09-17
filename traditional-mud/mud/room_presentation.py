@@ -7,6 +7,7 @@ from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
 from mud.combat import ENEMIES_BY_KEY
 from mud.contextual_command_routing import install_contextual_command_routing_guard
 from mud.database import Database
+from mud.enemy_lifecycle import static_enemy_available
 from mud.exploration_map import install_exploration_map_runtime
 from mud.exploration_map_gmcp import install_exploration_map_gmcp_runtime
 from mud.fantasy_drugs import install_perception_runtime
@@ -143,7 +144,11 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     threats: list[str] = []
     for enemy_key in scene.enemy_keys:
         enemy = ENEMIES_BY_KEY.get(enemy_key)
-        if enemy is not None:
+        if enemy is not None and static_enemy_available(
+            view.key,
+            enemy_key,
+            database=getattr(session, "database", None),
+        ):
             threats.append(f"  {_paint(ENEMY, enemy.name)} - {enemy.description}")
     if threats:
         lines.extend(["", _section_header("Danger", ENEMY), *threats])
