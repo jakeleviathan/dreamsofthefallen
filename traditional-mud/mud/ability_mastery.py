@@ -178,9 +178,17 @@ def curve_for(ability) -> MasteryCurve:
 
 def _progress_for_session(session, ability) -> MasteryProgress:
     character = getattr(session, "character", None)
-    if character is None or ability is None:
-        return MasteryProgress("", 0, 0, 1, "Novice", 1)
-    return progress(session.database, character.id, ability.key)
+    database = getattr(session, "database", None)
+    if character is None or database is None or ability is None:
+        return MasteryProgress(
+            getattr(ability, "key", "") if ability is not None else "",
+            0,
+            0,
+            1,
+            "Novice",
+            xp_for_mastery_level(2),
+        )
+    return progress(database, character.id, ability.key)
 
 
 def scale_power(session, ability, amount: int | float) -> int:
