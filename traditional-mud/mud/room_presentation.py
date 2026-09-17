@@ -6,6 +6,7 @@ from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
 from mud.combat import ENEMIES_BY_KEY
 from mud.contextual_command_routing import install_contextual_command_routing_guard
+from mud.corpse_loot import list_corpses
 from mud.database import Database
 from mud.enemy_lifecycle import static_enemy_available
 from mud.exploration_map import install_exploration_map_runtime
@@ -34,6 +35,7 @@ BODY = "\x1b[37m"
 FEATURE = "\x1b[96m"
 NPC = "\x1b[92m"
 ENEMY = "\x1b[1;91m"
+CORPSE = "\x1b[33m"
 EXIT = "\x1b[94m"
 BUSINESS = "\x1b[95m"
 DIVIDER = "\x1b[90m"
@@ -152,6 +154,24 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             threats.append(f"  {_paint(ENEMY, enemy.name)} - {enemy.description}")
     if threats:
         lines.extend(["", _section_header("Danger", ENEMY), *threats])
+
+    database = getattr(session, "database", None)
+    corpses = (
+        list_corpses(database, view.key)
+        if database is not None and callable(getattr(database, "connect", None))
+        else []
+    )
+    if corpses:
+        counts: dict[str, int] = {}
+        for corpse in corpses:
+            counts[corpse.enemy_name] = counts.get(corpse.enemy_name, 0) + 1
+        seen: dict[str, int] = {}
+        corpse_lines: list[str] = []
+        for corpse in corpses:
+            seen[corpse.enemy_name] = seen.get(corpse.enemy_name, 0) + 1
+            suffix = f" #{seen[corpse.enemy_name]}" if counts[corpse.enemy_name] > 1 else ""
+            corpse_lines.append(f"  {_paint(CORPSE, f'Corpse of {corpse.enemy_name}{suffix}')}")
+        lines.extend(["", _section_header("Corpses", CORPSE), *corpse_lines])
 
     if business is not None:
         moment = ASTRALIS_CLOCK.now()
