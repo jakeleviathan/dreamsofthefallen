@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import replace
 
+import mud.ability_mastery as ability_mastery
 import mud.crafting as crafting
 import mud.mechanics as mechanics
 import mud.party_system as party_system
@@ -585,9 +586,19 @@ async def _show_ability_detail(session, target_text: str) -> None:
         if wanted not in aliases:
             continue
         status = "UNLOCKED" if ability in _unlocked_class_abilities(session) else f"LOCKED until level {ability.unlock_level}"
+        summary = ability_mastery.mastery_summary(
+            session.database, session.character.id, ability.key
+        )
+        practice_note = (
+            "Meaningful use improves this ability; empty healing, trivial enemies, and idle buff spam do not award skill XP."
+            if ability.skill_improves_effectiveness
+            else "This ability has a fixed effect and records uses without mastery scaling."
+        )
         await session.send(
             f"\r\n{ability.name} - {status}\r\n{ability.description}\r\n"
             f"Category: {ability.category} | Mana: {ability.mana_cost or 0} | Cooldown: {ability.cooldown_seconds or 0:g}s\r\n"
+            f"Mastery: {summary}\r\n"
+            f"{practice_note}\r\n"
             f"Command: {_command_for(ability)}\r\n"
         )
         return
@@ -700,19 +711,20 @@ def _wizard_damage(session, base: int) -> tuple[int, bool]:
 
 async def _activate(session, ability) -> bool:
     combatant = session.combatant
-    mana_cost = ability.mana_cost or 0
+    mana_cost = ability_mastery.effective_mana_cost(session, ability)
     if not combatant.ability_ready(ability.key):
         await session.send(f"{ability.name} is still on cooldown.\r\n")
         return False
     if not combatant.spend_mana(mana_cost):
         await session.send(f"You need {mana_cost} mana for {ability.name}.\r\n")
         return False
+    ability_mastery.begin_use(session, ability)
     return True
 
 
 async def _complete_use(session, ability) -> None:
-    session.database.record_ability_use(session.character.id, ability.key)
     session.combatant.start_cooldown(ability.key, ability.cooldown_seconds or 0.0)
+    await ability_mastery.commit_use(session)
     await session.send_client_state()
 
 
@@ -727,7 +739,9 @@ async def _deal_damage(session, ability, damage: int, *, threat_multiplier: floa
     enemy = session.active_enemy
     if enemy is None:
         return False
+    damage = ability_mastery.scale_power(session, ability, damage)
     dealt = enemy.take_damage(max(0, damage))
+    ability_mastery.mark_damage_practice(session, dealt, enemy)
     enemy.hate.add_threat(session.character.id, max(1.0, dealt * threat_multiplier))
     await session.send(
         f"{ability.name} hits {enemy.definition.name} for {dealt} damage ({enemy.current_hp}/{enemy.definition.max_hp} HP).\r\n"
@@ -758,8 +772,10 @@ async def _stun_enemy(session, enemy, seconds: float) -> None:
     _track_task(session, restore())
 
 
-async def _heal(caster, target, base: int, label: str) -> int:
+async def _heal(caster, target, base: int, label: str, ability=None) -> int:
+    ability = ability or ability_mastery.pending_ability(caster)
     amount = caster.combatant.healing_amount(base) + _affinity_healing_bonus(caster)
+    amount = ability_mastery.scale_power(caster, ability, amount)
     before = target.combatant.current_hp
     target.combatant.current_hp = min(target.combatant.max_hp, before + amount)
     restored = target.combatant.current_hp - before
@@ -768,17 +784,19 @@ async def _heal(caster, target, base: int, label: str) -> int:
     else:
         await caster.send(f"{label} restores {restored} HP to {target.character.name}.\r\n")
         await target.send(f"{caster.character.name}'s {label} restores {restored} HP to you.\r\n")
+    ability_mastery.mark_healing_practice(caster, restored)
     await target.send_client_state()
     return restored
 
 
-async def _rejuvenation(caster, target) -> None:
+async def _rejuvenation(caster, target, ability) -> None:
     try:
         for pulse in range(1, 4):
             await asyncio.sleep(2.0)
             if not _living(target):
                 return
             amount = caster.combatant.healing_amount(3) + _affinity_healing_bonus(caster)
+            amount = ability_mastery.scale_power(caster, ability, amount)
             before = target.combatant.current_hp
             target.combatant.current_hp = min(target.combatant.max_hp, before + amount)
             restored = target.combatant.current_hp - before
@@ -790,9 +808,9 @@ async def _rejuvenation(caster, target) -> None:
         return
 
 
-async def _expire_oakheart(target, amount: int) -> None:
+async def _expire_oakheart(target, amount: int, duration: float = 60.0) -> None:
     try:
-        await asyncio.sleep(60.0)
+        await asyncio.sleep(duration)
         if getattr(target, "combatant", None) is None:
             return
         target.combatant.max_hp = max(1, target.combatant.max_hp - amount)
@@ -896,18 +914,31 @@ async def _use_progression_ability(session, ability, target_text: str) -> bool:
         base = {"minor_heal": 6, "restoring_light": 8, "mend_ally": 10}[key]
         await _heal(session, target, base, ability.name)
     elif key == "hp_buff":
+        was_injured = target.combatant.current_hp < target.combatant.max_hp
+        amount = 6 + ability_mastery.flat_bonus(session, ability)
+        duration = 60.0 + ability_mastery.duration_bonus(session, ability)
         target._oakheart_active = True
-        target.combatant.max_hp += 6
-        target.combatant.current_hp += 6
-        await session.send(f"Oakheart strengthens {target.character.name}, granting 6 maximum HP for one minute.\r\n")
+        target.combatant.max_hp += amount
+        target.combatant.current_hp += amount
+        ability_mastery.mark_support_practice(session, target, target_was_injured=was_injured)
+        await session.send(
+            f"Oakheart strengthens {target.character.name}, granting {amount} maximum HP for {int(duration)} seconds.\r\n"
+        )
         if target is not session:
-            await target.send(f"{session.character.name}'s Oakheart grants you 6 maximum HP for one minute.\r\n")
-        _track_task(target, _expire_oakheart(target, 6))
+            await target.send(
+                f"{session.character.name}'s Oakheart grants you {amount} maximum HP for {int(duration)} seconds.\r\n"
+            )
+        _track_task(target, _expire_oakheart(target, amount, duration))
     elif key == "thorn_lash":
         await _deal_damage(session, ability, session.combatant.spell_damage(7))
     elif key == "rejuvenation":
+        ability_mastery.mark_support_practice(
+            session,
+            target,
+            target_was_injured=target.combatant.current_hp < target.combatant.max_hp,
+        )
         await session.send(f"Rejuvenation takes root on {target.character.name}; three healing pulses will follow.\r\n")
-        _track_task(session, _rejuvenation(session, target))
+        _track_task(session, _rejuvenation(session, target, ability))
     elif key in {"barkskin", "guardian_ward"}:
         duration = 10.0
         target.ward_until = asyncio.get_running_loop().time() + duration
