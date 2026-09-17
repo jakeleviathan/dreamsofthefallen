@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
+import mud.ability_mastery as ability_mastery
 import mud.class_progression as class_progression
 import mud.mechanics as mechanics
 from mud.death_recovery import RESURRECTION_ABILITY
@@ -147,9 +148,9 @@ def _resolve_priest_ability(session, ability_text: str):
     return ability, target
 
 
-async def _expire_resolve_blessing(target, amount: int) -> None:
+async def _expire_resolve_blessing(target, amount: int, duration: float = 60.0) -> None:
     try:
-        await asyncio.sleep(60.0)
+        await asyncio.sleep(duration)
         combatant = getattr(target, "combatant", None)
         if combatant is None or getattr(target, "_priest_resolve_blessing", 0) != amount:
             return
@@ -194,19 +195,24 @@ async def _use_priest_foundation_ability(session, ability, target_text: str) -> 
             return True
 
         if key == "blessing_of_resolve":
-            amount = 4
+            was_injured = target.combatant.current_hp < target.combatant.max_hp
+            amount = 4 + ability_mastery.flat_bonus(session, ability)
+            duration = 60.0 + ability_mastery.duration_bonus(session, ability)
             target._priest_resolve_blessing = amount
             target.combatant.max_hp += amount
             target.combatant.current_hp += amount
+            ability_mastery.mark_support_practice(
+                session, target, target_was_injured=was_injured
+            )
             await session.send(
-                f"Blessing of Resolve strengthens {target.character.name}, granting {amount} maximum HP for one minute.\r\n"
+                f"Blessing of Resolve strengthens {target.character.name}, granting {amount} maximum HP for {int(duration)} seconds.\r\n"
             )
             if target is not session:
                 await target.send(
-                    f"{session.character.name}'s Blessing of Resolve grants you {amount} maximum HP for one minute.\r\n"
+                    f"{session.character.name}'s Blessing of Resolve grants you {amount} maximum HP for {int(duration)} seconds.\r\n"
                 )
             class_progression._track_task(
-                target, _expire_resolve_blessing(target, amount)
+                target, _expire_resolve_blessing(target, amount, duration)
             )
             await target.send_client_state()
         elif key == "greater_mend":
