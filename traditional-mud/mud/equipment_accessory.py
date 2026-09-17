@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import mud.equipment_system as equipment
+from mud.combat_variance import install_combat_variance_runtime
 
 
 ACCESSORY_SLOT_KEY = "accessory"
@@ -33,8 +34,13 @@ def install_accessory_slot() -> None:
 
 
 def install_accessory_runtime(player_session_class) -> None:
-    """Add the accessory-slot login reminder outside the equipment runtime."""
+    """Add the accessory slot and finalize weapon-aware combat damage."""
     install_accessory_slot()
+    # Equipment is fully installed immediately before this layer in production.
+    # Finalize combat damage here so the live main-hand item can own its damage
+    # profile while later quest/class wrappers keep using the same combat API.
+    install_combat_variance_runtime(player_session_class)
+
     if getattr(player_session_class, "_accessory_slot_runtime_installed", False):
         return
 
