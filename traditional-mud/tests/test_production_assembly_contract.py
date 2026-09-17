@@ -122,6 +122,7 @@ import server
 markers = (
     "_starter_class_moment_runtime_installed",
     "_party_runtime_installed",
+    "_corpse_loot_runtime_installed",
     "_death_recovery_runtime_installed",
     "_class_progression_runtime_installed",
     "_living_world_runtime_installed",
