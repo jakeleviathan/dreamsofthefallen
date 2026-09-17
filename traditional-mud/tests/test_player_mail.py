@@ -1,14 +1,18 @@
 import asyncio
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+import mud.living_world as living
+import mud.player_mail as post
+import mud.social_experience as social
 from mud.database import Database
 
 
-living = None
-post = None
-social = None
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class _Session:
@@ -28,22 +32,6 @@ class _Session:
 
 
 class PlayerMailTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        # Import the fully assembled production entrypoint first. Several older
-        # content modules intentionally mutate shared registries during production
-        # assembly, so importing living-world modules early would make unrelated
-        # legacy tests observe a half-assembled registry during collection.
-        global living, post, social
-        import server
-        import mud.living_world as living_module
-        import mud.player_mail as post_module
-        import mud.social_experience as social_module
-        living = living_module
-        post = post_module
-        social = social_module
-        cls.server = server
-
     def make_world(self):
         temp = tempfile.TemporaryDirectory()
         database = Database(Path(temp.name) / "mail.db")
@@ -260,15 +248,31 @@ class PlayerMailTests(unittest.TestCase):
 
 class ProductionPlayerMailTests(unittest.TestCase):
     def test_production_installs_player_mail_and_catalogs_controls(self):
-        import server
-        import mud.command_guide as guide
+        # The real production entrypoint intentionally mutates shared registries.
+        # Verify that assembly in an isolated process so later slice-level tests
+        # do not inherit the fully assembled world.
+        code = r"""
+import server
+import mud.command_guide as guide
 
-        self.assertTrue(server.PlayerSession._player_mail_runtime_installed)
-        syntaxes = {entry.syntax for entry in guide.COMMANDS}
-        self.assertIn("MAIL / POST / INBOX", syntaxes)
-        self.assertIn("MAIL SEND [TO] <player>", syntaxes)
-        self.assertIn("MAIL DELETE <number>", syntaxes)
-        self.assertIn("MAIL CLEAR READ / MAIL CLEAR ALL", syntaxes)
+assert server.PlayerSession._player_mail_runtime_installed
+syntaxes = {entry.syntax for entry in guide.COMMANDS}
+assert "MAIL / POST / INBOX" in syntaxes
+assert "MAIL SEND [TO] <player>" in syntaxes
+assert "MAIL DELETE <number>" in syntaxes
+assert "MAIL CLEAR READ / MAIL CLEAR ALL" in syntaxes
+"""
+        env = dict(os.environ)
+        env["PYTHONPATH"] = str(ROOT)
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
