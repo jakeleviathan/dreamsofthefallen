@@ -42,6 +42,7 @@ from mud.party_system import install_party_runtime
 from mud.party_loot import install_party_loot_hooks
 from mud.party_quality import install_party_quality_runtime
 from mud.corpse_loot import install_corpse_loot_runtime
+from mud.content_loot import install_content_loot_tables
 from mud.death_recovery import RESURRECTION_ABILITY, install_death_recovery_runtime
 from mud.class_progression import install_class_progression_runtime
 from mud.class_progression_tuning import apply_inherited_class_tuning
@@ -228,6 +229,16 @@ install_planar_realms_runtime(PlayerSession, WORLD)
 # content installer has run. Stable item keys remain untouched, so old characters,
 # recipes, loot tables, and equipped rows immediately inherit the authored names.
 install_authored_item_names()
+
+# Compile one physical loot table for every killable enemy currently registered
+# by the assembled world. Existing hand-authored drops remain authoritative; the
+# family profiles only fill gaps left by older content modules. Production refuses
+# to start if a new killable enemy somehow reaches this point without a table.
+_CONTENT_LOOT_COVERAGE = install_content_loot_tables()
+if _CONTENT_LOOT_COVERAGE.missing_tables:
+    raise RuntimeError(
+        "Missing physical loot tables for: " + ", ".join(_CONTENT_LOOT_COVERAGE.missing_tables)
+    )
 
 # Monster rewards now become physical, persistent room corpses. Installing this
 # after all content and party loot hooks means every existing drop table feeds the
