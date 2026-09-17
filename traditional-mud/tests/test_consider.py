@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from mud.combat import EnemyDefinition
 from mud.consider import assess_threat, challenge_rank, handle_consider
+from mud.partial_target_matching import resolve_target_command
 from mud.world import NpcDefinition
 
 
@@ -59,6 +60,28 @@ class ConsiderBandTests(unittest.TestCase):
         boss = SimpleNamespace(key="crypt_final_boss", aliases=(), challenge_rank="normal")
         self.assertEqual(challenge_rank(elite), "elite")
         self.assertEqual(challenge_rank(boss), "boss")
+
+
+class ConsiderTargetMatchingTests(unittest.TestCase):
+    def test_con_unique_prefix_expands_to_full_visible_target(self):
+        enemy = EnemyDefinition(
+            key="swamp_troll",
+            name="Swamp Troll",
+            aliases=("troll",),
+            description="a broad-backed troll streaked with mire",
+            max_hp=180,
+            armor_class=12,
+            auto_attack_damage=11,
+            auto_attack_interval=3.0,
+            xp_reward=100,
+        )
+        world = _World(enemy_keys=(enemy.key,))
+        session = _Session()
+        with patch.dict("mud.partial_target_matching.ENEMIES_BY_KEY", {enemy.key: enemy}, clear=True):
+            resolution = resolve_target_command(session, "con swamp", world)
+        self.assertEqual(resolution.command, "con Swamp Troll")
+        self.assertEqual(resolution.matched_name, "Swamp Troll")
+        self.assertFalse(resolution.ambiguous)
 
 
 class ConsiderCommandTests(unittest.IsolatedAsyncioTestCase):
