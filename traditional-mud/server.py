@@ -55,6 +55,7 @@ from mud.first_ten_story_depth import install_first_ten_story_depth_runtime
 from mud.class_world_integration import install_class_world_integration_runtime
 from mud.launch_vertical_slice import install_launch_vertical_slice_runtime
 from mud.living_world import install_living_world_runtime
+from mud.player_mail import install_player_mail_runtime
 from mud.living_world_depth import install_living_world_depth_runtime
 from mud.living_world_depth_tuning import apply_living_world_depth_tuning
 from mud.living_world_continuity import install_living_world_continuity_runtime
@@ -225,6 +226,9 @@ install_content_density_runtime(PlayerSession, WORLD)
 # the original twelve authored anchors and all existing living-world mechanics.
 from mud.living_world_variety import apply_living_world_event_variety
 apply_living_world_event_variety(PlayerSession)
+# Persistent post extends the same mailbox with player-to-player letters, soft
+# deletion, bulk cleanup, ignore-list enforcement, and anti-spam limits.
+install_player_mail_runtime(PlayerSession)
 
 # Planar content is installed after the physical world is complete but before
 # help/GMCP presentation. Its entrances remain contextual and undisclosed: there
