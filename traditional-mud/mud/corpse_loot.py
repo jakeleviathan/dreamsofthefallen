@@ -9,41 +9,26 @@ import mud.crafting as crafting
 import mud.economy_balance as economy_balance
 import mud.economy_loop as economy
 import mud.enemy_lifecycle as enemy_lifecycle
+from mud.item_locations import (
+    ItemLocation,
+    add_to_location,
+    ensure_item_location_storage,
+    list_container_item_rows,
+    transfer_item,
+)
 
 
-CORPSE_TTL_SECONDS = 15 * 60
+REGULAR_CORPSE_TTL_SECONDS = 5 * 60
+NAMED_CORPSE_TTL_SECONDS = 15 * 60
+CORPSE_PROTECTION_SECONDS = 60
 
-CORPSE_STORAGE_SQL = """
-CREATE TABLE IF NOT EXISTS room_corpses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    room_key TEXT NOT NULL,
-    enemy_key TEXT NOT NULL,
-    enemy_name TEXT NOT NULL,
-    created_at REAL NOT NULL,
-    expires_at REAL NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_room_corpses_room_created
-    ON room_corpses (room_key, created_at DESC);
-
-CREATE TABLE IF NOT EXISTS corpse_items (
-    corpse_id INTEGER NOT NULL,
-    item_key TEXT NOT NULL,
-    quantity INTEGER NOT NULL CHECK (quantity > 0),
-    reserved_character_id INTEGER NOT NULL,
-    PRIMARY KEY (corpse_id, item_key, reserved_character_id),
-    FOREIGN KEY (corpse_id) REFERENCES room_corpses(id) ON DELETE CASCADE
-);
-"""
+# Content can override corpse lifetime without adding combat special cases.
+CORPSE_TTL_OVERRIDES: dict[str, float] = {}
 
 
 @dataclass(frozen=True, slots=True)
 class LootTableEntry:
-    """One independently rolled entry in an NPC loot table.
-
-    chance is expressed from 0.0 through 1.0. Quantity is rolled inclusively
-    between min_quantity and max_quantity after the chance succeeds.
-    """
+    """One independently rolled entry in an NPC loot table."""
 
     item_key: str
     chance: float = 1.0
@@ -69,8 +54,11 @@ class CorpseRecord:
     room_key: str
     enemy_key: str
     enemy_name: str
+    owner_character_id: int | None
     created_at: float
+    protection_expires_at: float
     expires_at: float
+    currency_amount: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,14 +83,17 @@ class _DefeatLootContext:
     room_key: str
     enemy_key: str
     enemy_name: str
+    owner_character_id: int
+    protected_character_ids: set[int] = field(default_factory=set)
     drops: list[_PendingDrop] = field(default_factory=list)
     loot_rolled: bool = False
     lifecycle_claimed: bool | None = None
+    mobile_npc_key: str | None = None
 
 
-# New content may define an explicit table here instead of adding another combat
-# special case. Existing economy tables are adapted automatically when a key has
-# no explicit override, so older authored content keeps working unchanged.
+# Explicit entries are authoritative. Enemies without an entry automatically
+# inherit their existing guaranteed and secondary economy drops through the same
+# percentage/quantity model, so the entire production world uses one loot path.
 NPC_LOOT_TABLES: dict[str, tuple[LootTableEntry, ...]] = {}
 
 _DEFEAT_CONTEXT: ContextVar[_DefeatLootContext | None] = ContextVar(
@@ -117,31 +108,46 @@ _ORIGINAL_MARK_STATIC_DEFEATED = None
 
 
 def register_loot_table(enemy_key: str, entries: tuple[LootTableEntry, ...]) -> None:
-    """Register or replace one NPC's complete independently rolled loot table."""
     clean_key = str(enemy_key).strip()
     if not clean_key:
         raise ValueError("Enemy key is required for a loot table.")
     NPC_LOOT_TABLES[clean_key] = tuple(entries)
 
 
+def register_corpse_ttl(enemy_key: str, seconds: float) -> None:
+    clean_key = str(enemy_key).strip()
+    if not clean_key:
+        raise ValueError("Enemy key is required for a corpse lifetime override.")
+    CORPSE_TTL_OVERRIDES[clean_key] = max(1.0, float(seconds))
+
+
 def ensure_corpse_storage(database) -> None:
-    with database.connect() as db:
-        db.executescript(CORPSE_STORAGE_SQL)
+    ensure_item_location_storage(database)
+
+
+def _row_to_corpse(row) -> CorpseRecord:
+    owner = row["owner_character_id"]
+    return CorpseRecord(
+        id=int(row["id"]),
+        room_key=str(row["room_key"]),
+        enemy_key=str(row["source_key"]),
+        enemy_name=str(row["source_name"]),
+        owner_character_id=None if owner is None else int(owner),
+        created_at=float(row["created_at_epoch"]),
+        protection_expires_at=float(row["protection_expires_at_epoch"]),
+        expires_at=float(row["decay_at_epoch"]),
+        currency_amount=int(row["currency_amount"]),
+    )
 
 
 def _prune_expired_corpses(database, *, now: float | None = None) -> None:
     ensure_corpse_storage(database)
     current = time() if now is None else float(now)
     with database.connect() as db:
-        db.execute("BEGIN IMMEDIATE")
-        expired = db.execute(
-            "SELECT id FROM room_corpses WHERE expires_at <= ?",
+        db.execute(
+            "DELETE FROM world_containers WHERE kind = 'corpse' AND decay_at_epoch <= ?",
             (current,),
-        ).fetchall()
-        corpse_ids = [int(row["id"]) for row in expired]
-        for corpse_id in corpse_ids:
-            db.execute("DELETE FROM corpse_items WHERE corpse_id = ?", (corpse_id,))
-        db.execute("DELETE FROM room_corpses WHERE expires_at <= ?", (current,))
+        )
 
 
 def create_corpse(
@@ -150,21 +156,70 @@ def create_corpse(
     enemy_key: str,
     enemy_name: str,
     *,
+    owner_character_id: int,
+    protected_character_ids: set[int] | frozenset[int] | tuple[int, ...] = (),
     created_at: float | None = None,
-    ttl_seconds: float = CORPSE_TTL_SECONDS,
-) -> int:
+    ttl_seconds: float = REGULAR_CORPSE_TTL_SECONDS,
+    protection_seconds: float = CORPSE_PROTECTION_SECONDS,
+    currency_amount: int = 0,
+    death_key: str | None = None,
+) -> tuple[int, bool]:
+    """Create one persistent corpse and its temporary loot-rights group.
+
+    death_key is an idempotency guard for shared/static kills. The caller can
+    safely retry corpse creation without duplicating the physical remains.
+    """
     ensure_corpse_storage(database)
     created = time() if created_at is None else float(created_at)
+    protected_until = created + max(0.0, float(protection_seconds))
     expires = created + max(1.0, float(ttl_seconds))
+    protected = {int(owner_character_id), *(int(value) for value in protected_character_ids)}
+
     with database.connect() as db:
+        db.execute("BEGIN IMMEDIATE")
         cursor = db.execute(
             """
-            INSERT INTO room_corpses (room_key, enemy_key, enemy_name, created_at, expires_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT OR IGNORE INTO world_containers (
+                room_key, kind, name, source_key, source_name, owner_character_id,
+                created_at_epoch, protection_expires_at_epoch, decay_at_epoch,
+                currency_amount, death_key
+            ) VALUES (?, 'corpse', ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (room_key, enemy_key, enemy_name, created, expires),
+            (
+                room_key,
+                f"corpse of {enemy_name}",
+                enemy_key,
+                enemy_name,
+                int(owner_character_id),
+                created,
+                protected_until,
+                expires,
+                max(0, int(currency_amount)),
+                death_key,
+            ),
         )
-        return int(cursor.lastrowid)
+        was_created = bool(cursor.rowcount)
+        if was_created:
+            corpse_id = int(cursor.lastrowid)
+            for character_id in protected:
+                db.execute(
+                    """
+                    INSERT OR IGNORE INTO world_container_access (container_id, character_id)
+                    VALUES (?, ?)
+                    """,
+                    (corpse_id, character_id),
+                )
+        else:
+            if not death_key:
+                raise RuntimeError("Corpse creation failed without an idempotency key.")
+            row = db.execute(
+                "SELECT id FROM world_containers WHERE death_key = ?",
+                (death_key,),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("Corpse creation failed and no existing corpse could be recovered.")
+            corpse_id = int(row["id"])
+    return corpse_id, was_created
 
 
 def add_corpse_item(
@@ -176,120 +231,130 @@ def add_corpse_item(
 ) -> None:
     if quantity <= 0:
         return
-    ensure_corpse_storage(database)
-    with database.connect() as db:
-        db.execute(
-            """
-            INSERT INTO corpse_items (corpse_id, item_key, quantity, reserved_character_id)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(corpse_id, item_key, reserved_character_id) DO UPDATE SET
-                quantity = quantity + excluded.quantity
-            """,
-            (corpse_id, item_key, int(quantity), int(reserved_character_id)),
-        )
+    add_to_location(
+        database,
+        ItemLocation.container(corpse_id, int(reserved_character_id)),
+        item_key,
+        int(quantity),
+    )
 
 
-def list_corpses(database, room_key: str) -> list[CorpseRecord]:
-    _prune_expired_corpses(database)
+def list_corpses(
+    database,
+    room_key: str,
+    *,
+    now: float | None = None,
+) -> list[CorpseRecord]:
+    current = time() if now is None else float(now)
+    _prune_expired_corpses(database, now=current)
     with database.connect() as db:
         rows = db.execute(
             """
-            SELECT id, room_key, enemy_key, enemy_name, created_at, expires_at
-            FROM room_corpses
-            WHERE room_key = ?
-            ORDER BY created_at DESC, id DESC
+            SELECT id, room_key, source_key, source_name, owner_character_id,
+                   created_at_epoch, protection_expires_at_epoch, decay_at_epoch,
+                   currency_amount
+            FROM world_containers
+            WHERE room_key = ? AND kind = 'corpse' AND decay_at_epoch > ?
+            ORDER BY created_at_epoch DESC, id DESC
             """,
-            (room_key,),
+            (room_key, current),
         ).fetchall()
-    return [
-        CorpseRecord(
-            id=int(row["id"]),
-            room_key=str(row["room_key"]),
-            enemy_key=str(row["enemy_key"]),
-            enemy_name=str(row["enemy_name"]),
-            created_at=float(row["created_at"]),
-            expires_at=float(row["expires_at"]),
-        )
-        for row in rows
-    ]
+    return [_row_to_corpse(row) for row in rows]
 
 
 def list_corpse_items(database, corpse_id: int) -> list[CorpseItem]:
-    ensure_corpse_storage(database)
-    with database.connect() as db:
-        rows = db.execute(
-            """
-            SELECT item_key, quantity, reserved_character_id
-            FROM corpse_items
-            WHERE corpse_id = ? AND quantity > 0
-            ORDER BY item_key, reserved_character_id
-            """,
-            (int(corpse_id),),
-        ).fetchall()
     return [
         CorpseItem(
             item_key=str(row["item_key"]),
             quantity=int(row["quantity"]),
             reserved_character_id=int(row["reserved_character_id"]),
         )
-        for row in rows
+        for row in list_container_item_rows(database, int(corpse_id))
     ]
 
 
-def _delete_corpse_if_empty(db, corpse_id: int) -> None:
-    row = db.execute(
-        "SELECT 1 FROM corpse_items WHERE corpse_id = ? AND quantity > 0 LIMIT 1",
-        (int(corpse_id),),
-    ).fetchone()
-    if row is None:
-        db.execute("DELETE FROM room_corpses WHERE id = ?", (int(corpse_id),))
+def _protected_access(database, corpse_id: int, character_id: int) -> bool:
+    ensure_corpse_storage(database)
+    with database.connect() as db:
+        row = db.execute(
+            """
+            SELECT 1 FROM world_container_access
+            WHERE container_id = ? AND character_id = ?
+            """,
+            (int(corpse_id), int(character_id)),
+        ).fetchone()
+    return row is not None
+
+
+def corpse_access_allowed(
+    database,
+    corpse: CorpseRecord,
+    character_id: int,
+    *,
+    now: float | None = None,
+) -> bool:
+    current = time() if now is None else float(now)
+    if current >= corpse.protection_expires_at:
+        return True
+    return _protected_access(database, corpse.id, character_id)
+
+
+def _eligible_item_rows(
+    database,
+    corpse: CorpseRecord,
+    character_id: int,
+    *,
+    now: float | None = None,
+) -> list[CorpseItem]:
+    current = time() if now is None else float(now)
+    rows = list_corpse_items(database, corpse.id)
+    if current >= corpse.protection_expires_at:
+        return rows
+    return [
+        row
+        for row in rows
+        if row.reserved_character_id in {0, int(character_id)}
+    ]
+
+
+def _can_receive(session, item_key: str, quantity: int) -> bool:
+    checker = getattr(session, "can_receive_item", None)
+    if not callable(checker):
+        return True
+    try:
+        return bool(checker(item_key, quantity))
+    except TypeError:
+        return bool(checker(item_key))
 
 
 def transfer_all_corpse_loot_to_inventory(
     database,
     character_id: int,
     corpse_id: int,
-) -> list[CorpseItem]:
-    """Atomically move every item reserved for this character into inventory."""
-    ensure_corpse_storage(database)
+    *,
+    public: bool = False,
+    can_receive=None,
+) -> tuple[list[CorpseItem], list[CorpseItem]]:
+    """Move all eligible corpse stacks, leaving capacity-blocked stacks behind."""
+    rows = list_corpse_items(database, corpse_id)
+    eligible = rows if public else [
+        row for row in rows if row.reserved_character_id in {0, int(character_id)}
+    ]
     moved: list[CorpseItem] = []
-    with database.connect() as db:
-        db.execute("BEGIN IMMEDIATE")
-        rows = db.execute(
-            """
-            SELECT item_key, quantity, reserved_character_id
-            FROM corpse_items
-            WHERE corpse_id = ? AND reserved_character_id = ? AND quantity > 0
-            ORDER BY item_key
-            """,
-            (int(corpse_id), int(character_id)),
-        ).fetchall()
-        for row in rows:
-            item_key = str(row["item_key"])
-            quantity = int(row["quantity"])
-            db.execute(
-                """
-                INSERT INTO character_items (character_id, item_key, quantity)
-                VALUES (?, ?, ?)
-                ON CONFLICT(character_id, item_key) DO UPDATE SET
-                    quantity = quantity + excluded.quantity
-                """,
-                (int(character_id), item_key, quantity),
-            )
-            moved.append(
-                CorpseItem(
-                    item_key=item_key,
-                    quantity=quantity,
-                    reserved_character_id=int(character_id),
-                )
-            )
-        if rows:
-            db.execute(
-                "DELETE FROM corpse_items WHERE corpse_id = ? AND reserved_character_id = ?",
-                (int(corpse_id), int(character_id)),
-            )
-        _delete_corpse_if_empty(db, corpse_id)
-    return moved
+    blocked: list[CorpseItem] = []
+    for row in eligible:
+        if can_receive is not None and not bool(can_receive(row.item_key, row.quantity)):
+            blocked.append(row)
+            continue
+        if transfer_item(
+            database,
+            ItemLocation.container(corpse_id, row.reserved_character_id),
+            ItemLocation.character(character_id),
+            row.item_key,
+            row.quantity,
+        ):
+            moved.append(row)
+    return moved, blocked
 
 
 def transfer_corpse_item_to_inventory(
@@ -298,54 +363,36 @@ def transfer_corpse_item_to_inventory(
     corpse_id: int,
     item_key: str,
     quantity: int = 1,
+    *,
+    public: bool = False,
 ) -> bool:
-    """Atomically move one reserved corpse stack, or part of it, into inventory."""
+    """Move a requested quantity across one or more eligible reservation buckets."""
     if quantity <= 0:
         raise ValueError("Loot quantity must be positive.")
-    ensure_corpse_storage(database)
-    with database.connect() as db:
-        db.execute("BEGIN IMMEDIATE")
-        row = db.execute(
-            """
-            SELECT quantity
-            FROM corpse_items
-            WHERE corpse_id = ? AND item_key = ? AND reserved_character_id = ?
-            """,
-            (int(corpse_id), item_key, int(character_id)),
-        ).fetchone()
-        if row is None or int(row["quantity"]) < quantity:
+    rows = [
+        row
+        for row in list_corpse_items(database, corpse_id)
+        if row.item_key == item_key
+        and (public or row.reserved_character_id in {0, int(character_id)})
+    ]
+    if sum(row.quantity for row in rows) < quantity:
+        return False
+
+    remaining = quantity
+    for row in rows:
+        take = min(remaining, row.quantity)
+        if take <= 0:
+            break
+        if not transfer_item(
+            database,
+            ItemLocation.container(corpse_id, row.reserved_character_id),
+            ItemLocation.character(character_id),
+            item_key,
+            take,
+        ):
             return False
-
-        remaining = int(row["quantity"]) - quantity
-        if remaining:
-            db.execute(
-                """
-                UPDATE corpse_items
-                SET quantity = ?
-                WHERE corpse_id = ? AND item_key = ? AND reserved_character_id = ?
-                """,
-                (remaining, int(corpse_id), item_key, int(character_id)),
-            )
-        else:
-            db.execute(
-                """
-                DELETE FROM corpse_items
-                WHERE corpse_id = ? AND item_key = ? AND reserved_character_id = ?
-                """,
-                (int(corpse_id), item_key, int(character_id)),
-            )
-
-        db.execute(
-            """
-            INSERT INTO character_items (character_id, item_key, quantity)
-            VALUES (?, ?, ?)
-            ON CONFLICT(character_id, item_key) DO UPDATE SET
-                quantity = quantity + excluded.quantity
-            """,
-            (int(character_id), item_key, int(quantity)),
-        )
-        _delete_corpse_if_empty(db, corpse_id)
-    return True
+        remaining -= take
+    return remaining == 0
 
 
 def _normalize(text: str) -> str:
@@ -367,6 +414,8 @@ def _item_aliases(item_key: str) -> tuple[str, ...]:
 
 def _corpse_target_text(target: str) -> str:
     value = _normalize(target)
+    if value.startswith("the "):
+        value = value[4:]
     if value.startswith("corpse of "):
         value = value[len("corpse of "):]
     elif value.startswith("body of "):
@@ -384,18 +433,23 @@ def _resolve_corpse(database, room_key: str, target: str) -> CorpseRecord | None
     corpses = list_corpses(database, room_key)
     if not corpses:
         return None
+
     wanted = _normalize(target)
-    if wanted in {"", "corpse", "body", "remains", "the corpse", "the body", "the remains"}:
+    if wanted.startswith("the "):
+        wanted = wanted[4:]
+    if wanted in {"", "corpse", "body", "remains"}:
         return corpses[0]
+
+    parts = wanted.split()
+    if len(parts) == 2 and parts[0] in {"corpse", "body", "remains"} and parts[1].isdigit():
+        index = int(parts[1]) - 1
+        return corpses[index] if 0 <= index < len(corpses) else None
 
     wanted_enemy = _corpse_target_text(wanted)
     exact: list[CorpseRecord] = []
     partial: list[CorpseRecord] = []
     for corpse in corpses:
-        aliases = {
-            _normalize(corpse.enemy_key),
-            _normalize(corpse.enemy_name),
-        }
+        aliases = {_normalize(corpse.enemy_key), _normalize(corpse.enemy_name)}
         if wanted_enemy in aliases:
             exact.append(corpse)
         elif any(wanted_enemy and wanted_enemy in alias for alias in aliases):
@@ -439,28 +493,10 @@ def _parse_quantity_item(text: str) -> tuple[int | None, str]:
 
 
 def loot_table_for_enemy(enemy) -> tuple[LootTableEntry, ...]:
-    """Return the live data-driven table for an enemy.
-
-    Explicit NPC_LOOT_TABLES entries are authoritative. Otherwise the legacy
-    common-drop and secondary-drop registries are adapted into one table so the
-    whole production game receives corpse rolls without rewriting old content.
-    """
     definition = getattr(enemy, "definition", None)
     enemy_key = str(getattr(definition, "key", ""))
     if enemy_key in NPC_LOOT_TABLES:
         return NPC_LOOT_TABLES[enemy_key]
-
-    authored = getattr(definition, "loot_table", None)
-    if authored:
-        result: list[LootTableEntry] = []
-        for entry in authored:
-            if isinstance(entry, LootTableEntry):
-                result.append(entry)
-                continue
-            if isinstance(entry, dict):
-                result.append(LootTableEntry(**entry))
-        if result:
-            return tuple(result)
 
     combined: list[LootTableEntry] = []
     for drop in economy._loot_for(enemy):
@@ -485,7 +521,7 @@ def loot_table_for_enemy(enemy) -> tuple[LootTableEntry, ...]:
 
 
 def roll_loot_table(enemy) -> tuple[tuple[str, int], ...]:
-    """Roll every table entry independently and return the successful drops."""
+    """Roll each configured item independently at kill time."""
     rolled: list[tuple[str, int]] = []
     for entry in loot_table_for_enemy(enemy):
         if entry.chance <= 0.0:
@@ -496,6 +532,29 @@ def roll_loot_table(enemy) -> tuple[tuple[str, int], ...]:
         if quantity > 0:
             rolled.append((entry.item_key, quantity))
     return tuple(rolled)
+
+
+def corpse_ttl_seconds_for(enemy) -> float:
+    definition = getattr(enemy, "definition", None)
+    key = str(getattr(definition, "key", ""))
+    if key in CORPSE_TTL_OVERRIDES:
+        return CORPSE_TTL_OVERRIDES[key]
+
+    xp = int(getattr(definition, "xp_reward", 0) or 0)
+    named_tokens = (
+        "boss",
+        "captain",
+        "commander",
+        "marshal",
+        "warden",
+        "king",
+        "queen",
+        "saint",
+        "governor",
+    )
+    if xp >= 100 or any(token in key.lower() for token in named_tokens):
+        return NAMED_CORPSE_TTL_SECONDS
+    return REGULAR_CORPSE_TTL_SECONDS
 
 
 def _corpse_runtime_enabled(session) -> bool:
@@ -511,6 +570,22 @@ def _recipient_for_drop(session, enemy, item_key: str):
     except Exception:
         pass
     return session
+
+
+def _protected_character_ids(session, enemy) -> set[int]:
+    character = getattr(session, "character", None)
+    result = {int(character.id)} if character is not None else set()
+    try:
+        from mud.party_system import _encounter_for, _encounter_sessions
+
+        if _encounter_for(enemy) is not None:
+            for member in _encounter_sessions(session, enemy):
+                member_character = getattr(member, "character", None)
+                if member_character is not None:
+                    result.add(int(member_character.id))
+    except Exception:
+        pass
+    return result
 
 
 async def _award_corpse_loot(session, enemy) -> None:
@@ -535,11 +610,13 @@ async def _award_corpse_loot(session, enemy) -> None:
             recipient_character = getattr(session, "character", None)
         if recipient_character is None:
             continue
+        recipient_id = int(recipient_character.id)
+        context.protected_character_ids.add(recipient_id)
         context.drops.append(
             _PendingDrop(
                 item_key=item_key,
                 quantity=quantity,
-                reserved_character_id=int(recipient_character.id),
+                reserved_character_id=recipient_id,
                 recipient_session=recipient,
             )
         )
@@ -551,8 +628,7 @@ async def _suppress_legacy_secondary_award(session, enemy) -> None:
         if _ORIGINAL_SECONDARY_AWARD is not None:
             await _ORIGINAL_SECONDARY_AWARD(session, enemy)
         return
-    # Secondary entries were folded into roll_loot_table and rolled exactly once
-    # by _award_corpse_loot. This hook intentionally prevents a second roll.
+    # Secondary entries are already folded into roll_loot_table and must not roll twice.
     return
 
 
@@ -576,7 +652,7 @@ def _mark_static_enemy_defeated_proxy(database, room_key, enemy_key, respawn_sec
 
 
 def _install_loot_hooks() -> None:
-    """Redirect the established economy hooks into one corpse roll."""
+    """Redirect the existing economy award points into one corpse roll."""
     global _LOOT_HOOKS_CAPTURED
     global _ORIGINAL_BASE_AWARD, _ORIGINAL_SECONDARY_AWARD, _ORIGINAL_MARK_STATIC_DEFEATED
 
@@ -586,9 +662,6 @@ def _install_loot_hooks() -> None:
         _ORIGINAL_MARK_STATIC_DEFEATED = enemy_lifecycle.mark_static_enemy_defeated
         _LOOT_HOOKS_CAPTURED = True
 
-    # Reassert these assignments on every runtime install. Focused tests may
-    # install party hooks in a different order; production installs this system
-    # at the final policy edge so corpse behavior remains authoritative.
     economy._award_loot = _award_corpse_loot
     economy_balance._award_secondary_loot = _suppress_legacy_secondary_award
     enemy_lifecycle.mark_static_enemy_defeated = _mark_static_enemy_defeated_proxy
@@ -615,26 +688,32 @@ def _install_help_catalog() -> None:
             CommandEntry(
                 "combat",
                 "LOOT CORPSE / LOOT <enemy>",
-                "Take every drop assigned to you from the newest matching defeated enemy corpse.",
+                "Take every corpse drop currently assigned or available to you.",
                 ("corpse", "drops", "remains"),
             ),
             CommandEntry(
                 "combat",
                 "GET / TAKE ALL FROM <corpse or enemy>",
-                "Loot all drops assigned to you from a defeated enemy.",
+                "Take all available loot from a defeated enemy corpse.",
                 ("corpse", "loot", "drops"),
             ),
             CommandEntry(
                 "combat",
                 "GET / TAKE <item> FROM <corpse or enemy>",
-                "Take one particular drop, optionally with a quantity, from a corpse.",
+                "Take a particular corpse drop, optionally with a quantity.",
                 ("corpse", "loot", "item"),
             ),
             CommandEntry(
                 "combat",
                 "LOOK / EXAMINE CORPSE",
-                "Inspect a corpse and see which drops are assigned to you.",
+                "Inspect a corpse, its drops, protection state, and remaining loot.",
                 ("corpse", "body", "remains"),
+            ),
+            CommandEntry(
+                "combat",
+                "CORPSES",
+                "List persistent defeated-enemy remains in the current room.",
+                ("bodies", "remains"),
             ),
         )
         existing = {entry.syntax.casefold() for entry in command_guide.COMMANDS}
@@ -643,29 +722,52 @@ def _install_help_catalog() -> None:
             command_guide.COMMANDS = command_guide.COMMANDS + new_entries
         command_guide.CATEGORIES = tuple(dict.fromkeys(entry.category for entry in command_guide.COMMANDS))
     except Exception:
-        # Help catalog integration should never prevent the game from booting.
         return
 
 
-def _pending_for_character(context: _DefeatLootContext, character_id: int) -> list[_PendingDrop]:
-    return [drop for drop in context.drops if drop.reserved_character_id == int(character_id)]
-
-
-async def _commit_defeat_corpse(session, context: _DefeatLootContext) -> int | None:
-    character = getattr(session, "character", None)
-    if character is None:
+def _static_death_key(database, room_key: str, enemy_key: str) -> str | None:
+    try:
+        with database.connect() as db:
+            row = db.execute(
+                """
+                SELECT defeated_at FROM room_enemy_respawns
+                WHERE room_key = ? AND enemy_key = ?
+                """,
+                (room_key, enemy_key),
+            ).fetchone()
+        if row is None:
+            return None
+        return f"static:{room_key}:{enemy_key}:{float(row['defeated_at']):.6f}"
+    except Exception:
         return None
+
+
+async def _commit_defeat_corpse(session, enemy, context: _DefeatLootContext) -> int | None:
     if context.lifecycle_claimed is False:
-        # Another session won the shared static-spawn claim. Its kill owns the one
-        # corpse and one set of drops; discard this staged roll completely.
+        # Another session already claimed this shared static spawn. That kill owns
+        # the one corpse and one set of rewards.
         return None
 
-    corpse_id = create_corpse(
+    death_key = _static_death_key(session.database, context.room_key, context.enemy_key)
+    if death_key is None and context.mobile_npc_key:
+        death_key = f"mobile:{context.room_key}:{context.mobile_npc_key}:{context.enemy_object_id}"
+    if death_key is None:
+        death_key = f"encounter:{context.room_key}:{context.enemy_key}:{context.enemy_object_id}"
+
+    corpse_id, created = create_corpse(
         session.database,
         context.room_key,
         context.enemy_key,
         context.enemy_name,
+        owner_character_id=context.owner_character_id,
+        protected_character_ids=context.protected_character_ids,
+        ttl_seconds=corpse_ttl_seconds_for(enemy),
+        protection_seconds=CORPSE_PROTECTION_SECONDS,
+        death_key=death_key,
     )
+    if not created:
+        return corpse_id
+
     for drop in context.drops:
         add_corpse_item(
             session.database,
@@ -731,23 +833,76 @@ async def inspect_corpse_command(session, target: str = "corpse") -> None:
         return
 
     items = list_corpse_items(session.database, corpse.id)
-    mine = [item for item in items if item.reserved_character_id == int(character.id)]
-    others = [item for item in items if item.reserved_character_id != int(character.id)]
+    current = time()
+    public = current >= corpse.protection_expires_at
+    allowed = corpse_access_allowed(session.database, corpse, int(character.id), now=current)
+    mine = [item for item in items if item.reserved_character_id in {0, int(character.id)}]
+    others = [item for item in items if item.reserved_character_id not in {0, int(character.id)}]
+
     await session.send(f"\r\n--- Corpse of {corpse.enemy_name} ---\r\n")
-    if not items:
+    if not items and corpse.currency_amount <= 0:
         await session.send("It holds nothing useful.\r\n")
-        return
-    if mine:
-        await session.send("Your loot:\r\n")
-        for item in mine:
-            await session.send(f"  {item.quantity}x {_item_name(item.item_key)}\r\n")
     else:
-        await session.send("No drops on this corpse are assigned to you.\r\n")
-    if others:
+        await session.send("Contents:\r\n")
+        grouped: dict[str, int] = {}
+        for item in items:
+            grouped[item.item_key] = grouped.get(item.item_key, 0) + item.quantity
+        for item_key, quantity in grouped.items():
+            await session.send(f"  {quantity}x {_item_name(item_key)}\r\n")
+        if corpse.currency_amount:
+            await session.send(
+                f"  {corpse.currency_amount} coin{'s' if corpse.currency_amount != 1 else ''}\r\n"
+            )
+
+    if public:
+        await session.send("Loot rights: public. Anything remaining can be taken.\r\n")
+    elif not allowed:
+        seconds = max(1, int(corpse.protection_expires_at - current))
         await session.send(
-            f"Other party loot: {sum(item.quantity for item in others)} item"
-            f"{'s' if sum(item.quantity for item in others) != 1 else ''} reserved for other members.\r\n"
+            f"Loot rights: protected for the killer/party for about {seconds} more seconds.\r\n"
         )
+    else:
+        seconds = max(1, int(corpse.protection_expires_at - current))
+        own_count = sum(item.quantity for item in mine)
+        other_count = sum(item.quantity for item in others)
+        await session.send(
+            f"Loot rights: protected for your kill group for about {seconds} more seconds. "
+            f"Your assigned drops: {own_count}."
+            + (f" Other party drops: {other_count}." if other_count else "")
+            + "\r\n"
+        )
+
+
+def _loot_currency(session, corpse: CorpseRecord, *, public: bool) -> int:
+    character = getattr(session, "character", None)
+    if character is None or corpse.currency_amount <= 0:
+        return 0
+    if not public and corpse.owner_character_id != int(character.id):
+        return 0
+
+    ensure_corpse_storage(session.database)
+    with session.database.connect() as db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute(
+            "SELECT currency_amount FROM world_containers WHERE id = ?",
+            (corpse.id,),
+        ).fetchone()
+        amount = 0 if row is None else int(row["currency_amount"])
+        if amount <= 0:
+            return 0
+        db.execute(
+            "UPDATE world_containers SET currency_amount = 0 WHERE id = ?",
+            (corpse.id,),
+        )
+        db.execute(
+            """
+            INSERT INTO character_currency (character_id, currency_key, amount)
+            VALUES (?, 'coin', ?)
+            ON CONFLICT(character_id, currency_key) DO UPDATE SET amount = amount + excluded.amount
+            """,
+            (int(character.id), amount),
+        )
+    return amount
 
 
 async def loot_all_command(session, target: str = "corpse") -> None:
@@ -763,26 +918,46 @@ async def loot_all_command(session, target: str = "corpse") -> None:
         await session.send("There is no matching corpse here.\r\n")
         return
 
-    before = list_corpse_items(session.database, corpse.id)
-    moved = transfer_all_corpse_loot_to_inventory(
+    current = time()
+    public = current >= corpse.protection_expires_at
+    if not corpse_access_allowed(session.database, corpse, int(character.id), now=current):
+        seconds = max(1, int(corpse.protection_expires_at - current))
+        await session.send(
+            f"That corpse is protected for the killer/party for about {seconds} more seconds.\r\n"
+        )
+        return
+
+    moved, blocked = transfer_all_corpse_loot_to_inventory(
         session.database,
         int(character.id),
         corpse.id,
+        public=public,
+        can_receive=lambda item_key, quantity: _can_receive(session, item_key, quantity),
     )
-    if moved:
-        names = ", ".join(f"{item.quantity}x {_item_name(item.item_key)}" for item in moved)
-        await session.send(f"You loot {names} from the corpse of {corpse.enemy_name}.\r\n")
-        return
+    coins = _loot_currency(session, corpse, public=public)
 
-    if not before:
-        # Searching an empty corpse consumes it so empty remains do not clutter a
-        # busy hunting room for the full expiration window.
-        with session.database.connect() as db:
-            db.execute("DELETE FROM room_corpses WHERE id = ?", (corpse.id,))
-        await session.send(f"You search the corpse of {corpse.enemy_name}, but find nothing useful.\r\n")
-        return
+    names = [f"{item.quantity}x {_item_name(item.item_key)}" for item in moved]
+    if coins:
+        names.append(f"{coins} coin{'s' if coins != 1 else ''}")
+    if names:
+        await session.send(
+            f"You loot {', '.join(names)} from the corpse of {corpse.enemy_name}.\r\n"
+        )
+    elif blocked:
+        await session.send("You cannot carry any more of the available corpse loot right now.\r\n")
+    else:
+        all_items = list_corpse_items(session.database, corpse.id)
+        if all_items and not public:
+            await session.send("Nothing currently assigned to you remains on that corpse.\r\n")
+        else:
+            await session.send(f"You search the corpse of {corpse.enemy_name}, but find nothing useful.\r\n")
 
-    await session.send("Nothing on that corpse is assigned to you.\r\n")
+    if blocked:
+        await session.send(
+            "Left on the corpse: "
+            + ", ".join(f"{item.quantity}x {_item_name(item.item_key)}" for item in blocked)
+            + ".\r\n"
+        )
 
 
 async def loot_item_command(
@@ -802,28 +977,45 @@ async def loot_item_command(
         await session.send("There is no matching corpse here.\r\n")
         return
 
+    current = time()
+    public = current >= corpse.protection_expires_at
+    if not corpse_access_allowed(session.database, corpse, int(character.id), now=current):
+        seconds = max(1, int(corpse.protection_expires_at - current))
+        await session.send(
+            f"That corpse is protected for the killer/party for about {seconds} more seconds.\r\n"
+        )
+        return
+
     quantity, target = _parse_quantity_item(item_text)
     if quantity is None or not target:
         await session.send("Loot what? Use LOOT <item> FROM <corpse or enemy>.\r\n")
         return
 
-    all_items = list_corpse_items(session.database, corpse.id)
-    mine = [item for item in all_items if item.reserved_character_id == int(character.id)]
-    item_key, ambiguous = _resolve_corpse_item(mine, target)
+    eligible = _eligible_item_rows(
+        session.database,
+        corpse,
+        int(character.id),
+        now=current,
+    )
+    item_key, ambiguous = _resolve_corpse_item(eligible, target)
     if ambiguous:
         await session.send("Be more specific: " + ", ".join(ambiguous) + ".\r\n")
         return
     if item_key is None:
-        other_key, _other_ambiguous = _resolve_corpse_item(all_items, target)
-        if other_key is not None:
-            await session.send("That drop is reserved for another party member.\r\n")
+        all_items = list_corpse_items(session.database, corpse.id)
+        other_key, _ = _resolve_corpse_item(all_items, target)
+        if other_key is not None and not public:
+            await session.send("That drop is still assigned to another party member.\r\n")
         else:
             await session.send("That item is not on the corpse.\r\n")
         return
 
-    available = sum(item.quantity for item in mine if item.item_key == item_key)
+    available = sum(item.quantity for item in eligible if item.item_key == item_key)
     if available < quantity:
-        await session.send(f"Only {available}x {_item_name(item_key)} is assigned to you here.\r\n")
+        await session.send(f"Only {available}x {_item_name(item_key)} is available to you here.\r\n")
+        return
+    if not _can_receive(session, item_key, quantity):
+        await session.send("You cannot carry that item right now; it remains on the corpse.\r\n")
         return
 
     if not transfer_corpse_item_to_inventory(
@@ -832,6 +1024,7 @@ async def loot_item_command(
         corpse.id,
         item_key,
         quantity,
+        public=public,
     ):
         await session.send("You cannot take that drop right now.\r\n")
         return
@@ -859,6 +1052,19 @@ async def _handle_corpse_command(session, command: str) -> bool:
     normalized = _normalize(command)
     if not normalized:
         return False
+
+    if normalized in {"corpses", "bodies", "remains"}:
+        character = getattr(session, "character", None)
+        if character is None or not character.current_room:
+            return True
+        corpses = list_corpses(session.database, character.current_room)
+        if not corpses:
+            await session.send("There are no corpses here.\r\n")
+        else:
+            await session.send("\r\n--- Corpses ---\r\n")
+            for index, corpse in enumerate(corpses, start=1):
+                await session.send(f"  {index}) Corpse of {corpse.enemy_name}\r\n")
+        return True
 
     for verb in ("look ", "examine ", "inspect "):
         if normalized.startswith(verb):
@@ -921,13 +1127,11 @@ async def _delegate_prompt(self, previous_playing_prompt, command: str) -> None:
 
 
 def install_corpse_loot_runtime(player_session_class) -> None:
-    """Install persistent classic-MUD corpses, percentage drops, and loot verbs."""
+    """Install persistent corpses, percentage drops, loot rights, and loot verbs."""
     _install_loot_hooks()
     _install_help_catalog()
 
     if getattr(player_session_class, "_corpse_loot_runtime_installed", False):
-        # Hooks are global function references and may have been replaced by a
-        # focused test installer since this class was first configured.
         return
 
     previous_finish_enemy = getattr(player_session_class, "_finish_enemy_defeat", None)
@@ -940,7 +1144,7 @@ def install_corpse_loot_runtime(player_session_class) -> None:
             enemy_name = str(getattr(getattr(enemy, "definition", None), "name", enemy_key or "Enemy"))
 
             # Practice furniture is defeated mechanically but should not leave an
-            # organic corpse in the room.
+            # organic body on the floor.
             make_corpse = bool(
                 eligible
                 and character is not None
@@ -955,6 +1159,9 @@ def install_corpse_loot_runtime(player_session_class) -> None:
                     room_key=room_key,
                     enemy_key=enemy_key,
                     enemy_name=enemy_name,
+                    owner_character_id=int(character.id),
+                    protected_character_ids=_protected_character_ids(self, enemy),
+                    mobile_npc_key=getattr(self, "active_mobile_npc_key", None),
                 )
                 if make_corpse
                 else None
@@ -966,7 +1173,7 @@ def install_corpse_loot_runtime(player_session_class) -> None:
                 _DEFEAT_CONTEXT.reset(token)
 
             if context is not None:
-                await _commit_defeat_corpse(self, context)
+                await _commit_defeat_corpse(self, enemy, context)
 
         player_session_class._finish_enemy_defeat = _finish_enemy_defeat
 
