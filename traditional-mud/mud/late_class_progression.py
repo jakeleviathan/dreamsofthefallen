@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from time import monotonic
 
+import mud.ability_mastery as ability_mastery
 import mud.mechanics as mechanics
 
 
@@ -283,18 +284,23 @@ async def _pay(session, key: str) -> bool:
     if ready_at > now:
         await session.send(f"{definition.name} is not ready for another {ready_at - now:.1f}s.\r\n")
         return False
-    cost = definition.mana_cost or 0
+    cost = ability_mastery.effective_mana_cost(session, definition)
     if not session.combatant.spend_mana(cost):
         await session.send(f"You need {cost} mana for {definition.name}.\r\n")
         return False
     _cooldowns(session)[key] = now + (definition.cooldown_seconds or 0.0)
+    ability_mastery.begin_use(session, definition)
     return True
 
 
 def _heal(session, amount: int) -> int:
+    ability = ability_mastery.pending_ability(session)
+    amount = ability_mastery.scale_power(session, ability, amount)
     before = session.combatant.current_hp
     session.combatant.current_hp = min(session.combatant.max_hp, before + max(0, amount))
-    return session.combatant.current_hp - before
+    restored = session.combatant.current_hp - before
+    ability_mastery.mark_healing_practice(session, restored)
+    return restored
 
 
 def _ward(session, seconds: float) -> None:
@@ -306,8 +312,10 @@ async def _damage(session, amount: int, text: str) -> bool:
     if enemy is None:
         await session.send("You need an active enemy for that ability.\r\n")
         return False
-    amount = max(1, int(amount))
+    ability = ability_mastery.pending_ability(session)
+    amount = max(1, ability_mastery.scale_power(session, ability, amount))
     enemy.current_hp = max(0, enemy.current_hp - amount)
+    ability_mastery.mark_damage_practice(session, amount, enemy)
     await session.send(f"{text} ({amount} damage)\r\n")
     if enemy.current_hp <= 0:
         await session._finish_enemy_defeat(enemy)
@@ -558,6 +566,7 @@ def install_late_class_progression_runtime(player_session_class) -> None:
         normalized = " ".join(command.strip().lower().split())
         key = ALIASES.get(normalized)
         if key is not None and await _use_late(self, key):
+            await ability_mastery.commit_use(self)
             return
         if normalized in {"late abilities", "abilities 31 40", "class 40"}:
             available = [
