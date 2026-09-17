@@ -11,8 +11,14 @@ class RoomPresentationTests(unittest.TestCase):
     def test_production_goblin_room_has_colored_scan_sections(self):
         root = Path(__file__).resolve().parents[1]
         code = r'''
-import server
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
+
+import server
+from mud.database import Database
+from mud.enemy_lifecycle import clear_static_enemy_respawn, mark_static_enemy_defeated
+from mud.goblin_swamp import GOBLIN_MUDGLASS_CROSSING_KEY, MIRE_TICK_SWARM
 from mud.room_presentation import (
     BUSINESS,
     ENEMY,
@@ -51,6 +57,44 @@ assert f"{EXIT}NORTH" in text, text
 assert "The Sorting Spine" in text, text
 assert text.index("The Clattergate") < text.index("[ Notable ]") < text.index("[ People ]") < text.index("[ Exits ]")
 assert server.PlayerSession._room_presentation_runtime_installed
+
+with tempfile.TemporaryDirectory() as temp:
+    database = Database(Path(temp) / "room-presentation.db")
+    respawn_session = SimpleNamespace(
+        character=SimpleNamespace(
+            id=99,
+            race="goblin",
+            character_class="priest",
+            level=1,
+            current_room=GOBLIN_MUDGLASS_CROSSING_KEY,
+        ),
+        database=database,
+        mobile_npcs=None,
+    )
+
+    before = "\r\n".join(render_room_lines(respawn_session, server.WORLD))
+    assert "Mire Tick Swarm" in before, before
+    assert "[ Danger ]" in before, before
+
+    mark_static_enemy_defeated(
+        database,
+        GOBLIN_MUDGLASS_CROSSING_KEY,
+        MIRE_TICK_SWARM.key,
+        120.0,
+    )
+    during = "\r\n".join(render_room_lines(respawn_session, server.WORLD))
+    assert "Mire Tick Swarm" not in during, during
+    assert "[ Danger ]" not in during, during
+
+    clear_static_enemy_respawn(
+        database,
+        GOBLIN_MUDGLASS_CROSSING_KEY,
+        MIRE_TICK_SWARM.key,
+    )
+    after = "\r\n".join(render_room_lines(respawn_session, server.WORLD))
+    assert "Mire Tick Swarm" in after, after
+    assert "[ Danger ]" in after, after
+
 print("ROOM_PRESENTATION_OK")
 '''
         result = subprocess.run(
