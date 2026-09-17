@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from mud.local_interactions import contextual_action_hints, hidden_feature_verbs, normalize_local_interaction
 from mud.style_collectibles import BOUTIQUE_ROOMS
 
 
@@ -26,6 +27,7 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("basics", "LISTEN [target]", "Listen where sound is an authored clue or mechanic."),
     CommandEntry("basics", "TOUCH <feature>", "Interact physically when a room explicitly presents a touchable feature."),
     CommandEntry("basics", "PULL <feature>", "Operate a named lever, rope, chain, brake, or resonator."),
+    CommandEntry("basics", "TURN <feature>", "Operate a named wheel, valve, handle, or similar room mechanism."),
     CommandEntry("basics", "CLIMB <feature>", "Use a telegraphed vertical route or inspection feature."),
     CommandEntry("basics", "READ <object>", "Read signs, notes, boards, and authored written objects where supported."),
     CommandEntry("basics", "HELP / ?", "Open the game's normal help output."),
@@ -244,8 +246,12 @@ async def _show_help_here(session, world_service) -> None:
     else:
         suggestions.append(("EXAMINE <feature>", "inspect something named in the room text"))
 
+    hidden_verbs = hidden_feature_verbs(room_key)
     for verb in _feature_command_hints(world_service, room_key):
+        if verb in hidden_verbs:
+            continue
         suggestions.append((f"{verb} <named feature>", "this room contains authored text that points at this interaction"))
+    suggestions.extend(contextual_action_hints(room_key))
 
     if room_key in BOUTIQUE_ROOMS:
         suggestions.extend((("BOUTIQUE", "browse fashion and fragrance"), ("WARDROBE", "review your current style")))
@@ -283,8 +289,10 @@ async def _show_help_here(session, world_service) -> None:
 async def _delegate(self, previous_prompt, command: str) -> None:
     had_prompt = "prompt" in self.__dict__
     old_prompt = self.__dict__.get("prompt")
+
     async def replay(_text: str):
         return command
+
     self.prompt = replay
     try:
         await previous_prompt(self)
@@ -314,6 +322,9 @@ def install_command_guide_runtime(player_session_class, world_service) -> None:
         if command is None:
             self.state = type(self.state).DISCONNECTED
             return
+
+        room_key = self.character.current_room or ""
+        command = normalize_local_interaction(room_key, command)
         stripped = command.strip()
         normalized = " ".join(stripped.lower().split())
 
