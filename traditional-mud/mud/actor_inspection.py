@@ -169,6 +169,11 @@ def install_actor_inspection_runtime(player_session_class, world_service) -> Non
     """Give every visible NPC/enemy conventional MUD inspection commands."""
 
     if getattr(player_session_class, "_actor_inspection_runtime_installed", False):
+        # CONSIDER is part of the same visible-actor UX. Keep it installed even
+        # when another production layer calls this idempotent installer again.
+        from mud.consider import install_consider_runtime
+
+        install_consider_runtime(player_session_class, world_service)
         return
 
     previous_playing_prompt = player_session_class.playing_prompt
@@ -204,3 +209,9 @@ def install_actor_inspection_runtime(player_session_class, world_service) -> Non
 
     player_session_class.playing_prompt = playing_prompt
     player_session_class._actor_inspection_runtime_installed = True
+
+    # Import lazily to avoid an actor_inspection <-> consider import cycle at
+    # module load time. CONSIDER wraps inspection and remains entirely non-aggro.
+    from mud.consider import install_consider_runtime
+
+    install_consider_runtime(player_session_class, world_service)
