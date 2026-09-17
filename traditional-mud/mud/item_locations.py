@@ -42,8 +42,9 @@ CREATE TABLE IF NOT EXISTS world_container_access (
 CREATE TABLE IF NOT EXISTS world_container_items (
     container_id INTEGER NOT NULL,
     item_key TEXT NOT NULL,
+    reserved_character_id INTEGER NOT NULL DEFAULT 0,
     quantity INTEGER NOT NULL CHECK (quantity > 0),
-    PRIMARY KEY (container_id, item_key),
+    PRIMARY KEY (container_id, item_key, reserved_character_id),
     FOREIGN KEY (container_id) REFERENCES world_containers(id) ON DELETE CASCADE
 );
 
@@ -59,8 +60,16 @@ CREATE TABLE IF NOT EXISTS character_currency (
 
 @dataclass(frozen=True, slots=True)
 class ItemLocation:
+    """A physical item location.
+
+    Container locations may include a reservation bucket. Reservation 0 means
+    unassigned/public. A reservation of None is useful for aggregate reads but
+    transfers out of a container must name the exact bucket being moved.
+    """
+
     kind: str
     key: str
+    reservation: int | None = None
 
     @classmethod
     def character(cls, character_id: int) -> "ItemLocation":
@@ -71,8 +80,16 @@ class ItemLocation:
         return cls("room", str(room_key))
 
     @classmethod
-    def container(cls, container_id: int) -> "ItemLocation":
-        return cls("container", str(int(container_id)))
+    def container(
+        cls,
+        container_id: int,
+        reserved_character_id: int | None = None,
+    ) -> "ItemLocation":
+        return cls(
+            "container",
+            str(int(container_id)),
+            None if reserved_character_id is None else int(reserved_character_id),
+        )
 
 
 def ensure_item_location_storage(database) -> None:
@@ -90,13 +107,31 @@ def _storage(location: ItemLocation) -> tuple[str, str, object]:
     raise ValueError(f"Unsupported item location kind: {location.kind}")
 
 
-def list_location_items(database, location: ItemLocation) -> list[dict[str, int | str]]:
-    ensure_item_location_storage(database)
+def _where(location: ItemLocation) -> tuple[str, tuple[object, ...]]:
     table, owner_column, owner_value = _storage(location)
+    if location.kind == "container" and location.reservation is not None:
+        return (
+            f"{owner_column} = ? AND reserved_character_id = ?",
+            (owner_value, int(location.reservation)),
+        )
+    return f"{owner_column} = ?", (owner_value,)
+
+
+def list_location_items(database, location: ItemLocation) -> list[dict[str, int | str]]:
+    """List item totals at a location; wildcard containers aggregate reservations."""
+    ensure_item_location_storage(database)
+    table, _owner_column, _owner_value = _storage(location)
+    where, params = _where(location)
     with database.connect() as db:
         rows = db.execute(
-            f"SELECT item_key, quantity FROM {table} WHERE {owner_column} = ? AND quantity > 0 ORDER BY item_key",
-            (owner_value,),
+            f"""
+            SELECT item_key, SUM(quantity) AS quantity
+            FROM {table}
+            WHERE {where} AND quantity > 0
+            GROUP BY item_key
+            ORDER BY item_key
+            """,
+            params,
         ).fetchall()
     return [
         {"item_key": str(row["item_key"]), "quantity": int(row["quantity"])}
@@ -104,19 +139,67 @@ def list_location_items(database, location: ItemLocation) -> list[dict[str, int 
     ]
 
 
+def list_container_item_rows(database, container_id: int) -> list[dict[str, int | str]]:
+    """List exact container stacks, preserving temporary loot reservations."""
+    ensure_item_location_storage(database)
+    with database.connect() as db:
+        rows = db.execute(
+            """
+            SELECT item_key, quantity, reserved_character_id
+            FROM world_container_items
+            WHERE container_id = ? AND quantity > 0
+            ORDER BY item_key, reserved_character_id
+            """,
+            (int(container_id),),
+        ).fetchall()
+    return [
+        {
+            "item_key": str(row["item_key"]),
+            "quantity": int(row["quantity"]),
+            "reserved_character_id": int(row["reserved_character_id"]),
+        }
+        for row in rows
+    ]
+
+
 def location_item_quantity(database, location: ItemLocation, item_key: str) -> int:
     ensure_item_location_storage(database)
-    table, owner_column, owner_value = _storage(location)
+    table, _owner_column, _owner_value = _storage(location)
+    where, params = _where(location)
     with database.connect() as db:
         row = db.execute(
-            f"SELECT quantity FROM {table} WHERE {owner_column} = ? AND item_key = ?",
-            (owner_value, item_key),
+            f"SELECT SUM(quantity) AS quantity FROM {table} WHERE {where} AND item_key = ?",
+            (*params, item_key),
         ).fetchone()
-    return 0 if row is None else int(row["quantity"])
+    return 0 if row is None or row["quantity"] is None else int(row["quantity"])
 
 
 def _write_quantity(db, location: ItemLocation, item_key: str, quantity: int) -> None:
     table, owner_column, owner_value = _storage(location)
+
+    if location.kind == "container":
+        reservation = 0 if location.reservation is None else int(location.reservation)
+        if quantity <= 0:
+            db.execute(
+                """
+                DELETE FROM world_container_items
+                WHERE container_id = ? AND item_key = ? AND reserved_character_id = ?
+                """,
+                (owner_value, item_key, reservation),
+            )
+            return
+        db.execute(
+            """
+            INSERT INTO world_container_items (
+                container_id, item_key, reserved_character_id, quantity
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(container_id, item_key, reserved_character_id) DO UPDATE SET
+                quantity = excluded.quantity
+            """,
+            (owner_value, item_key, reservation, quantity),
+        )
+        return
+
     if quantity <= 0:
         db.execute(
             f"DELETE FROM {table} WHERE {owner_column} = ? AND item_key = ?",
@@ -153,13 +236,18 @@ def add_to_location(database, location: ItemLocation, item_key: str, quantity: i
     ensure_item_location_storage(database)
     with database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
-        table, owner_column, owner_value = _storage(location)
-        row = db.execute(
-            f"SELECT quantity FROM {table} WHERE {owner_column} = ? AND item_key = ?",
-            (owner_value, item_key),
-        ).fetchone()
-        current = 0 if row is None else int(row["quantity"])
+        current = location_item_quantity_in_connection(db, location, item_key)
         _write_quantity(db, location, item_key, current + quantity)
+
+
+def location_item_quantity_in_connection(db, location: ItemLocation, item_key: str) -> int:
+    table, _owner_column, _owner_value = _storage(location)
+    where, params = _where(location)
+    row = db.execute(
+        f"SELECT SUM(quantity) AS quantity FROM {table} WHERE {where} AND item_key = ?",
+        (*params, item_key),
+    ).fetchone()
+    return 0 if row is None or row["quantity"] is None else int(row["quantity"])
 
 
 def transfer_item(
@@ -172,26 +260,18 @@ def transfer_item(
     """Atomically move items between inventory, rooms, and persistent containers."""
     if quantity <= 0:
         raise ValueError("Transfer quantity must be positive.")
+    if source.kind == "container" and source.reservation is None:
+        raise ValueError("Container transfers require an exact reservation bucket.")
+
     ensure_item_location_storage(database)
     with database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
-        source_table, source_owner_column, source_owner_value = _storage(source)
-        row = db.execute(
-            f"SELECT quantity FROM {source_table} WHERE {source_owner_column} = ? AND item_key = ?",
-            (source_owner_value, item_key),
-        ).fetchone()
-        if row is None or int(row["quantity"]) < quantity:
+        available = location_item_quantity_in_connection(db, source, item_key)
+        if available < quantity:
             return False
 
-        remaining = int(row["quantity"]) - quantity
-        _write_quantity(db, source, item_key, remaining)
-
-        dest_table, dest_owner_column, dest_owner_value = _storage(destination)
-        dest = db.execute(
-            f"SELECT quantity FROM {dest_table} WHERE {dest_owner_column} = ? AND item_key = ?",
-            (dest_owner_value, item_key),
-        ).fetchone()
-        current = 0 if dest is None else int(dest["quantity"])
+        _write_quantity(db, source, item_key, available - quantity)
+        current = location_item_quantity_in_connection(db, destination, item_key)
         _write_quantity(db, destination, item_key, current + quantity)
     return True
 
