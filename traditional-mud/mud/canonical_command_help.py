@@ -18,6 +18,12 @@ _EXTRA_COMMANDS: tuple[CommandEntry, ...] = (
         ("actor", "npc", "enemy", "inspection"),
     ),
     CommandEntry(
+        "combat",
+        "CONSIDER / CON <target>",
+        "Judge a visible target's relative danger without starting combat or revealing hidden numeric stats.",
+        ("consider", "con", "enemy", "danger", "difficulty", "threat"),
+    ),
+    CommandEntry(
         "character",
         "MOVEMENT / MOVE POINTS / MOVEMENT POINTS / FATIGUE / ENDURANCE",
         "Show current movement points, fatigue band, and recovery guidance.",
@@ -66,6 +72,7 @@ async def _show_quick_help(session) -> None:
         "N / E / S / W / U / D",
         "MAP / MAP HERE / MAP 1..4",
         "LOOK AT / LOOK / EXAMINE / INSPECT <actor>",
+        "CONSIDER / CON <target>",
         "QUESTS",
         "INVENTORY / INV / I",
         "ITEM / INSPECT ITEM <item>",

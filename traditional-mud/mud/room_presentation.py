@@ -7,6 +7,7 @@ from mud.actor_inspection import install_actor_inspection_runtime
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
 from mud.combat import ENEMIES_BY_KEY
+from mud.consider import install_consider_runtime
 from mud.contextual_command_routing import install_contextual_command_routing_guard
 from mud.corpse_decay import corpse_decay_label
 from mud.corpse_loot import list_corpses
@@ -381,6 +382,7 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     install_inventory_inspection_runtime(player_session_class)
     install_perception_runtime(player_session_class, world_service)
     install_actor_inspection_runtime(player_session_class, world_service)
+    install_consider_runtime(player_session_class, world_service)
     install_exploration_map_runtime(player_session_class, world_service)
     install_exploration_map_gmcp_runtime(player_session_class, world_service)
     install_partial_target_matching_runtime(player_session_class, world_service)

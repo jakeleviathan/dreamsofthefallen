@@ -205,6 +205,15 @@ def _parse_target_command(command: str) -> tuple[str, str, str] | None:
             target = stripped[len(prefix):].strip()
             return prefix.strip(), target, "enemy"
 
+    # CONSIDER applies to both hostile creatures and peaceful people. Expanding
+    # unique actor abbreviations here lets traditional shorthand such as
+    # `con swamp` resolve to a visible `Swamp Troll` without guessing when two
+    # nearby names share that prefix.
+    for prefix, verb in (("consider ", "consider"), ("con ", "con")):
+        if normalized.startswith(prefix):
+            target = stripped[len(prefix):].strip()
+            return verb, target, "actor"
+
     # Inventory inspection uses every carried item, not only equipment. This is
     # what makes ITEM TOKEN resolve naturally to Stamped Earth Token.
     if normalized.startswith("inspect item "):
