@@ -105,7 +105,7 @@ with tempfile.TemporaryDirectory() as temp:
     during = "\r\n".join(render_room_lines(respawn_session, server.WORLD))
     assert "[ Danger ]" not in during, during
     assert f"{CORPSE}[ Corpses ]" in during, during
-    assert f"{CORPSE}Corpse of Mire Tick Swarm" in during, during
+    assert f"{CORPSE}Corpse of Mire Tick Swarm (fresh)" in during, during
     assert during.index("[ Corpses ]") < during.index("[ Exits ]"), during
 
     clear_static_enemy_respawn(
