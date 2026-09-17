@@ -3,10 +3,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import mud.living_world as living
-import mud.player_mail as post
-import mud.social_experience as social
 from mud.database import Database
+
+
+living = None
+post = None
+social = None
 
 
 class _Session:
@@ -26,6 +28,22 @@ class _Session:
 
 
 class PlayerMailTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Import the fully assembled production entrypoint first. Several older
+        # content modules intentionally mutate shared registries during production
+        # assembly, so importing living-world modules early would make unrelated
+        # legacy tests observe a half-assembled registry during collection.
+        global living, post, social
+        import server
+        import mud.living_world as living_module
+        import mud.player_mail as post_module
+        import mud.social_experience as social_module
+        living = living_module
+        post = post_module
+        social = social_module
+        cls.server = server
+
     def make_world(self):
         temp = tempfile.TemporaryDirectory()
         database = Database(Path(temp.name) / "mail.db")
