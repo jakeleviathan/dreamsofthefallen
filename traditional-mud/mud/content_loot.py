@@ -261,10 +261,7 @@ def _merge_entries(entries: tuple[LootTableEntry, ...]) -> tuple[LootTableEntry,
 def build_content_loot_table(definition) -> tuple[LootTableEntry, ...]:
     """Build one physical-corpse loot table while preserving authored drops."""
     key = str(getattr(definition, "key", ""))
-    if key == "training_dummy" or (
-        bool(getattr(definition, "tutorial", False))
-        and int(getattr(definition, "xp_reward", 0) or 0) <= 0
-    ):
+    if key == "training_dummy":
         return ()
 
     table = _merge_entries(_existing_entries(definition) + _profile_entries(definition))
