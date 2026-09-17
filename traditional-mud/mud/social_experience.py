@@ -178,7 +178,7 @@ async def _send_channels(session) -> None:
         "REPLY <message> - reply to the most recent private sender\r\n"
         "CHANNEL CHAT ON|OFF / CHANNEL OOC ON|OFF - mute or unmute channels\r\n"
         "FRIENDS / FRIEND <name> / UNFRIEND <name> - personal contact list\r\n"
-        "IGNORES / IGNORE <name> / UNIGNORE <name> - block player communication\r\n"
+        "IGNORES / IGNORE <name> / UNIGNORE <name> - block tells, channels, local speech, and player mail\r\n"
         "WHO - see characters currently connected\r\n"
     )
 
@@ -335,7 +335,7 @@ async def _ignore(session, target_name: str, remove: bool = False) -> None:
         )
     else:
         await session.send(
-            f"{target.name} is now ignored for SAY, CHAT, OOC, and private tells.\r\n"
+            f"{target.name} is now ignored for SAY, CHAT, OOC, private tells, and player mail.\r\n"
         )
 
 
