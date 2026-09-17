@@ -24,6 +24,7 @@ from mud.goblin_deep_mire import (
     GOBLIN_GREENHOUSE_ROOM_KEYS,
     GOBLIN_MUDGLASS_CROSSING_KEY,
     GOBLIN_SOURREED_TERRACE_KEY,
+    GOBLIN_SILTKNNIFE_BOARDWALK_KEY,
     GREENHOUSE_DRAINED_FLAG,
     GREENHOUSE_GLASSROOT_FLAG,
     GREENHOUSE_LOUVERS_FLAG,
@@ -214,6 +215,16 @@ class GoblinDeepMireTests(unittest.TestCase):
 
         summer = DeepMireGatheringService(calendar_provider=lambda: calendar_for_day(24))
         self.assertEqual(summer.nodes_in_room(GOBLIN_SOURREED_TERRACE_KEY), ())
+
+    def test_deep_mire_gathering_accepts_unique_partial_names(self):
+        session = FakeSession(GOBLIN_SILTKNNIFE_BOARDWALK_KEY)
+        session.database.skills[(501, "herbalism")] = 6
+
+        self.assertTrue(asyncio.run(_handle_deep_gathering(session, "gather silt")))
+        self.assertTrue(asyncio.run(_handle_deep_gathering(session, "herbalism siltk")))
+
+        self.assertEqual(session.database.item_quantity(501, BOGMINT_LEAF.key), 2)
+        self.assertFalse(any("do not identify" in text.lower() for text in session.outputs))
 
     def test_glasshouse_north_door_requires_drain_flag(self):
         service = self._service()
