@@ -471,10 +471,31 @@ class DeepMireNodeDefinition:
     spring_floodpick: bool = False
     required_flag: str | None = None
 
+    def search_names(self) -> frozenset[str]:
+        names = {
+            self.name.lower(),
+            self.key.replace("_", " ").lower(),
+            self.output_item_key.replace("_", " ").lower(),
+            *(alias.lower() for alias in self.aliases),
+        }
+        item = crafting.ITEMS_BY_KEY.get(self.output_item_key)
+        if item is not None:
+            names.add(item.name.lower())
+        return frozenset(" ".join(name.replace("_", " ").split()) for name in names if name)
+
+    def match_quality(self, target: str) -> int:
+        normalized = " ".join(target.strip().lower().replace("_", " ").split())
+        if not normalized:
+            return 0
+        names = self.search_names()
+        if normalized in names:
+            return 2
+        if len(normalized) >= 2 and any(normalized in name for name in names):
+            return 1
+        return 0
+
     def matches(self, target: str) -> bool:
-        normalized = target.strip().lower()
-        names = {self.name.lower(), self.key.replace("_", " "), *(alias.lower() for alias in self.aliases)}
-        return normalized in names
+        return self.match_quality(target) > 0
 
 
 @dataclass(slots=True)
@@ -573,11 +594,21 @@ class DeepMireGatheringService:
             result.append(state)
         return tuple(result)
 
+    def resolve_candidates(
+        self,
+        room_key: str,
+        target: str,
+        flags: frozenset[str] = frozenset(),
+    ) -> tuple[DeepMireNodeState, ...]:
+        nodes = self.nodes_in_room(room_key, flags)
+        exact = tuple(state for state in nodes if state.definition.match_quality(target) == 2)
+        if exact:
+            return exact
+        return tuple(state for state in nodes if state.definition.match_quality(target) == 1)
+
     def resolve(self, room_key: str, target: str, flags: frozenset[str] = frozenset()) -> DeepMireNodeState | None:
-        for state in self.nodes_in_room(room_key, flags):
-            if state.definition.matches(target):
-                return state
-        return None
+        matches = self.resolve_candidates(room_key, target, flags)
+        return matches[0] if len(matches) == 1 else None
 
     def output_for(self, state: DeepMireNodeState) -> str:
         if not state.definition.spring_floodpick:
@@ -949,9 +980,19 @@ async def _handle_deep_gathering(session, normalized: str) -> bool:
             await session.send("There is no currently usable alchemical gathering node here.\r\n")
         return True
 
-    node = GOBLIN_DEEP_MIRE_GATHERING.resolve(session.character.current_room, target, flags)
+    matches = GOBLIN_DEEP_MIRE_GATHERING.resolve_candidates(session.character.current_room, target, flags)
+    if len(matches) > 1:
+        names = ", ".join(state.definition.name for state in matches)
+        await session.send(f"\r\nBe more specific: {names}.\r\n")
+        return True
+    node = matches[0] if matches else None
     if node is None:
-        if session.character.current_room == GOBLIN_GREENHOUSE_CONSERVATORY_KEY and target in {"glassroot", "glassroot bed", "roots", "pale roots"} and GREENHOUSE_LOUVERS_FLAG not in flags:
+        dormant_glassroot_names = {"glassroot", "glassroot bed", "roots", "pale roots"}
+        if (
+            session.character.current_room == GOBLIN_GREENHOUSE_CONSERVATORY_KEY
+            and any(target in name or name in target for name in dormant_glassroot_names)
+            and GREENHOUSE_LOUVERS_FLAG not in flags
+        ):
             await session.send("\r\nThe surviving roots are too pale and dormant to harvest usefully. The overhead shade louvers are still closed.\r\n")
             return True
         await session.send("\r\nYou do not identify that as a usable alchemical gathering source here.\r\n")
