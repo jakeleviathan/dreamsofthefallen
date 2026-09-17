@@ -817,7 +817,7 @@ class Database:
         ability_key: str,
         skill_xp_gain: int = 1,
     ) -> None:
-        """Persist use-based ability progression without imposing a rank formula yet."""
+        """Persist a completed ability use and any skill XP earned by meaningful practice."""
         if skill_xp_gain < 0:
             raise ValueError("Ability skill XP gain cannot be negative.")
         with self.connect() as db:
@@ -832,6 +832,24 @@ class Database:
                 """,
                 (character_id, ability_key, skill_xp_gain),
             )
+
+    def get_ability_progress(self, character_id: int, ability_key: str) -> dict[str, int | str] | None:
+        with self.connect() as db:
+            row = db.execute(
+                """
+                SELECT ability_key, uses, skill_xp
+                FROM character_abilities
+                WHERE character_id = ? AND ability_key = ?
+                """,
+                (character_id, ability_key),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "ability_key": str(row["ability_key"]),
+            "uses": int(row["uses"]),
+            "skill_xp": int(row["skill_xp"]),
+        }
 
     def list_ability_progress(self, character_id: int) -> list[dict[str, int | str]]:
         with self.connect() as db:
