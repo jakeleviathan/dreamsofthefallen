@@ -94,6 +94,24 @@ class ContentLootTests(unittest.TestCase):
         self.assertGreaterEqual(coverage.authored_tables_preserved, 1)
         self.assertEqual(coverage.missing_tables, ())
 
+    def test_zero_xp_practice_enemy_still_gets_physical_loot_coverage(self):
+        practice = combat.EnemyDefinition(
+            key="test_spore_practice_husk",
+            name="Spore Practice Husk",
+            aliases=("husk",),
+            description="a fungal practice husk that can be defeated in combat",
+            max_hp=12,
+            armor_class=0,
+            auto_attack_damage=0,
+            auto_attack_interval=999.0,
+            xp_reward=0,
+            retaliates=False,
+            tutorial=True,
+        )
+        table = build_content_loot_table(practice)
+        self.assertTrue(table)
+        self.assertIn("fungal_tissue", {entry.item_key for entry in table})
+
     def test_training_dummy_does_not_gain_physical_loot(self):
         self.assertEqual(build_content_loot_table(combat.ENEMIES_BY_KEY["training_dummy"]), ())
 
