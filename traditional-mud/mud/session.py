@@ -5,6 +5,8 @@ import random
 import re
 from enum import Enum, auto
 
+import mud.ability_mastery as ability_mastery
+
 from mud.character_options import (
     CLASSES,
     CLASSES_BY_KEY,
@@ -1077,6 +1079,7 @@ class PlayerSession:
             "rot": (6, 6.0),
         }
         mana_cost, cooldown = tuning.get(ability.key, (ability.mana_cost or 0, ability.cooldown_seconds or 3.0))
+        mana_cost = ability_mastery.effective_mana_cost(self, ability, base_cost=mana_cost)
         if not self.combatant.ability_ready(ability.key):
             await self.send("That ability is still on cooldown.\r\n")
             return
@@ -1085,10 +1088,12 @@ class PlayerSession:
             return
 
         used = False
+        ability_mastery.begin_use(self, ability)
         if ability.key == "taunt":
             if self.active_enemy is None:
                 await self.send("You need an enemy to taunt.\r\n")
                 self.combatant.current_mana += mana_cost
+                self._ability_mastery_pending = None
                 return
             success = self.active_enemy.hate.taunt(
                 self.character.id, self.character.level, random.random()
@@ -1103,10 +1108,14 @@ class PlayerSession:
             if self.active_enemy is None:
                 await self.send("You need an active enemy target for that spell.\r\n")
                 self.combatant.current_mana += mana_cost
+                self._ability_mastery_pending = None
                 return
             base = 7 if ability.key == "coldfire_burst" else 6
             damage = self.combatant.spell_damage(base)
-            dealt = self.active_enemy.take_damage(damage)
+            damage = ability_mastery.scale_power(self, ability, damage)
+            enemy = self.active_enemy
+            dealt = enemy.take_damage(damage)
+            ability_mastery.mark_damage_practice(self, dealt, enemy)
             await self.send(f"{ability.name} hits {self.active_enemy.definition.name} for {dealt} damage.\r\n")
             used = True
             if not self.active_enemy.alive:
@@ -1116,9 +1125,12 @@ class PlayerSession:
             if self.active_enemy is None:
                 await self.send("You need an active enemy target for Minor Life Tap.\r\n")
                 self.combatant.current_mana += mana_cost
+                self._ability_mastery_pending = None
                 return
-            damage = self.combatant.spell_damage(4)
-            dealt = self.active_enemy.take_damage(damage)
+            damage = ability_mastery.scale_power(self, ability, self.combatant.spell_damage(4))
+            enemy = self.active_enemy
+            dealt = enemy.take_damage(damage)
+            ability_mastery.mark_damage_practice(self, dealt, enemy)
             before = self.combatant.current_hp
             self.combatant.current_hp = min(self.combatant.max_hp, self.combatant.current_hp + dealt)
             restored = self.combatant.current_hp - before
@@ -1134,11 +1146,16 @@ class PlayerSession:
             if self.active_enemy is None:
                 await self.send("You need an active enemy target for Rot.\r\n")
                 self.combatant.current_mana += mana_cost
+                self._ability_mastery_pending = None
                 return
             # Mind contributes to each pulse through spell_damage, but the base
             # remains intentionally small because Rot is the first DoT spell.
-            damage_per_tick = max(1, self.combatant.spell_damage(2))
+            damage_per_tick = max(
+                1,
+                ability_mastery.scale_power(self, ability, self.combatant.spell_damage(2)),
+            )
             enemy = self.active_enemy
+            ability_mastery.mark_damage_practice(self, 1, enemy)
             task = asyncio.create_task(self._apply_rot(enemy, damage_per_tick))
             self.dot_tasks.add(task)
             task.add_done_callback(self.dot_tasks.discard)
@@ -1146,10 +1163,14 @@ class PlayerSession:
             used = True
         elif ability.key in {"minor_heal", "restoring_light"}:
             base = 6 if ability.key == "minor_heal" else 8
-            healing = self.combatant.healing_amount(base)
+            healing = ability_mastery.scale_power(
+                self, ability, self.combatant.healing_amount(base)
+            )
             before = self.combatant.current_hp
             self.combatant.current_hp = min(self.combatant.max_hp, self.combatant.current_hp + healing)
-            await self.send(f"{ability.name} restores {self.combatant.current_hp - before} HP.\r\n")
+            restored = self.combatant.current_hp - before
+            ability_mastery.mark_healing_practice(self, restored)
+            await self.send(f"{ability.name} restores {restored} HP.\r\n")
             used = True
         elif ability.key == "guardian_ward":
             self.ward_until = asyncio.get_running_loop().time() + 10.0
@@ -1164,6 +1185,7 @@ class PlayerSession:
                 self.combatant.current_mana += mana_cost
                 return
             await self.send("Bone chips knit together at your feet. A Skeleton rises to serve you.\r\n")
+            ability_mastery.mark_meaningful(self)
             used = True
         elif ability.key == "forage":
             await self.send("You study the surroundings for useful natural materials. Nothing suitable grows in this training area.\r\n")
@@ -1171,11 +1193,12 @@ class PlayerSession:
         else:
             await self.send("That ability is authored, but its executable combat effect has not been tuned yet.\r\n")
             self.combatant.current_mana += mana_cost
+            self._ability_mastery_pending = None
             return
 
         if used:
-            self.database.record_ability_use(self.character.id, ability.key)
             self.combatant.start_cooldown(ability.key, cooldown)
+            await ability_mastery.commit_use(self)
             await self.send_client_state()
 
     async def playing_prompt(self) -> None:
@@ -1593,6 +1616,9 @@ class PlayerSession:
             }
             await self.send("\r\n--- Ability Progress ---\r\n")
             await self.send("Class ability sets are fixed; players do not choose from a talent pool.\r\n")
+            await self.send(
+                "Ability mastery runs from 1-100. Uses count successful activations; skill XP is awarded only for meaningful practice.\r\n"
+            )
             if fixed:
                 await self.send("Class abilities:\r\n")
                 for ability in fixed:
@@ -1609,8 +1635,11 @@ class PlayerSession:
                 await self.send("No practiced abilities yet. Abilities gain skill progression through use.\r\n")
             else:
                 for item in progress:
+                    summary = ability_mastery.mastery_summary(
+                        self.database, self.character.id, str(item["ability_key"])
+                    )
                     await self.send(
-                        f"{item['ability_key']}: {item['uses']} uses, {item['skill_xp']} skill XP\r\n"
+                        f"{item['ability_key']}: {item['uses']} uses, {summary}\r\n"
                     )
             return
 
