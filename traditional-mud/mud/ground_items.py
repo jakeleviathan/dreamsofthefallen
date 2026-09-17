@@ -4,17 +4,13 @@ from dataclasses import dataclass
 
 import mud.crafting as crafting
 from mud.equipment_system import equipped_item_keys
-
-
-GROUND_ITEMS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS room_ground_items (
-    room_key TEXT NOT NULL,
-    item_key TEXT NOT NULL,
-    quantity INTEGER NOT NULL CHECK (quantity > 0),
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (room_key, item_key)
-);
-"""
+from mud.item_locations import (
+    ItemLocation,
+    ensure_item_location_storage,
+    list_location_items,
+    location_item_quantity,
+    transfer_item,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,36 +28,15 @@ class ItemMatch:
 
 
 def ensure_ground_item_storage(database) -> None:
-    with database.connect() as db:
-        db.execute(GROUND_ITEMS_TABLE_SQL)
+    ensure_item_location_storage(database)
 
 
 def list_ground_items(database, room_key: str) -> list[dict[str, int | str]]:
-    ensure_ground_item_storage(database)
-    with database.connect() as db:
-        rows = db.execute(
-            """
-            SELECT item_key, quantity
-            FROM room_ground_items
-            WHERE room_key = ? AND quantity > 0
-            ORDER BY item_key
-            """,
-            (room_key,),
-        ).fetchall()
-    return [
-        {"item_key": str(row["item_key"]), "quantity": int(row["quantity"])}
-        for row in rows
-    ]
+    return list_location_items(database, ItemLocation.room(room_key))
 
 
 def ground_item_quantity(database, room_key: str, item_key: str) -> int:
-    ensure_ground_item_storage(database)
-    with database.connect() as db:
-        row = db.execute(
-            "SELECT quantity FROM room_ground_items WHERE room_key = ? AND item_key = ?",
-            (room_key, item_key),
-        ).fetchone()
-    return 0 if row is None else int(row["quantity"])
+    return location_item_quantity(database, ItemLocation.room(room_key), item_key)
 
 
 def transfer_inventory_to_ground(
@@ -76,39 +51,13 @@ def transfer_inventory_to_ground(
         raise ValueError("Drop quantity must be positive.")
     if not room_key:
         return False
-    ensure_ground_item_storage(database)
-    with database.connect() as db:
-        db.execute("BEGIN IMMEDIATE")
-        row = db.execute(
-            "SELECT quantity FROM character_items WHERE character_id = ? AND item_key = ?",
-            (character_id, item_key),
-        ).fetchone()
-        if row is None or int(row["quantity"]) < quantity:
-            return False
-
-        remaining = int(row["quantity"]) - quantity
-        if remaining:
-            db.execute(
-                "UPDATE character_items SET quantity = ? WHERE character_id = ? AND item_key = ?",
-                (remaining, character_id, item_key),
-            )
-        else:
-            db.execute(
-                "DELETE FROM character_items WHERE character_id = ? AND item_key = ?",
-                (character_id, item_key),
-            )
-
-        db.execute(
-            """
-            INSERT INTO room_ground_items (room_key, item_key, quantity)
-            VALUES (?, ?, ?)
-            ON CONFLICT(room_key, item_key) DO UPDATE SET
-                quantity = quantity + excluded.quantity,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (room_key, item_key, quantity),
-        )
-    return True
+    return transfer_item(
+        database,
+        ItemLocation.character(character_id),
+        ItemLocation.room(room_key),
+        item_key,
+        quantity,
+    )
 
 
 def transfer_ground_to_inventory(
@@ -123,42 +72,13 @@ def transfer_ground_to_inventory(
         raise ValueError("Pickup quantity must be positive.")
     if not room_key:
         return False
-    ensure_ground_item_storage(database)
-    with database.connect() as db:
-        db.execute("BEGIN IMMEDIATE")
-        row = db.execute(
-            "SELECT quantity FROM room_ground_items WHERE room_key = ? AND item_key = ?",
-            (room_key, item_key),
-        ).fetchone()
-        if row is None or int(row["quantity"]) < quantity:
-            return False
-
-        remaining = int(row["quantity"]) - quantity
-        if remaining:
-            db.execute(
-                """
-                UPDATE room_ground_items
-                SET quantity = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE room_key = ? AND item_key = ?
-                """,
-                (remaining, room_key, item_key),
-            )
-        else:
-            db.execute(
-                "DELETE FROM room_ground_items WHERE room_key = ? AND item_key = ?",
-                (room_key, item_key),
-            )
-
-        db.execute(
-            """
-            INSERT INTO character_items (character_id, item_key, quantity)
-            VALUES (?, ?, ?)
-            ON CONFLICT(character_id, item_key) DO UPDATE SET
-                quantity = quantity + excluded.quantity
-            """,
-            (character_id, item_key, quantity),
-        )
-    return True
+    return transfer_item(
+        database,
+        ItemLocation.room(room_key),
+        ItemLocation.character(character_id),
+        item_key,
+        quantity,
+    )
 
 
 def _normalize(text: str) -> str:
@@ -288,11 +208,7 @@ async def drop_item_command(session, argument: str) -> None:
 
 
 async def take_item_command(session, argument: str) -> bool:
-    """Take a room-ground item. Return False when no ground item matched.
-
-    Returning False lets older contextual TAKE/GET commands keep ownership of
-    authored room interactions such as tutorial props.
-    """
+    """Take a room-ground item, deferring when no ground item matches."""
     character = getattr(session, "character", None)
     if character is None:
         return False
