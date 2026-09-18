@@ -717,7 +717,7 @@ function H.initModern()
   H.ensureCueFiles()
   if sendGMCP then
     pcall(function()
-      sendGMCP([[Core.Supports.Add ["Dreams 2","Room 1","Char 1"]]])
+      sendGMCP('Core.Supports.Add ["Dreams 2","Room 1","Char 1"]')
     end)
   end
   H.setPanel(H.activePanel)

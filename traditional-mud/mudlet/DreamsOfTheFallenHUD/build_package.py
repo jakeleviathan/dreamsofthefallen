@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import shutil
 import zipfile
 from pathlib import Path
 
@@ -13,6 +14,7 @@ SOURCE_PATHS = (
 XML_PATH = ROOT / "DreamsOfTheFallenHUD.xml"
 PACKAGE_PATH = ROOT / "DreamsOfTheFallenHUD.mpackage"
 CONFIG_PATH = ROOT / "config.lua"
+DISTRIBUTION_PATH = ROOT.parents[2] / "DreamsOfTheFallenHUD.mpackage"
 
 
 def combined_lua() -> str:
@@ -57,6 +59,7 @@ def build() -> Path:
     with zipfile.ZipFile(PACKAGE_PATH, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.write(XML_PATH, XML_PATH.name)
         zf.write(CONFIG_PATH, CONFIG_PATH.name)
+    shutil.copyfile(PACKAGE_PATH, DISTRIBUTION_PATH)
     return PACKAGE_PATH
 
 

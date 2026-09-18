@@ -21,6 +21,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install Lua 5.1 syntax checker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1
       - name: Run regression suite
         run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Build official Mudlet package
@@ -28,6 +32,7 @@ jobs:
       - name: Verify modern Mudlet package
         run: |
           python - <<'PY'
+          import xml.etree.ElementTree as ET
           import zipfile
           from pathlib import Path
 
@@ -40,9 +45,16 @@ jobs:
               config = zf.read("config.lua").decode("utf-8")
           for marker in ("Dreams.Room", "Dreams.Map", "Dreams.Party", "Dreams.Quests", "Dreams.Inventory", "Dreams.Abilities", "Dreams.Context", "Dreams.Onboarding", "Geyser.Mapper"):
               assert marker in xml, marker
-          assert 'version = "2.1.0"' in config
+          assert 'version = "2.1.1"' in config
+
+          root = ET.fromstring(xml)
+          embedded_lua = root.findtext(".//Script/script")
+          assert embedded_lua and "Core.Supports.Add" in embedded_lua
+          Path("/tmp/DreamsOfTheFallenHUD.lua").write_text(embedded_lua, encoding="utf-8")
           print("MODERN_MUDLET_PACKAGE_OK")
           PY
+          luac5.1 -p /tmp/DreamsOfTheFallenHUD.lua
+          echo "MUDLET_HUD_LUA_SYNTAX_OK"
       - name: Build runnable server source bundle
         run: |
           python - <<'PY'
