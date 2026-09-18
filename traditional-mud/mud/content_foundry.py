@@ -154,7 +154,7 @@ RECIPES = (
         design_status="content_wave_one_semantic_materials",
     ),
     CraftingRecipe(
-        "tailor_ashwheel_boots", "tailoring", ASHWHEEL_BOOTS, 28, 55,
+        "forge_ashwheel_boots", "tailoring", ASHWHEEL_BOOTS, 28, 55,
         (
             MaterialRequirement(ASHWHEEL_SPOKE, 1),
             MaterialRequirement("rough_hide", 2),
