@@ -161,6 +161,43 @@ class EquipmentSystemTests(unittest.TestCase):
         self.assertEqual(session.combatant.stats, session.character.stats)
         self.assertEqual(session.combatant.max_hp, base_hp)
 
+    def test_equipment_reconciliation_preserves_temporary_max_hp_bonuses(self):
+        temp, database, session = self._session(
+            "Resolve",
+            race="goblin",
+            character_class="priest",
+        )
+        self.addCleanup(temp.cleanup)
+
+        # Establish the equipment-derived baseline before a temporary spell buff.
+        apply_equipment_to_combatant(session)
+        baseline = session.combatant.max_hp
+
+        # Blessing of Resolve currently grants +4 max HP by modifying the live
+        # combatant. A routine equipment reconciliation must not erase it.
+        session.combatant.max_hp += 4
+        session.combatant.current_hp += 4
+        apply_equipment_to_combatant(session)
+        self.assertEqual(session.combatant.max_hp, baseline + 4)
+        self.assertEqual(session.combatant.current_hp, baseline + 4)
+
+        # Changing HP-bearing gear while the blessing is active updates the
+        # equipment baseline while preserving the same temporary +4.
+        database.add_item(session.character.id, "troll_camp_hide_vest", 1)
+        set_equipped_item(database, session.character.id, "chest", "troll_camp_hide_vest")
+        apply_equipment_to_combatant(session)
+        self.assertEqual(session.combatant.max_hp, baseline + 2 + 4)
+
+        # When the timed blessing expires and subtracts its own +4, the next
+        # reconciliation must leave the correct equipment-derived maximum.
+        session.combatant.max_hp -= 4
+        session.combatant.current_hp = min(
+            session.combatant.current_hp,
+            session.combatant.max_hp,
+        )
+        apply_equipment_to_combatant(session)
+        self.assertEqual(session.combatant.max_hp, baseline + 2)
+
     def test_brute_starter_harness_and_weapon_auto_equip_but_are_not_restrictions(self):
         temp, database, session = self._session("BruteStart", race="goblin", character_class="brute")
         self.addCleanup(temp.cleanup)
