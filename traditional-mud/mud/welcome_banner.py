@@ -3,9 +3,9 @@ from __future__ import annotations
 import re
 
 
-# The login splash is deliberately built as terminal art rather than a rectangular
-# plaque. It stays under 90 visible columns so it fits a normal Mudlet window and
-# remains readable in ordinary Telnet clients.
+# Classic MUD clients still assume an 80-column terminal. The splash deliberately
+# keeps every visible line at 78 columns or fewer, even though modern Mudlet
+# windows are usually much wider.
 BANNER_WIDTH = 78
 
 RESET = "\x1b[0m"
@@ -17,22 +17,22 @@ DREAMLIGHT = "\x1b[96m"
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
+# Custom slanted terminal wordmarks: large enough to feel like a logo, but made
+# entirely from 7-bit ASCII so old Telnet clients do not need Unicode glyphs.
 DREAMS_WORDMARK = (
-    "██████╗ ██████╗ ███████╗ █████╗ ███╗   ███╗███████╗",
-    "██╔══██╗██╔══██╗██╔════╝██╔══██╗████╗ ████║██╔════╝",
-    "██║  ██║██████╔╝█████╗  ███████║██╔████╔██║███████╗",
-    "██║  ██║██╔══██╗██╔══╝  ██╔══██║██║╚██╔╝██║╚════██║",
-    "██████╔╝██║  ██║███████╗██║  ██║██║ ╚═╝ ██║███████║",
-    "╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝",
+    r"    ____  ____  _________    __  _______",
+    r"   / __ \/ __ \/ ____/   |  /  |/  / ___/",
+    r"  / / / / /_/ / __/ / /| | / /|_/ /\__ \",
+    r" / /_/ / _, _/ /___/ ___ |/ /  / /___/ /",
+    r"/_____/_/ |_/_____/_/  |_/_/  /_//____/",
 )
 
 FALLEN_WORDMARK = (
-    "███████╗ █████╗ ██╗     ██╗     ███████╗███╗   ██╗",
-    "██╔════╝██╔══██╗██║     ██║     ██╔════╝████╗  ██║",
-    "█████╗  ███████║██║     ██║     █████╗  ██╔██╗ ██║",
-    "██╔══╝  ██╔══██║██║     ██║     ██╔══╝  ██║╚██╗██║",
-    "██║     ██║  ██║███████╗███████╗███████╗██║ ╚████║",
-    "╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═══╝",
+    r"    _________    __    __    _______   __",
+    r"   / ____/   |  / /   / /   / ____/ | / /",
+    r"  / /_  / /| | / /   / /   / __/ /  |/ /",
+    r" / __/ / ___ |/ /___/ /___/ /___/ /|  /",
+    r"/_/   /_/  |_/_____/_____/_____/_/ |_/",
 )
 
 
@@ -49,49 +49,43 @@ def _visible_width(text: str) -> int:
 
 
 def build_welcome_banner() -> str:
-    """Return the large heavy-metal title treatment used before login."""
+    """Return the heavy-metal title treatment used before login."""
 
     lines: list[str] = [
         "",
-        _paint(SHADOW, _center(" /\\              /\\                    /\\              /\\ ")),
-        _paint(SHADOW, _center("/  \\      /\\    /  \\      /\\      /  \\    /\\      /  \\")),
-        _paint(SHADOW, _center("___/    \\____/  \\__/    \\____/  \\____/    \\__/  \\____/    \\___")),
-        _paint(SHADOW, _center("\\      \\                                                  /      /")),
+        _paint(SHADOW, _center(r"       /\          /\                    /\          /\")),
+        _paint(SHADOW, _center(r"  /\__/  \___/\___/  \___/\____/\____/  \___/\___/  \__/\  ")),
+        _paint(SHADOW, _center(r"_/                                                          \_")),
         "",
     ]
 
     lines.extend(_paint(IRON, _center(line)) for line in DREAMS_WORDMARK)
-    lines.extend(
-        (
-            "",
-            _paint(GOLD, _center("O F   T H E")),
-            "",
-        )
-    )
+    lines.extend(("", _paint(GOLD, _center("O F   T H E")), ""))
     lines.extend(_paint(IRON, _center(line)) for line in FALLEN_WORDMARK)
 
     lines.extend(
         (
             "",
-            _paint(SHADOW, _center("\\____      ____________      ____________      ____________      ____/")),
-            _paint(SHADOW, _center("     \\    /            \\    /            \\    /            \\    /")),
-            _paint(SHADOW, _center("      \\  /              \\  /              \\  /              \\  /")),
-            _paint(SHADOW, _center("       \\/                \\/                \\/                \\/")),
+            _paint(SHADOW, _center(r"\__      ________      ________      ________      ________      __/")),
+            _paint(SHADOW, _center(r"   \____/        \____/        \____/        \____/        \____/")),
             "",
-            _paint(DREAMLIGHT, _center("\\        |        /")),
-            _paint(DREAMLIGHT, _center("\\       |       /")),
-            _paint(DREAMLIGHT, _center("\\      |      /")),
-            _paint(DREAMLIGHT, _center("──────\\     |     /──────")),
-            _paint(DREAMLIGHT, _center("\\    |    /")),
-            _paint(DREAMLIGHT, _center("\\   |   /")),
-            _paint(DREAMLIGHT, _center("\\  |  /")),
-            _paint(DREAMLIGHT, _center("\\ | /")),
-            _paint(DREAMLIGHT, _center("\\|/")),
-            _paint(DREAMLIGHT, _center("▼")),
+            _paint(DREAMLIGHT, _center(r"\        |        /")),
+            _paint(DREAMLIGHT, _center(r" \       |       /")),
+            _paint(DREAMLIGHT, _center(r"  \      |      /")),
+            _paint(DREAMLIGHT, _center(r"------\     |     /------")),
+            _paint(DREAMLIGHT, _center(r"      \    |    /")),
+            _paint(DREAMLIGHT, _center(r"       \   |   /")),
+            _paint(DREAMLIGHT, _center(r"        \  |  /")),
+            _paint(DREAMLIGHT, _center(r"         \ | /")),
+            _paint(DREAMLIGHT, _center(r"          \|/")),
+            _paint(DREAMLIGHT, _center("V")),
             "",
             _paint(GOLD, _center("A S T R A L I S")),
             _paint(SHADOW, _center("DREAMS OF THE FALLEN // ASTRALIS")),
             _paint(SHADOW, _center("Beneath Astralis, something dreams.")),
+            "",
+            _paint(GOLD, _center("LOGIN      CREATE ACCOUNT")),
+            _paint(SHADOW, _center("Type HELP for a brief explanation.")),
             "",
         )
     )
