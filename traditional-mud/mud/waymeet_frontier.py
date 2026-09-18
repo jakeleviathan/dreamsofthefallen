@@ -257,13 +257,13 @@ FOREMAN = NpcDefinition(
 )
 BROKER = NpcDefinition(
     key=BROKER_KEY,
-    name="Nix Coil",
+    name="Vekk Coil",
     short_description="a Goblin broker sitting behind neat stacks of ore, fiber, herbs, and locally stamped brass scrip",
     room_key=WAYMEET_LANTERN_MARKET_KEY,
     role="raw-material merchant",
     dialogue=(
-        "Nix flicks a brass chit onto the counter. 'Waymeet scrip comes from road work and goes back into road supplies. Nice little circle.'",
-        "'BROWSE NIX if you want the boring useful stuff. Boring useful stuff keeps adventurers alive.'",
+        "Vekk flicks a brass chit onto the counter. 'Waymeet scrip comes from road work and goes back into road supplies. Nice little circle.'",
+        "'BROWSE VEKK if you want the boring useful stuff. Boring useful stuff keeps adventurers alive.'",
     ),
 )
 PROVISIONER = NpcDefinition(
@@ -273,7 +273,7 @@ PROVISIONER = NpcDefinition(
     room_key=WAYMEET_LANTERN_MARKET_KEY,
     role="processed-material merchant",
     dialogue=(
-        "Sevra stacks two iron ingots. 'Nix sells beginnings. I sell the part after somebody else did a little work.'",
+        "Sevra stacks two iron ingots. 'Vekk sells beginnings. I sell the part after somebody else did a little work.'",
         "'BROWSE SEVRA. Two scrip for processed stock. Convenience should cost something, but not your entire afternoon.'",
     ),
 )
@@ -765,13 +765,13 @@ async def _browse_market(session, target: str) -> bool:
     if not normalized or normalized in {"market", "merchants", "merchant"}:
         await session.send(
             "Waymeet merchants:\r\n"
-            "- Nix Coil: raw road supplies. BROWSE NIX.\r\n"
+            "- Vekk Coil: raw road supplies. BROWSE VEKK.\r\n"
             "- Sevra Lent: processed starter materials. BROWSE SEVRA.\r\n"
             "Waymeet Trade Scrip comes from local road work and repeatable contracts.\r\n"
         )
         return True
     if normalized in {"nix", "nix coil", "broker"}:
-        await session.send("Nix Coil - 1 scrip each: BUY IRON, BUY COTTON, BUY HERBS, BUY COAL.\r\n")
+        await session.send("Vekk Coil - 1 scrip each: BUY IRON, BUY COTTON, BUY HERBS, BUY COAL.\r\n")
         return True
     if normalized in {"sevra", "sevra lent", "provisioner"}:
         await session.send("Sevra Lent - 2 scrip each: BUY INGOT, BUY THREAD.\r\n")
@@ -785,7 +785,7 @@ async def _buy_market(session, target: str) -> bool:
     wanted = _normalize(target)
     ware = RAW_WARES.get(wanted) or PROCESSED_WARES.get(wanted)
     if ware is None:
-        await session.send("That is not a Waymeet market shorthand. BROWSE NIX or BROWSE SEVRA.\r\n")
+        await session.send("That is not a Waymeet market shorthand. BROWSE VEKK or BROWSE SEVRA.\r\n")
         return True
     item_key, quantity, cost, label = ware
     if session.database.item_quantity(session.character.id, WAYMEET_SCRIP_KEY) < cost:
