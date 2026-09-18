@@ -118,11 +118,11 @@ ARRIVAL_QUEST = QuestDefinition(
         "Survivors report different banners on different nights, as though somebody wants the violence to look fragmented."
     ),
     (
-        ("talk_mara", "At Marchward Post, TALK NERIS."),
+        ("talk_mara", "At Marchward Post, TALK EVARA."),
         ("inspect_wagon", "At Burned Toll, EXAMINE WAGON."),
         ("defeat_scout", "Find and defeat the Gilded Scout-Captain on Gallows Mile."),
         ("read_orders", "READ ORDERS recovered from the scout-captain."),
-        ("return_mara", "Return to Neris at Marchward Post."),
+        ("return_mara", "Return to Evara at Marchward Post."),
         ("complete", "You proved the raids were intentionally staged under false banners by the Gilded Host."),
     ),
 )
@@ -263,7 +263,7 @@ LYSA_KEY = "crownfire_deserter_lysa_orr"
 VAREK_KEY = "morrowgate_broker_varek_tess"
 
 CROWNFIRE_NPCS = (
-    NpcDefinition(MARA_KEY, "Neris Quill", "a soot-streaked road clerk whose coat still bears the burned outline of a tollhouse badge", MARCHWARD_POST_KEY, "refugee road clerk", dialogue=("'The banners change. The boot nails do not.'", "'Somebody wants us arguing about who attacked us instead of asking who benefits.'")),
+    NpcDefinition(MARA_KEY, "Evara Quill", "a soot-streaked road clerk whose coat still bears the burned outline of a tollhouse badge", MARCHWARD_POST_KEY, "refugee road clerk", dialogue=("'The banners change. The boot nails do not.'", "'Somebody wants us arguing about who attacked us instead of asking who benefits.'")),
     NpcDefinition(IVEN_KEY, "Mayor Iven Rook", "a tired civic mayor wearing the same plain black coat for hearings, ration lines, and wall inspections", MORROWGATE_COUNCIL_KEY, "elected mayor of Morrowgate", dialogue=("'I can survive being unpopular. I cannot survive not knowing which warehouse opens after midnight.'", "'A blockade is just a siege with paperwork if the paperwork still ends in hunger.'")),
     NpcDefinition(DELLA_KEY, "Healer Della Sorn", "an Undead field healer with clean bone hands and an apron marked in charcoal with medicine shortages", MORROWGATE_HEALERS_KEY, "public healer", dialogue=("'The Host calls this pressure. Infection also calls itself pressure if you ask it politely.'", "'Medicine is disappearing in exactly the quantities that keep us sick without letting us die quickly.'")),
     NpcDefinition(SERA_KEY, "Captain Renna Hald", "a Forest Elf militia captain with one gold Host arrow pinned backward through her cloak as a reminder", MORROWGATE_RAMPART_KEY, "Morrowgate defense captain", dialogue=("'Dask is not a storm. Stop talking about him like weather.'", "'If somebody orders a fire, writes the invoice, and recruits from the survivors, the pattern is not mysterious.'")),
@@ -435,7 +435,7 @@ def _ensure_story(session) -> str | None:
     level = session.character.level
     flags = _flags(session)
     chain = (
-        (31, ARRIVAL_COMPLETE_FLAG, ARRIVAL_QUEST_KEY, "talk_mara", "New region story: The Smoke Has Orders. TALK NERIS at Marchward Post."),
+        (31, ARRIVAL_COMPLETE_FLAG, ARRIVAL_QUEST_KEY, "talk_mara", "New region story: The Smoke Has Orders. TALK EVARA at Marchward Post."),
         (33, BLOCKADE_COMPLETE_FLAG, BLOCKADE_QUEST_KEY, "talk_iven", "New city story: A City Under Contract. Find Mayor Iven Rook in Morrowgate Council Hall."),
         (34, REDOUBT_COMPLETE_FLAG, REDOUBT_QUEST_KEY, "talk_sera", "New campaign story: Break the Brass Redoubt. TALK RENNA on Morrowgate's East Rampart."),
         (36, DESERTER_COMPLETE_FLAG, DESERTER_QUEST_KEY, "talk_lysa", "New story: The Price of Desertion. TALK LYSA at Refugee Ford."),
@@ -540,24 +540,24 @@ def install_crownfire_runtime(player_session_class, world_service) -> None:
         n = " ".join(command.strip().lower().split())
         room = self.character.current_room
 
-        if room == MARCHWARD_POST_KEY and n in {"talk neris", "talk mara", "talk to neris", "talk to mara", "talk clerk"}:
+        if room == MARCHWARD_POST_KEY and n in {"talk evara", "talk mara", "talk to neris", "talk to mara", "talk clerk"}:
             _ensure_story(self)
             q = _quest(self, ARRIVAL_QUEST_KEY)
             if q and q["status"] == "active" and q["current_step"] == "talk_mara":
                 self.database.advance_quest(self.character.id, ARRIVAL_QUEST_KEY, "inspect_wagon")
-                await self.send("Neris lays three stolen banners side by side. 'Different colors. Same brass boot nails, same lamp oil, same wagon timing. Go north to Burned Toll and EXAMINE WAGON.'\r\n")
+                await self.send("Evara lays three stolen banners side by side. 'Different colors. Same brass boot nails, same lamp oil, same wagon timing. Go north to Burned Toll and EXAMINE WAGON.'\r\n")
             elif q and q["status"] == "active" and q["current_step"] == "return_mara":
                 self.database.complete_quest(self.character.id, ARRIVAL_QUEST_KEY)
                 self.database.grant_flag(self.character.id, ARRIVAL_COMPLETE_FLAG)
                 gained = _award(self, 7600)
-                await self.send("Neris reads the order and stops at the line LEAVE SURVIVORS TO NAME THE WRONG ENEMY. 'Good. We do not have a mystery anymore. We have a commander.' Quest complete: The Smoke Has Orders. +7,600 XP.\r\n")
+                await self.send("Evara reads the order and stops at the line LEAVE SURVIVORS TO NAME THE WRONG ENEMY. 'Good. We do not have a mystery anymore. We have a commander.' Quest complete: The Smoke Has Orders. +7,600 XP.\r\n")
                 if gained:
                     await self.send(f"You gained {gained} level.\r\n")
                 follow = _ensure_story(self)
                 if follow:
                     await self.send(follow + "\r\n")
             else:
-                await self.send("Neris says, 'Bring me something with a signature, not another rumor with smoke on it.'\r\n")
+                await self.send("Evara says, 'Bring me something with a signature, not another rumor with smoke on it.'\r\n")
             return
 
         if room == BURNED_TOLL_KEY and n in {"examine wagon", "inspect wagon", "search wagon"}:
@@ -571,7 +571,7 @@ def install_crownfire_runtime(player_session_class, world_service) -> None:
             q = _quest(self, ARRIVAL_QUEST_KEY)
             if q and q["status"] == "active" and q["current_step"] == "read_orders":
                 self.database.advance_quest(self.character.id, ARRIVAL_QUEST_KEY, "return_mara")
-                await self.send("The order assigns stolen local banners to raids by date and gives one instruction twice: LEAVE SURVIVORS TO NAME THE WRONG ENEMY. It carries Marshal Corven Dask's gold-road signet. Return to Neris.\r\n")
+                await self.send("The order assigns stolen local banners to raids by date and gives one instruction twice: LEAVE SURVIVORS TO NAME THE WRONG ENEMY. It carries Marshal Corven Dask's gold-road signet. Return to Evara.\r\n")
                 return
 
         if room == MORROWGATE_COUNCIL_KEY and n in {"talk iven", "talk to iven", "talk mayor"}:
