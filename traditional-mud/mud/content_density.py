@@ -13,7 +13,14 @@ import mud.world as legacy_world
 from mud.astralis_time import ASTRALIS_CLOCK
 from mud.combat import EnemyDefinition, EnemyState
 from mud.content_foundry import DUNGEONS as FOUNDRY_DUNGEONS
-from mud.content_foundry import GLASSFRUIT_SHARD, ASHWHEEL_SPOKE, NINTH_VAPOR_RESIN
+from mud.content_foundry import (
+    ASHWHEEL_SPOKE,
+    CINDER_TICKET,
+    GLASSFRUIT_SHARD,
+    NINTH_VAPOR_RESIN,
+    PERFUMER_SILVER_SALT,
+    WIDOW_SILK,
+)
 from mud.crafting import ItemDefinition
 from mud.gear import CraftingRecipe, MaterialRequirement
 from mud.greywake_march import GREYWAKE_WEST_MILE_KEY, GREYWAKE_RIFTFIELD_KEY
