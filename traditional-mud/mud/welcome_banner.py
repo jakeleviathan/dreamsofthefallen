@@ -91,8 +91,8 @@ def _mirrored_row(left: str, center: str = " ") -> str:
 # generated, so a hand-spaced edit can no longer make one side drift away from
 # the other.
 TOP_ORNAMENT = (
-    _mirrored_row(r"      /\       /\       /\", "^"),
-    _mirrored_row(r" /\__/  \_____/  \_____/  \", "|"),
+    _mirrored_row("      /\\       /\\       /\\", "^"),
+    _mirrored_row(" /\\__/  \\_____/  \\_____/  \\", "|"),
     _mirrored_row(r"_/                                  ", "V"),
 )
 
