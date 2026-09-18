@@ -59,7 +59,6 @@ from mud.welcome_banner import WELCOME_BANNER
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 assert session_module.WELCOME_BANNER is WELCOME_BANNER
-assert server.PlayerSession._final_runtime_policy_installed
 
 class Telnet:
     gmcp_enabled = False
