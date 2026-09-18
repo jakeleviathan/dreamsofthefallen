@@ -1392,7 +1392,7 @@ class PlayerSession:
         verb = command.strip().lower()
         if verb in {"help", "?"}:
             await self.send(
-                "Commands: LOOK, EXITS, NORTH/SOUTH/EAST/WEST, SCORE, STATS, HEALTH, LORE, PROGRESS/ABILITIES, "
+                "Commands: LOOK, EXITS, NORTH/SOUTH/EAST/WEST, SCORE, STATS, HEALTH, LORE, SKILLS, ABILITIES, ABILITIES ALL, "
                 "ATTACK/KILL <target>, USE/CAST <ability>, FLEE, BIND, ACCESS, INVENTORY, READ, QUESTS, TALK, "
                 "EXAMINE, TOUCH, LISTEN, "
                 "TRADES, PROFESSIONS, RECIPES, CRAFT, MINE, HARVEST, HERBALISM, SHOP, MENU, QUIT\r\n"
