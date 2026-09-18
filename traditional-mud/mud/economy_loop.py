@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from time import monotonic
 
 import mud.crafting as crafting
+import mud.world as legacy_world
 from mud.crafting import ItemDefinition, ResourceNodeDefinition, ResourceNodeState
 from mud.gear import CraftingRecipe, MaterialRequirement
 from mud.stats import CharacterStats, EquipmentItem
@@ -58,6 +59,8 @@ STATION_LABELS = {
     "loom": "Loom / Sewing Bench",
     "mortar_and_pestle": "Mortar and Pestle",
     "alchemy_table": "Alchemy Table",
+    "enchanting_table": "Runic Workbench",
+    "cookfire": "Cookfire",
 }
 
 
@@ -240,7 +243,19 @@ def _stations_here(session) -> tuple[str, ...]:
     character = getattr(session, "character", None)
     if character is None:
         return ()
-    return ROOM_STATIONS.get(character.current_room or "", ())
+    room_key = character.current_room or ""
+    stations = list(ROOM_STATIONS.get(room_key, ()))
+
+    # Newer authored rooms often advertise infrastructure through semantic room
+    # tags instead of the old starter ROOM_STATIONS table. Treat those tags as
+    # first-class stations so every region can share the same workshop UI.
+    room = legacy_world.ROOMS_BY_KEY.get(room_key)
+    if room is not None:
+        known = set(STATION_LABELS)
+        for tag in getattr(room, "tags", ()):
+            if tag in known and tag not in stations:
+                stations.append(tag)
+    return tuple(stations)
 
 
 def _normalize(value: str) -> str:
@@ -483,6 +498,12 @@ def _recipe_filter(value: str) -> tuple[str, str | None]:
         "sewing": "tailoring",
         "alchemy": "alchemy",
         "alchemist": "alchemy",
+        "enchant": "enchanting",
+        "enchanter": "enchanting",
+        "enchanting": "enchanting",
+        "cook": "cooking",
+        "cooking": "cooking",
+        "chef": "cooking",
     }
     if not wanted:
         return "overview", None
@@ -521,6 +542,8 @@ async def _show_recipe_help(session) -> None:
         "RECIPES BLACKSMITHING    full Blacksmithing catalog\r\n"
         "RECIPES TAILORING        full Tailoring catalog\r\n"
         "RECIPES ALCHEMY          full Alchemy catalog\r\n"
+        "RECIPES ENCHANTING       full Enchanting catalog\r\n"
+        "RECIPES COOKING          full Cooking catalog\r\n"
         "RECIPES READY            every recipe your current skill has unlocked\r\n"
         "RECIPES CRAFTABLE        recipes you can craft right now with your inventory and local station\r\n"
         "RECIPES ALL              complete catalog\r\n"
@@ -605,7 +628,7 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
             "Showing a concise view. Use RECIPES <profession>, RECIPES READY, "
             "RECIPES CRAFTABLE, or RECIPES ALL for more.\r\n"
         )
-        profession_order = ("blacksmithing", "tailoring", "alchemy")
+        profession_order = ("blacksmithing", "tailoring", "alchemy", "enchanting", "cooking")
         for key in profession_order:
             recipes = [r for r in crafting.ALL_RECIPES if r.trade_skill_key == key]
             if recipes:
@@ -628,7 +651,7 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
         await session.send("No recipes match that view right now.\r\n")
         return
 
-    profession_order = ("blacksmithing", "tailoring", "alchemy")
+    profession_order = ("blacksmithing", "tailoring", "alchemy", "enchanting", "cooking")
     remaining = sorted({r.trade_skill_key for r in selected} - set(profession_order))
     for key in (*profession_order, *remaining):
         group = [r for r in selected if r.trade_skill_key == key]

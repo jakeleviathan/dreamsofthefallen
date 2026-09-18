@@ -78,6 +78,7 @@ from mud.iconic_items import install_iconic_items
 from mud.content_foundry import install_content_foundry_runtime
 from mud.content_density import install_content_density_runtime
 from mud.recipe_quality import apply_recipe_semantic_quality
+from mud.profession_workshops import install_profession_workshops_runtime
 from mud.planar_realms import install_planar_realms_runtime
 from mud.item_naming import install_authored_item_names
 from mud.command_guide import install_command_guide_runtime
@@ -224,6 +225,7 @@ install_content_density_runtime(PlayerSession, WORLD)
 # Final semantic pass: preserve stable recipe keys while correcting legacy
 # ingredient combinations that existed only to force cross-region material use.
 apply_recipe_semantic_quality()
+install_profession_workshops_runtime(PlayerSession)
 
 # Expand the daily living-world pulse only after every physical region above is
 # registered. This yields hundreds of concrete regional events while preserving
