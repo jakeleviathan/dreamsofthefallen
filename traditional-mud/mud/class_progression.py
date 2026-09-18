@@ -13,6 +13,18 @@ from mud.gear import CraftingRecipe, MaterialRequirement
 from mud.stats import CharacterStats, EquipmentItem
 
 
+_ABILITY_DETAIL_RESET = "\x1b[0m"
+_ABILITY_DETAIL_HEADER = "\x1b[1;97m"
+_ABILITY_DETAIL_NAME = "\x1b[96m"
+_ABILITY_DETAIL_BAND = "\x1b[1;93m"
+_ABILITY_DETAIL_PROGRESS = "\x1b[92m"
+_ABILITY_DETAIL_DIM = "\x1b[90m"
+
+
+def _ability_detail_paint(style: str, text: str) -> str:
+    return f"{style}{text}{_ABILITY_DETAIL_RESET}"
+
+
 # This pass deliberately stops at level 9 because the authored shared world is
 # currently strongest through roughly level 10. The goal is a complete early-
 # midgame class identity, not a speculative fifty-spell endgame tree.
@@ -585,24 +597,73 @@ async def _show_ability_detail(session, target_text: str) -> None:
         aliases = {ability.key.replace("_", " ").lower(), ability.name.lower()}
         if wanted not in aliases:
             continue
-        status = "UNLOCKED" if ability in _unlocked_class_abilities(session) else f"LOCKED until level {ability.unlock_level}"
-        summary = ability_mastery.mastery_summary(
+
+        unlocked = ability in _unlocked_class_abilities(session)
+        status = (
+            _ability_detail_paint(_ABILITY_DETAIL_PROGRESS, "UNLOCKED")
+            if unlocked
+            else _ability_detail_paint(
+                _ABILITY_DETAIL_DIM,
+                f"LOCKED until level {ability.unlock_level}",
+            )
+        )
+        state = ability_mastery.progress(
             session.database, session.character.id, ability.key
         )
-        practice_note = (
-            "Meaningful use improves this ability; empty healing, trivial enemies, and idle buff spam do not award skill XP."
-            if ability.skill_improves_effectiveness
-            else "This ability has a fixed effect and records uses without mastery scaling."
+        earned, needed = ability_mastery.mastery_level_progress(state)
+        bar = ability_mastery.mastery_progress_bar(state)
+        mana = ability_mastery.effective_mana_cost(session, ability)
+        base_mana = ability.mana_cost or 0
+        cooldown = ability.cooldown_seconds or 0.0
+
+        await session.send(
+            f"\r\n{_ability_detail_paint(_ABILITY_DETAIL_HEADER, '--- Ability Detail ---')}\r\n"
+            f"{_ability_detail_paint(_ABILITY_DETAIL_NAME, ability.name)}  {status}\r\n"
+            f"{ability.description}\r\n\r\n"
+            f"Category : {ability.category.replace('_', ' ').title()}\r\n"
+            f"Command  : {_command_for(ability)}\r\n"
+            f"Mana     : {mana}"
+            + (f" (base {base_mana})" if mana != base_mana else "")
+            + f"\r\nCooldown : {cooldown:g}s\r\n"
+        )
+
+        if not ability.skill_improves_effectiveness:
+            await session.send(
+                f"\r\n{_ability_detail_paint(_ABILITY_DETAIL_BAND, 'Mastery: Fixed Effect')}\r\n"
+                f"{_ability_detail_paint(_ABILITY_DETAIL_DIM, f'Uses: {state.uses}')}\r\n"
+                "This ability records successful uses but does not become stronger through mastery.\r\n"
+            )
+            return
+
+        progress_text = (
+            "MAX"
+            if state.level >= ability_mastery.MAX_MASTERY_LEVEL
+            else f"{earned} / {needed} XP toward Skill {state.level + 1}"
         )
         await session.send(
-            f"\r\n{ability.name} - {status}\r\n{ability.description}\r\n"
-            f"Category: {ability.category} | Mana: {ability.mana_cost or 0} | Cooldown: {ability.cooldown_seconds or 0:g}s\r\n"
-            f"Mastery: {summary}\r\n"
-            f"{practice_note}\r\n"
-            f"Command: {_command_for(ability)}\r\n"
+            f"\r\n{_ability_detail_paint(_ABILITY_DETAIL_BAND, state.band)}  "
+            f"Skill {state.level} / 100\r\n"
+            f"Mastery  {_ability_detail_paint(_ABILITY_DETAIL_PROGRESS, bar)}  {progress_text}\r\n"
+            f"{_ability_detail_paint(_ABILITY_DETAIL_DIM, f'Uses {state.uses} | Total skill XP {state.skill_xp}')}\r\n"
+            f"\r\n{_ability_detail_paint(_ABILITY_DETAIL_HEADER, 'Current Mastery Effects')}\r\n"
+        )
+        for line in ability_mastery.mastery_effect_lines(ability, state.level):
+            await session.send(f"  - {line}\r\n")
+
+        next_band = ability_mastery.next_mastery_band(state.level)
+        if next_band is not None:
+            threshold, label = next_band
+            await session.send(
+                f"\r\n{_ability_detail_paint(_ABILITY_DETAIL_HEADER, f'Next Milestone: {label} at Skill {threshold}')}\r\n"
+            )
+            for line in ability_mastery.mastery_effect_lines(ability, threshold):
+                await session.send(f"  - {line}\r\n")
+
+        await session.send(
+            "\r\nMeaningful use earns skill XP; empty healing, trivial enemies, and idle buff spam do not.\r\n"
         )
         return
-    await session.send("That is not an ability in your class progression. Type CLASS to review your kit.\r\n")
+    await session.send("That is not an ability in your class progression. Type ABILITIES to review your current kit.\r\n")
 
 
 async def _announce_pending_level(session) -> None:

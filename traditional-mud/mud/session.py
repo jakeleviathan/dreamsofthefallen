@@ -88,6 +88,185 @@ from mud.client_gui import MudletGuiOffer, configured_mudlet_gui_offer
 from mud.merchants import MERCHANTS_BY_NPC_KEY
 
 
+_ABILITY_UI_RESET = "\x1b[0m"
+_ABILITY_UI_HEADER = "\x1b[1;97m"
+_ABILITY_UI_NAME = "\x1b[96m"
+_ABILITY_UI_BAND = "\x1b[1;93m"
+_ABILITY_UI_PROGRESS = "\x1b[92m"
+_ABILITY_UI_DIM = "\x1b[90m"
+_ABILITY_UI_UNLOCKED = "\x1b[92m"
+
+
+def _ability_ui(style: str, text: str) -> str:
+    return f"{style}{text}{_ABILITY_UI_RESET}"
+
+
+def _ability_catalog_for(session) -> tuple:
+    character = getattr(session, "character", None)
+    if character is None:
+        return ()
+    class_key = character.character_class or ""
+    if class_key == "priest":
+        return tuple(class_abilities_for_level(class_key, 10_000, character.deity_key))
+    return tuple(FIXED_CLASS_ABILITIES.get(class_key, ()))
+
+
+def _ability_display_name(ability_key: str, catalog: tuple) -> str:
+    for ability in catalog:
+        if ability.key == ability_key:
+            return ability.name
+    return ability_key.replace("_", " ").title()
+
+
+def _ability_command_hint(ability) -> str:
+    if ability.key == "resurrection":
+        return "RESURRECT <name>"
+    if ability.category in {"healing", "ally_buff", "healing_over_time", "ally_protection"}:
+        return f"CAST {ability.name.upper()} <name>"
+    return f"CAST {ability.name.upper()}"
+
+
+async def _show_mastery_skills(session) -> None:
+    character = session.character
+    catalog = tuple(sorted(
+        _ability_catalog_for(session),
+        key=lambda ability: (
+            10_000 if ability.unlock_level is None else ability.unlock_level,
+            ability.name,
+        ),
+    ))
+    by_key = {ability.key: ability for ability in catalog}
+    practiced = session.database.list_ability_progress(character.id)
+    class_label = (character.character_class or "character").replace("_", " ").upper()
+
+    await session.send(
+        f"\r\n{_ability_ui(_ABILITY_UI_HEADER, f'--- {class_label} SKILLS ---')}\r\n"
+    )
+    if not practiced:
+        await session.send(
+            "No practiced class abilities yet. Meaningful ability use builds mastery from skill 1 to 100.\r\n"
+        )
+    else:
+        for item in practiced:
+            key = str(item["ability_key"])
+            ability = by_key.get(key)
+            state = ability_mastery.progress(session.database, character.id, key)
+            earned, needed = ability_mastery.mastery_level_progress(state)
+            bar = ability_mastery.mastery_progress_bar(state)
+            name = ability.name if ability is not None else _ability_display_name(key, catalog)
+            await session.send(
+                f"\r\n  {_ability_ui(_ABILITY_UI_NAME, name)}\r\n"
+                f"  {_ability_ui(_ABILITY_UI_BAND, state.band):<24} Skill {state.level} / 100\r\n"
+                f"  Mastery  {_ability_ui(_ABILITY_UI_PROGRESS, bar)}  "
+                + (
+                    "MAX\r\n"
+                    if state.level >= ability_mastery.MAX_MASTERY_LEVEL
+                    else f"{earned} / {needed} XP\r\n"
+                )
+                + f"  {_ability_ui(_ABILITY_UI_DIM, f'Uses     {state.uses}')}\r\n"
+            )
+
+    upcoming = [
+        ability
+        for ability in catalog
+        if ability.unlock_level is not None and ability.unlock_level > character.level
+    ][:3]
+    if upcoming:
+        await session.send(
+            f"\r\n{_ability_ui(_ABILITY_UI_HEADER, 'NEXT CLASS ABILITIES')}\r\n"
+            f"{_ability_ui(_ABILITY_UI_DIM, '-' * 56)}\r\n"
+        )
+        for ability in upcoming:
+            await session.send(
+                f"  Lv {ability.unlock_level:<3} {_ability_ui(_ABILITY_UI_NAME, ability.name)}\r\n"
+            )
+    else:
+        await session.send(
+            f"\r\n{_ability_ui(_ABILITY_UI_DIM, 'All currently authored class abilities are unlocked.')}\r\n"
+        )
+
+    await session.send(
+        "\r\nType ABILITY <name> for mastery details. "
+        "Type ABILITIES for your current kit or ABILITIES ALL for the complete progression.\r\n"
+    )
+
+
+async def _show_unlocked_abilities(session) -> None:
+    character = session.character
+    catalog = _ability_catalog_for(session)
+    unlocked_keys = {
+        ability.key
+        for ability in class_abilities_for_level(
+            character.character_class or "",
+            character.level,
+            character.deity_key,
+        )
+    }
+    unlocked = [ability for ability in catalog if ability.key in unlocked_keys]
+    unlocked.sort(key=lambda ability: (
+        10_000 if ability.unlock_level is None else ability.unlock_level,
+        ability.name,
+    ))
+    class_label = (character.character_class or "character").replace("_", " ").upper()
+    await session.send(
+        f"\r\n{_ability_ui(_ABILITY_UI_HEADER, f'--- {class_label} ABILITIES ---')}\r\n"
+        f"Level {character.level}. These are the abilities you can use now.\r\n"
+    )
+    if not unlocked:
+        await session.send("No active class abilities are currently unlocked.\r\n")
+    for ability in unlocked:
+        mana = ability_mastery.effective_mana_cost(session, ability)
+        cooldown = ability.cooldown_seconds or 0
+        await session.send(
+            f"\r\n  {_ability_ui(_ABILITY_UI_NAME, ability.name)}  "
+            f"{_ability_ui(_ABILITY_UI_DIM, f'[Lv {ability.unlock_level or 1}]')}\r\n"
+            f"    {ability.description}\r\n"
+            f"    {_ability_ui(_ABILITY_UI_DIM, f'Mana {mana} | Cooldown {cooldown:g}s | {_ability_command_hint(ability)}')}\r\n"
+        )
+    await session.send(
+        "\r\nType ABILITY <name> for mastery details. Type ABILITIES ALL for future unlocks.\r\n"
+    )
+
+
+async def _show_all_abilities(session) -> None:
+    character = session.character
+    catalog = tuple(sorted(
+        _ability_catalog_for(session),
+        key=lambda ability: (
+            10_000 if ability.unlock_level is None else ability.unlock_level,
+            ability.name,
+        ),
+    ))
+    unlocked_keys = {
+        ability.key
+        for ability in class_abilities_for_level(
+            character.character_class or "",
+            character.level,
+            character.deity_key,
+        )
+    }
+    class_label = (character.character_class or "character").replace("_", " ").upper()
+    await session.send(
+        f"\r\n{_ability_ui(_ABILITY_UI_HEADER, f'--- {class_label} ABILITY PROGRESSION ---')}\r\n"
+    )
+    for ability in catalog:
+        level = ability.unlock_level or 1
+        unlocked = ability.key in unlocked_keys
+        status = (
+            _ability_ui(_ABILITY_UI_UNLOCKED, "UNLOCKED")
+            if unlocked
+            else _ability_ui(_ABILITY_UI_DIM, "LOCKED")
+        )
+        name_style = _ABILITY_UI_NAME if unlocked else _ABILITY_UI_DIM
+        await session.send(
+            f"  Lv {level:<3} {_ability_ui(name_style, ability.name):<34} {status}\r\n"
+            f"         {ability.description}\r\n"
+        )
+    await session.send(
+        "\r\nSKILLS shows only your practiced mastery. ABILITIES shows only what you can use now.\r\n"
+    )
+
+
 class SessionState(Enum):
     ACCOUNT_NAME = auto()
     CHARACTER_MENU = auto()
@@ -1213,7 +1392,7 @@ class PlayerSession:
         verb = command.strip().lower()
         if verb in {"help", "?"}:
             await self.send(
-                "Commands: LOOK, EXITS, NORTH/SOUTH/EAST/WEST, SCORE, STATS, HEALTH, LORE, PROGRESS/ABILITIES, "
+                "Commands: LOOK, EXITS, NORTH/SOUTH/EAST/WEST, SCORE, STATS, HEALTH, LORE, SKILLS, ABILITIES, ABILITIES ALL, "
                 "ATTACK/KILL <target>, USE/CAST <ability>, FLEE, BIND, ACCESS, INVENTORY, READ, QUESTS, TALK, "
                 "EXAMINE, TOUCH, LISTEN, "
                 "TRADES, PROFESSIONS, RECIPES, CRAFT, MINE, HARVEST, HERBALISM, SHOP, MENU, QUIT\r\n"
@@ -1601,47 +1780,16 @@ class PlayerSession:
                     await self.send(f"- {item}\r\n")
             return
 
-        if verb in {"progress", "skills", "abilities"}:
-            progress = self.database.list_ability_progress(self.character.id)
-            class_key = self.character.character_class or ""
-            fixed = (
-                class_abilities_for_level(class_key, 10_000, self.character.deity_key)
-                if class_key == "priest"
-                else FIXED_CLASS_ABILITIES.get(class_key, ())
-            )
-            unlocked = {
-                ability.key
-                for ability in class_abilities_for_level(
-                    class_key, self.character.level, self.character.deity_key
-                )
-            }
-            await self.send("\r\n--- Ability Progress ---\r\n")
-            await self.send("Class ability sets are fixed; players do not choose from a talent pool.\r\n")
-            await self.send(
-                "Ability mastery runs from 1-100. Uses count successful activations; skill XP is awarded only for meaningful practice.\r\n"
-            )
-            if fixed:
-                await self.send("Class abilities:\r\n")
-                for ability in fixed:
-                    level_text = "?" if ability.unlock_level is None else str(ability.unlock_level)
-                    status = "UNLOCKED" if ability.key in unlocked else f"LOCKED (level {level_text})"
-                    await self.send(f"- {ability.name}: {status} - {ability.description}\r\n")
-            elif class_key == "priest":
-                await self.send(
-                    "Priest abilities branch from the chosen deity. This Priest does not yet have a valid deity path.\r\n"
-                )
-            else:
-                await self.send("This class's authored ability list has not been designed yet.\r\n")
-            if not progress:
-                await self.send("No practiced abilities yet. Abilities gain skill progression through use.\r\n")
-            else:
-                for item in progress:
-                    summary = ability_mastery.mastery_summary(
-                        self.database, self.character.id, str(item["ability_key"])
-                    )
-                    await self.send(
-                        f"{item['ability_key']}: {item['uses']} uses, {summary}\r\n"
-                    )
+        if verb in {"progress", "skills"}:
+            await _show_mastery_skills(self)
+            return
+
+        if verb == "abilities":
+            await _show_unlocked_abilities(self)
+            return
+
+        if verb in {"abilities all", "class abilities all"}:
+            await _show_all_abilities(self)
             return
 
         if verb in {"access", "flags", "keys"}:

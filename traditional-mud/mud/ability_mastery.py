@@ -312,6 +312,102 @@ async def record_completed_use(session, ability, *, meaningful: bool) -> Mastery
     return await commit_use(session)
 
 
+def mastery_level_progress(state: MasteryProgress) -> tuple[int, int]:
+    """Return XP earned inside the current mastery level and XP needed to advance."""
+    if state.level >= MAX_MASTERY_LEVEL:
+        return 1, 1
+    floor_xp = xp_for_mastery_level(state.level)
+    ceiling_xp = xp_for_mastery_level(state.level + 1)
+    needed = max(1, ceiling_xp - floor_xp)
+    earned = max(0, min(needed, state.skill_xp - floor_xp))
+    return earned, needed
+
+
+def mastery_progress_bar(state: MasteryProgress, width: int = 20) -> str:
+    width = max(5, int(width))
+    earned, needed = mastery_level_progress(state)
+    if state.level >= MAX_MASTERY_LEVEL:
+        filled = width
+    else:
+        filled = max(0, min(width, int(round(width * earned / needed))))
+    return "[" + ("█" * filled) + ("░" * (width - filled)) + "]"
+
+
+def next_mastery_band(level: int) -> tuple[int, str] | None:
+    current = max(1, min(MAX_MASTERY_LEVEL, int(level)))
+    for threshold, label in MASTERY_BANDS:
+        if threshold > current:
+            return threshold, label
+    return None
+
+
+def mastery_effect_values(ability, level: int, *, base_mana_cost: int | None = None) -> dict[str, float | int]:
+    """Expose authored curve values for player-facing ability detail."""
+    level = max(1, min(MAX_MASTERY_LEVEL, int(level)))
+    base = int((getattr(ability, "mana_cost", 0) or 0) if base_mana_cost is None else base_mana_cost)
+    if ability is None or not bool(getattr(ability, "skill_improves_effectiveness", True)):
+        return {
+            "power_bonus_percent": 0.0,
+            "mana_cost": max(0, base),
+            "mana_discount": 0,
+            "duration_bonus": 0.0,
+            "flat_bonus": 0,
+        }
+
+    curve = curve_for(ability)
+    multiplier = _curve_value(curve.power, level)
+    mana_discount = int(round(_curve_value(curve.mana_discount, level)))
+    return {
+        "power_bonus_percent": max(0.0, (multiplier - 1.0) * 100.0),
+        "mana_cost": max(0, base - mana_discount),
+        "mana_discount": max(0, mana_discount),
+        "duration_bonus": max(0.0, _curve_value(curve.duration_bonus, level)),
+        "flat_bonus": max(0, int(round(_curve_value(curve.flat_bonus, level)))),
+    }
+
+
+def mastery_effect_lines(ability, level: int) -> tuple[str, ...]:
+    if ability is None:
+        return ()
+    if not bool(getattr(ability, "skill_improves_effectiveness", True)):
+        return ("Fixed effect; mastery does not modify this ability.",)
+
+    values = mastery_effect_values(ability, level)
+    category = str(getattr(ability, "category", "") or "").lower()
+    key = str(getattr(ability, "key", "") or "")
+    lines: list[str] = []
+
+    power = float(values["power_bonus_percent"])
+    if power > 0.05:
+        label = "Healing power" if category in _HEALING_CATEGORIES or key == "restoring_light" else "Effect power"
+        if "life_drain" in category or key in {"minor_life_tap", "soul_harvest", "soul_hook"}:
+            label = "Drain power"
+        lines.append(f"{label}: +{power:.1f}%")
+
+    base_mana = int(getattr(ability, "mana_cost", 0) or 0)
+    mana_cost = int(values["mana_cost"])
+    mana_discount = int(values["mana_discount"])
+    if base_mana > 0:
+        if mana_discount:
+            lines.append(f"Mana cost: {mana_cost} (base {base_mana}, -{mana_discount} from mastery)")
+        else:
+            lines.append(f"Mana cost: {mana_cost}")
+
+    duration = float(values["duration_bonus"])
+    if duration > 0.05:
+        lines.append(f"Duration bonus: +{duration:.1f}s")
+
+    flat = int(values["flat_bonus"])
+    if key in {"blessing_of_resolve", "hp_buff"}:
+        lines.append(f"Maximum-HP bonus from mastery: +{flat}")
+    elif flat:
+        lines.append(f"Flat effect bonus: +{flat}")
+
+    if not lines:
+        lines.append("Current mastery has not reached its first mechanical bonus yet.")
+    return tuple(lines)
+
+
 def mastery_summary(database, character_id: int, ability_key: str) -> str:
     state = progress(database, character_id, ability_key)
     if state.next_level_xp is None:
