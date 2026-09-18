@@ -13,7 +13,14 @@ import mud.world as legacy_world
 from mud.astralis_time import ASTRALIS_CLOCK
 from mud.combat import EnemyDefinition, EnemyState
 from mud.content_foundry import DUNGEONS as FOUNDRY_DUNGEONS
-from mud.content_foundry import GLASSFRUIT_SHARD, ASHWHEEL_SPOKE, NINTH_VAPOR_RESIN
+from mud.content_foundry import (
+    ASHWHEEL_SPOKE,
+    CINDER_TICKET,
+    GLASSFRUIT_SHARD,
+    NINTH_VAPOR_RESIN,
+    PERFUMER_SILVER_SALT,
+    WIDOW_SILK,
+)
 from mud.crafting import ItemDefinition
 from mud.gear import CraftingRecipe, MaterialRequirement
 from mud.greywake_march import GREYWAKE_WEST_MILE_KEY, GREYWAKE_RIFTFIELD_KEY
@@ -153,33 +160,89 @@ CURIOS = tuple(
 assert len(CURIOS) == 30
 
 
-# Forty recipes: four per material family. Each crosses at least one regional
-# boundary rather than letting a dungeon consume only its own output.
-RECIPE_MATERIALS = (
-    GLASSFRUIT_SHARD, ASHWHEEL_SPOKE, NINTH_VAPOR_RESIN,
-    "density_small_saint_major_material", "density_salt_king_major_material", "density_red_door_major_material",
-    "density_broken_observatory_major_material", "density_rootcourt_major_material", "density_brass_lung_major_material",
-    "density_white_room_major_material",
-)
-BASE_CROSS_MATERIALS = ("iron_ingot", "cotton_cloth", "steel_ingot", "wool_cloth", "rough_hide", "silk_cloth", "coal", "moonweave_cloth", "drowned_brass_scrap", "lavender_blossom")
+# Forty regional recipes: four wearable pieces per family. Materials are chosen
+# for what they physically do in the item instead of rotating unrelated dungeon
+# drops through arbitrary slots. Regional trade still matters, but a coat is made
+# from cloth/hide and a metal greave is made from workable metal and fittings.
+REGIONAL_RECIPE_BLUEPRINTS = {
+    "waymeet": (
+        ("tailoring", (("wool_cloth", 1), ("cotton_thread", 1)), "Sew a wool road cap with a cotton sweatband and binding."),
+        ("tailoring", (("wool_cloth", 2), ("rough_hide", 1)), "Tailor a road coat and reinforce its wear points with hide."),
+        ("tailoring", (("rough_hide", 2), ("wool_cloth", 1)), "Build flexible road greaves from hide over a wool backing."),
+        ("tailoring", (("rough_hide", 2), ("cotton_thread", 1)), "Stitch durable hide road boots with replaceable lacing."),
+    ),
+    "greywake": (
+        ("tailoring", (("wool_cloth", 1), (WIDOW_SILK, 1)), "Bind a Greywake wool cap with strong orchard silk."),
+        ("tailoring", (("wool_cloth", 2), (WIDOW_SILK, 1)), "Line a sturdy march coat with widow-silk at the seams."),
+        ("blacksmithing", (("iron_ingot", 2), ("blackreed_iron_fitting", 1)), "Forge march greaves with reclaimed Blackreed knee hardware."),
+        ("tailoring", (("rough_hide", 2), (WIDOW_SILK, 1)), "Sew march boots with widow-silk through the flex seams."),
+    ),
+    "veyra": (
+        ("tailoring", (("silk_cloth", 1), ("cotton_thread", 1)), "Cut a neat civic cap from silk with simple cotton stitching."),
+        ("tailoring", (("silk_cloth", 2), ("drowned_brass_scrap", 1)), "Tailor a civic coat with reclaimed-brass buttons and stays."),
+        ("blacksmithing", (("steel_ingot", 2), ("drowned_brass_scrap", 1)), "Forge civic greaves with replaceable brass hinges."),
+        ("tailoring", (("rough_hide", 2), ("silk_thread", 1)), "Make polished city boots from hide with fine silk stitching."),
+    ),
+    "sablewater": (
+        ("tailoring", (("wool_cloth", 1), ("cotton_thread", 1)), "Sew a close-fitting river cap from easily repaired cloth."),
+        ("tailoring", (("wool_cloth", 2), ("rough_hide", 1)), "Make a river coat with hide at the shoulders and cuffs."),
+        ("blacksmithing", (("iron_ingot", 2), ("drowned_brass_scrap", 1)), "Forge river greaves with wet-tolerant reclaimed brass hardware."),
+        ("tailoring", (("rough_hide", 2), ("cotton_thread", 1)), "Stitch tall river boots from hide with replaceable lacing."),
+    ),
+    "blackreed": (
+        ("tailoring", (("rough_hide", 1), ("blackreed_iron_fitting", 1)), "Make a field cap with a salvaged iron brow fitting."),
+        ("tailoring", (("rough_hide", 2), ("wool_cloth", 1)), "Build a reclaimed hide coat over a warm wool lining."),
+        ("blacksmithing", (("iron_ingot", 1), ("blackreed_iron_fitting", 2)), "Rework holdfast fittings into strapped iron greaves."),
+        ("tailoring", (("rough_hide", 2), ("blackreed_iron_fitting", 1)), "Sew hide boots around a reclaimed heel and ankle brace."),
+    ),
+    "gravewatch": (
+        ("blacksmithing", (("gravewatch_old_garrison_iron", 1), ("iron_ingot", 1)), "Reforge old garrison iron into a compact protective cap."),
+        ("blacksmithing", (("gravewatch_old_garrison_iron", 2), ("iron_ingot", 1)), "Rework broad old-fort iron into a serviceable iron coat."),
+        ("blacksmithing", (("gravewatch_old_garrison_iron", 2), ("steel_ingot", 1)), "Forge heavy greaves with fresh steel at the joints."),
+        ("blacksmithing", (("gravewatch_old_garrison_iron", 1), ("steel_ingot", 1), ("rough_hide", 1)), "Build iron sabatons over a hide boot and steel sole plate."),
+    ),
+    "underclock": (
+        ("tailoring", (("cotton_cloth", 1), ("drowned_brass_scrap", 1)), "Sew a work cap with a thin brass spark guard."),
+        ("tailoring", (("cotton_cloth", 2), ("rough_hide", 1)), "Make a mechanic's coat with hide patches at wear points."),
+        ("blacksmithing", (("steel_ingot", 2), ("underclock_governor_bearing", 1)), "Forge articulated work greaves around a precision bearing."),
+        ("tailoring", (("rough_hide", 2), ("drowned_brass_scrap", 1)), "Make hide work boots with brass toe and heel plates."),
+    ),
+    "glass_orchard": (
+        ("tailoring", ((WIDOW_SILK, 1), ("cotton_cloth", 1)), "Sew an orchard cap from cotton reinforced with widow-silk."),
+        ("tailoring", ((WIDOW_SILK, 2), ("cotton_cloth", 1)), "Tailor an orchard coat with a widow-silk shell and cotton lining."),
+        ("tailoring", (("rough_hide", 2), (WIDOW_SILK, 1)), "Make flexible hide greaves bound with widow-silk."),
+        ("tailoring", (("rough_hide", 2), (WIDOW_SILK, 1)), "Stitch orchard boots and reinforce the ankle seams with widow-silk."),
+    ),
+    "ash_relay": (
+        ("tailoring", (("wool_cloth", 1), (CINDER_TICKET, 1)), "Make a driver's cap and reuse ticket brass as its badge and stiffener."),
+        ("tailoring", (("wool_cloth", 2), (CINDER_TICKET, 1)), "Tailor a relay coat with old ticket brass as buttons and fasteners."),
+        ("blacksmithing", (("steel_ingot", 2), (ASHWHEEL_SPOKE, 1)), "Forge road greaves from steel and springy relay-spoke iron."),
+        ("tailoring", (("rough_hide", 2), (ASHWHEEL_SPOKE, 1)), "Make road boots and cut the old spoke into heel and sole plates."),
+    ),
+    "nine_vapors": (
+        ("tailoring", (("silk_cloth", 1), (PERFUMER_SILVER_SALT, 1)), "Treat a silk work cap with perfume-house silver fixative."),
+        ("tailoring", (("silk_cloth", 2), (NINTH_VAPOR_RESIN, 1)), "Tailor a silk coat and finish it with diluted aromatic resin."),
+        ("blacksmithing", (("steel_ingot", 2), ("drowned_brass_scrap", 1)), "Forge workshop greaves with brass fittings suited to spills."),
+        ("tailoring", (("rough_hide", 2), (NINTH_VAPOR_RESIN, 1)), "Make hide work boots and seal the leather with a thin resin treatment."),
+    ),
+}
 
 
 def _recipes() -> tuple[CraftingRecipe, ...]:
     recipes = []
     for family_index, (family_key, _family_name, _tier) in enumerate(GEAR_FAMILIES):
         outputs = EVERYDAY_GEAR[family_index * 10: family_index * 10 + 4]
-        local = RECIPE_MATERIALS[family_index]
-        cross = BASE_CROSS_MATERIALS[(family_index + 3) % len(BASE_CROSS_MATERIALS)]
-        for i, output in enumerate(outputs):
-            trade = "blacksmithing" if i in {0, 2} else "tailoring"
+        blueprints = REGIONAL_RECIPE_BLUEPRINTS[family_key]
+        for i, (output, blueprint) in enumerate(zip(outputs, blueprints)):
+            trade, material_specs, description = blueprint
             station = "forge" if trade == "blacksmithing" else "loom"
             recipes.append(CraftingRecipe(
                 f"density_make_{family_key}_{i}", trade, output.key,
                 8 + family_index * 4 + i, 30 + family_index * 4 + i,
-                (MaterialRequirement(local, 1), MaterialRequirement(cross, 1)),
+                tuple(MaterialRequirement(key, quantity) for key, quantity in material_specs),
                 station_key=station,
-                description=f"A cross-road recipe combining {local.replace('_', ' ')} with material normally sourced elsewhere in Astralis.",
-                design_status="astralis_density",
+                description=description,
+                design_status="astralis_density_semantic_materials",
             ))
     return tuple(recipes)
 

@@ -105,6 +105,47 @@ class EconomyLoopTests(unittest.TestCase):
         self.assertEqual(self.db.item_quantity(self.character.id, "raw_cotton"), 0)
         self.assertEqual(self.db.item_quantity(self.character.id, "lavender_blossom"), 0)
 
+    def test_recipe_book_default_is_grouped_and_hides_internal_keys(self):
+        session = self._session_in("dwarf_workshop_tier", ["recipes"])
+
+        asyncio.run(session.playing_prompt())
+
+        output = "".join(session.outputs)
+        self.assertIn("RECIPE BOOK", output)
+        self.assertIn("Blacksmithing", output)
+        self.assertIn("Tailoring", output)
+        self.assertIn("Alchemy", output)
+        self.assertIn("Iron Ingot", output)
+        self.assertIn("NEXT UNLOCKS", output)
+        self.assertNotIn("smelt_iron_ingot:", output)
+        self.assertIn("RECIPE <name>", output)
+
+    def test_recipe_detail_shows_owned_requirements_and_station(self):
+        self.db.add_item(self.character.id, "iron_ore", 1)
+        session = self._session_in("dwarf_workshop_tier", ["recipe iron ingot"])
+
+        asyncio.run(session.playing_prompt())
+
+        output = "".join(session.outputs)
+        self.assertIn("=== RECIPE ===", output)
+        self.assertIn("Iron Ingot", output)
+        self.assertIn("Blacksmithing", output)
+        self.assertIn("Forge", output)
+        self.assertIn("1/2", output)
+        self.assertIn("Iron Ore", output)
+        self.assertIn("Not craftable yet: materials", output)
+
+    def test_recipes_craftable_only_lists_items_possible_right_now(self):
+        self.db.add_item(self.character.id, "iron_ore", 2)
+        session = self._session_in("dwarf_workshop_tier", ["recipes craftable"])
+
+        asyncio.run(session.playing_prompt())
+
+        output = "".join(session.outputs)
+        self.assertIn("Iron Ingot", output)
+        self.assertNotIn("Iron Dagger", output)
+        self.assertIn("CRAFT NOW", output)
+
     def test_real_room_station_allows_existing_crafting_recipe(self):
         session = self._session_in("dwarf_workshop_tier", ["craft smelt iron ingot"])
         self.db.add_item(self.character.id, "iron_ore", 2)
