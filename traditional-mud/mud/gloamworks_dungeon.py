@@ -97,7 +97,7 @@ GLOAMWORKS_QUEST = QuestDefinition(
         ("defeat_mother_sparks", "Cross the lower works and defeat Mother-of-Sparks in the Hollow Dynamo."),
         ("sync_seals", "At the Twin-Seal Vestibule, two players must HOLD LEFT SEAL and HOLD RIGHT SEAL together."),
         ("defeat_regent", "Keep at least two synchronized explorers in the Buried Court and defeat the Buried Regent."),
-        ("return_surveyor", "Return to Surveyor Pell at Gloam Mouth with what the group learned."),
+        ("return_surveyor", "Return to Surveyor Dorr at Gloam Mouth with what the group learned."),
         ("complete", "The Gloamworks were an excavation before they became a breach. Something beneath Astralis answered the digging."),
     ),
 )
@@ -211,12 +211,12 @@ GLOAMWORKS_BOSS_KEY = BURIED_REGENT_KEY
 
 SURVEYOR = NpcDefinition(
     key=SURVEYOR_KEY,
-    name="Surveyor Pell Ashmark",
+    name="Surveyor Dorr Ashmark",
     short_description="a soot-haired surveyor checking a rope harness beside the newly loosened Gloamworks chains",
     room_key=WAYMEET_GLOAM_MOUTH_KEY,
     role="Gloamworks expedition contact",
     dialogue=(
-        "Pell keeps one hand on the old chain. 'The upper works were built by ordinary hands. That is the reassuring part.'",
+        "Dorr keeps one hand on the old chain. 'The upper works were built by ordinary hands. That is the reassuring part.'",
         "'If two people tell me the deep rooms looked different, I want both reports. Do not average the strange parts away.'",
         "'And nobody opens the last seal alone. Whatever the old crews feared, they designed that lock to require disagreement with witnesses.'",
     ),
@@ -434,7 +434,7 @@ def gloamworks_augmentations() -> dict[str, RoomAugmentation]:
                     direction="down",
                     destination_key=GLOAM_ENTRY_KEY,
                     name="Gloamworks Survey Cage",
-                    travel_text="Pell unhooks the survey chain and the old cage lowers you beneath the sealed works.",
+                    travel_text="Dorr unhooks the survey chain and the old cage lowers you beneath the sealed works.",
                     condition=ViewCondition(required_flags=(WAYMEET_INTRO_COMPLETE_FLAG,), min_level=4),
                     hidden_when_unavailable=True,
                 ),
@@ -588,18 +588,18 @@ async def _talk_surveyor(session) -> bool:
     if session.character is None or session.character.current_room != WAYMEET_GLOAM_MOUTH_KEY:
         return False
     if not _ensure_quest(session):
-        await session.send("Pell checks your road marks. 'Finish learning Waymeet first, then come back when you're at least level 4.'\r\n")
+        await session.send("Dorr checks your road marks. 'Finish learning Waymeet first, then come back when you're at least level 4.'\r\n")
         return True
     q = _quest(session)
     if q is None:
         return True
     if q["status"] == "completed":
-        await session.send("Pell taps the copied breach map. 'The next problem is east now. Greywake has started hearing the same note.'\r\n")
+        await session.send("Dorr taps the copied breach map. 'The next problem is east now. Greywake has started hearing the same note.'\r\n")
         return True
     if q["current_step"] == "talk_surveyor":
         session.database.advance_quest(session.character.id, GLOAMWORKS_QUEST_KEY, "enter_works")
         await session.send(
-            "Pell clips a second safety line to the cage. 'Upper levels first. If the deep rooms disagree with your eyes, report what you actually perceived. And the last seal takes two people. That part is not negotiable.'\r\n"
+            "Dorr clips a second safety line to the cage. 'Upper levels first. If the deep rooms disagree with your eyes, report what you actually perceived. And the last seal takes two people. That part is not negotiable.'\r\n"
         )
     elif q["current_step"] == "return_surveyor":
         session.database.complete_quest(session.character.id, GLOAMWORKS_QUEST_KEY)
@@ -608,11 +608,11 @@ async def _talk_surveyor(session) -> bool:
         session.database.add_item(session.character.id, REGENT_SHARD_KEY, 1)
         _refresh_character(session)
         await session.send(
-            "Pell listens without interrupting, then circles the eastward marks on the final survey. 'So it continues under the Greywake March. Fine. We stop calling this a mine problem.'\r\n"
+            "Dorr listens without interrupting, then circles the eastward marks on the final survey. 'So it continues under the Greywake March. Fine. We stop calling this a mine problem.'\r\n"
             "Quest complete: Below the Sealed Door. You gain 180 XP and keep a Regent Shard from the survey evidence.\r\n"
         )
     else:
-        await session.send("Pell says, 'Bring me the whole route, not half a theory. The survey is still open.'\r\n")
+        await session.send("Dorr says, 'Bring me the whole route, not half a theory. The survey is still open.'\r\n")
     return True
 
 
@@ -724,7 +724,7 @@ async def _record_enemy_defeat(session, enemy_key: str) -> None:
                 explorer.database.add_experience(explorer.character.id, 90)
                 _refresh_character(explorer)
             await explorer.send(
-                "The Buried Regent finally comes apart where old drill frame meets impossible mineral. Behind it, the breach survey vault stands open. The expedition journal says one thing clearly: return to Pell when you are ready.\r\n"
+                "The Buried Regent finally comes apart where old drill frame meets impossible mineral. Behind it, the breach survey vault stands open. The expedition journal says one thing clearly: return to Dorr when you are ready.\r\n"
             )
 
 
@@ -772,7 +772,7 @@ def install_gloamworks_runtime(player_session_class, world_service) -> None:
         room_key = self.character.current_room or ""
 
         handled = False
-        if normalized in {"talk surveyor", "talk pell", "speak surveyor", "speak pell"}:
+        if normalized in {"talk surveyor", "talk dorr", "talk pell", "speak surveyor", "speak dorr", "speak pell"}:
             handled = await _talk_surveyor(self)
         elif room_key == GLOAM_GLASS_FAULT_KEY and normalized in {"examine fault", "look fault", "examine glass fault", "look glass fault"}:
             handled = await _inspect_fault(self)
