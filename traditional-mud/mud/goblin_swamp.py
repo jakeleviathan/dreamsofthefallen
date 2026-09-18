@@ -1128,7 +1128,7 @@ def install_goblin_swamp_runtime(player_session_class, world_service) -> None:
 
         if normalized in {"help", "?"} and _room_is_swamp(self.character.current_room):
             await self.send(
-                "Goblin swamp commands: HERBALISM [target], GATHER <target>, COLLECT WATER, ALCHEMY, BREW <recipe>. "
+                "Goblin swamp commands: HERBALISM [target], GATHER <target>, COLLECT WATER, ALCHEMY [recipe], BREW <recipe>. "
                 "The maintained beginner routes branch north/east/west from the First Piling after Beyond the Painted Line.\r\n"
             )
 
