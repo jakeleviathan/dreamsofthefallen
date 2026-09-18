@@ -6,7 +6,7 @@ import re
 # The login splash is deliberately built as terminal art rather than a rectangular
 # plaque. It stays under 90 visible columns so it fits a normal Mudlet window and
 # remains readable in ordinary Telnet clients.
-BANNER_WIDTH = 88
+BANNER_WIDTH = 78
 
 RESET = "\x1b[0m"
 IRON = "\x1b[37m"
@@ -90,7 +90,7 @@ def build_welcome_banner() -> str:
             _paint(DREAMLIGHT, _center("▼")),
             "",
             _paint(GOLD, _center("A S T R A L I S")),
-            _paint(SHADOW, _center("DREAMS OF THE FALLEN")),
+            _paint(SHADOW, _center("DREAMS OF THE FALLEN // ASTRALIS")),
             _paint(SHADOW, _center("Beneath Astralis, something dreams.")),
             "",
         )
