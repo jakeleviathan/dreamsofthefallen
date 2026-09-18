@@ -10,7 +10,7 @@ import mud.living_world as living
 from mud.combat import EnemyDefinition
 from mud.world import ROOMS_BY_KEY
 
-LIVING_WORLD_VARIETY_VERSION = "2.0.0"
+LIVING_WORLD_VARIETY_VERSION = "2.1.0"
 BASE_PULSES = tuple(living.PULSE_TEMPLATES)
 
 @dataclass(frozen=True, slots=True)
@@ -64,12 +64,12 @@ OPENERS = (
     "The world had {days} Astralis {day_word} to rearrange itself while you were gone. One change is still visible.",
 )
 CLOSERS = (
-    "It is news, not an assignment. Follow it only if it sounds interesting.",
-    "Nobody is keeping attendance; the notice is here so the world can surprise you, not punish you.",
-    "The road will be there whether you chase the rumor or ignore it.",
-    "This is information, not a summons. Pick your own trouble.",
-    "There is no deadline attached to curiosity.",
-    "Take the detour if you want the firsthand version; otherwise let the rumor pass.",
+    "That is the current word from the road.",
+    "By tomorrow the road will probably have found something else to talk about.",
+    "The rest of the post book is mud, prices, and arguments too ordinary to copy here.",
+    "That is all the desk has worth forwarding today.",
+    "Someone else will have changed the story by sundown.",
+    "If you pass that way, you can decide for yourself how much of the rumor was true.",
 )
 SUBJECTS = (
     "Road note — Day {day}", "Dispatch from {region} — Day {day}", "Something changed near {room} — Day {day}",
@@ -105,9 +105,9 @@ STORY_MOTIFS = (
     ("story", "roadside story", "Someone at {room} is telling a story that every listener insists they heard differently the first time."),
 )
 SCENE_DETAILS = (
-    "Nobody organized this as an attraction; it became one because people kept stopping.",
+    "Nobody organized this; it became a gathering because people kept stopping.",
     "Bystanders offer help, advice, and contradictory eyewitness versions of what started it.",
-    "The scene is temporary and visibly part of the place rather than a quest marker pasted over it.",
+    "People have shifted crates and stools aside to make room without ever agreeing that a crowd has formed.",
     "Someone who was only passing through has already become part of the story.",
     "The little crowd changes every few minutes, but the event itself keeps going.",
 )
@@ -153,21 +153,21 @@ def _build_catalog() -> tuple[living.DailyPulse, ...]:
         rooms = _rooms_for(r.region_key)
         for i, (motif, headline) in enumerate(MERCHANT_MOTIFS):
             rk, rn = rooms[(i * 2 + ri) % len(rooms)]; actor = MERCHANT_NAMES[(ri * 3 + i) % len(MERCHANT_NAMES)]; key = f"variety:{r.region_key}:merchant:{motif}:{i}"
-            pulses.append(living.DailyPulse(key, "merchant", headline.format(actor=actor, room=rn), "A temporary stall carries ordinary road materials; useful because they are here today instead of somewhere inconvenient.", f"'{actor} says the rarest thing on the table is convenience.'", rk, rn, "BROWSE WANDERER", merchant_wares=WARE_POOLS[(ri + i) % len(WARE_POOLS)]))
+            pulses.append(living.DailyPulse(key, "merchant", headline.format(actor=actor, room=rn), "The stall is carrying ordinary road materials that usually require a longer trip to find.", f"'{actor} says the rarest thing on the table is convenience.'", rk, rn, "BROWSE WANDERER", merchant_wares=WARE_POOLS[(ri + i) % len(WARE_POOLS)]))
             meta[key] = EventMeta(r.region_key, r.name, actor, f"a temporary road trader working a compact stall at {rn}", ("wanderer", "peddler", "trader", actor.split()[0].lower()))
         for i, node_key in enumerate(r.resource_nodes):
             if node_key not in crafting.RESOURCE_NODES_BY_KEY:
                 raise RuntimeError(f"Unknown living-world resource node: {node_key}")
             rk, rn = rooms[(i * 3 + 1) % len(rooms)]; node = crafting.RESOURCE_NODES_BY_KEY[node_key]; key = f"variety:{r.region_key}:resource:{node_key}:{i}"
-            pulses.append(living.DailyPulse(key, "resource", f"A temporary {node.name.lower()} find has opened near {rn}.", f"Fresh ground exposed a small {node.name.lower()} source. It is genuinely gatherable until the Astralis day changes.", f"'People around {rn} are suddenly carrying baskets and pretending that was always the plan.'", rk, rn, "RESOURCES", resource_node=node_key))
-            meta[key] = EventMeta(r.region_key, r.name, scene_name=node.name, scene_details=(f"Freshly exposed {node.name.lower()} is visible here today.", "The resource uses the normal gathering system rather than decorative text."))
+            pulses.append(living.DailyPulse(key, "resource", f"A fresh {node.name.lower()} find has opened near {rn}.", f"Fresh ground has exposed a small {node.name.lower()} source, and gatherers have already started working the edge of it.", f"'People around {rn} are suddenly carrying baskets and pretending that was always the plan.'", rk, rn, "RESOURCES", resource_node=node_key))
+            meta[key] = EventMeta(r.region_key, r.name, scene_name=node.name, scene_details=(f"Freshly exposed {node.name.lower()} is visible along the disturbed ground.", "Basket marks, cut stems, and fresh footprints show that local gatherers have already found it."))
         for i, (motif, headline) in enumerate(THREAT_MOTIFS):
             rk, rn = rooms[(i * 2 + 2) % len(rooms)]; key = f"variety:{r.region_key}:threat:{motif}:{i}"
-            pulses.append(living.DailyPulse(key, "threat", headline.format(room=rn, enemy=r.enemy_name), f"Fresh sign points to one {r.enemy_name}. It is a real temporary disturbance that can be tracked down today.", f"'One {r.enemy_name.lower()}, one bad habit, and plenty of volunteers for somebody else to handle it.'", rk, rn, "HUNT DISTURBANCE", threat_key=r.enemy_key))
-            meta[key] = EventMeta(r.region_key, r.name, scene_name=r.enemy_name, scene_details=(f"Fresh tracks around {rn} match a {r.enemy_name}.", "HUNT DISTURBANCE follows the sign into normal combat."))
+            pulses.append(living.DailyPulse(key, "threat", headline.format(room=rn, enemy=r.enemy_name), f"Fresh sign points to one {r.enemy_name}, and the tracks are recent enough that road workers are still avoiding the area.", f"'One {r.enemy_name.lower()}, one bad habit, and plenty of volunteers for somebody else to handle it.'", rk, rn, "HUNT DISTURBANCE", threat_key=r.enemy_key))
+            meta[key] = EventMeta(r.region_key, r.name, scene_name=r.enemy_name, scene_details=(f"Fresh tracks around {rn} match a {r.enemy_name}.", "Broken brush and churned mud show where it left the road only a short while ago."))
         for i, (motif, scene, headline) in enumerate(STORY_MOTIFS):
             rk, rn = rooms[(i * 3 + 3) % len(rooms)]; key = f"variety:{r.region_key}:story:{motif}:{i}"; details = tuple(SCENE_DETAILS[(i + ri + j) % len(SCENE_DETAILS)] for j in range(3))
-            pulses.append(living.DailyPulse(key, "story", headline.format(room=rn), f"The scene is actually present at {rn} for the current Astralis day. It is there to discover, not to demand completion.", f"'Something small is happening at {rn}, so everyone already has a different version of it.'", rk, rn, "OBSERVE SCENE"))
+            pulses.append(living.DailyPulse(key, "story", headline.format(room=rn), f"People at {rn} are still talking over one another about it, and the small crowd has not dispersed yet.", f"'Something small is happening at {rn}, so everyone already has a different version of it.'", rk, rn, "OBSERVE SCENE"))
             meta[key] = EventMeta(r.region_key, r.name, scene_name=scene, scene_details=details)
     EVENT_META_BY_KEY.clear(); EVENT_META_BY_KEY.update(meta)
     return tuple(pulses)
@@ -193,14 +193,13 @@ def create_return_letter(session, from_day: int, to_day: int) -> bool:
     opener = OPENERS[_stable_index(f"opener:{c.id}:{to_day}:{pulse.key}", len(OPENERS))].format(days=days, day_word="day" if days == 1 else "days")
     race_sender = RACE_WRITERS.get(c.race or ""); sender = race_sender if race_sender and _stable_index(f"voice:{c.id}:{to_day}:{pulse.key}", 3) == 0 else region.sender
     subject = SUBJECTS[_stable_index(f"subject:{c.id}:{to_day}:{pulse.key}", len(SUBJECTS))].format(day=to_day, region=meta.region_name, room=pulse.room_name)
-    action = f" If you want the firsthand version, go to {pulse.room_name} and use {pulse.command_hint}." if pulse.command_hint else ""
+    action = f" If you pass that way, stop at {pulse.room_name} and {pulse.command_hint}." if pulse.command_hint else ""
     past = list(range(from_day + 1, to_day))
     if len(past) > 2:
         a = past[_stable_index(f"past-a:{c.id}:{to_day}", len(past))]; rest = [d for d in past if d != a]; past = sorted((a, rest[_stable_index(f"past-b:{c.id}:{to_day}", len(rest))]))
-    history = " Older notices that have already passed: " + " / ".join(pulse_for_day(d).headline for d in past) if past else ""
+    history = " Older lines crossed out in the post book: " + " / ".join(pulse_for_day(d).headline for d in past) if past else ""
     closer = CLOSERS[_stable_index(f"closer:{c.id}:{to_day}:{pulse.key}", len(CLOSERS))]
-    assurance = f" You were away for {days} Astralis {'day' if days == 1 else 'days'}. No missed reward is waiting for you. Nothing in this letter is a penalty for being away." if _stable_index(f"notice:{c.id}:{to_day}", 5) == 0 else ""
-    body = f"{opener} {pulse.headline} {pulse.summary}{action}{history} {closer}{assurance}"
+    body = f"{opener} {pulse.headline} {pulse.summary}{action}{history} {closer}"
     with session.database.connect() as db:
         cursor = db.execute("INSERT OR IGNORE INTO living_mail (character_id, astralis_day, sender, subject, body) VALUES (?, ?, ?, ?, ?)", (c.id, int(to_day), sender, subject, body))
     return bool(cursor.rowcount)
@@ -232,7 +231,7 @@ async def _observe_story(session, pulse, meta, day: int) -> None:
     if meta.scene_details:
         start = _stable_index(f"scene:{session.character.id}:{day}:{pulse.key}", len(meta.scene_details))
         for j in range(min(2, len(meta.scene_details))): await session.send(meta.scene_details[(start + j) % len(meta.scene_details)] + "\r\n")
-    await session.send("There is no payout attached. The point is that this is actually happening here today.\r\n")
+    await session.send("Around you, the conversation keeps moving without waiting for anyone to declare the moment finished.\r\n")
 
 
 async def _show_event(session, pulse) -> None:
