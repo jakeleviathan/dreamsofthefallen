@@ -117,7 +117,7 @@ THING_HUMANS_BUY = QuestDefinition(
         "Repurposing the salvage reveals a tiny stamped relic from Earth. It is nearly useless as material, but Humans value surviving pieces of their lost ancestral world very differently."
     ),
     objective_steps=(
-        ("show_token", "Take the stamped token to Human factor Mara Vale in Brassgut Market and TALK MARA."),
+        ("show_token", "Take the stamped token to Human factor Tressa Vale in Brassgut Market and TALK TRESSA."),
         ("decide_token", "Choose SELL TOKEN or KEEP TOKEN. Neither choice is treated as a mistake."),
         ("complete", "You saw how culture can change an object's value more radically than craftsmanship can."),
     ),
@@ -200,7 +200,7 @@ RATTLEFEN_ITEMS = (
     ItemDefinition(
         key=HUMAN_TOOL_ROLL_KEY,
         name="Sealed Human Tool Roll",
-        description="A compact roll of clean files, picks, drivers, and measuring tools traded by Mara Vale for a tiny Earth relic. The exchange still feels lopsided in your favor.",
+        description="A compact roll of clean files, picks, drivers, and measuring tools traded by Tressa Vale for a tiny Earth relic. The exchange still feels lopsided in your favor.",
         category="quest_item",
         tier=0,
     ),
@@ -228,12 +228,12 @@ SELLA_REEDMARK = NpcDefinition(
 
 MARA_VALE = NpcDefinition(
     key="human_mara_vale_rattlefen_factor",
-    name="Mara Vale",
+    name="Tressa Vale",
     short_description="a Human factor in travel-dark clothing studying a blanket of Earth-marked curios with uncomfortable concentration",
     room_key=GOBLIN_BRASSGUT_MARKET_KEY,
     role="Human antiquities buyer and cross-cultural value lesson",
     dialogue=(
-        "Mara turns old fragments over carefully, searching for lettering rather than useful metal. 'Most of these are nothing to you. That is exactly why I can sometimes afford them.'",
+        "Tressa turns old fragments over carefully, searching for lettering rather than useful metal. 'Most of these are nothing to you. That is exactly why I can sometimes afford them.'",
         "'Earth is not a place my people can return to. A useless stamped piece of it can still be worth more to us than a working Goblin hinge.'",
     ),
 )
@@ -687,7 +687,7 @@ async def _repurpose(session) -> bool:
         "Brin shakes it. It rattles. The light stays on. 'Rattlelight. Better.'\r\n"
         "When you pry apart one sealed backing plate, a tiny corroded token drops onto the bench. Old Human lettering is still visible beneath the green tarnish. Brin weighs it in his palm and snorts. 'Terrible metal. Humans will probably pay stupidly for it.'\r\n"
         "Quest complete: Better Than It Was.\r\n"
-        "New quest: The Thing Humans Buy. Take the Stamped Earth Token to Mara Vale in Brassgut Market and TALK MARA.\r\n"
+        "New quest: The Thing Humans Buy. Take the Stamped Earth Token to Tressa Vale in Brassgut Market and TALK TRESSA.\r\n"
     )
     return True
 
@@ -698,18 +698,18 @@ async def _talk_mara(session) -> bool:
         return False
     assert session.character is not None
     if session.character.current_room != GOBLIN_BRASSGUT_MARKET_KEY:
-        await session.send("Mara Vale is examining old curios in Brassgut Market.\r\n")
+        await session.send("Tressa Vale is examining old curios in Brassgut Market.\r\n")
         return True
     if quest.get("current_step") == "show_token":
         session.database.advance_quest(session.character.id, THING_HUMANS_BUY.key, "decide_token")
         await session.send(
-            "\r\nMara takes the token by its edges. Her expression changes before she has even finished cleaning the lettering.\r\n"
+            "\r\nTressa takes the token by its edges. Her expression changes before she has even finished cleaning the lettering.\r\n"
             "'Earth.' The word comes out quietly. 'I cannot tell you what this bought there, or whose hand carried it. That knowledge is gone. But the script is old Human script. It came from the world our ancestors lost.'\r\n"
             "She offers a sealed roll of clean precision tools in exchange. The tool roll is obviously more useful than the token. That fact appears completely irrelevant to her.\r\n"
             "You can SELL TOKEN or KEEP TOKEN.\r\n"
         )
         return True
-    await session.send("\r\nMara leaves the choice with you. 'I want it. That does not mean you owe it to me.'\r\n")
+    await session.send("\r\nTressa leaves the choice with you. 'I want it. That does not mean you owe it to me.'\r\n")
     return True
 
 
@@ -977,7 +977,7 @@ def install_rattlefen_opening_runtime(player_session_class, world_service) -> No
 
         if normalized in {"help", "?"}:
             await self.send(
-                "Rattlefen opening: Three Bells uses EXAMINE FRESH WRECK and one CLAIM choice. Bargaining uses ACCEPT OFFER / COUNTER FAIR / COUNTER HIGH / WALK AWAY. Ownership uses TALK SELLA plus RETURN SALVAGE, CHECK OLD CLAIM + PROVE CLAIM EXPIRED, or NEGOTIATE CLAIM. Then TALK BRIN + REPURPOSE SALVAGE, TALK MARA + SELL TOKEN/KEEP TOKEN, and finally TALK VIKKA + MARK HOOK/SPIRAL/BOLT.\r\n"
+                "Rattlefen opening: Three Bells uses EXAMINE FRESH WRECK and one CLAIM choice. Bargaining uses ACCEPT OFFER / COUNTER FAIR / COUNTER HIGH / WALK AWAY. Ownership uses TALK SELLA plus RETURN SALVAGE, CHECK OLD CLAIM + PROVE CLAIM EXPIRED, or NEGOTIATE CLAIM. Then TALK BRIN + REPURPOSE SALVAGE, TALK TRESSA + SELL TOKEN/KEEP TOKEN, and finally TALK VIKKA + MARK HOOK/SPIRAL/BOLT.\r\n"
             )
 
     player_session_class.enter_character = enter_character

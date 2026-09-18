@@ -36,14 +36,14 @@ MOON_ELF_DRUID_QUEST = QuestDefinition(
         "The lesson is that care begins with accurate observation: establish what is hurting the plants, correct the ordinary cause first, use Nurture only after the environment is made safe, then wait long enough to see whether the living thing actually responds."
     ),
     objective_steps=(
-        ("meet_nera", "From the Wind Terrace, go SOUTH to the Alpine Light Garden and TALK NERA."),
+        ("meet_nera", "From the Wind Terrace, go SOUTH to the Alpine Light Garden and TALK LYREN."),
         ("inspect_bed", "EXAMINE STARBELL BED before deciding what kind of care it needs."),
         ("compare_views", "VIEW FROM SHADE BENCH and VIEW FROM WATER STEP. Both views are required."),
         ("check_light", "CHECK LIGHT after comparing the two viewpoints."),
         ("reset_reflector", "RESET DAYMIRROR so the bed is no longer receiving the doubled light."),
         ("nurture_roots", "Use your Druid training carefully with NURTURE ROOTS."),
         ("wait_watch", "WAIT AND WATCH rather than adding more magic immediately."),
-        ("return_nera", "TALK NERA after the bed has had time to respond."),
+        ("return_nera", "TALK LYREN after the bed has had time to respond."),
         ("complete", "You learned that nurture without understanding can still become harm: see clearly, correct the cause, help only where help is useful, and then let recovery tell you what happened."),
     ),
 )
@@ -51,14 +51,14 @@ MOON_ELF_DRUID_QUEST = QuestDefinition(
 
 NERA_VOSS = NpcDefinition(
     key=NERA_VOSS_KEY,
-    name="Druid Nera Voss",
+    name="Druid Lyren Voss",
     short_description=(
         "a Moon Elf Druid in a sun-faded garden coat, carrying a soil knife, a folded shade cloth, and a slate crowded with watering notes"
     ),
     room_key=MOON_ELF_ALPINE_GARDEN_KEY,
     role="Moon Elf Druid mentor and keeper of the upper terrace gardens",
     dialogue=(
-        "Nera rubs a leaf between two fingers. 'Good intentions are not a diagnosis.'",
+        "Lyren rubs a leaf between two fingers. 'Good intentions are not a diagnosis.'",
         "'Care without clarity can still cause harm. A generous mistake is still a mistake.'",
         "'If the plant is telling you something, your first job is not to make it quiet. Your first job is to understand what it is saying.'",
     ),
@@ -317,7 +317,7 @@ async def _talk_nera(session) -> bool:
     if step == "meet_nera":
         session.database.advance_quest(session.character.id, MOON_ELF_DRUID_QUEST_KEY, "inspect_bed")
         await session.send(
-            "\r\nNera kneels beside the pale leaves but does not touch them again.\r\n"
+            "\r\nLyren kneels beside the pale leaves but does not touch them again.\r\n"
             "'Three people have already told me fungus. They may be right. Before I treat the answer, I would like you to look at the question.'\r\n"
             "She points to the blue flowers. 'EXAMINE STARBELL BED.'\r\n"
         )
@@ -327,7 +327,7 @@ async def _talk_nera(session) -> bool:
         session.database.complete_quest(session.character.id, MOON_ELF_DRUID_QUEST_KEY)
         session.database.grant_flag(session.character.id, MOON_ELF_DRUID_COMPLETE_FLAG)
         await session.send(
-            "\r\nNera presses two fingers into the soil, then checks the newest leaf rather than the oldest scar.\r\n"
+            "\r\nLyren presses two fingers into the soil, then checks the newest leaf rather than the oldest scar.\r\n"
             "'Good. The old damage is still there. That means we still have evidence. The new growth is no longer tightening, which means the bed has stopped losing ground.'\r\n"
             "She folds the shade cloth over one arm. 'You corrected the light before you strengthened the roots. That order matters.'\r\n"
             "'Care without clarity can still cause harm. Druidry is not the art of helping as hard as possible. It is the discipline of learning what help actually means here.'\r\n"
@@ -337,7 +337,7 @@ async def _talk_nera(session) -> bool:
         return True
 
     objective = MOON_ELF_DRUID_QUEST.objective_for_step(step)
-    await session.send("\r\nNera nods toward the bed. 'Stay with what you can actually observe.'\r\n")
+    await session.send("\r\nLyren nods toward the bed. 'Stay with what you can actually observe.'\r\n")
     if objective:
         await session.send(f"Current objective: {objective}\r\n")
     return True
@@ -351,7 +351,7 @@ async def _inspect_bed(session) -> bool:
     session.database.advance_quest(session.character.id, MOON_ELF_DRUID_QUEST_KEY, "compare_views")
     await session.send(
         "\r\nThe upper leaf faces are pale, curled, and blotched, but the stems are firm and the shaded lower growth is healthier. You find no soft rot, spreading fuzz, collapsed stem tissue, or clear boundary moving from plant to plant.\r\n"
-        "Nera says, 'Disease is still possible. So is something else. Look at the bed from where the garden itself changes. VIEW FROM SHADE BENCH and VIEW FROM WATER STEP.'\r\n"
+        "Lyren says, 'Disease is still possible. So is something else. Look at the bed from where the garden itself changes. VIEW FROM SHADE BENCH and VIEW FROM WATER STEP.'\r\n"
     )
     return True
 
@@ -377,10 +377,10 @@ async def _view_garden(session, which: str) -> bool:
     if {MOON_ELF_DRUID_SHADE_VIEW_FLAG, MOON_ELF_DRUID_PATH_VIEW_FLAG}.issubset(flags):
         session.database.advance_quest(session.character.id, MOON_ELF_DRUID_QUEST_KEY, "check_light")
         await session.send(
-            "Nera follows your eyes instead of supplying the answer. 'One view made disease plausible. The other gave us a competing explanation. CHECK LIGHT.'\r\n"
+            "Lyren follows your eyes instead of supplying the answer. 'One view made disease plausible. The other gave us a competing explanation. CHECK LIGHT.'\r\n"
         )
     else:
-        await session.send("Nera says, 'Useful. Now take the other view before you decide what it means.'\r\n")
+        await session.send("Lyren says, 'Useful. Now take the other view before you decide what it means.'\r\n")
     return True
 
 
@@ -396,7 +396,7 @@ async def _check_light(session) -> bool:
     await session.send(
         "\r\nYou trace the bright band backward to a daymirror on the outer wall. Its locking tooth has slipped one notch beyond the seasonal mark. The bed has been receiving ordinary midday sun and a second concentrated reflection at the same time.\r\n"
         "The leaf pattern now makes sense without inventing a disease: heat on the upper surfaces, fast evaporation at the soil line, healthier growth beneath.\r\n"
-        "Nera says, 'Good. Do not heal a plant while leaving the thing hurting it in place. RESET DAYMIRROR.'\r\n"
+        "Lyren says, 'Good. Do not heal a plant while leaving the thing hurting it in place. RESET DAYMIRROR.'\r\n"
     )
     return True
 
@@ -410,7 +410,7 @@ async def _reset_daymirror(session) -> bool:
     await session.send(
         "\r\nYou release the simple locking catch, return the daymirror to its engraved seasonal mark, and seat the tooth firmly. The hard stripe slides away from the starbells and settles onto the shaded herb shelf it was designed to illuminate.\r\n"
         "The leaves are still pale. Fixing the cause does not pretend the damage never happened.\r\n"
-        "Nera touches the cooler soil. 'Now support what is recovering, not what you imagined was wrong. NURTURE ROOTS.'\r\n"
+        "Lyren touches the cooler soil. 'Now support what is recovering, not what you imagined was wrong. NURTURE ROOTS.'\r\n"
     )
     return True
 
@@ -424,12 +424,12 @@ async def _nurture_roots(session) -> bool:
     if step != "nurture_roots":
         if step in {"inspect_bed", "compare_views", "check_light", "reset_reflector"}:
             await session.send(
-                "\r\nNera lifts one hand. 'Not yet. Care is not more accurate because it is generous. Establish the cause before you strengthen a system that may still be under the same stress.'\r\n"
+                "\r\nLyren lifts one hand. 'Not yet. Care is not more accurate because it is generous. Establish the cause before you strengthen a system that may still be under the same stress.'\r\n"
             )
             return True
         if step in {"wait_watch", "return_nera"}:
             await session.send(
-                "\r\nNera shakes her head gently. 'You already gave the roots support. More magic would make it harder to learn whether the corrected environment was enough. Watch now.'\r\n"
+                "\r\nLyren shakes her head gently. 'You already gave the roots support. More magic would make it harder to learn whether the corrected environment was enough. Watch now.'\r\n"
             )
             return True
         return False
@@ -446,7 +446,7 @@ async def _nurture_roots(session) -> bool:
     await session.send(
         "\r\nYou place your hands near the root zone and let Nurture move through the bed as a small steady encouragement rather than a command. Moisture holds more evenly through the fine roots; the plants' strained tissues ease without erasing the pale leaves that record the damage.\r\n"
         "Nothing blooms on cue. Nothing becomes perfect.\r\n"
-        "Nera sits back on her heels. 'Good. Now the difficult part for anyone with a useful spell: stop. WAIT AND WATCH.'\r\n"
+        "Lyren sits back on her heels. 'Good. Now the difficult part for anyone with a useful spell: stop. WAIT AND WATCH.'\r\n"
     )
     return True
 
@@ -460,9 +460,9 @@ async def _wait_and_watch(session) -> bool:
     session.database.grant_flag(session.character.id, MOON_ELF_DRUID_BED_STABLE_FLAG)
     session.database.advance_quest(session.character.id, MOON_ELF_DRUID_QUEST_KEY, "return_nera")
     await session.send(
-        "\r\nYou wait through an ordinary stretch of garden work. Nera trims another bed. Someone comes down for mint. Water moves through the drip channel one slow measure at a time.\r\n"
+        "\r\nYou wait through an ordinary stretch of garden work. Lyren trims another bed. Someone comes down for mint. Water moves through the drip channel one slow measure at a time.\r\n"
         "When you check the starbells again, the old pale patches remain, but the newest leaves are no longer curling tighter. The topsoil is cooler and holding moisture at the same rate as the neighboring bed. Recovery has begun by becoming less dramatic.\r\n"
-        "Nera nods. 'That is enough evidence for today. TALK NERA.'\r\n"
+        "Lyren nods. 'That is enough evidence for today. TALK LYREN.'\r\n"
     )
     return True
 
@@ -497,8 +497,8 @@ def install_moon_elf_druid_runtime(player_session_class, world_service=None) -> 
         await previous_enter_character(self)
         if _reconcile_druid_start(self):
             await self.send(
-                "\r\nA garden runner catches you on the Wind Terrace with a soil-marked note from Druid Nera Voss.\r\n"
-                "'One of the starbell beds is failing. Nera says several people already have an answer, so she would like one more person to look before anybody treats it.'\r\n"
+                "\r\nA garden runner catches you on the Wind Terrace with a soil-marked note from Druid Lyren Voss.\r\n"
+                "'One of the starbell beds is failing. Lyren says several people already have an answer, so she would like one more person to look before anybody treats it.'\r\n"
                 "'Alpine Light Garden, south from the Wind Terrace.'\r\n"
                 "\r\nNew quest: Where the Light Falls.\r\n"
             )
@@ -516,7 +516,7 @@ def install_moon_elf_druid_runtime(player_session_class, world_service=None) -> 
         normalized = " ".join(command.strip().lower().split())
 
         handled = False
-        if normalized in {"talk nera", "talk druid nera", "talk nera voss", "talk druid nera voss"}:
+        if normalized in {"talk lyren", "talk nera", "talk druid lyren", "talk druid nera", "talk lyren voss", "talk nera voss", "talk druid lyren voss", "talk druid nera voss"}:
             handled = await _talk_nera(self)
         elif normalized in {
             "examine starbell bed", "inspect starbell bed", "look starbell bed", "examine starbells",
@@ -547,7 +547,7 @@ def install_moon_elf_druid_runtime(player_session_class, world_service=None) -> 
         if _reconcile_druid_start(self):
             await self.send(
                 "\r\nWith The Third Chair behind you, a garden runner finds you with a soil-marked note.\r\n"
-                "'Druid Nera Voss wants another pair of eyes on a failing starbell bed before anyone treats it. Alpine Light Garden, south from the Wind Terrace.'\r\n"
+                "'Druid Lyren Voss wants another pair of eyes on a failing starbell bed before anyone treats it. Alpine Light Garden, south from the Wind Terrace.'\r\n"
                 "\r\nNew quest: Where the Light Falls.\r\n"
             )
 

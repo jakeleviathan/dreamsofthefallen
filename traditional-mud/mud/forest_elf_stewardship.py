@@ -92,14 +92,14 @@ DRUID_LIVING_ANSWER_QUEST = QuestDefinition(
     name="The Living Answer",
     style="structured",
     description=(
-        "Druid Aven Rootwake uses a nursery runner to teach the class skill Nurture. "
+        "Druid Caela Rootwake uses a nursery runner to teach the class skill Nurture. "
         "The Druid must observe first, offer a measured living impulse, and then wait for the plant to answer in its own time."
     ),
     objective_steps=(
         ("inspect_runner", "In Keeper's Nursery, EXAMINE TEACHING RUNNER before using magic."),
         ("nurture_runner", "Use NURTURE RUNNER after you understand what the plant needs."),
         ("wait_runner", "WAIT and let the runner decide what to do with the help you gave it."),
-        ("return_aven", "TALK AVEN after the runner responds."),
+        ("return_aven", "TALK CAELA after the runner responds."),
         ("complete", "You practiced Nurture as assistance rather than command."),
     ),
 )
@@ -111,7 +111,7 @@ DRUID_FALSE_BLIGHT_QUEST = QuestDefinition(
     style="structured",
     description=(
         "A dark vine has engulfed a storm-damaged sapling in Overgrowth Hollow. It resembles an invasive blight at first glance. "
-        "Aven asks the Druid to determine what is actually happening before choosing whether anything should be removed."
+        "Caela asks the Druid to determine what is actually happening before choosing whether anything should be removed."
     ),
     objective_steps=(
         ("inspect_overgrowth", "Go north from Keeper's Nursery and EXAMINE OVERGROWTH."),
@@ -119,7 +119,7 @@ DRUID_FALSE_BLIGHT_QUEST = QuestDefinition(
         ("diagnose", "DIAGNOSE OVERGROWTH before attempting to cut or heal anything."),
         ("nurture_host", "NURTURE SAPLING without removing the living bracevine."),
         ("wait_response", "WAIT and observe whether host and vine settle together."),
-        ("return_aven", "Return south to Keeper's Nursery and TALK AVEN."),
+        ("return_aven", "Return south to Keeper's Nursery and TALK CAELA."),
         ("complete", "You recognized a protective relationship that only looked like disease."),
     ),
 )
@@ -140,12 +140,12 @@ SELA_RAINBOUGH = NpcDefinition(
 
 AVEN_ROOTWAKE = NpcDefinition(
     key="forest_elf_druid_aven_rootwake",
-    name="Druid Aven Rootwake",
+    name="Druid Caela Rootwake",
     short_description="a quiet Druid instructor pruning dead tips from a nursery runner one careful cut at a time",
     room_key=FOREST_ELF_KEEPER_NURSERY_KEY,
     role="Druid class mentor and Circle adviser",
     dialogue=(
-        "Aven turns a leaf over rather than looking at its top. 'Druidry is not the art of making green things obey you.'",
+        "Caela turns a leaf over rather than looking at its top. 'Druidry is not the art of making green things obey you.'",
         "'Nurture is useful because it is small. If you cannot tell whether a living thing needs help, more power only gives you a larger mistake.'",
     ),
 )
@@ -282,7 +282,7 @@ def forest_elf_stewardship_augmentations() -> dict[str, RoomAugmentation]:
                     direction="north",
                     destination_key=FOREST_ELF_OVERGROWTH_HOLLOW_KEY,
                     name="Overgrowth Hollow",
-                    travel_text="Aven's training path leads north through hazel into Overgrowth Hollow.",
+                    travel_text="Caela's training path leads north through hazel into Overgrowth Hollow.",
                     failure_text="The shaded training hollow is reserved for Druids working under the Circle's instruction.",
                     condition=ViewCondition(classes=("druid",)),
                     hidden_when_unavailable=True,
@@ -326,7 +326,7 @@ def forest_elf_stewardship_augmentations() -> dict[str, RoomAugmentation]:
             description_layers=(
                 DescriptionLayer(
                     "nursery_druid_recognition",
-                    "As a Druid, you recognize the nursery as a place for class practice as much as ordinary plant care; Aven watches for restraint more than spectacle.",
+                    "As a Druid, you recognize the nursery as a place for class practice as much as ordinary plant care; Caela watches for restraint more than spectacle.",
                     priority=60,
                     condition=ViewCondition(classes=("druid",)),
                 ),
@@ -706,7 +706,7 @@ async def _talk_aven(session) -> bool:
     assert session.character is not None
     if session.character.character_class != "druid":
         await session.send(
-            "\r\nAven is happy to discuss the nursery, but the exercises on his slate are Druid class instruction. The Circle does not require every keeper to be a Druid, and it does not pretend every keeper should train as one.\r\n"
+            "\r\nCaela is happy to discuss the nursery, but the exercises on his slate are Druid class instruction. The Circle does not require every keeper to be a Druid, and it does not pretend every keeper should train as one.\r\n"
         )
         return True
 
@@ -714,7 +714,7 @@ async def _talk_aven(session) -> bool:
         heartseed = _forest_elf_heartseed_quest(session)
         if heartseed and heartseed.get("status") != "completed":
             await session.send(
-                "\r\nAven nods toward Circle Clearing. 'Finish Maelis's Heartseed lesson first. If you are going to carry Druidic power, learn the local lesson in restraint before I add class technique to it.'\r\n"
+                "\r\nCaela nods toward Circle Clearing. 'Finish Maelis's Heartseed lesson first. If you are going to carry Druidic power, learn the local lesson in restraint before I add class technique to it.'\r\n"
             )
             return True
 
@@ -725,7 +725,7 @@ async def _talk_aven(session) -> bool:
         session.database.start_quest(session.character.id, DRUID_LIVING_ANSWER_QUEST.key, "inspect_runner")
         prior = DRUID_NURTURE_FIRST_USE_FLAG in session.database.list_flags(session.character.id)
         await session.send(
-            "\r\nAven lays a bruised nursery runner across damp soil. "
+            "\r\nCaela lays a bruised nursery runner across damp soil. "
             + ("'You have already felt Nurture answer once. Good. Now show me that you can use it deliberately.'\r\n" if prior else "'This is where the Circle teaches a Druid's smallest useful intervention.'\r\n")
             + "'EXAMINE TEACHING RUNNER first. Nurture is not permission to skip diagnosis.'\r\n"
             "New Druid quest: The Living Answer.\r\n"
@@ -737,12 +737,12 @@ async def _talk_aven(session) -> bool:
             session.database.grant_flag(session.character.id, DRUID_CIRCLE_FIRST_LESSON_FLAG)
             session.database.complete_quest(session.character.id, DRUID_LIVING_ANSWER_QUEST.key)
             await session.send(
-                "\r\nAven checks the new root and, more importantly, the rest of the runner you left unchanged. 'That is Nurture. Help the living thing complete work it was already trying to do.'\r\n"
-                "Quest complete: The Living Answer. TALK AVEN again when you are ready for a diagnosis that is easier to get wrong.\r\n"
+                "\r\nCaela checks the new root and, more importantly, the rest of the runner you left unchanged. 'That is Nurture. Help the living thing complete work it was already trying to do.'\r\n"
+                "Quest complete: The Living Answer. TALK CAELA again when you are ready for a diagnosis that is easier to get wrong.\r\n"
             )
             return True
         objective = DRUID_LIVING_ANSWER_QUEST.objective_for_step(first.get("current_step"))
-        await session.send("\r\nAven waits for you to complete the nursery exercise.\r\n")
+        await session.send("\r\nCaela waits for you to complete the nursery exercise.\r\n")
         if objective:
             await session.send(f"Current Druid objective: {objective}\r\n")
         return True
@@ -750,7 +750,7 @@ async def _talk_aven(session) -> bool:
     if second is None:
         session.database.start_quest(session.character.id, DRUID_FALSE_BLIGHT_QUEST.key, "inspect_overgrowth")
         await session.send(
-            "\r\nAven points north. 'Overgrowth Hollow has something that looks diseased from ten paces away. Most beginners decide what it is before they reach five.'\r\n"
+            "\r\nCaela points north. 'Overgrowth Hollow has something that looks diseased from ten paces away. Most beginners decide what it is before they reach five.'\r\n"
             "'Go north. EXAMINE OVERGROWTH, then examine the tree it is growing on. Do not cut anything just because your first word for it is blight.'\r\n"
             "New Druid quest: Green Without Illness.\r\n"
         )
@@ -761,18 +761,18 @@ async def _talk_aven(session) -> bool:
             session.database.grant_flag(session.character.id, DRUID_FALSE_BLIGHT_COMPLETE_FLAG)
             session.database.complete_quest(session.character.id, DRUID_FALSE_BLIGHT_QUEST.key)
             await session.send(
-                "\r\nAven smiles when you tell him you left the bracevine in place. 'Good. A Druid who knows ten cures but only one diagnosis is a hazard with excellent intentions.'\r\n"
+                "\r\nCaela smiles when you tell him you left the bracevine in place. 'Good. A Druid who knows ten cures but only one diagnosis is a hazard with excellent intentions.'\r\n"
                 "Quest complete: Green Without Illness.\r\n"
             )
             return True
         objective = DRUID_FALSE_BLIGHT_QUEST.objective_for_step(second.get("current_step"))
-        await session.send("\r\nAven says, 'Name the relationship before you name the remedy.'\r\n")
+        await session.send("\r\nCaela says, 'Name the relationship before you name the remedy.'\r\n")
         if objective:
             await session.send(f"Current Druid objective: {objective}\r\n")
         return True
 
     await session.send(
-        "\r\nAven gestures around the nursery. 'The Circle has more to teach, but those two lessons are enough foundation: Nurture what is already trying to live, and diagnose before you interfere.'\r\n"
+        "\r\nCaela gestures around the nursery. 'The Circle has more to teach, but those two lessons are enough foundation: Nurture what is already trying to live, and diagnose before you interfere.'\r\n"
     )
     return True
 
@@ -793,14 +793,14 @@ async def _handle_druid_class_arc(session, normalized: str) -> bool:
         first = _quest(session, DRUID_LIVING_ANSWER_QUEST.key)
         if room == FOREST_ELF_KEEPER_NURSERY_KEY and target in {"runner", "teaching runner", "nursery runner", "vine runner"}:
             if not first or first.get("status") != "active" or first.get("current_step") != "nurture_runner":
-                await session.send("\r\nThe runner does not need blind power. EXAMINE TEACHING RUNNER and follow Aven's exercise in order.\r\n")
+                await session.send("\r\nThe runner does not need blind power. EXAMINE TEACHING RUNNER and follow Caela's exercise in order.\r\n")
                 return True
             session.database.grant_flag(session.character.id, DRUID_NURSERY_TENDED_FLAG)
             session.database.advance_quest(session.character.id, DRUID_LIVING_ANSWER_QUEST.key, "wait_runner")
             _record_nurture(session)
             await session.send(
                 "\r\nYou rest two fingers near the bruised node and use Nurture. The impulse is subtle: warmth, moisture, and living tension briefly become easier to feel, and you offer the runner a small reserve of steadiness rather than an order to root.\r\n"
-                "Nothing sprouts. Aven nods. WAIT and let the plant answer.\r\n"
+                "Nothing sprouts. Caela nods. WAIT and let the plant answer.\r\n"
             )
             return True
 
@@ -843,7 +843,7 @@ async def _handle_druid_class_arc(session, normalized: str) -> bool:
         session.database.grant_flag(session.character.id, DRUID_NURSERY_ANSWERED_FLAG)
         session.database.advance_quest(session.character.id, DRUID_LIVING_ANSWER_QUEST.key, "return_aven")
         await session.send(
-            "A single white root tip eases from the bruised node into the damp soil. The rest of the plant does not change. TALK AVEN.\r\n"
+            "A single white root tip eases from the bruised node into the damp soil. The rest of the plant does not change. TALK CAELA.\r\n"
         )
         return True
 
@@ -906,7 +906,7 @@ async def _handle_druid_class_arc(session, normalized: str) -> bool:
         await asyncio.sleep(0.25)
         session.database.advance_quest(session.character.id, DRUID_FALSE_BLIGHT_QUEST.key, "return_aven")
         await session.send(
-            "The oak's split holds steady as the breeze moves through the crown. The bracevine flexes with it instead of against it. Nothing needed to be removed. Return SOUTH and TALK AVEN.\r\n"
+            "The oak's split holds steady as the breeze moves through the crown. The bracevine flexes with it instead of against it. Nothing needed to be removed. Return SOUTH and TALK CAELA.\r\n"
         )
         return True
 
@@ -917,7 +917,7 @@ async def _show_circle(session) -> None:
     await session.send(
         "\r\n--- Circle of Keepers ---\r\n"
         "The local Forest Elf Circle is civic stewardship, not a Druid-only order. Its keepers include growers, water stewards, healers, seed keepers, and path wardens. Druids hold influence because their class training gives them unusual insight into living systems, but ordinary Circle standing does not require the Druid class.\r\n"
-        "Druids visiting the Circle can seek class instruction from Aven Rootwake in Keeper's Nursery. Forest Elves can seek water-stewardship work from Sela Rainbough on the Greenway after Maelis's Heartseed lesson.\r\n"
+        "Druids visiting the Circle can seek class instruction from Caela Rootwake in Keeper's Nursery. Forest Elves can seek water-stewardship work from Sela Rainbough on the Greenway after Maelis's Heartseed lesson.\r\n"
     )
 
 
@@ -996,7 +996,7 @@ def install_forest_elf_stewardship_runtime(player_session_class, world_service) 
 
         if normalized in {"help", "?"}:
             await self.send(
-                "Circle expansion: CIRCLE explains the Circle of Keepers. Forest Elves can TALK SELA for water-stewardship work after the Heartseed lesson. Druids can TALK AVEN in Keeper's Nursery and use contextual NURTURE <target>.\r\n"
+                "Circle expansion: CIRCLE explains the Circle of Keepers. Forest Elves can TALK SELA for water-stewardship work after the Heartseed lesson. Druids can TALK CAELA in Keeper's Nursery and use contextual NURTURE <target>.\r\n"
             )
 
     player_session_class.use_ability = use_ability

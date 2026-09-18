@@ -32,13 +32,13 @@ MOON_ELF_NECROMANCER_QUEST = QuestDefinition(
         "The lesson is to distinguish evidence from personhood: observe the afterimage, compare it from more than one position, map where it actually ends, and then let it fade without calling, binding, siphoning, or pretending it is a ghost."
     ),
     objective_steps=(
-        ("meet_sael", "From the Journal Gallery, go NORTH to the Afterimage Niche and TALK SAEL."),
+        ("meet_sael", "From the Journal Gallery, go NORTH to the Afterimage Niche and TALK VAERIS."),
         ("inspect_niche", "EXAMINE CUSHION and establish what is physically present before reading the magic around it."),
         ("trace_residue", "TRACE RESIDUE without addressing it as though it were a person."),
         ("compare_views", "VIEW FROM DOORWAY and VIEW FROM WINDOW. Compare both before deciding what the trace means."),
         ("map_edges", "MARK EDGES where the residue actually weakens and stops."),
         ("let_fade", "WAIT FOR FADE instead of binding or feeding on the trace."),
-        ("return_sael", "TALK SAEL and explain what remained, what did not, and why the difference matters."),
+        ("return_sael", "TALK VAERIS and explain what remained, what did not, and why the difference matters."),
         ("complete", "You learned that a trace can be real without being a person, a message, or an invitation to interfere."),
     ),
 )
@@ -46,14 +46,14 @@ MOON_ELF_NECROMANCER_QUEST = QuestDefinition(
 
 SAEL_ORUNE = NpcDefinition(
     key=SAEL_ORUNE_KEY,
-    name="Necromancer Sael Orune",
+    name="Necromancer Vaeris Orune",
     short_description=(
         "a Moon Elf Necromancer kneeling beside a chalk grid with mapping cord, a wax tablet, and none of the theatrical equipment people expect from the profession"
     ),
     room_key=MOON_ELF_AFTERIMAGE_NICHE_KEY,
     role="Moon Elf Necromancer mentor and civic death-residue specialist",
     dialogue=(
-        "Sael checks a chalk mark against the open window. 'Not everything that lingers is a voice. If you forget that, you will spend your career inventing ghosts and then blaming the dead for them.'",
+        "Vaeris checks a chalk mark against the open window. 'Not everything that lingers is a voice. If you forget that, you will spend your career inventing ghosts and then blaming the dead for them.'",
         "'A trace can be true without being a person. Necromancy becomes dangerous when certainty arrives before observation.'",
         "'We are here to discern what remains, not to make it dramatic enough to deserve us.'",
     ),
@@ -120,7 +120,7 @@ def moon_elf_necromancer_augmentations() -> dict[str, RoomAugmentation]:
                     "afterimage_open_window",
                     "Open Sky Window",
                     "a broad unglazed opening framing the valley and the distant lower ridges",
-                    "From the window side of the niche, the reading cushion is seen almost edge-on. Sael has left the floor clear so the same magical trace can be compared from this position and from the doorway.",
+                    "From the window side of the niche, the reading cushion is seen almost edge-on. Vaeris has left the floor clear so the same magical trace can be compared from this position and from the doorway.",
                     ("window", "open window", "sky window", "valley"),
                 ),
                 _feature(
@@ -170,7 +170,7 @@ def moon_elf_necromancer_augmentations() -> dict[str, RoomAugmentation]:
                 ),
                 DescriptionLayer(
                     "afterimage_faded",
-                    "The afterimage has dispersed on its own. Sael leaves the chalk marks in place because the absence is part of the record too.",
+                    "The afterimage has dispersed on its own. Vaeris leaves the chalk marks in place because the absence is part of the record too.",
                     priority=90,
                     condition=faded,
                 ),
@@ -286,9 +286,9 @@ async def _talk_sael(session) -> bool:
     if step == "meet_sael":
         session.database.advance_quest(session.character.id, MOON_ELF_NECROMANCER_QUEST_KEY, "inspect_niche")
         await session.send(
-            "\r\nSael is tying one end of a measuring cord to a floor weight when you arrive.\r\n"
+            "\r\nVaeris is tying one end of a measuring cord to a floor weight when you arrive.\r\n"
             "'Teren Veyl died here several days ago. Peacefully. His family has his body and his things. What remains in this room is much smaller than a person.'\r\n"
-            "Sael looks toward the empty cushion. 'Not everything that lingers is a voice. If you treat every trace as a ghost, you stop observing and start writing dialogue for the dead.'\r\n"
+            "Vaeris looks toward the empty cushion. 'Not everything that lingers is a voice. If you treat every trace as a ghost, you stop observing and start writing dialogue for the dead.'\r\n"
             "'Start before the magic. EXAMINE CUSHION.'\r\n"
         )
         return True
@@ -297,9 +297,9 @@ async def _talk_sael(session) -> bool:
         session.database.complete_quest(session.character.id, MOON_ELF_NECROMANCER_QUEST_KEY)
         session.database.grant_flag(session.character.id, MOON_ELF_NECROMANCER_COMPLETE_FLAG)
         await session.send(
-            "\r\nSael reads your chalk map, then looks at the now-ordinary air where the trace used to be.\r\n"
+            "\r\nVaeris reads your chalk map, then looks at the now-ordinary air where the trace used to be.\r\n"
             "'Good. The residue was real. It had shape. It had a boundary. It changed over time. None of those facts made it Teren.'\r\n"
-            "Sael rolls up the mapping cord. 'A Necromancer has access to things other people cannot always perceive. That makes restraint more important, not less.'\r\n"
+            "Vaeris rolls up the mapping cord. 'A Necromancer has access to things other people cannot always perceive. That makes restraint more important, not less.'\r\n"
             "'Discern first. Do not dramatize what you have not established. What stays behind can matter without becoming the person who left it.'\r\n"
             "\r\nQuest complete: The Shape Left Behind.\r\n"
         )
@@ -307,7 +307,7 @@ async def _talk_sael(session) -> bool:
 
     objective = MOON_ELF_NECROMANCER_QUEST.objective_for_step(step)
     await session.send(
-        "\r\nSael taps the chalk once. 'Stay with the evidence. A trace does not become a person because the story would be more interesting.'\r\n"
+        "\r\nVaeris taps the chalk once. 'Stay with the evidence. A trace does not become a person because the story would be more interesting.'\r\n"
     )
     if objective:
         await session.send(f"Current objective: {objective}\r\n")
@@ -321,7 +321,7 @@ async def _inspect_cushion(session) -> bool:
     session.database.advance_quest(session.character.id, MOON_ELF_NECROMANCER_QUEST_KEY, "trace_residue")
     await session.send(
         "\r\nThe cushion is worn flat on one side. There is a tea ring on the low table and a repaired nick in the stone where a chair leg once struck it. Nothing moves. Nothing whispers. Nothing in the ordinary room claims to be Teren Veyl.\r\n"
-        "Sael nods. 'Good. Now use the sense your training gives you. TRACE RESIDUE. Do not speak to it.'\r\n"
+        "Vaeris nods. 'Good. Now use the sense your training gives you. TRACE RESIDUE. Do not speak to it.'\r\n"
     )
     return True
 
@@ -335,7 +335,7 @@ async def _trace_residue(session) -> bool:
     await session.send(
         "\r\nYou extend necromantic attention through the room without pulling on anything. A faint afterimage resolves near the cushion: pressure, thinning gradients, a few denser knots where life and long habit seem to have left temporary magical disturbance.\r\n"
         "There is no face in it. No memory opens. No voice answers. No intention turns toward you.\r\n"
-        "Sael says, 'There. Something is present. Now earn the right to describe it. VIEW FROM DOORWAY and VIEW FROM WINDOW.'\r\n"
+        "Vaeris says, 'There. Something is present. Now earn the right to describe it. VIEW FROM DOORWAY and VIEW FROM WINDOW.'\r\n"
     )
     return True
 
@@ -347,7 +347,7 @@ async def _view_from_doorway(session) -> bool:
     session.database.grant_flag(session.character.id, MOON_ELF_NECROMANCER_DOORWAY_VIEW_FLAG)
     await session.send(
         "\r\nFrom the doorway, the residue seems almost centered on the cushion. Its strongest point lies where Teren's torso would have rested, and the first impression is uncomfortably easy to turn into the outline of a seated person.\r\n"
-        "Sael does not let the impression settle into certainty. 'One view is where stories become facts by accident. Take the window view too.'\r\n"
+        "Vaeris does not let the impression settle into certainty. 'One view is where stories become facts by accident. Take the window view too.'\r\n"
     )
     if MOON_ELF_NECROMANCER_WINDOW_VIEW_FLAG in _flags(session):
         session.database.advance_quest(session.character.id, MOON_ELF_NECROMANCER_QUEST_KEY, "map_edges")
@@ -362,7 +362,7 @@ async def _view_from_window(session) -> bool:
     session.database.grant_flag(session.character.id, MOON_ELF_NECROMANCER_WINDOW_VIEW_FLAG)
     await session.send(
         "\r\nFrom the open window, the apparent 'seated figure' falls apart. One dense knot sits well beyond the cushion near the tea shelf, while a broad thin wash follows the stone wall instead of any anatomy. The trace has structure, but the structure is not shaped like a person.\r\n"
-        "Sael says, 'Perspective did not make the first reading false. It made it incomplete.'\r\n"
+        "Vaeris says, 'Perspective did not make the first reading false. It made it incomplete.'\r\n"
     )
     if MOON_ELF_NECROMANCER_DOORWAY_VIEW_FLAG in _flags(session):
         session.database.advance_quest(session.character.id, MOON_ELF_NECROMANCER_QUEST_KEY, "map_edges")
@@ -384,7 +384,7 @@ async def _mark_edges(session) -> bool:
     session.database.advance_quest(session.character.id, MOON_ELF_NECROMANCER_QUEST_KEY, "let_fade")
     await session.send(
         "\r\nYou mark the points where the necromantic pressure falls below perception, then connect them only after checking each one twice. The result is irregular and limited. It reaches neither toward Teren's family nor toward his old journals. It does not point anywhere.\r\n"
-        "Sael studies the boundary. 'That is useful knowledge. Now comes the harder lesson for people who enjoy having power: do nothing to it. WAIT FOR FADE.'\r\n"
+        "Vaeris studies the boundary. 'That is useful knowledge. Now comes the harder lesson for people who enjoy having power: do nothing to it. WAIT FOR FADE.'\r\n"
     )
     return True
 
@@ -398,7 +398,7 @@ async def _wait_for_fade(session) -> bool:
     await session.send(
         "\r\nYou leave the afterimage alone. You do not bind it, call into it, feed on it, preserve it, or force it to perform significance for you.\r\n"
         "Minute by minute the faint pressure thins. The densest knot near the tea shelf goes last, and then there is only cool mountain air crossing an ordinary empty room. No apparition departs. No final message arrives.\r\n"
-        "Sael erases none of the chalk. 'Good. Absence is part of the observation too. TALK SAEL.'\r\n"
+        "Vaeris erases none of the chalk. 'Good. Absence is part of the observation too. TALK VAERIS.'\r\n"
     )
     return True
 
@@ -425,7 +425,7 @@ async def _refuse_dramatization(session, normalized: str) -> bool:
     }:
         return False
     await session.send(
-        "\r\nSael stops you before the impulse becomes a method. 'No. You have not established a person, a voice, a corpse, or a threat that needs binding. Do not manufacture permission from atmosphere. Observe what is actually here.'\r\n"
+        "\r\nVaeris stops you before the impulse becomes a method. 'No. You have not established a person, a voice, a corpse, or a threat that needs binding. Do not manufacture permission from atmosphere. Observe what is actually here.'\r\n"
     )
     return True
 
@@ -461,7 +461,7 @@ def install_moon_elf_necromancer_runtime(player_session_class, world_service=Non
         if _reconcile_necromancer_start(self):
             await self.send(
                 "\r\nA Journal Gallery runner finds you with a note written in a precise hand.\r\n"
-                "'Sael Orune asks for a Necromancer at the Afterimage Niche, north from the Journal Gallery. Nothing is wrong. That is apparently part of the lesson.'\r\n"
+                "'Vaeris Orune asks for a Necromancer at the Afterimage Niche, north from the Journal Gallery. Nothing is wrong. That is apparently part of the lesson.'\r\n"
                 "\r\nNew quest: The Shape Left Behind.\r\n"
             )
 
@@ -478,7 +478,7 @@ def install_moon_elf_necromancer_runtime(player_session_class, world_service=Non
         normalized = " ".join(command.strip().lower().replace("’", "'").split())
 
         handled = False
-        if normalized in {"talk sael", "talk necromancer sael", "talk sael orune", "talk necromancer sael orune"}:
+        if normalized in {"talk vaeris", "talk sael", "talk necromancer vaeris", "talk necromancer sael", "talk vaeris orune", "talk sael orune", "talk necromancer vaeris orune", "talk necromancer sael orune"}:
             handled = await _talk_sael(self)
         elif normalized in {"examine cushion", "inspect cushion", "look cushion", "examine reading cushion", "inspect reading cushion", "examine niche"}:
             handled = await _inspect_cushion(self)
@@ -503,7 +503,7 @@ def install_moon_elf_necromancer_runtime(player_session_class, world_service=Non
         if _reconcile_necromancer_start(self):
             await self.send(
                 "\r\nAs the Third Chair lesson settles, a Journal Gallery runner catches up with you.\r\n"
-                "'Sael Orune asks for a Necromancer at the Afterimage Niche, north from the Journal Gallery. Nothing is wrong. That is apparently part of the lesson.'\r\n"
+                "'Vaeris Orune asks for a Necromancer at the Afterimage Niche, north from the Journal Gallery. Nothing is wrong. That is apparently part of the lesson.'\r\n"
                 "\r\nNew quest: The Shape Left Behind.\r\n"
             )
 

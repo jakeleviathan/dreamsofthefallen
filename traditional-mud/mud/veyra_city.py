@@ -174,7 +174,7 @@ STEWARD = NpcDefinition(
 )
 REGISTRAR = NpcDefinition(
     key=REGISTRAR_KEY,
-    name="Registrar Mira Noll",
+    name="Registrar Kessa Noll",
     short_description="a gate registrar waving farm carts, pilgrims, mercenaries, and diplomats into different lines without raising her voice",
     room_key=VEYRA_GATE_WARD_KEY,
     role="city arrival registrar",

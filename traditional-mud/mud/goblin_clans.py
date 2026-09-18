@@ -123,7 +123,7 @@ CLAN_NPCS: tuple[NpcDefinition, ...] = (JEX_MIREHOOK, TALLA_COPPERCAP, SNIK_TINL
 COPPERCAP_FORMULA_PACKET = ItemDefinition(
     "coppercap_formula_packet",
     "Sealed Coppercap Formula Packet",
-    "A waxed packet of precise alchemical measurements marked for Pella Mireglass. The Coppercap seal is intact.",
+    "A waxed packet of precise alchemical measurements marked for Rixa Mireglass. The Coppercap seal is intact.",
     "quest_item",
     tier=0,
 )
@@ -160,11 +160,11 @@ GOBLIN_CLOSED_FORMULA = QuestDefinition(
     name="A Formula With a Lock On It",
     style="structured",
     description=(
-        "Talla Coppercap entrusts you with a sealed field formula for Pella Mireglass. Pella can use it as delivered, or you can choose to let the public route apothecary copy the method."
+        "Talla Coppercap entrusts you with a sealed field formula for Rixa Mireglass. Rixa can use it as delivered, or you can choose to let the public route apothecary copy the method."
     ),
     objective_steps=(
-        ("deliver_formula", "Carry the Sealed Coppercap Formula Packet to Pella Mireglass at the Apothecary Blind and TALK PELLA."),
-        ("choose_formula", "Choose KEEP FORMULA SEALED or SHARE FORMULA WITH PELLA."),
+        ("deliver_formula", "Carry the Sealed Coppercap Formula Packet to Rixa Mireglass at the Apothecary Blind and TALK RIXA."),
+        ("choose_formula", "Choose KEEP FORMULA SEALED or SHARE FORMULA WITH RIXA."),
         ("complete", "You decided how much control a craft family should keep over a useful method."),
     ),
 )
@@ -356,7 +356,7 @@ async def _talk_talla(session) -> bool:
         session.database.start_quest(session.character.id, GOBLIN_CLOSED_FORMULA.key, "deliver_formula")
         session.database.add_item(session.character.id, COPPERCAP_FORMULA_PACKET.key, 1)
         await session.send(
-            "\r\nTalla places a waxed packet in your hand. 'Pella Mireglass needs these measurements for a marsh stabilizer. She needs the formula; the whole route does not.'\r\n"
+            "\r\nTalla places a waxed packet in your hand. 'Rixa Mireglass needs these measurements for a marsh stabilizer. She needs the formula; the whole route does not.'\r\n"
             "'Take it to the Apothecary Blind. Keep the seal intact. Precision is work, and work has an owner even when it helps people.'\r\n"
             "You receive a Sealed Coppercap Formula Packet.\r\n"
             "\r\nNew quest: A Formula With a Lock On It.\r\n"
@@ -380,9 +380,9 @@ async def _talk_pella_for_formula(session) -> bool:
     if formula.get("current_step") == "deliver_formula":
         session.database.advance_quest(session.character.id, GOBLIN_CLOSED_FORMULA.key, "choose_formula")
     await session.send(
-        "\r\nPella turns the sealed packet over in both hands. 'Coppercap measurements. Good ones, usually.'\r\n"
+        "\r\nRixa turns the sealed packet over in both hands. 'Coppercap measurements. Good ones, usually.'\r\n"
         "She does not break the seal. 'I can use this and send it back closed. Or I can copy the method into the public route book before I return it. Talla will know which happened.'\r\n"
-        "Choose KEEP FORMULA SEALED or SHARE FORMULA WITH PELLA.\r\n"
+        "Choose KEEP FORMULA SEALED or SHARE FORMULA WITH RIXA.\r\n"
     )
     return True
 
@@ -462,17 +462,17 @@ async def _handle_clan_choice(session, normalized: str) -> bool:
             session.database.complete_quest(session.character.id, GOBLIN_CLOSED_FORMULA.key)
             _consume_all(session, COPPERCAP_FORMULA_PACKET.key)
             await session.send(
-                "\r\nPella uses the measurements without copying them, reseals the packet, and nods. 'Controlled craft, then. Talla will approve.'\r\n"
+                "\r\nRixa uses the measurements without copying them, reseals the packet, and nods. 'Controlled craft, then. Talla will approve.'\r\n"
                 "Quest complete: A Formula With a Lock On It. Coppercap remembers that you respected the closed method.\r\n"
             )
             return True
-        if normalized in {"share formula", "share formula with pella", "copy formula", "share method"}:
+        if normalized in {"share formula", "share formula with rixa", "share formula with pella", "copy formula", "share method"}:
             _grant_signal(session, FLOODPICK_MIREHOOK, "shared_formula")
             session.database.complete_quest(session.character.id, GOBLIN_CLOSED_FORMULA.key)
             _consume_all(session, COPPERCAP_FORMULA_PACKET.key)
             session.database.grant_flag(session.character.id, "goblin_public_alchemy_method_shared")
             await session.send(
-                "\r\nPella copies the measurements into the public route book before resealing the packet. 'Useful knowledge should survive the person carrying it. Talla and I can argue about that ourselves.'\r\n"
+                "\r\nRixa copies the measurements into the public route book before resealing the packet. 'Useful knowledge should survive the person carrying it. Talla and I can argue about that ourselves.'\r\n"
                 "Quest complete: A Formula With a Lock On It. Mirehook-style open fieldcraft gains another small precedent.\r\n"
             )
             return True
@@ -557,7 +557,7 @@ def install_goblin_clan_runtime(player_session_class, world_service) -> None:
             if self.character.current_room == GOBLIN_TINKER_ROW_KEY and _matches(target, "talla", "talla coppercap", "coppercap", "apothecary"):
                 if await _talk_talla(self):
                     return
-            if self.character.current_room == GOBLIN_APOTHECARY_BLIND_KEY and _matches(target, "pella", "pella mireglass", "mireglass"):
+            if self.character.current_room == GOBLIN_APOTHECARY_BLIND_KEY and _matches(target, "rixa", "rixa mireglass", "mireglass"):
                 if await _talk_pella_for_formula(self):
                     return
             if self.character.current_room == GOBLIN_LEDGER_HALL_KEY and _matches(target, "snik", "snik tinledger", "tinledger", "broker"):

@@ -118,11 +118,11 @@ ARRIVAL_QUEST = QuestDefinition(
         "Survivors report different banners on different nights, as though somebody wants the violence to look fragmented."
     ),
     (
-        ("talk_mara", "At Marchward Post, TALK MARA."),
+        ("talk_mara", "At Marchward Post, TALK EVARA."),
         ("inspect_wagon", "At Burned Toll, EXAMINE WAGON."),
         ("defeat_scout", "Find and defeat the Gilded Scout-Captain on Gallows Mile."),
         ("read_orders", "READ ORDERS recovered from the scout-captain."),
-        ("return_mara", "Return to Mara at Marchward Post."),
+        ("return_mara", "Return to Evara at Marchward Post."),
         ("complete", "You proved the raids were intentionally staged under false banners by the Gilded Host."),
     ),
 )
@@ -155,7 +155,7 @@ REDOUBT_QUEST = QuestDefinition(
         "and breaking it means interrupting a working military organization rather than solving a ruin."
     ),
     (
-        ("talk_sera", "TALK SERA on Morrowgate's East Rampart."),
+        ("talk_sera", "TALK RENNA on Morrowgate's East Rampart."),
         ("cut_signal", "Enter the Brass Redoubt and CUT SIGNAL ROPE in the Signal Loft."),
         ("free_prisoners", "FREE PRISONERS in the Prison Cage."),
         ("defeat_quartermaster", "Defeat Quartermaster Venn in his office."),
@@ -190,7 +190,7 @@ PALACE_QUEST = QuestDefinition(
         "hostage rooms, clerks, officers, and written plans for the next manufactured crisis."
     ),
     (
-        ("talk_sera", "Return to Captain Sera Hald on the East Rampart."),
+        ("talk_sera", "Return to Captain Renna Hald on the East Rampart."),
         ("break_mirror", "BREAK SIGNAL MIRROR in the Banner Palace signal stair."),
         ("free_hostages", "FREE HOSTAGES in the Hostage Wing."),
         ("read_map", "READ WAR MAP in the Map Room."),
@@ -263,10 +263,10 @@ LYSA_KEY = "crownfire_deserter_lysa_orr"
 VAREK_KEY = "morrowgate_broker_varek_tess"
 
 CROWNFIRE_NPCS = (
-    NpcDefinition(MARA_KEY, "Mara Quill", "a soot-streaked road clerk whose coat still bears the burned outline of a tollhouse badge", MARCHWARD_POST_KEY, "refugee road clerk", dialogue=("'The banners change. The boot nails do not.'", "'Somebody wants us arguing about who attacked us instead of asking who benefits.'")),
+    NpcDefinition(MARA_KEY, "Evara Quill", "a soot-streaked road clerk whose coat still bears the burned outline of a tollhouse badge", MARCHWARD_POST_KEY, "refugee road clerk", dialogue=("'The banners change. The boot nails do not.'", "'Somebody wants us arguing about who attacked us instead of asking who benefits.'")),
     NpcDefinition(IVEN_KEY, "Mayor Iven Rook", "a tired civic mayor wearing the same plain black coat for hearings, ration lines, and wall inspections", MORROWGATE_COUNCIL_KEY, "elected mayor of Morrowgate", dialogue=("'I can survive being unpopular. I cannot survive not knowing which warehouse opens after midnight.'", "'A blockade is just a siege with paperwork if the paperwork still ends in hunger.'")),
     NpcDefinition(DELLA_KEY, "Healer Della Sorn", "an Undead field healer with clean bone hands and an apron marked in charcoal with medicine shortages", MORROWGATE_HEALERS_KEY, "public healer", dialogue=("'The Host calls this pressure. Infection also calls itself pressure if you ask it politely.'", "'Medicine is disappearing in exactly the quantities that keep us sick without letting us die quickly.'")),
-    NpcDefinition(SERA_KEY, "Captain Sera Hald", "a Forest Elf militia captain with one gold Host arrow pinned backward through her cloak as a reminder", MORROWGATE_RAMPART_KEY, "Morrowgate defense captain", dialogue=("'Dask is not a storm. Stop talking about him like weather.'", "'If somebody orders a fire, writes the invoice, and recruits from the survivors, the pattern is not mysterious.'")),
+    NpcDefinition(SERA_KEY, "Captain Renna Hald", "a Forest Elf militia captain with one gold Host arrow pinned backward through her cloak as a reminder", MORROWGATE_RAMPART_KEY, "Morrowgate defense captain", dialogue=("'Dask is not a storm. Stop talking about him like weather.'", "'If somebody orders a fire, writes the invoice, and recruits from the survivors, the pattern is not mysterious.'")),
     NpcDefinition(LYSA_KEY, "Captain Lysa Orr", "a former Gilded Host captain who has cut every gold braid off her uniform except the one needed to prove what rank she held", REFUGEE_FORD_KEY, "Gilded Host deserter and witness", dialogue=("'I signed ration orders. I did not sign the farm burns. I stayed too long after I learned the difference.'", "'Do not forgive us because some of us deserted. Decide what our testimony is worth, then keep deciding what our actions cost.'")),
     NpcDefinition(VAREK_KEY, "Broker Varek Tess", "a smiling freight broker whose rings are expensive enough to look defensive during a blockade", MORROWGATE_MARKET_KEY, "warehouse broker", dialogue=("'Trade survives by compromise.'", "'People who call every private arrangement treason usually do not own warehouses.'")),
 )
@@ -293,7 +293,7 @@ CROWNFIRE_ROOMS = (
     _room(MORROWGATE_GRANARY_KEY, "Granary Court", MORROWGATE_REGION_KEY, "Public grain bins stand under militia guard. The ledger board is updated every four hours so rumors about starvation cannot outrun the actual numbers.", {"west": MORROWGATE_MARKET_KEY, "north": MORROWGATE_HEALERS_KEY}, tags=("level_33_40", "city", "safe")),
     _room(MORROWGATE_COUNCIL_KEY, "Council Hall", MORROWGATE_REGION_KEY, "The council meets in a former dye hall because the old chamber was converted into a clinic. Maps, ration boards, witness statements, and captured Host seals cover the walls. Iven Rook has stopped pretending the crisis is temporary.", {"south": MORROWGATE_MARKET_KEY, "east": MORROWGATE_HEALERS_KEY, "north": MORROWGATE_RAMPART_KEY}, npcs=(IVEN_KEY,), tags=("level_33_40", "city", "hub", "safe")),
     _room(MORROWGATE_HEALERS_KEY, "Healers' Row", MORROWGATE_REGION_KEY, "Three adjoining workshops have become a public infirmary. Della Sorn keeps medicine shortages chalked directly on the doors so no council member can call them abstract.", {"west": MORROWGATE_COUNCIL_KEY, "south": MORROWGATE_GRANARY_KEY}, npcs=(DELLA_KEY,), tags=("level_33_40", "city", "safe")),
-    _room(MORROWGATE_RAMPART_KEY, "East Rampart", MORROWGATE_REGION_KEY, "From the wall, the Brass Redoubt's signal loft flashes above the fields and a larger field headquarters glitters farther north. Captain Sera Hald has marked every Host patrol route with plain black charcoal instead of heroic symbols.", {"south": MORROWGATE_COUNCIL_KEY, "east": PALACE_APPROACH_KEY}, npcs=(SERA_KEY,), tags=("level_34_40", "city", "military", "safe")),
+    _room(MORROWGATE_RAMPART_KEY, "East Rampart", MORROWGATE_REGION_KEY, "From the wall, the Brass Redoubt's signal loft flashes above the fields and a larger field headquarters glitters farther north. Captain Renna Hald has marked every Host patrol route with plain black charcoal instead of heroic symbols.", {"south": MORROWGATE_COUNCIL_KEY, "east": PALACE_APPROACH_KEY}, npcs=(SERA_KEY,), tags=("level_34_40", "city", "military", "safe")),
 
     _room(REDOUBT_GATE_KEY, "Brass Redoubt Gate", REDOUBT_REGION_KEY, "The forward fort is new enough that sap still bleeds from some timbers. Brass plates make it look richer than it is; most are signal reflectors and standardized fittings, not decoration.", {"west": GALLOWS_MILE_KEY, "east": REDOUBT_YARD_KEY}, enemies=(HOST_LEVY_KEY, WAR_HOUND_KEY), tags=("dungeon", "level_34_35")),
     _room(REDOUBT_YARD_KEY, "Redoubt Parade Yard", REDOUBT_REGION_KEY, "Training squares, feed troughs, ration lines, and punishment posts all fit inside one brutally efficient rectangle. This is a working fort with tomorrow's assignments already posted.", {"west": REDOUBT_GATE_KEY, "east": REDOUBT_SUPPLY_KEY, "north": REDOUBT_PRISON_KEY}, enemies=(HOST_LEVY_KEY,), tags=("dungeon", "level_34_35")),
@@ -435,11 +435,11 @@ def _ensure_story(session) -> str | None:
     level = session.character.level
     flags = _flags(session)
     chain = (
-        (31, ARRIVAL_COMPLETE_FLAG, ARRIVAL_QUEST_KEY, "talk_mara", "New region story: The Smoke Has Orders. TALK MARA at Marchward Post."),
+        (31, ARRIVAL_COMPLETE_FLAG, ARRIVAL_QUEST_KEY, "talk_mara", "New region story: The Smoke Has Orders. TALK EVARA at Marchward Post."),
         (33, BLOCKADE_COMPLETE_FLAG, BLOCKADE_QUEST_KEY, "talk_iven", "New city story: A City Under Contract. Find Mayor Iven Rook in Morrowgate Council Hall."),
-        (34, REDOUBT_COMPLETE_FLAG, REDOUBT_QUEST_KEY, "talk_sera", "New campaign story: Break the Brass Redoubt. TALK SERA on Morrowgate's East Rampart."),
+        (34, REDOUBT_COMPLETE_FLAG, REDOUBT_QUEST_KEY, "talk_sera", "New campaign story: Break the Brass Redoubt. TALK RENNA on Morrowgate's East Rampart."),
         (36, DESERTER_COMPLETE_FLAG, DESERTER_QUEST_KEY, "talk_lysa", "New story: The Price of Desertion. TALK LYSA at Refugee Ford."),
-        (37, PALACE_COMPLETE_FLAG, PALACE_QUEST_KEY, "talk_sera", "New dungeon story: The Banner Palace. Return to Captain Sera Hald."),
+        (37, PALACE_COMPLETE_FLAG, PALACE_QUEST_KEY, "talk_sera", "New dungeon story: The Banner Palace. Return to Captain Renna Hald."),
         (40, CAPSTONE_COMPLETE_FLAG, CAPSTONE_QUEST_KEY, "confront_dask", "Level-40 capstone: No Misunderstanding. Enter the Banner Palace Treaty Chamber and confront Corven Dask."),
     )
     prerequisites = (None, ARRIVAL_COMPLETE_FLAG, BLOCKADE_COMPLETE_FLAG, REDOUBT_COMPLETE_FLAG, DESERTER_COMPLETE_FLAG, PALACE_COMPLETE_FLAG)
@@ -540,24 +540,24 @@ def install_crownfire_runtime(player_session_class, world_service) -> None:
         n = " ".join(command.strip().lower().split())
         room = self.character.current_room
 
-        if room == MARCHWARD_POST_KEY and n in {"talk mara", "talk to mara", "talk clerk"}:
+        if room == MARCHWARD_POST_KEY and n in {"talk evara", "talk mara", "talk to neris", "talk to mara", "talk clerk"}:
             _ensure_story(self)
             q = _quest(self, ARRIVAL_QUEST_KEY)
             if q and q["status"] == "active" and q["current_step"] == "talk_mara":
                 self.database.advance_quest(self.character.id, ARRIVAL_QUEST_KEY, "inspect_wagon")
-                await self.send("Mara lays three stolen banners side by side. 'Different colors. Same brass boot nails, same lamp oil, same wagon timing. Go north to Burned Toll and EXAMINE WAGON.'\r\n")
+                await self.send("Evara lays three stolen banners side by side. 'Different colors. Same brass boot nails, same lamp oil, same wagon timing. Go north to Burned Toll and EXAMINE WAGON.'\r\n")
             elif q and q["status"] == "active" and q["current_step"] == "return_mara":
                 self.database.complete_quest(self.character.id, ARRIVAL_QUEST_KEY)
                 self.database.grant_flag(self.character.id, ARRIVAL_COMPLETE_FLAG)
                 gained = _award(self, 7600)
-                await self.send("Mara reads the order and stops at the line LEAVE SURVIVORS TO NAME THE WRONG ENEMY. 'Good. We do not have a mystery anymore. We have a commander.' Quest complete: The Smoke Has Orders. +7,600 XP.\r\n")
+                await self.send("Evara reads the order and stops at the line LEAVE SURVIVORS TO NAME THE WRONG ENEMY. 'Good. We do not have a mystery anymore. We have a commander.' Quest complete: The Smoke Has Orders. +7,600 XP.\r\n")
                 if gained:
                     await self.send(f"You gained {gained} level.\r\n")
                 follow = _ensure_story(self)
                 if follow:
                     await self.send(follow + "\r\n")
             else:
-                await self.send("Mara says, 'Bring me something with a signature, not another rumor with smoke on it.'\r\n")
+                await self.send("Evara says, 'Bring me something with a signature, not another rumor with smoke on it.'\r\n")
             return
 
         if room == BURNED_TOLL_KEY and n in {"examine wagon", "inspect wagon", "search wagon"}:
@@ -571,7 +571,7 @@ def install_crownfire_runtime(player_session_class, world_service) -> None:
             q = _quest(self, ARRIVAL_QUEST_KEY)
             if q and q["status"] == "active" and q["current_step"] == "read_orders":
                 self.database.advance_quest(self.character.id, ARRIVAL_QUEST_KEY, "return_mara")
-                await self.send("The order assigns stolen local banners to raids by date and gives one instruction twice: LEAVE SURVIVORS TO NAME THE WRONG ENEMY. It carries Marshal Corven Dask's gold-road signet. Return to Mara.\r\n")
+                await self.send("The order assigns stolen local banners to raids by date and gives one instruction twice: LEAVE SURVIVORS TO NAME THE WRONG ENEMY. It carries Marshal Corven Dask's gold-road signet. Return to Evara.\r\n")
                 return
 
         if room == MORROWGATE_COUNCIL_KEY and n in {"talk iven", "talk to iven", "talk mayor"}:
@@ -609,17 +609,17 @@ def install_crownfire_runtime(player_session_class, world_service) -> None:
                     await self.send(follow + "\r\n")
                 return
 
-        if room == MORROWGATE_RAMPART_KEY and n in {"talk sera", "talk to sera", "talk captain"}:
+        if room == MORROWGATE_RAMPART_KEY and n in {"talk renna", "talk sera", "talk to renna", "talk to sera", "talk captain"}:
             _ensure_story(self)
             redoubt = _quest(self, REDOUBT_QUEST_KEY)
             if redoubt and redoubt["status"] == "active" and redoubt["current_step"] == "talk_sera":
                 self.database.advance_quest(self.character.id, REDOUBT_QUEST_KEY, "cut_signal")
-                await self.send("Sera points to the Brass Redoubt. 'Do not heroically charge the office first. Cut the signal loft, free the prisoners, then remove the quartermaster from a fort that can no longer call for a replacement.'\r\n")
+                await self.send("Renna points to the Brass Redoubt. 'Do not heroically charge the office first. Cut the signal loft, free the prisoners, then remove the quartermaster from a fort that can no longer call for a replacement.'\r\n")
                 return
             palace = _quest(self, PALACE_QUEST_KEY)
             if palace and palace["status"] == "active" and palace["current_step"] == "talk_sera":
                 self.database.advance_quest(self.character.id, PALACE_QUEST_KEY, "break_mirror")
-                await self.send("Sera marks the Banner Palace signal mast. 'Dask's strength is coordination. Break the mirror, free the leverage in the hostage wing, read his war map, then take the command hall.'\r\n")
+                await self.send("Renna marks the Banner Palace signal mast. 'Dask's strength is coordination. Break the mirror, free the leverage in the hostage wing, read his war map, then take the command hall.'\r\n")
                 return
 
         if room == REDOUBT_SIGNAL_KEY and n in {"cut signal rope", "cut rope", "cut signal"}:
