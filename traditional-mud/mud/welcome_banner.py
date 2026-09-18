@@ -84,7 +84,7 @@ def build_welcome_banner() -> str:
             _paint(SHADOW, _center("DREAMS OF THE FALLEN // ASTRALIS")),
             _paint(SHADOW, _center("Beneath Astralis, something dreams.")),
             "",
-            _paint(GOLD, _center("LOGIN      CREATE ACCOUNT")),
+            _paint(GOLD, _center("LOGIN     CREATE ACCOUNT")),
             _paint(SHADOW, _center("Type HELP for a brief explanation.")),
             "",
         )
