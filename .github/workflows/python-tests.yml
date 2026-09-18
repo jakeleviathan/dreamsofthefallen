@@ -45,7 +45,7 @@ jobs:
               config = zf.read("config.lua").decode("utf-8")
           for marker in ("Dreams.Room", "Dreams.Map", "Dreams.Party", "Dreams.Quests", "Dreams.Inventory", "Dreams.Abilities", "Dreams.Context", "Dreams.Onboarding", "Geyser.Mapper"):
               assert marker in xml, marker
-          assert 'version = "2.2.0"' in config
+          assert 'version = "2.2.1"' in config
 
           root = ET.fromstring(xml)
           embedded_lua = root.findtext(".//Script/script")

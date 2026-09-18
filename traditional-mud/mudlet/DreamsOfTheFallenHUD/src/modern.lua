@@ -419,11 +419,24 @@ function H.buildModern()
   H.questButton:setClickCallback("DreamsHUD.runAction", "QUESTS")
 
   H.inventoryPane = Geyser.Container:new({ name = "DreamsHUD.InventoryPane", x = 0, y = 0, width = "100%", height = "100%" }, H.contentFrame)
+
+  -- Keep the Pack summary fixed while the actual item list scrolls independently.
   H.inventoryHeader = label(H.inventoryPane, "DreamsHUD.InventoryHeader", 8, 6, -16, 28, GOLD_TEXT)
-  H.inventoryRows = {}
-  for i = 1, 8 do
-    H.inventoryRows[i] = label(H.inventoryPane, "DreamsHUD.InventoryRow" .. i, 8, 34 + (i - 1) * 29, -16, 26, SMALL_TEXT)
-  end
+
+  H.inventoryList = Geyser.MiniConsole:new({
+    name = "DreamsHUD.InventoryList",
+    x = 8,
+    y = 38,
+    width = -16,
+    height = -88,
+    autoWrap = true,
+    color = "#08060a",
+    scrollBar = true,
+    fontSize = 10,
+  }, H.inventoryPane)
+  H.inventoryList:setColor("#08060a")
+
+  -- This button stays fixed at the bottom rather than scrolling with the items.
   H.inventoryButton = label(H.inventoryPane, "DreamsHUD.InventoryButton", 8, -42, -16, 34, BUTTON_STYLE)
   H.inventoryButton:echo("<center>OPEN INVENTORY</center>")
   H.inventoryButton:setClickCallback("DreamsHUD.runAction", "INVENTORY")
@@ -602,23 +615,69 @@ function H.renderQuestPanel()
 end
 
 function H.renderInventoryPanel()
-  if not H.modernBuilt then return end
+  if not H.modernBuilt or not H.inventoryList then return end
+
   local inventory = H.state.inventory or { items = {} }
-  H.inventoryHeader:echo(string.format("PACK  •  %d items / %d kinds", tonumber(inventory.count) or 0, tonumber(inventory.unique) or 0))
   local items = inventory.items or {}
-  for i = 1, 8 do
-    local row = H.inventoryRows[i]
-    local item = items[i]
-    if not item then
-      row:echo("")
-      row:hide()
-    else
-      local equipped = item.equipped and ("  <span style='color:#d9bc7e'>[" .. escape(item.slot) .. "]</span>") or ""
-      row:echo(string.format("%dx  %s%s", tonumber(item.quantity) or 0, escape(item.name), equipped))
-      setTooltip(row, item.description or "")
-      row:show()
-    end
+
+  H.inventoryHeader:echo(string.format(
+    "PACK  •  %d items / %d kinds",
+    tonumber(inventory.count) or 0,
+    tonumber(inventory.unique) or 0
+  ))
+
+  -- Work on a copy so presentation sorting never mutates the GMCP state.
+  local sorted = {}
+  for _, item in ipairs(items) do
+    sorted[#sorted + 1] = item
   end
+
+  -- Equipped pieces first, then alphabetically. This keeps important worn gear
+  -- easy to find even when a character is carrying a very large inventory.
+  table.sort(sorted, function(a, b)
+    local aEquipped = a.equipped == true
+    local bEquipped = b.equipped == true
+
+    if aEquipped ~= bEquipped then
+      return aEquipped
+    end
+
+    local aName = string.lower(tostring(a.name or ""))
+    local bName = string.lower(tostring(b.name or ""))
+
+    if aName ~= bName then
+      return aName < bName
+    end
+
+    return tostring(a.key or "") < tostring(b.key or "")
+  end)
+
+  H.inventoryList:clear()
+  H.inventoryList:fg("white")
+
+  if #sorted == 0 then
+    H.inventoryList:echo("Your pack is empty.\n")
+    return
+  end
+
+  for _, item in ipairs(sorted) do
+    local quantity = tonumber(item.quantity) or 0
+    local name = tostring(item.name or item.key or "Unknown item")
+
+    H.inventoryList:echo(string.format("%dx %s", quantity, name))
+
+    if item.equipped then
+      H.inventoryList:cecho(
+        " <gold>[" .. tostring(item.slot or "equipped") .. "]<reset>"
+      )
+    end
+
+    -- Blank line keeps large inventories readable rather than becoming a wall.
+    H.inventoryList:echo("\n\n")
+  end
+
+  -- Extra breathing room after the final item.
+  H.inventoryList:echo("\n")
 end
 
 function H.renderHotbar()
