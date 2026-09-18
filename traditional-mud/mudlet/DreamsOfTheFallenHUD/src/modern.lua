@@ -22,6 +22,9 @@ H.activePanel = H.activePanel or "map"
 H.modernHandlers = H.modernHandlers or {}
 H.modernTriggers = H.modernTriggers or {}
 H.soundEnabled = H.soundEnabled ~= false
+H.hotbarAssignments = H.hotbarAssignments or {}
+H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
+H.hotbarEmptyKey = "__empty__"
 
 local function escape(value)
   value = tostring(value or "")
@@ -133,6 +136,80 @@ local function setTooltip(widget, text)
   if widget and widget.setToolTip then pcall(function() widget:setToolTip(text or "") end) end
 end
 
+local function hotbarStoragePath()
+  local home = getMudletHomeDir and getMudletHomeDir() or "."
+  return home .. "/dreams_hotbar_assignments.lua"
+end
+
+local function hotbarCharacterKey()
+  local character = tostring((H.state or {}).character_name or "")
+  local classKey = tostring(((H.state or {}).abilities or {}).class or "")
+  if character == "" then character = "unknown" end
+  return string.lower(character) .. "|" .. string.lower(classKey)
+end
+
+function H.loadHotbarAssignments()
+  if H.hotbarConfigLoaded then return end
+  H.hotbarAssignments = H.hotbarAssignments or {}
+  if table and table.load then
+    pcall(function() table.load(hotbarStoragePath(), H.hotbarAssignments) end)
+  end
+  H.hotbarConfigLoaded = true
+end
+
+function H.saveHotbarAssignments()
+  if table and table.save then
+    pcall(function() table.save(hotbarStoragePath(), H.hotbarAssignments) end)
+  end
+end
+
+local function abilityByKey(key)
+  if not key or key == "" or key == H.hotbarEmptyKey then return nil end
+  for _, ability in ipairs(((H.state or {}).abilities or {}).abilities or {}) do
+    if tostring(ability.key or "") == tostring(key) then return ability end
+  end
+  return nil
+end
+
+function H.hotbarAbilityForSlot(slot)
+  slot = tonumber(slot) or 0
+  local abilities = ((H.state or {}).abilities or {}).abilities or {}
+  H.loadHotbarAssignments()
+  local slots = H.hotbarAssignments[hotbarCharacterKey()]
+  local configured = slots and slots[slot] or nil
+  if configured == H.hotbarEmptyKey then return nil end
+  if configured then return abilityByKey(configured) end
+  return abilities[slot]
+end
+
+function H.cycleHotbarSlot(slot)
+  slot = tonumber(slot) or 0
+  if slot < 1 or slot > 8 then return end
+
+  local abilities = ((H.state or {}).abilities or {}).abilities or {}
+  local current = H.hotbarAbilityForSlot(slot)
+  local currentKey = current and tostring(current.key or "") or H.hotbarEmptyKey
+  local choices = { H.hotbarEmptyKey }
+  for _, ability in ipairs(abilities) do
+    choices[#choices + 1] = tostring(ability.key or "")
+  end
+
+  local currentIndex = 1
+  for index, key in ipairs(choices) do
+    if key == currentKey then currentIndex = index break end
+  end
+  local nextIndex = currentIndex + 1
+  if nextIndex > #choices then nextIndex = 1 end
+
+  H.loadHotbarAssignments()
+  local key = hotbarCharacterKey()
+  H.hotbarAssignments[key] = H.hotbarAssignments[key] or {}
+  H.hotbarAssignments[key][slot] = choices[nextIndex]
+  H.saveHotbarAssignments()
+  H.renderHotbar()
+  H.renderHotbarConfig()
+end
+
 function H.runAction(command)
   if not command or command == "" then return end
   send(command, true)
@@ -145,8 +222,7 @@ function H.selectAlly(name)
 end
 
 function H.runAbility(index)
-  local list = (H.state.abilities or {}).abilities or {}
-  local ability = list[tonumber(index) or 0]
+  local ability = H.hotbarAbilityForSlot(index)
   if not ability then return end
   local command = tostring(ability.command or "")
   if command == "" then return end
@@ -352,9 +428,8 @@ function H.buildModern()
   H.inventoryButton:echo("<center>OPEN INVENTORY</center>")
   H.inventoryButton:setClickCallback("DreamsHUD.runAction", "INVENTORY")
 
-  -- Bottom command deck: one short onboarding line, then class hotbar and
-  -- context-sensitive verbs. It behaves like a modern action bar but every
-  -- button simply sends ordinary MUD text.
+  -- Bottom command deck: one short onboarding line, then the eight active
+  -- ability hotkeys and a matching row of per-slot assignment controls.
   H.bottomFrame = Geyser.Label:new({
     name = "DreamsHUD.BottomFrame", x = 8, y = -146, width = -438, height = 136,
   })
@@ -372,10 +447,11 @@ function H.buildModern()
     H.hotbar[i]:setClickCallback("DreamsHUD.runAbility", i)
   end
 
-  H.contextButtons = {}
-  for i = 1, 10 do
-    local x = tostring((i - 1) * 10 + 0.5) .. "%"
-    H.contextButtons[i] = label(H.bottomFrame, "DreamsHUD.Context" .. i, x, 84, "9.5%", 40, BUTTON_STYLE)
+  H.hotbarConfig = {}
+  for i = 1, 8 do
+    local x = tostring((i - 1) * 12.5 + 0.5) .. "%"
+    H.hotbarConfig[i] = label(H.bottomFrame, "DreamsHUD.HotbarSet" .. i, x, 84, "12%", 40, BUTTON_STYLE)
+    H.hotbarConfig[i]:setClickCallback("DreamsHUD.cycleHotbarSlot", i)
   end
 
   H.eventBanner = label(nil, "DreamsHUD.EventBanner", "37%", 12, "26%", 34, BUTTON_ACTIVE_STYLE)
@@ -547,11 +623,10 @@ end
 
 function H.renderHotbar()
   if not H.modernBuilt then return end
-  local abilities = (H.state.abilities or {}).abilities or {}
   local selected = tostring(H.state.selected_ally or "")
   for i = 1, 8 do
     local button = H.hotbar[i]
-    local ability = abilities[i]
+    local ability = H.hotbarAbilityForSlot(i)
     if not ability then
       button:echo("<center>—</center>")
       button:setStyleSheet(PANEL_STYLE)
@@ -571,29 +646,28 @@ function H.renderHotbar()
   end
 end
 
-function H.renderContext()
+function H.renderHotbarConfig()
   if not H.modernBuilt then return end
-  local actions = (H.state.context or {}).actions or {}
-  for i = 1, 10 do
-    local button = H.contextButtons[i]
-    local action = actions[i]
-    if not action then
-      button:hide()
-    else
-      button:show()
-      button:setStyleSheet(action.kind == "danger" and BUTTON_DANGER_STYLE or (action.primary and BUTTON_ACTIVE_STYLE or BUTTON_STYLE))
-      button:echo("<center>" .. escape(truncate(action.label, 14)) .. "</center>")
-      button:setClickCallback("DreamsHUD.runAction", tostring(action.command or ""))
-      setTooltip(button, tostring(action.command or ""))
-    end
+  for i = 1, 8 do
+    local button = H.hotbarConfig[i]
+    local ability = H.hotbarAbilityForSlot(i)
+    local name = ability and truncate(ability.name, 14) or "Empty"
+    button:setStyleSheet(ability and BUTTON_STYLE or PANEL_STYLE)
+    button:echo("<center><b>SET " .. tostring(i) .. "</b><br/>" .. escape(name) .. "</center>")
+    setTooltip(button, "Click to cycle hotkey " .. tostring(i) .. " through your learned abilities and Empty. This choice is saved for this character.")
   end
+end
+
+function H.renderContext()
+  -- Context actions remain available through normal Telnet commands and GMCP,
+  -- but the bottom deck is reserved exclusively for hotbar configuration.
 end
 
 function H.renderOnboarding()
   if not H.modernBuilt then return end
   local o = H.state.onboarding or { active = false }
   if not o.active then
-    H.onboarding:echo("The command line is always authoritative. Clicks are shortcuts, not a different game.")
+    H.onboarding:echo("Top row: use abilities. Bottom row: click SET to cycle each hotkey through learned abilities. Assignments are saved per character.")
     return
   end
   H.onboarding:echo("<span style='color:#dfc18c'><b>" .. escape(o.title or "") .. "</b></span>  —  " .. escape(o.text or ""))
@@ -607,6 +681,7 @@ function H.renderModernAll()
   H.renderQuestPanel()
   H.renderInventoryPanel()
   H.renderHotbar()
+  H.renderHotbarConfig()
   H.renderContext()
   H.renderOnboarding()
   H.updateMapper()
@@ -645,6 +720,7 @@ function H.onAbilitiesModern()
   if not data then return end
   H.state.abilities = data
   H.renderHotbar()
+  H.renderHotbarConfig()
 end
 
 function H.onContextModern()
