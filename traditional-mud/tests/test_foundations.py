@@ -1182,7 +1182,7 @@ class MudletProtocolTests(unittest.IsolatedAsyncioTestCase):
         raw = bytes(writer.buffer)
         self.assertEqual(raw.count(b"Client.GUI"), 1)
         self.assertIn(b'DreamsOfTheFallenHUD.mpackage', raw)
-        self.assertIn(b'"version":"1.0.0"', raw)
+        self.assertIn(f'"version":"{OFFICIAL_MUDLET_HUD_VERSION}"'.encode("utf-8"), raw)
 
     async def test_gmcp_state_stream_includes_player_vitals_and_target(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1238,7 +1238,7 @@ class OfficialMudletHudPackageTests(unittest.TestCase):
         self.assertIn("setBorderTop", combined)
         self.assertIn("setBorderRight", combined)
         self.assertIn('mpackage = "DreamsOfTheFallenHUD"', config)
-        self.assertIn('version = "1.0.0"', config)
+        self.assertIn(f'version = "{OFFICIAL_MUDLET_HUD_VERSION}"', config)
 
 
 
