@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from time import monotonic
 
 import mud.crafting as crafting
+import mud.world as legacy_world
 from mud.crafting import ItemDefinition, ResourceNodeDefinition, ResourceNodeState
 from mud.gear import CraftingRecipe, MaterialRequirement
 from mud.stats import CharacterStats, EquipmentItem
@@ -242,7 +243,19 @@ def _stations_here(session) -> tuple[str, ...]:
     character = getattr(session, "character", None)
     if character is None:
         return ()
-    return ROOM_STATIONS.get(character.current_room or "", ())
+    room_key = character.current_room or ""
+    stations = list(ROOM_STATIONS.get(room_key, ()))
+
+    # Newer authored rooms often advertise infrastructure through semantic room
+    # tags instead of the old starter ROOM_STATIONS table. Treat those tags as
+    # first-class stations so every region can share the same workshop UI.
+    room = legacy_world.ROOMS_BY_KEY.get(room_key)
+    if room is not None:
+        known = set(STATION_LABELS)
+        for tag in getattr(room, "tags", ()):
+            if tag in known and tag not in stations:
+                stations.append(tag)
+    return tuple(stations)
 
 
 def _normalize(value: str) -> str:
