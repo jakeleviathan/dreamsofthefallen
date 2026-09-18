@@ -69,7 +69,7 @@ def apply_recipe_semantic_quality() -> None:
         materials=_materials(
             ("cotton_cloth", 2),
             ("cotton_thread", 1),
-            ("resonant_cog", 1),
+            ("gloamworks_resonant_cog", 1),
         ),
         description=(
             "Tailor layered cotton vestments and mount the Resonant Cog as a "
@@ -128,7 +128,7 @@ def apply_recipe_semantic_quality() -> None:
         materials=_materials(
             ("resonant_vestments", 1),
             ("care_commission_plate", 1),
-            ("resonant_cog", 1),
+            ("gloamworks_resonant_cog", 1),
             ("silk_thread", 1),
         ),
         description=(
