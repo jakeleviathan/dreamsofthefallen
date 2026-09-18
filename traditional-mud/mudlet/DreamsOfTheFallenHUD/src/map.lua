@@ -1,12 +1,12 @@
 -- Dreams of the Fallen - Persistent Discovery Mapper
--- HUD 2.2.0
+-- HUD 2.2.1
 --
 -- The server owns discovery. This panel deliberately refuses to invent rooms
 -- from visible exits: Dreams.Map contains only places this character has entered.
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.0"
+H.version = "2.2.1"
 H.state = H.state or {}
 H.state.map = H.state.map or { current = 0, discovered_count = 0, rooms = {} }
 H.mapCoordinates = H.mapCoordinates or {}
