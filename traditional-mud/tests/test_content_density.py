@@ -41,10 +41,40 @@ class ContentDensityTests(unittest.TestCase):
         self.assertEqual(len({item.key for item in EVERYDAY_GEAR}), 100)
         self.assertTrue(all(item.category == "equipment" for item in EVERYDAY_GEAR))
 
-    def test_crafting_crosses_regional_material_boundaries(self):
+    def test_crafting_crosses_regional_material_boundaries_without_nonsense_inputs(self):
         self.assertEqual(len(DENSITY_RECIPES), 40)
         self.assertTrue(all(len(recipe.materials) >= 2 for recipe in DENSITY_RECIPES))
         self.assertGreaterEqual(len({req.item_key for recipe in DENSITY_RECIPES for req in recipe.materials}), 12)
+
+        by_key = {recipe.key: recipe for recipe in DENSITY_RECIPES}
+
+        waymeet_cap = by_key["density_make_waymeet_0"]
+        self.assertEqual(waymeet_cap.trade_skill_key, "tailoring")
+        self.assertEqual(waymeet_cap.station_key, "loom")
+        self.assertEqual(
+            {req.item_key for req in waymeet_cap.materials},
+            {"wool_cloth", "cotton_thread"},
+        )
+
+        sablewater_coat = by_key["density_make_sablewater_1"]
+        self.assertEqual(
+            {req.item_key for req in sablewater_coat.materials},
+            {"wool_cloth", "rough_hide"},
+        )
+        self.assertNotIn("coal", {req.item_key for req in sablewater_coat.materials})
+
+        underclock_cap = by_key["density_make_underclock_0"]
+        self.assertEqual(
+            {req.item_key for req in underclock_cap.materials},
+            {"cotton_cloth", "drowned_brass_scrap"},
+        )
+        self.assertNotIn("lavender_blossom", {req.item_key for req in underclock_cap.materials})
+
+        nine_vapors_coat = by_key["density_make_nine_vapors_1"]
+        self.assertEqual(
+            {req.item_key for req in nine_vapors_coat.materials},
+            {"silk_cloth", "ninth_vapor_resin"},
+        )
 
     def test_rare_creatures_and_curios_are_large_discovery_layers(self):
         self.assertEqual(len(RARE_CREATURES), 34)
