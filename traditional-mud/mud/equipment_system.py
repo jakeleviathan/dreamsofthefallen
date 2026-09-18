@@ -631,8 +631,23 @@ def apply_equipment_to_combatant(session) -> None:
 
     old_max_hp = session.combatant.max_hp
     old_max_mana = session.combatant.max_mana
-    new_max_hp = total.maximum_hp(25)
+    equipment_max_hp = total.maximum_hp(25)
     new_max_mana = total.maximum_mana(20)
+
+    # Equipment reconciliation runs after ordinary commands so newly earned or
+    # changed gear takes effect immediately. Temporary max-HP effects such as
+    # Blessing of Resolve and Oakheart also modify CombatantState.max_hp directly.
+    # Preserve that live delta instead of erasing the buff every time equipment is
+    # reconciled. Tracking the last equipment-derived baseline also means a gear
+    # change while buffed can update the baseline without losing the temporary HP.
+    previous_equipment_max_hp = getattr(session, "_equipment_max_hp_baseline", None)
+    temporary_max_hp_delta = (
+        old_max_hp - previous_equipment_max_hp
+        if previous_equipment_max_hp is not None
+        else 0
+    )
+    new_max_hp = equipment_max_hp + temporary_max_hp_delta
+    session._equipment_max_hp_baseline = equipment_max_hp
 
     if new_max_hp > old_max_hp:
         session.combatant.current_hp += new_max_hp - old_max_hp
