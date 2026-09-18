@@ -33,7 +33,7 @@ from mud.database import Database
 from mud.world import ROOMS_BY_KEY
 
 assert server.PlayerSession._living_world_variety_runtime_applied
-assert variety.LIVING_WORLD_VARIETY_VERSION == "2.0.0"
+assert variety.LIVING_WORLD_VARIETY_VERSION == "2.1.0"
 assert len(variety.GENERATED_PULSES) >= 200
 assert len(variety.ALL_PULSES) >= 220
 assert len({pulse.key for pulse in variety.ALL_PULSES}) == len(variety.ALL_PULSES)
@@ -96,8 +96,30 @@ with tempfile.TemporaryDirectory() as temp_dir:
     assert len({str(row["sender"]) for row in rows}) >= 5
     assert len({str(row["subject"]) for row in rows}) >= 40
     assert len({str(row["body"]) for row in rows}) >= 45
-    assert sum("Nothing in this letter" in str(row["body"]) for row in rows) < len(rows) // 3
-    assert all("go to " in str(row["body"]) and " use " in str(row["body"]) for row in rows)
+    forbidden_mail_phrases = (
+        "missed reward",
+        "nothing in this letter",
+        "penalty for being away",
+        "actually present",
+        "current astralis day",
+        "demand completion",
+        "not an assignment",
+        "keeping attendance",
+        "punish you",
+        "no deadline",
+        "formal quest",
+        "quest marker",
+        "genuinely gatherable",
+        "normal gathering system",
+        "decorative text",
+        "real temporary disturbance",
+        "normal combat",
+    )
+    assert all(
+        not any(phrase in str(row["body"]).lower() for phrase in forbidden_mail_phrases)
+        for row in rows
+    )
+    assert all("stop at " in str(row["body"]) for row in rows)
 
 with tempfile.TemporaryDirectory() as temp_dir:
     database = Database(Path(temp_dir) / "compat.db")
@@ -112,8 +134,9 @@ with tempfile.TemporaryDirectory() as temp_dir:
             (character.id,),
         ).fetchone()
     assert "away for 3 Astralis days" in row["body"]
-    assert "missed reward" in row["body"].lower()
-    assert "nothing in this letter" in row["body"].lower()
+    assert "missed reward" not in row["body"].lower()
+    assert "nothing in this letter" not in row["body"].lower()
+    assert "penalty" not in row["body"].lower()
     assert "Day 13" in row["subject"]
 
 story_day = next(
@@ -134,7 +157,10 @@ with tempfile.TemporaryDirectory() as temp_dir:
     living.ensure_living_world_schema(database)
     asyncio.run(variety._observe_story(session, story, meta, story_day))
     assert living._event_done(session, story_day, story.key)
-    assert "actually happening here today" in "".join(session.messages)
+    observed = "".join(session.messages).lower()
+    assert "conversation keeps moving" in observed
+    assert "payout" not in observed
+    assert "actually happening here today" not in observed
 
 merchant_day = next(
     day
