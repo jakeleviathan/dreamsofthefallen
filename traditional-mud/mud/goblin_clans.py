@@ -466,7 +466,7 @@ async def _handle_clan_choice(session, normalized: str) -> bool:
                 "Quest complete: A Formula With a Lock On It. Coppercap remembers that you respected the closed method.\r\n"
             )
             return True
-        if normalized in {"share formula", "share formula with rixa", "copy formula", "share method"}:
+        if normalized in {"share formula", "share formula with rixa", "share formula with pella", "copy formula", "share method"}:
             _grant_signal(session, FLOODPICK_MIREHOOK, "shared_formula")
             session.database.complete_quest(session.character.id, GOBLIN_CLOSED_FORMULA.key)
             _consume_all(session, COPPERCAP_FORMULA_PACKET.key)
