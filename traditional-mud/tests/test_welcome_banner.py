@@ -48,6 +48,29 @@ class WelcomeBannerDesignTests(unittest.TestCase):
         # The visible splash remains genuine old-client-safe text art.
         plain.encode("ascii")
 
+    def test_dream_sigil_uses_one_fixed_center_axis(self):
+        lines = plain_welcome_banner().replace("\r", "").split("\n")
+        center = (BANNER_WIDTH - 1) // 2
+        sigil_rows = (
+            r"\        |        /",
+            r"\       |       /",
+            r"\      |      /",
+            r"------\     |     /------",
+            r"\    |    /",
+            r"\   |   /",
+            r"\  |  /",
+            r"\ | /",
+            r"\|/",
+        )
+        for row in sigil_rows:
+            line = next(candidate for candidate in lines if candidate.strip() == row)
+            axis = line.index("|")
+            self.assertEqual(axis, center, row)
+            self.assertEqual(center - line.index("\\"), line.index("/") - center, row)
+
+        point = next(candidate for candidate in lines if candidate.strip() == "V")
+        self.assertEqual(point.index("V"), center)
+
     def test_banner_uses_restrained_semantic_palette(self):
         self.assertIn(IRON, WELCOME_BANNER)
         self.assertIn(SHADOW, WELCOME_BANNER)
