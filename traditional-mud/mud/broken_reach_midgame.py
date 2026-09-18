@@ -153,7 +153,7 @@ FACTION_QUEST = QuestDefinition(
     objective_steps=(
         ("talk_hesta", "TALK HESTA about reopening the road."),
         ("talk_jory", "TALK JORY about the Grinning Men and the people sheltering with them."),
-        ("talk_mira", "TALK MIRA at Cinder Ford about the Cinder Compact."),
+        ("talk_mira", "TALK VESSA at Cinder Ford about the Cinder Compact."),
         ("inspect_tally", "At Cinder Ford, EXAMINE TALLY."),
         ("choose_stance", "At the Ragged Caravanserai choose CHOOSE ROAD, CHOOSE REFUGE, or CHOOSE QUARANTINE."),
         ("complete", "You forced the Reach to operate under one temporary public agreement instead of three private assumptions."),
@@ -260,7 +260,7 @@ BROKEN_REACH_NPCS = (
     ),
     NpcDefinition(
         MIRA_KEY,
-        "Factor Mira Sable",
+        "Factor Vessa Sable",
         "a compact caravan factor carrying a waterproof loss ledger tied shut with red cord",
         CINDER_FORD_KEY,
         "Cinder Compact factor representing stranded traders and haulers",
@@ -642,7 +642,7 @@ async def _talk_jory(session) -> bool:
     faction = _quest(session, FACTION_QUEST_KEY)
     if faction and faction["status"] == "active" and faction["current_step"] == "talk_jory":
         session.database.advance_quest(session.character.id, FACTION_QUEST_KEY, "talk_mira")
-        await session.send("Jory gestures across the tents. 'Hesta draws this as a road problem. We live here because respectable places pushed us out before the hill ever did. Reopen what you want. Just do not erase a refuge to make survey lines straight.'\r\nNext: TALK MIRA at Cinder Ford.\r\n")
+        await session.send("Jory gestures across the tents. 'Hesta draws this as a road problem. We live here because respectable places pushed us out before the hill ever did. Reopen what you want. Just do not erase a refuge to make survey lines straight.'\r\nNext: TALK VESSA at Cinder Ford.\r\n")
         return True
     await session.send("Jory taps the smile carved into his mask. 'People remember the grin. Good. Maybe they remember there was a warning attached to it.'\r\n")
     return True
@@ -665,9 +665,9 @@ async def _talk_mira(session) -> bool:
     q = _quest(session, FACTION_QUEST_KEY)
     if q and q["status"] == "active" and q["current_step"] == "talk_mira":
         session.database.advance_quest(session.character.id, FACTION_QUEST_KEY, "inspect_tally")
-        await session.send("Mira unties the red cord around her ledger. 'I am not asking you to love trade. I am asking you to look at what does not arrive when the road stays closed.' She turns the book toward you. EXAMINE TALLY.\r\n")
+        await session.send("Vessa unties the red cord around her ledger. 'I am not asking you to love trade. I am asking you to look at what does not arrive when the road stays closed.' She turns the book toward you. EXAMINE TALLY.\r\n")
         return True
-    await session.send("Mira says, 'If a route cannot be closed safely, it was never safely open.'\r\n")
+    await session.send("Vessa says, 'If a route cannot be closed safely, it was never safely open.'\r\n")
     return True
 
 
@@ -701,7 +701,7 @@ async def _choose_stance(session, stance: str) -> bool:
     session.database.grant_flag(session.character.id, FACTION_COMPLETE_FLAG)
     session.database.complete_quest(session.character.id, FACTION_QUEST_KEY)
     gained = _award(session, 950, ACCORD_TOKEN_KEY)
-    await session.send(f"{text}\r\nHesta, Jory, and Mira each sign the same temporary map without pretending they wanted the same outcome. Quest complete: Three Claims on One Road. Reward: 950 XP and Three-Claims Accord Token.\r\n")
+    await session.send(f"{text}\r\nHesta, Jory, and Vessa each sign the same temporary map without pretending they wanted the same outcome. Quest complete: Three Claims on One Road. Reward: 950 XP and Three-Claims Accord Token.\r\n")
     if gained:
         await session.send(f"You gained {gained} level.\r\n")
     follow = _ensure_story(session)
@@ -800,7 +800,7 @@ async def _open_bypass(session) -> bool:
     session.database.complete_quest(session.character.id, CAPSTONE_QUEST_KEY)
     session.database.grant_flag(session.character.id, CAPSTONE_COMPLETE_FLAG)
     gained = _award(session, 2200, UNDERROAD_WRIT_KEY)
-    await session.send("The counterweights groan upward and daylight reaches the buried road from Far Watch. By dusk, Hesta's signs send traffic down through Wake Gate instead of across the sacrificed span. Jory's camp remains protected. Mira's freight can move. The House is now a watched hazard instead of a rumor people stumble into.\r\nRegion capstone complete: The Night the Hill Opened. Reward: 2200 XP and Underroad Writ. The Broken Reach map has permanently changed for this character.\r\n")
+    await session.send("The counterweights groan upward and daylight reaches the buried road from Far Watch. By dusk, Hesta's signs send traffic down through Wake Gate instead of across the sacrificed span. Jory's camp remains protected. Vessa's freight can move. The House is now a watched hazard instead of a rumor people stumble into.\r\nRegion capstone complete: The Night the Hill Opened. Reward: 2200 XP and Underroad Writ. The Broken Reach map has permanently changed for this character.\r\n")
     if gained:
         await session.send(f"You gained {gained} level.\r\n")
     return True
@@ -898,7 +898,7 @@ def install_broken_reach_runtime(player_session_class, world_service) -> None:
             return
         if normalized in {"talk jory", "talk to jory", "talk ninegrin", "talk to ninegrin"} and await _talk_jory(self):
             return
-        if normalized in {"talk mira", "talk to mira", "talk factor", "talk to factor"} and await _talk_mira(self):
+        if normalized in {"talk vessa", "talk mira", "talk to vessa", "talk to mira", "talk factor", "talk to factor"} and await _talk_mira(self):
             return
         if normalized in {"talk rook", "talk to rook", "talk threshold warden"} and await _talk_rook(self):
             return
