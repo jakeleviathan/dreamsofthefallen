@@ -90,6 +90,7 @@ def build_welcome_banner() -> str:
             _paint(DREAMLIGHT, _center("▼")),
             "",
             _paint(GOLD, _center("A S T R A L I S")),
+            _paint(SHADOW, _center("DREAMS OF THE FALLEN")),
             _paint(SHADOW, _center("Beneath Astralis, something dreams.")),
             "",
         )
