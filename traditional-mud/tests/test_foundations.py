@@ -73,6 +73,7 @@ from mud.npcs import (
     MOBILE_NPC_DEFINITIONS, SILVERLEAF_HARE, MobileNpcManager,
 )
 from mud.session import WELCOME_BANNER, PlayerSession, SessionState
+from mud.welcome_banner import plain_welcome_banner
 from mud.telnet import DO, GMCP, IAC, SB, SE, TelnetConnection
 from mud.client_gui import (
     MudletGuiOffer,
@@ -112,7 +113,7 @@ class DesignFoundationTests(unittest.TestCase):
         self.assertIn("DREAMS OF THE FALLEN", WELCOME_BANNER)
         self.assertIn("ASTRALIS", WELCOME_BANNER)
         self.assertNotIn("TRADITIONAL MUD", WELCOME_BANNER)
-        visible_lines = WELCOME_BANNER.replace("\r", "").split("\n")
+        visible_lines = plain_welcome_banner().replace("\r", "").split("\n")
         self.assertLessEqual(max(len(line) for line in visible_lines), 78)
 
     def test_race_and_class_rosters(self) -> None:
