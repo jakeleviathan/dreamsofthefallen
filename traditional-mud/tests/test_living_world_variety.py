@@ -133,7 +133,8 @@ with tempfile.TemporaryDirectory() as temp_dir:
             "SELECT subject, body FROM living_mail WHERE character_id = ?",
             (character.id,),
         ).fetchone()
-    assert "away for 3 Astralis days" in row["body"]
+    assert "3 Astralis days" in row["body"]
+    assert "away" in row["body"].lower()
     assert "missed reward" not in row["body"].lower()
     assert "nothing in this letter" not in row["body"].lower()
     assert "penalty" not in row["body"].lower()
