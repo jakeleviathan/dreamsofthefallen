@@ -10,6 +10,8 @@ from pathlib import Path
 from mud.welcome_banner import (
     BANNER_WIDTH,
     DREAMLIGHT,
+    DREAMS_WORDMARK,
+    FALLEN_WORDMARK,
     GOLD,
     IRON,
     SHADOW,
@@ -32,13 +34,19 @@ class WelcomeBannerDesignTests(unittest.TestCase):
 
     def test_banner_has_two_large_wordmarks_and_world_identity(self):
         plain = plain_welcome_banner()
-        # Six rows for DREAMS + six rows for FALLEN should produce a genuinely
-        # oversized title treatment rather than another framed text plaque.
-        self.assertGreaterEqual(plain.count("██"), 12)
+        # Two five-row slanted wordmarks make the title itself the artwork rather
+        # than putting ordinary text inside another decorative rectangle.
+        self.assertEqual(len(DREAMS_WORDMARK), 5)
+        self.assertEqual(len(FALLEN_WORDMARK), 5)
+        for line in (*DREAMS_WORDMARK, *FALLEN_WORDMARK):
+            self.assertIn(line.strip(), plain)
         self.assertIn("O F   T H E", plain)
         self.assertIn("A S T R A L I S", plain)
         self.assertIn("Beneath Astralis, something dreams.", plain)
-        self.assertIn("▼", plain)
+        self.assertIn("LOGIN      CREATE ACCOUNT", plain)
+        self.assertIn("\\|/", plain)
+        # The visible splash remains genuine old-client-safe text art.
+        plain.encode("ascii")
 
     def test_banner_uses_restrained_semantic_palette(self):
         self.assertIn(IRON, WELCOME_BANNER)
@@ -58,7 +66,8 @@ from mud.final_runtime_policy import _presentation_text
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 assert "DREAMS OF THE FALLEN // ASTRALIS" in session_module.WELCOME_BANNER
-assert "██" in session_module.WELCOME_BANNER
+assert "____  ____  _________" in session_module.WELCOME_BANNER
+assert "LOGIN      CREATE ACCOUNT" in session_module.WELCOME_BANNER
 
 class Telnet:
     gmcp_enabled = False
