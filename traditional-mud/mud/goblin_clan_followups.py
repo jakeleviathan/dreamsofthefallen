@@ -353,7 +353,7 @@ async def _handle_followup_choice(session, normalized: str) -> bool:
     measure = _quest(session, GOBLIN_ONE_CLEAN_MEASURE)
     if measure and measure.get("status") == "active":
         if measure.get("current_step") == "choose_measure" and room == GOBLIN_APOTHECARY_BLIND_KEY:
-            if normalized in {"leave measure with rixa", "leave measure", "leave ampoule"}:
+            if normalized in {"leave measure with rixa", "leave measure with pella", "leave measure", "leave ampoule"}:
                 _grant_signal(session, FLOODPICK_MIREHOOK, "public_measure")
                 session.database.complete_quest(session.character.id, GOBLIN_ONE_CLEAN_MEASURE.key)
                 _consume_all(session, COPPERCAP_CALIBRATION_AMPOULE.key)
