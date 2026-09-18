@@ -142,11 +142,63 @@ ITEMS = (
 )
 
 RECIPES = (
-    CraftingRecipe("forge_widowglass_knife", "blacksmithing", WIDOWGLASS_KNIFE, 18, 45, (MaterialRequirement(GLASSFRUIT_SHARD, 2), MaterialRequirement("blackreed_iron_fitting", 1), MaterialRequirement("iron_ingot", 1)), station_key="forge", description="A Greywake shard becomes useful only after Blackreed iron gives it a spine.", design_status="content_wave_one"),
-    CraftingRecipe("forge_ashwheel_boots", "blacksmithing", ASHWHEEL_BOOTS, 28, 55, (MaterialRequirement(ASHWHEEL_SPOKE, 1), MaterialRequirement("rough_hide", 2), MaterialRequirement("steel_ingot", 1)), station_key="forge", description="Rebuild old relay springwork into durable road footwear.", design_status="content_wave_one"),
-    CraftingRecipe("tailor_vaporward_mask", "tailoring", VAPORWARD_MASK, 32, 60, (MaterialRequirement(NINTH_VAPOR_RESIN, 1), MaterialRequirement(WIDOW_SILK, 1), MaterialRequirement(DROWNED_BRASS_SCRAP_KEY, 1)), station_key="loom", description="Combine perfume-house filtration cloth, orchard silk, and reclaimed Tollhouse brass.", design_status="content_wave_one"),
-    CraftingRecipe("tailor_roadglass_halfcoat", "tailoring", ROADGLASS_HALFCOAT, 26, 55, (MaterialRequirement(WIDOW_SILK, 2), MaterialRequirement(CINDER_TICKET, 1), MaterialRequirement("cotton_cloth", 1)), station_key="loom", description="A fashion piece built from two dungeon identities instead of one self-contained drop table.", design_status="content_wave_one"),
-    CraftingRecipe("blend_afterimage_no9", "alchemy", AFTERIMAGE_NO9, 30, 60, (MaterialRequirement(NINTH_VAPOR_RESIN, 1), MaterialRequirement(GLASSFRUIT_SHARD, 1), MaterialRequirement("lavender_blossom", 2)), station_key="alchemy_table", description="Fix Ninth-Vapor resin with ringing glassfruit mineral and lavender.", design_status="content_wave_one"),
+    CraftingRecipe(
+        "forge_widowglass_knife", "blacksmithing", WIDOWGLASS_KNIFE, 18, 45,
+        (
+            MaterialRequirement(GLASSFRUIT_SHARD, 2),
+            MaterialRequirement("blackreed_iron_fitting", 1),
+            MaterialRequirement("iron_ingot", 1),
+        ),
+        station_key="forge",
+        description="Forge a black-iron knife spine and seat ringing Glassfruit shards along its cutting edge.",
+        design_status="content_wave_one_semantic_materials",
+    ),
+    CraftingRecipe(
+        "tailor_ashwheel_boots", "tailoring", ASHWHEEL_BOOTS, 28, 55,
+        (
+            MaterialRequirement(ASHWHEEL_SPOKE, 1),
+            MaterialRequirement("rough_hide", 2),
+            MaterialRequirement("cotton_thread", 1),
+        ),
+        station_key="loom",
+        description="Sew heavy hide road boots and cut the old relay spoke into springy heel and sole plates.",
+        design_status="content_wave_one_semantic_materials",
+    ),
+    CraftingRecipe(
+        "tailor_vaporward_mask", "tailoring", VAPORWARD_MASK, 32, 60,
+        (
+            MaterialRequirement(NINTH_VAPOR_RESIN, 1),
+            MaterialRequirement(WIDOW_SILK, 1),
+            MaterialRequirement(DROWNED_BRASS_SCRAP_KEY, 1),
+        ),
+        station_key="loom",
+        description="Build a widow-silk filter mask around perforated reclaimed brass, then seal its filter edges with resin.",
+        design_status="content_wave_one_semantic_materials",
+    ),
+    CraftingRecipe(
+        "tailor_roadglass_halfcoat", "tailoring", ROADGLASS_HALFCOAT, 26, 55,
+        (
+            MaterialRequirement(WIDOW_SILK, 1),
+            MaterialRequirement("cotton_cloth", 1),
+            MaterialRequirement(GLASSFRUIT_SHARD, 1),
+            MaterialRequirement(CINDER_TICKET, 1),
+        ),
+        station_key="loom",
+        description="Tailor a cotton half-coat with widow-silk lining, a polished Glassfruit throat bead, and a brass relay-ticket clasp.",
+        design_status="content_wave_one_semantic_materials",
+    ),
+    CraftingRecipe(
+        "blend_afterimage_no9", "alchemy", AFTERIMAGE_NO9, 30, 60,
+        (
+            MaterialRequirement(NINTH_VAPOR_RESIN, 1),
+            MaterialRequirement("lavender_essential_oil", 1),
+            MaterialRequirement("grain_alcohol", 1),
+            MaterialRequirement(PERFUMER_SILVER_SALT, 1),
+        ),
+        station_key="alchemy_table",
+        description="Dissolve aromatic Ninth-Vapor resin in grain alcohol, soften it with lavender oil, and fix the accord with Perfumer's Silver Salt.",
+        design_status="content_wave_one_semantic_materials",
+    ),
 )
 
 STYLE_META = (
