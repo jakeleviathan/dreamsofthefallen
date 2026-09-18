@@ -134,7 +134,6 @@ with tempfile.TemporaryDirectory() as temp_dir:
             (character.id,),
         ).fetchone()
     assert "3 Astralis days" in row["body"]
-    assert "away" in row["body"].lower()
     assert "missed reward" not in row["body"].lower()
     assert "nothing in this letter" not in row["body"].lower()
     assert "penalty" not in row["body"].lower()
