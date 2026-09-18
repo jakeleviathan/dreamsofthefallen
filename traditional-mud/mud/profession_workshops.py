@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 
 import mud.crafting as crafting
@@ -304,6 +305,132 @@ def install_missing_profession_content() -> None:
     imp_drops = economy.LOOT_TABLES.get("small_imp", (economy.LootDrop(economy.IMP_HORN.key),))
     if not any(drop.item_key == ARCANE_RESIDUE.key for drop in imp_drops):
         economy.LOOT_TABLES["small_imp"] = imp_drops + (economy.LootDrop(ARCANE_RESIDUE.key),)
+
+
+# ---------------------------------------------------------------------------
+# Crafted food is real consumable gameplay, not just inventory output.
+# ---------------------------------------------------------------------------
+
+FOOD_TICK_SECONDS = 5.0
+
+
+def _food_names(item: ItemDefinition) -> set[str]:
+    return {
+        item.key.replace("_", " ").lower(),
+        item.name.lower(),
+    }
+
+
+def _resolve_food(session, target: str) -> tuple[ItemDefinition | None, str | None]:
+    wanted = " ".join(target.strip().lower().replace("_", " ").split())
+    candidates = []
+    for row in session.database.list_items(session.character.id):
+        item = crafting.ITEMS_BY_KEY.get(str(row["item_key"]))
+        if item is None or item.consumable is None or item.consumable.use_mode != "eat":
+            continue
+        names = _food_names(item)
+        quality = 2 if wanted in names else 1 if wanted and any(wanted in name for name in names) else 0
+        if quality:
+            candidates.append((quality, item))
+    if not candidates:
+        return None, "You are not carrying edible food by that name."
+    best = max(quality for quality, _item in candidates)
+    matches = [item for quality, item in candidates if quality == best]
+    unique = {item.key: item for item in matches}
+    if len(unique) != 1:
+        names = ", ".join(item.name for item in unique.values())
+        return None, f"Be more specific: {names}."
+    return next(iter(unique.values())), None
+
+
+async def _expire_food_bonus(session, item_name: str, bonus: CharacterStats, seconds: float) -> None:
+    try:
+        await asyncio.sleep(seconds)
+    except asyncio.CancelledError:
+        return
+    combatant = getattr(session, "combatant", None)
+    if combatant is None:
+        return
+    inverse = CharacterStats(
+        might=-bonus.might,
+        grace=-bonus.grace,
+        love=-bonus.love,
+        mind=-bonus.mind,
+        hp=-bonus.hp,
+    )
+    combatant.stats = combatant.stats.plus(inverse)
+    combatant.max_hp = max(1, combatant.max_hp - max(0, bonus.hp))
+    combatant.current_hp = min(combatant.current_hp, combatant.max_hp)
+    mana_bonus = max(0, bonus.mana_bonus)
+    combatant.max_mana = max(0, combatant.max_mana - mana_bonus)
+    combatant.current_mana = min(combatant.current_mana, combatant.max_mana)
+    await session.send(f"\r\nThe temporary benefit from {item_name} fades.\r\n")
+    sender = getattr(session, "send_client_state", None)
+    if callable(sender):
+        await sender()
+
+
+async def _eat(session, target: str) -> None:
+    if getattr(session, "active_enemy", None) is not None:
+        await session.send("You cannot stop to eat while fighting.\r\n")
+        return
+    item, error = _resolve_food(session, target)
+    if error:
+        await session.send(error + "\r\n")
+        return
+    assert item is not None and item.consumable is not None
+    if not session.database.consume_item(session.character.id, item.key, 1):
+        await session.send("That food is no longer in your inventory.\r\n")
+        return
+
+    effect = item.consumable
+    combatant = getattr(session, "combatant", None)
+    healed = 0
+    duration = 0.0
+    if combatant is not None:
+        before = combatant.current_hp
+        combatant.current_hp = min(combatant.max_hp, combatant.current_hp + max(0, effect.heal_hp))
+        healed = combatant.current_hp - before
+
+        bonus = effect.temporary_stat_bonuses
+        if effect.duration_ticks > 0 and bonus != CharacterStats():
+            combatant.stats = combatant.stats.plus(bonus)
+            combatant.max_hp += max(0, bonus.hp)
+            combatant.max_mana += max(0, bonus.mana_bonus)
+            duration = effect.duration_ticks * FOOD_TICK_SECONDS
+            task = asyncio.create_task(_expire_food_bonus(session, item.name, bonus, duration))
+            tasks = getattr(session, "_food_effect_tasks", None)
+            if tasks is None:
+                tasks = set()
+                session._food_effect_tasks = tasks
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
+
+    text = f"You eat {item.name}."
+    if healed:
+        text += f" You recover {healed} HP."
+    if duration:
+        text += f" Its temporary nourishment lasts about {int(duration)} seconds."
+    await session.send(text + "\r\n")
+    sender = getattr(session, "send_client_state", None)
+    if callable(sender):
+        await sender()
+
+
+async def _show_food(session) -> None:
+    foods = []
+    for row in session.database.list_items(session.character.id):
+        item = crafting.ITEMS_BY_KEY.get(str(row["item_key"]))
+        if item is None or item.consumable is None or item.consumable.use_mode != "eat":
+            continue
+        foods.append((item, int(row["quantity"])))
+    await session.send(f"\r\n{_paint(_HEADER, '=== FOOD ===')}\r\n")
+    if not foods:
+        await session.send("You are not carrying prepared food. Cook at a Cookfire to make some.\r\n")
+        return
+    for item, quantity in foods:
+        await session.send(f"  {quantity}x {_paint(_NAME, item.name)} — {item.description}\r\n")
+    await session.send("\r\nUse EAT <food>.\r\n")
 
 
 # ---------------------------------------------------------------------------
@@ -761,6 +888,15 @@ def install_profession_workshops_runtime(player_session_class) -> None:
             return
         if normalized.startswith("cook "):
             await _craft_profession(self, "cooking", stripped.split(maxsplit=1)[1])
+            return
+        if normalized in {"food", "foods"}:
+            await _show_food(self)
+            return
+        if normalized == "eat":
+            await self.send("Use EAT <food>. Type FOOD to see what you are carrying.\r\n")
+            return
+        if normalized.startswith("eat "):
+            await _eat(self, stripped.split(maxsplit=1)[1])
             return
 
         if normalized == "mining":
