@@ -9,12 +9,13 @@ from pathlib import Path
 
 from mud.welcome_banner import (
     BANNER_WIDTH,
-    DREAMLIGHT,
     DREAMS_WORDMARK,
     FALLEN_WORDMARK,
     GOLD,
-    IRON,
+    GRADIENT_256,
+    MID_ORNAMENT,
     SHADOW,
+    TOP_ORNAMENT,
     WELCOME_BANNER,
     plain_welcome_banner,
     visible_banner_widths,
@@ -71,11 +72,38 @@ class WelcomeBannerDesignTests(unittest.TestCase):
         point = next(candidate for candidate in lines if candidate.strip() == "V")
         self.assertEqual(point.index("V"), center)
 
-    def test_banner_uses_restrained_semantic_palette(self):
-        self.assertIn(IRON, WELCOME_BANNER)
+    def test_top_and_mid_ornaments_are_true_generated_mirrors(self):
+        def mirror(text: str) -> str:
+            out = []
+            for char in reversed(text):
+                if char == "/":
+                    out.append("\\")
+                elif char == "\\":
+                    out.append("/")
+                elif char == "<":
+                    out.append(">")
+                elif char == ">":
+                    out.append("<")
+                elif char == "(":
+                    out.append(")")
+                elif char == ")":
+                    out.append("(")
+                else:
+                    out.append(char)
+            return "".join(out)
+
+        for row in (*TOP_ORNAMENT, *MID_ORNAMENT):
+            self.assertEqual(len(row), 77)
+            self.assertEqual(row[39:], mirror(row[:38]), row)
+
+    def test_banner_runs_blue_to_purple_to_pink(self):
+        self.assertEqual(GRADIENT_256[0], 33)
+        self.assertEqual(GRADIENT_256[-1], 213)
+        self.assertIn("\x1b[1;38;5;33m", WELCOME_BANNER)
+        self.assertIn("\x1b[1;38;5;99m", WELCOME_BANNER)
+        self.assertIn("\x1b[1;38;5;213m", WELCOME_BANNER)
         self.assertIn(SHADOW, WELCOME_BANNER)
         self.assertIn(GOLD, WELCOME_BANNER)
-        self.assertIn(DREAMLIGHT, WELCOME_BANNER)
         self.assertEqual(ANSI.sub("", WELCOME_BANNER), plain_welcome_banner())
 
 
