@@ -55,10 +55,10 @@ import re
 import server
 import mud.session as session_module
 from mud.final_runtime_policy import _presentation_text
-from mud.welcome_banner import WELCOME_BANNER
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
-assert session_module.WELCOME_BANNER == WELCOME_BANNER
+assert "DREAMS OF THE FALLEN // ASTRALIS" in session_module.WELCOME_BANNER
+assert "██" in session_module.WELCOME_BANNER
 
 class Telnet:
     gmcp_enabled = False
@@ -70,7 +70,7 @@ class Session:
     _screen_reader_enabled = False
     _player_contrast_mode = "standard"
 
-plain = _presentation_text(Session(), WELCOME_BANNER)
+plain = _presentation_text(Session(), session_module.WELCOME_BANNER)
 assert "\x1b[" not in plain
 assert "A S T R A L I S" in plain
 assert "Beneath Astralis, something dreams." in plain
