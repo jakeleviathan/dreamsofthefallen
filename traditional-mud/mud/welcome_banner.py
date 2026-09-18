@@ -53,7 +53,7 @@ def build_welcome_banner() -> str:
 
     lines: list[str] = [
         "",
-        _paint(SHADOW, _center(r"       /\          /\                    /\          /\")),
+        _paint(SHADOW, _center("       /\\          /\\                    /\\          /\\")),
         _paint(SHADOW, _center(r"  /\__/  \___/\___/  \___/\____/\____/  \___/\___/  \__/\  ")),
         _paint(SHADOW, _center(r"_/                                                          \_")),
         "",
