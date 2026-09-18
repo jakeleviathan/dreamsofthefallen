@@ -23,6 +23,7 @@ import mud.crafting as crafting
 import mud.economy_loop as economy
 import mud.profession_workshops as workshops
 from mud.database import Database
+from mud.stats import CharacterStats
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -118,6 +119,24 @@ with tempfile.TemporaryDirectory() as tmp:
     assert result.success, result.message
     assert db.item_quantity(character.id, "runed_iron_dagger") == 1
     assert db.get_trade_skill_progress(character.id, "enchanting")["skill_xp"] == 1
+
+    # Prepared food is not decorative inventory: EAT consumes it, heals, and
+    # applies its authored temporary nourishment bonus.
+    db.add_item(character.id, "greenleaf_broth", 1)
+    class Combatant:
+        current_hp = 5
+        max_hp = 20
+        current_mana = 10
+        max_mana = 20
+        stats = CharacterStats()
+    session.combatant = Combatant()
+    async def send_client_state():
+        return None
+    session.send_client_state = send_client_state
+    asyncio.run(workshops._eat(session, "greenleaf broth"))
+    assert db.item_quantity(character.id, "greenleaf_broth") == 0
+    assert session.combatant.current_hp == 17
+    assert session.combatant.stats.love == 1
 
     # The common gathering dashboard sees the new cooking resource route.
     db.set_character_room(character.id, "forest_elf_greenway")
