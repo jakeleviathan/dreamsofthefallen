@@ -41,6 +41,20 @@ TITLE_PREFIXES = {
     "ranger",
     "hunter",
     "mother",
+    "druid",
+    "necromancer",
+    "pathwarden",
+    "scout",
+    "witness",
+    "wizard",
+    "sergeant",
+    "surveyor",
+    "registrar",
+    "healer",
+    "mayor",
+    "tender",
+    "riveter",
+    "pressure-clerk",
 }
 
 ROLE_NOUNS = {
