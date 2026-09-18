@@ -135,8 +135,7 @@ PULSE_TEMPLATES: tuple[DailyPulse, ...] = (
         kind="resource",
         headline="Warm rain has pushed lavender into the Briarcut margins.",
         summary=(
-            "For this Astralis day, a temporary lavender patch can be harvested in the Briarcut Fields. "
-            "The patch disappears naturally when the pulse changes."
+            "Warm rain has filled a low Briarcut margin with lavender, and gatherers are already cutting the outer stems."
         ),
         gossip="'Smells like lavender south of the road. That is better than smelling like jackal.'",
         room_key=WAYMEET_BRIARCUT_KEY,
@@ -149,8 +148,7 @@ PULSE_TEMPLATES: tuple[DailyPulse, ...] = (
         kind="resource",
         headline="A wet crack in the old quarry has exposed a stubborn greenleaf shelf.",
         summary=(
-            "Greenleaf is temporarily gatherable beside the quarry spoil. It is a small shift in the land, "
-            "not a permanent new node."
+            "Greenleaf has taken hold beside the quarry spoil where runoff found a wet crack in the stone."
         ),
         gossip="'Hedda says plants growing out of quarry stone are showing off.'",
         room_key=WAYMEET_QUARRY_KEY,
@@ -162,7 +160,7 @@ PULSE_TEMPLATES: tuple[DailyPulse, ...] = (
         key="sablewater_bitterroot",
         kind="resource",
         headline="Low water has uncovered bitterroot along the Reed Farms drainage ditch.",
-        summary="A temporary bitterroot cluster is reachable at the Reed Farms until the next Astralis day.",
+        summary="Low water has exposed a bitterroot cluster along the Reed Farms drainage ditch.",
         gossip="'The farmers are pulling bitterroot with one hand and complaining about mud with the other.'",
         room_key=SABLEWATER_REED_FARMS_KEY,
         room_name="Sablewater Reed Farms",
@@ -174,8 +172,7 @@ PULSE_TEMPLATES: tuple[DailyPulse, ...] = (
         kind="threat",
         headline="Something antlered has been overturning packs along the Broken Mile.",
         summary=(
-            "Wardens have tracked a Mirehorn Stray to the Broken Mile. It is a small roaming disturbance, "
-            "not a formal quest."
+            "Wardens have tracked a Mirehorn Stray to the Broken Mile, where fresh hoof marks cut across the verge."
         ),
         gossip="'Korr says it is frightened, dangerous, and still capable of kicking your ribs inward.'",
         room_key=WAYMEET_BROKEN_MILE_KEY,
@@ -743,7 +740,7 @@ def _create_return_letter(session, from_day: int, to_day: int) -> bool:
     body = (
         f"You were away for {to_day - from_day} Astralis day{'s' if to_day - from_day != 1 else ''}. "
         f"The roads did not wait for you. {pulse.headline} {pulse.summary}{chronicle_note} "
-        "Nothing in this letter is a missed reward. It is simply what changed while you were gone."
+        "That is the current word from the road."
     )
     with session.database.connect() as db:
         cursor = db.execute(
