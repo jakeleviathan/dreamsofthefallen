@@ -862,12 +862,14 @@ def _alchemy_recipe_state(session, recipe) -> dict[str, object]:
     )
     skill_ready = skill >= recipe.minimum_skill
     materials_ready = all(owned >= needed for owned, needed, _name in materials)
-    station_ready = recipe.station_key in {"mortar_and_pestle", "alchemy_table"}
+    station_supported = recipe.station_key in {"mortar_and_pestle", "alchemy_table"}
+    station_ready = station_supported and session.character.current_room == GOBLIN_APOTHECARY_BLIND_KEY
     return {
         "skill": skill,
         "skill_ready": skill_ready,
         "materials": materials,
         "materials_ready": materials_ready,
+        "station_supported": station_supported,
         "station_ready": station_ready,
         "craftable": skill_ready and materials_ready and station_ready,
     }
@@ -984,7 +986,7 @@ async def _show_goblin_alchemy_recipe(session, target: str) -> None:
         f"Status  : {_alchemy_paint(style, status)}\r\n"
         f"Skill   : {state['skill']} / {recipe.minimum_skill}\r\n"
         f"Station : {station}"
-        + ("  (available here)" if session.character.current_room == GOBLIN_APOTHECARY_BLIND_KEY and state["station_ready"] else "")
+        + ("  (available here)" if state["station_ready"] else "")
         + "\r\n"
         "Ingredients:\r\n"
     )
