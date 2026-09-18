@@ -52,15 +52,15 @@ class WelcomeBannerDesignTests(unittest.TestCase):
         lines = plain_welcome_banner().replace("\r", "").split("\n")
         center = (BANNER_WIDTH - 1) // 2
         sigil_rows = (
-            r"\\        |        /",
-            r"\\       |       /",
-            r"\\      |      /",
-            r"------\\     |     /------",
-            r"\\    |    /",
-            r"\\   |   /",
-            r"\\  |  /",
-            r"\\ | /",
-            r"\\|/",
+            r"\        |        /",
+            r"\       |       /",
+            r"\      |      /",
+            r"------\     |     /------",
+            r"\    |    /",
+            r"\   |   /",
+            r"\  |  /",
+            r"\ | /",
+            r"\|/",
         )
         for row in sigil_rows:
             line = next(candidate for candidate in lines if candidate.strip() == row)
