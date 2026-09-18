@@ -52,6 +52,25 @@ full = duplicate_full_names(records)
 static_records = tuple(row for row in records if row.source == "static")
 given = duplicate_given_names(static_records)
 report = format_duplicate_report(full, given)
+if full or given:
+    import sys
+    duplicate_keys = {
+        row.key
+        for group in (*full.values(), *given.values())
+        for row in group
+    }
+    origins = []
+    for key in sorted(duplicate_keys):
+        obj = world.NPCS_BY_KEY.get(key)
+        modules = []
+        for module_name, module in tuple(sys.modules.items()):
+            if not module_name.startswith("mud.") or module is None:
+                continue
+            for attr_name, value in vars(module).items():
+                if value is obj:
+                    modules.append(f"{module_name}.{attr_name}")
+        origins.append(f"{key}: {', '.join(sorted(set(modules)))}")
+    report += "\nDefinition origins:\n- " + "\n- ".join(origins)
 assert not full and not given, report
 
 names = {row.name for row in static_records}
