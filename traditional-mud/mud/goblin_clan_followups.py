@@ -100,11 +100,11 @@ GOBLIN_ONE_CLEAN_MEASURE = QuestDefinition(
     name="One Clean Measure",
     style="structured",
     description=(
-        "Talla Coppercap sends a calibration ampoule to Pella's field bench. Decide whether the standardized measure should remain Coppercap reference property or stay at the public apothecary for any careful worker to compare against."
+        "Talla Coppercap sends a calibration ampoule to Rixa's field bench. Decide whether the standardized measure should remain Coppercap reference property or stay at the public apothecary for any careful worker to compare against."
     ),
     objective_steps=(
-        ("deliver_measure", "Carry the Coppercap Calibration Ampoule to Pella at the Apothecary Blind and TALK PELLA."),
-        ("choose_measure", "Choose LEAVE MEASURE WITH PELLA or RETURN MEASURE TO TALLA."),
+        ("deliver_measure", "Carry the Coppercap Calibration Ampoule to Rixa at the Apothecary Blind and TALK RIXA."),
+        ("choose_measure", "Choose LEAVE MEASURE WITH RIXA or RETURN MEASURE TO TALLA."),
         ("return_measure", "Return to Talla in Tinker Row and use RETURN MEASURE TO TALLA."),
         ("complete", "You decided who should hold a reliable alchemical standard."),
     ),
@@ -216,7 +216,7 @@ async def _talk_jex_followup(session) -> bool:
     if quest is None:
         session.database.start_quest(session.character.id, GOBLIN_DRY_WAY_HOME.key, "inspect_return_markers")
         await session.send(
-            "\r\nJex hooks one thumb toward the swamp. 'The pump crews finally tied the old highwater catwalk into Bottlewire. It gives loaded gatherers a dry way back to Pella instead of walking the whole mire twice.'\r\n"
+            "\r\nJex hooks one thumb toward the swamp. 'The pump crews finally tied the old highwater catwalk into Bottlewire. It gives loaded gatherers a dry way back to Rixa instead of walking the whole mire twice.'\r\n"
             f"'{_recognized_line(session, FLOODPICK_MIREHOOK)} Go read the return markers yourself. Then we decide whether the city posts it as shared route infrastructure or Tinledger registers the corridor as a service line.'\r\n"
             "New quest: A Dry Way Home.\r\n"
         )
@@ -241,7 +241,7 @@ async def _talk_talla_followup(session) -> bool:
         session.database.add_item(session.character.id, COPPERCAP_CALIBRATION_AMPOULE.key, 1)
         await session.send(
             "\r\nTalla removes a tiny sealed ampoule from a padded box. 'This is not medicine. It is a known measure. Every batch we test against it tells us whether our instruments are lying.'\r\n"
-            f"'{_recognized_line(session, FLOODPICK_COPPERCAP)} Take it to Pella. She can compare her field bench, then we decide whether the reference comes home or lives out there.'\r\n"
+            f"'{_recognized_line(session, FLOODPICK_COPPERCAP)} Take it to Rixa. She can compare her field bench, then we decide whether the reference comes home or lives out there.'\r\n"
             "You receive a Coppercap Calibration Ampoule.\r\n"
             "New quest: One Clean Measure.\r\n"
         )
@@ -290,8 +290,8 @@ async def _talk_pella_followup(session) -> bool:
         session.database.advance_quest(session.character.id, GOBLIN_ONE_CLEAN_MEASURE.key, "choose_measure")
     if quest.get("current_step") in {"deliver_measure", "choose_measure"}:
         await session.send(
-            "\r\nPella checks three field measures against the Coppercap ampoule and scratches a correction onto her bench scale. 'Useful standard. Now the political part.'\r\n"
-            "Choose LEAVE MEASURE WITH PELLA so the public bench keeps the reference, or RETURN MEASURE TO TALLA so Coppercap retains it.\r\n"
+            "\r\nRixa checks three field measures against the Coppercap ampoule and scratches a correction onto her bench scale. 'Useful standard. Now the political part.'\r\n"
+            "Choose LEAVE MEASURE WITH RIXA so the public bench keeps the reference, or RETURN MEASURE TO TALLA so Coppercap retains it.\r\n"
         )
         return True
     return False
@@ -353,13 +353,13 @@ async def _handle_followup_choice(session, normalized: str) -> bool:
     measure = _quest(session, GOBLIN_ONE_CLEAN_MEASURE)
     if measure and measure.get("status") == "active":
         if measure.get("current_step") == "choose_measure" and room == GOBLIN_APOTHECARY_BLIND_KEY:
-            if normalized in {"leave measure with pella", "leave measure", "leave ampoule"}:
+            if normalized in {"leave measure with rixa", "leave measure", "leave ampoule"}:
                 _grant_signal(session, FLOODPICK_MIREHOOK, "public_measure")
                 session.database.complete_quest(session.character.id, GOBLIN_ONE_CLEAN_MEASURE.key)
                 _consume_all(session, COPPERCAP_CALIBRATION_AMPOULE.key)
                 session.database.grant_flag(session.character.id, "goblin_public_calibration_standard")
                 await session.send(
-                    "\r\nPella fits the ampoule into a padded slot beside the public bench scale. 'Then anyone careful enough to compare can know whether their measure is drifting.'\r\n"
+                    "\r\nRixa fits the ampoule into a padded slot beside the public bench scale. 'Then anyone careful enough to compare can know whether their measure is drifting.'\r\n"
                     "Quest complete: One Clean Measure. Route workers remember that you left the standard in public hands.\r\n"
                 )
                 return True
@@ -525,7 +525,7 @@ def install_goblin_clan_followup_runtime(player_session_class, world_service) ->
             if room == GOBLIN_LEDGER_HALL_KEY and target in {"snik", "snik tinledger", "tinledger", "broker"}:
                 if await _talk_snik_followup(self):
                     return
-            if room == GOBLIN_APOTHECARY_BLIND_KEY and target in {"pella", "pella mireglass", "mireglass"}:
+            if room == GOBLIN_APOTHECARY_BLIND_KEY and target in {"rixa", "rixa mireglass", "mireglass"}:
                 if await _talk_pella_followup(self):
                     return
             if room == GOBLIN_BRASSGUT_MARKET_KEY and target in {"hadrik", "hadrik coilpress", "dwarf", "dwarven trader", "trade factor"}:
