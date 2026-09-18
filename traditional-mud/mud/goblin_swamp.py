@@ -169,18 +169,22 @@ GOBLIN_SWAMP_ROOMS: tuple[RoomDefinition, ...] = (
 )
 
 
-PELLA_MIREGLASS = NpcDefinition(
+RIXA_MIREGLASS = NpcDefinition(
     key="goblin_pella_mireglass",
-    name="Pella Mireglass",
+    name="Rixa Mireglass",
     short_description="a field apothecary labeling damp herb bundles with a grease pencil",
     room_key=GOBLIN_APOTHECARY_BLIND_KEY,
     role="Goblin starter alchemist and swamp fieldcraft guide",
     dialogue=(
-        "Pella pinches a Greenleaf stem and turns it so you can see the pale underside. 'Alchemy starts before the bottle. Pick the wrong part, cut too deep, carry it wet, and the clever work at the bench cannot save you.'",
+        "Rixa pinches a Greenleaf stem and turns it so you can see the pale underside. 'Alchemy starts before the bottle. Pick the wrong part, cut too deep, carry it wet, and the clever work at the bench cannot save you.'",
         "She nods toward the swamp. 'Greenleaf is forgiving. Bitterroot teaches patience. Clean water is worth protecting. Learn those three and you can make things that keep a crew moving.'",
-        "Pella taps the battered mortar on her bench. 'Other people call alchemy mysterious because they buy it finished. We call it another kind of repair.'",
+        "Rixa taps the battered mortar on her bench. 'Other people call alchemy mysterious because they buy it finished. We call it another kind of repair.'",
     ),
-)
+) 
+
+# Compatibility alias for older imports; the stable internal NPC key also stays
+# unchanged so existing room/quest references do not break.
+PELLA_MIREGLASS = RIXA_MIREGLASS
 
 
 @dataclass(frozen=True, slots=True)
@@ -606,7 +610,7 @@ def goblin_swamp_augmentations() -> dict[str, RoomAugmentation]:
                 ),
             ),
             description_layers=(
-                _day("Pella keeps the blind open to the daylight while gatherers compare fresh cuttings against the reference rack and grind small test batches."),
+                _day("Rixa keeps the blind open to the daylight while gatherers compare fresh cuttings against the reference rack and grind small test batches."),
                 _night("At night the reed screens close around the bench and a shielded burner gives the whole shelter a warm copper glow."),
                 _rain("Rain chatters on the patched roof while damp herb bundles are spread farther apart on the drying wires."),
             ),
@@ -966,7 +970,7 @@ async def _show_goblin_alchemy_recipe(session, target: str) -> None:
     recipe = _resolve_alchemy_recipe(target)
     if recipe is None:
         await session.send(
-            "\r\nPella's field notes do not identify one Alchemy recipe by that name. "
+            "\r\nRixa's field notes do not identify one Alchemy recipe by that name. "
             "Type ALCHEMY to browse the catalog.\r\n"
         )
         return
@@ -1038,7 +1042,7 @@ async def _handle_alchemy(session, command: str) -> bool:
     recipe = _resolve_alchemy_recipe(target)
     if recipe is None:
         if normalized.startswith("brew "):
-            await session.send("\r\nPella's field notes do not list an Alchemy recipe by that name. Type ALCHEMY to review the available recipes.\r\n")
+            await session.send("\r\nRixa's field notes do not list an Alchemy recipe by that name. Type ALCHEMY to review the available recipes.\r\n")
             return True
         return False
 
