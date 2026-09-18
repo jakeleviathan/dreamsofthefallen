@@ -43,7 +43,7 @@ class WelcomeBannerDesignTests(unittest.TestCase):
         self.assertIn("O F   T H E", plain)
         self.assertIn("A S T R A L I S", plain)
         self.assertIn("Beneath Astralis, something dreams.", plain)
-        self.assertIn("LOGIN      CREATE ACCOUNT", plain)
+        self.assertIn("LOGIN     CREATE ACCOUNT", plain)
         self.assertIn("\\|/", plain)
         # The visible splash remains genuine old-client-safe text art.
         plain.encode("ascii")
@@ -67,7 +67,7 @@ from mud.final_runtime_policy import _presentation_text
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 assert "DREAMS OF THE FALLEN // ASTRALIS" in session_module.WELCOME_BANNER
 assert "____  ____  _________" in session_module.WELCOME_BANNER
-assert "LOGIN      CREATE ACCOUNT" in session_module.WELCOME_BANNER
+assert "LOGIN     CREATE ACCOUNT" in session_module.WELCOME_BANNER
 
 class Telnet:
     gmcp_enabled = False
