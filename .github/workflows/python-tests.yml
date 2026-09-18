@@ -50,10 +50,19 @@ jobs:
           root = ET.fromstring(xml)
           embedded_lua = root.findtext(".//Script/script")
           assert embedded_lua and "Core.Supports.Add" in embedded_lua
+          bootstrap_lua = root.findtext(".//TriggerPackage/Trigger/script")
+          assert bootstrap_lua and "loadstring(source)" in bootstrap_lua
+          bootstrap_trigger = root.find(".//TriggerPackage/Trigger")
+          assert bootstrap_trigger is not None
+          assert bootstrap_trigger.get("isActive") == "yes"
+          assert bootstrap_trigger.findtext("name") == "DreamsOfTheFallenHUD Bootstrap"
+          assert bootstrap_trigger.findtext(".//regexCodeList/string") == "^.*$"
           Path("/tmp/DreamsOfTheFallenHUD.lua").write_text(embedded_lua, encoding="utf-8")
+          Path("/tmp/DreamsOfTheFallenHUDBootstrap.lua").write_text(bootstrap_lua, encoding="utf-8")
           print("MODERN_MUDLET_PACKAGE_OK")
           PY
           luac5.1 -p /tmp/DreamsOfTheFallenHUD.lua
+          luac5.1 -p /tmp/DreamsOfTheFallenHUDBootstrap.lua
           echo "MUDLET_HUD_LUA_SYNTAX_OK"
       - name: Build runnable server source bundle
         run: |

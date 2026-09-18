@@ -1240,6 +1240,16 @@ class OfficialMudletHudPackageTests(unittest.TestCase):
         self.assertIn('mpackage = "DreamsOfTheFallenHUD"', config)
         self.assertIn(f'version = "{OFFICIAL_MUDLET_HUD_VERSION}"', config)
 
+        bootstrap = tree.find(".//TriggerPackage/Trigger")
+        self.assertIsNotNone(bootstrap)
+        assert bootstrap is not None
+        self.assertEqual(bootstrap.get("isActive"), "yes")
+        self.assertEqual(bootstrap.findtext("name"), "DreamsOfTheFallenHUD Bootstrap")
+        self.assertEqual(bootstrap.findtext(".//regexCodeList/string"), "^.*$")
+        bootstrap_source = bootstrap.findtext("script") or ""
+        self.assertIn('getScript(HUD_SCRIPT)', bootstrap_source)
+        self.assertIn("loadstring(source)", bootstrap_source)
+        self.assertIn("disableTrigger(BOOTSTRAP_TRIGGER)", bootstrap_source)
 
 
 class PersistenceTests(unittest.TestCase):
