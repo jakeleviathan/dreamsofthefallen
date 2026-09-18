@@ -28,7 +28,7 @@ class WelcomeBannerDesignTests(unittest.TestCase):
         widths = visible_banner_widths()
         self.assertTrue(widths)
         self.assertLessEqual(max(widths), BANNER_WIDTH)
-        self.assertLessEqual(BANNER_WIDTH, 90)
+        self.assertLessEqual(BANNER_WIDTH, 78)
 
     def test_banner_has_two_large_wordmarks_and_world_identity(self):
         plain = plain_welcome_banner()
@@ -58,7 +58,7 @@ from mud.final_runtime_policy import _presentation_text
 from mud.welcome_banner import WELCOME_BANNER
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
-assert session_module.WELCOME_BANNER is WELCOME_BANNER
+assert session_module.WELCOME_BANNER == WELCOME_BANNER
 
 class Telnet:
     gmcp_enabled = False
