@@ -222,6 +222,55 @@ class GoblinSwampTests(unittest.TestCase):
         self.assertEqual(session.database.item_quantity(701, "bitterroot"), 0)
         self.assertTrue(any("requires herbalism skill 5" in text.lower() for text in session.outputs))
 
+    def test_field_alchemy_catalog_is_grouped_and_hides_internal_keys(self) -> None:
+        session = FakeSession(GOBLIN_APOTHECARY_BLIND_KEY)
+
+        handled = asyncio.run(_handle_alchemy(session, "alchemy"))
+
+        self.assertTrue(handled)
+        output = "".join(session.outputs)
+        self.assertIn("GOBLIN FIELD ALCHEMY", output)
+        self.assertIn("MORTAR & PESTLE", output)
+        self.assertIn("ALCHEMY TABLE", output)
+        self.assertIn("Minor Healing Potion", output)
+        self.assertIn("[MISSING]", output)
+        self.assertIn("ALCHEMY <item>", output)
+        self.assertIn("BREW <item>", output)
+        self.assertNotIn("mortar_and_pestle", output)
+        self.assertNotIn("alchemy_table", output)
+        self.assertNotIn("minor_healing_potion", output)
+
+    def test_field_alchemy_detail_shows_inventory_counts_and_friendly_names(self) -> None:
+        session = FakeSession(GOBLIN_APOTHECARY_BLIND_KEY)
+        session.database.add_item(701, "greenleaf", 1)
+
+        handled = asyncio.run(_handle_alchemy(session, "alchemy minor healing"))
+
+        self.assertTrue(handled)
+        output = "".join(session.outputs)
+        self.assertIn("ALCHEMY RECIPE", output)
+        self.assertIn("Minor Healing Potion", output)
+        self.assertIn("Mortar & Pestle", output)
+        self.assertIn("1/2", output)
+        self.assertIn("Greenleaf", output)
+        self.assertIn("0/1", output)
+        self.assertIn("Spring Water", output)
+        self.assertIn("Gather or acquire the missing ingredients", output)
+        self.assertNotIn("spring_water", output)
+
+    def test_alchemy_detail_outside_bench_does_not_claim_brew_now(self) -> None:
+        session = FakeSession(GOBLIN_REEDFEN_CAUSEWAY_KEY)
+        session.database.add_item(701, "greenleaf", 2)
+        session.database.add_item(701, "spring_water", 1)
+
+        handled = asyncio.run(_handle_alchemy(session, "alchemy minor healing potion"))
+
+        self.assertTrue(handled)
+        output = "".join(session.outputs)
+        self.assertIn("NO BENCH", output)
+        self.assertIn("Apothecary Blind", output)
+        self.assertNotIn("Ready to brew", output)
+
     def test_swamp_ingredients_can_make_real_beginner_potion_at_field_bench(self) -> None:
         session = FakeSession(GOBLIN_REEDFEN_CAUSEWAY_KEY)
         asyncio.run(_handle_swamp_gathering(session, "gather greenleaf"))

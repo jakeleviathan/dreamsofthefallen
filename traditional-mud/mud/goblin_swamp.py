@@ -781,13 +781,50 @@ async def _handle_swamp_gathering(session, normalized: str) -> bool:
     return True
 
 
+_ALCHEMY_RESET = "\x1b[0m"
+_ALCHEMY_HEADER = "\x1b[1;97m"
+_ALCHEMY_ACCENT = "\x1b[1;36m"
+_ALCHEMY_NAME = "\x1b[96m"
+_ALCHEMY_READY = "\x1b[1;92m"
+_ALCHEMY_MISSING = "\x1b[93m"
+_ALCHEMY_LOCKED = "\x1b[90m"
+_ALCHEMY_BAD = "\x1b[91m"
+
+_ALCHEMY_STATION_NAMES = {
+    "mortar_and_pestle": "Mortar & Pestle",
+    "alchemy_table": "Alchemy Table",
+}
+
+
+def _alchemy_paint(style: str, text: str) -> str:
+    return f"{style}{text}{_ALCHEMY_RESET}"
+
+
+def _alchemy_output_name(recipe) -> str:
+    output = crafting.ITEMS_BY_KEY.get(recipe.output_item_key)
+    return output.name if output is not None else recipe.output_item_key.replace("_", " ").title()
+
+
+def _alchemy_material_name(item_key: str) -> str:
+    item = crafting.ITEMS_BY_KEY.get(item_key)
+    return item.name if item is not None else item_key.replace("_", " ").title()
+
+
+def _alchemy_station_name(station_key: str | None) -> str:
+    if station_key is None:
+        return "No Station"
+    return _ALCHEMY_STATION_NAMES.get(station_key, station_key.replace("_", " ").title())
+
+
 def _resolve_alchemy_recipe(target: str):
     normalized = target.strip().lower().replace("_", " ")
-    for prefix in ("brew ", "craft ", "make ", "prepare ", "distill ", "blend "):
+    for prefix in ("alchemy ", "brew ", "craft ", "make ", "prepare ", "distill ", "blend "):
         if normalized.startswith(prefix):
             normalized = normalized[len(prefix):].strip()
             break
 
+    exact = []
+    partial = []
     for recipe in crafting.ALCHEMY_RECIPES:
         output = crafting.ITEMS_BY_KEY.get(recipe.output_item_key)
         aliases = {
@@ -801,31 +838,178 @@ def _resolve_alchemy_recipe(target: str):
             key_text = recipe.key.lower().replace("_", " ")
             if key_text.startswith(action + " "):
                 aliases.add(key_text[len(action) + 1 :])
+
         if normalized in aliases:
-            return recipe
-    return None
+            exact.append(recipe)
+        elif normalized and any(normalized in alias for alias in aliases):
+            partial.append(recipe)
+
+    matches = exact or partial
+    unique = {recipe.key: recipe for recipe in matches}
+    return next(iter(unique.values())) if len(unique) == 1 else None
+
+
+def _alchemy_recipe_state(session, recipe) -> dict[str, object]:
+    assert session.character is not None
+    skill = trade_skill_value(session.database, session.character.id, "alchemy")
+    materials = tuple(
+        (
+            session.database.item_quantity(session.character.id, requirement.item_key),
+            requirement.quantity,
+            _alchemy_material_name(requirement.item_key),
+        )
+        for requirement in recipe.materials
+    )
+    skill_ready = skill >= recipe.minimum_skill
+    materials_ready = all(owned >= needed for owned, needed, _name in materials)
+    station_supported = recipe.station_key in {"mortar_and_pestle", "alchemy_table"}
+    station_ready = station_supported and session.character.current_room == GOBLIN_APOTHECARY_BLIND_KEY
+    return {
+        "skill": skill,
+        "skill_ready": skill_ready,
+        "materials": materials,
+        "materials_ready": materials_ready,
+        "station_supported": station_supported,
+        "station_ready": station_ready,
+        "craftable": skill_ready and materials_ready and station_ready,
+    }
+
+
+def _alchemy_status(session, recipe) -> tuple[str, str]:
+    state = _alchemy_recipe_state(session, recipe)
+    if not state["skill_ready"]:
+        return _ALCHEMY_LOCKED, f"SKILL {recipe.minimum_skill}"
+    if not state["station_ready"]:
+        return _ALCHEMY_BAD, "NO BENCH"
+    if state["materials_ready"]:
+        return _ALCHEMY_READY, "BREW NOW"
+    return _ALCHEMY_MISSING, "MISSING"
 
 
 async def _show_goblin_alchemy(session) -> None:
     assert session.character is not None
     skill = trade_skill_value(session.database, session.character.id, "alchemy")
+
     await session.send(
-        "\r\n--- Goblin Field Alchemy ---\r\n"
-        "Junk City treats alchemy as practical route craft: identify well, harvest cleanly, measure precisely, and make useful things from what the swamp provides.\r\n"
-        f"Your Alchemy skill: {skill}.\r\n"
+        "\r\n"
+        + _alchemy_paint(_ALCHEMY_HEADER, "=== GOBLIN FIELD ALCHEMY ===")
+        + "\r\n"
+        "Junk City alchemy is practical route craft: identify cleanly, measure precisely, "
+        "and turn swamp materials into things worth carrying.\r\n"
+        f"{_alchemy_paint(_ALCHEMY_ACCENT, 'Alchemy skill:')} {skill}\r\n"
     )
-    if session.character.current_room == GOBLIN_APOTHECARY_BLIND_KEY:
-        await session.send("This field bench supports mortar_and_pestle and alchemy_table recipes.\r\n")
-        for recipe in crafting.ALCHEMY_RECIPES:
-            output = crafting.ITEMS_BY_KEY.get(recipe.output_item_key)
-            output_name = output.name if output else recipe.output_item_key
-            materials = ", ".join(f"{requirement.quantity}x {requirement.item_key}" for requirement in recipe.materials)
+
+    if session.character.current_room != GOBLIN_APOTHECARY_BLIND_KEY:
+        await session.send(
+            "\r\nThe maintained public field bench is at the Apothecary Blind. "
+            "Return there to browse and brew the full route catalog.\r\n"
+        )
+        return
+
+    await session.send(
+        f"{_alchemy_paint(_ALCHEMY_ACCENT, 'Workbench:')} Apothecary Blind\r\n"
+        f"{_alchemy_paint(_ALCHEMY_ACCENT, 'Stations:')} Mortar & Pestle  |  Alchemy Table\r\n"
+        "\r\n"
+        "Status: "
+        + _alchemy_paint(_ALCHEMY_READY, "BREW NOW")
+        + " = you have the skill and ingredients; "
+        + _alchemy_paint(_ALCHEMY_MISSING, "MISSING")
+        + " = unlocked but short on ingredients; "
+        + _alchemy_paint(_ALCHEMY_LOCKED, "SKILL N")
+        + " = not unlocked yet.\r\n"
+    )
+
+    station_order = ("mortar_and_pestle", "alchemy_table")
+    known_station_keys = set(station_order)
+    remaining = sorted(
+        {
+            recipe.station_key
+            for recipe in crafting.ALCHEMY_RECIPES
+            if recipe.station_key not in known_station_keys and recipe.station_key is not None
+        }
+    )
+
+    for station_key in (*station_order, *remaining):
+        recipes = [
+            recipe
+            for recipe in crafting.ALCHEMY_RECIPES
+            if recipe.station_key == station_key
+        ]
+        if not recipes:
+            continue
+
+        await session.send(
+            "\r\n"
+            + _alchemy_paint(_ALCHEMY_ACCENT, _alchemy_station_name(station_key).upper())
+            + "\r\n"
+        )
+        for recipe in sorted(recipes, key=lambda value: (value.minimum_skill, _alchemy_output_name(value).lower())):
+            style, label = _alchemy_status(session, recipe)
             await session.send(
-                f"  {output_name} — skill {recipe.minimum_skill}; {materials}; station {recipe.station_key}.\r\n"
+                f"  {_alchemy_paint(style, f'[{label}]')} "
+                f"{_alchemy_paint(_ALCHEMY_NAME, _alchemy_output_name(recipe))}\r\n"
             )
-        await session.send("Use BREW <item name> here. Example: BREW MINOR HEALING POTION.\r\n")
+
+    await session.send(
+        "\r\n"
+        + _alchemy_paint(_ALCHEMY_HEADER, "COMMANDS")
+        + "\r\n"
+        "  ALCHEMY <item>  inspect one recipe, including your ingredient counts\r\n"
+        "  BREW <item>     make it at this bench\r\n"
+        "  Example: ALCHEMY MINOR HEALING POTION\r\n"
+        "           BREW MINOR HEALING POTION\r\n"
+    )
+
+
+async def _show_goblin_alchemy_recipe(session, target: str) -> None:
+    assert session.character is not None
+    recipe = _resolve_alchemy_recipe(target)
+    if recipe is None:
+        await session.send(
+            "\r\nPella's field notes do not identify one Alchemy recipe by that name. "
+            "Type ALCHEMY to browse the catalog.\r\n"
+        )
+        return
+
+    state = _alchemy_recipe_state(session, recipe)
+    name = _alchemy_output_name(recipe)
+    station = _alchemy_station_name(recipe.station_key)
+    style, status = _alchemy_status(session, recipe)
+
+    await session.send(
+        "\r\n"
+        + _alchemy_paint(_ALCHEMY_HEADER, "=== ALCHEMY RECIPE ===")
+        + "\r\n"
+        + _alchemy_paint(_ALCHEMY_NAME, name)
+        + "\r\n"
+        f"{recipe.description}\r\n\r\n"
+        f"Status  : {_alchemy_paint(style, status)}\r\n"
+        f"Skill   : {state['skill']} / {recipe.minimum_skill}\r\n"
+        f"Station : {station}"
+        + ("  (available here)" if state["station_ready"] else "")
+        + "\r\n"
+        "Ingredients:\r\n"
+    )
+
+    for owned, needed, material_name in state["materials"]:
+        enough = owned >= needed
+        marker = _alchemy_paint(_ALCHEMY_READY if enough else _ALCHEMY_BAD, "OK" if enough else "NEED")
+        await session.send(
+            f"  [{marker}] {owned}/{needed}  {_alchemy_paint(_ALCHEMY_NAME, material_name)}\r\n"
+        )
+
+    if not state["skill_ready"]:
+        await session.send(
+            f"\r\nYou need {recipe.minimum_skill - int(state['skill'])} more Alchemy skill before this recipe unlocks.\r\n"
+        )
+    elif not state["materials_ready"]:
+        await session.send("\r\nGather or acquire the missing ingredients, then return to this bench.\r\n")
+    elif session.character.current_room != GOBLIN_APOTHECARY_BLIND_KEY:
+        await session.send("\r\nThe maintained beginner bench is at the Apothecary Blind.\r\n")
     else:
-        await session.send("The beginner public field bench is at the Apothecary Blind in the maintained Goblin swamp.\r\n")
+        await session.send(
+            f"\r\n{_alchemy_paint(_ALCHEMY_READY, 'Ready to brew.')} Use BREW {name.upper()}.\r\n"
+        )
 
 
 async def _handle_alchemy(session, command: str) -> bool:
@@ -835,6 +1019,10 @@ async def _handle_alchemy(session, command: str) -> bool:
 
     if normalized in {"alchemy", "brew"}:
         await _show_goblin_alchemy(session)
+        return True
+
+    if normalized.startswith("alchemy "):
+        await _show_goblin_alchemy_recipe(session, _command_target(command))
         return True
 
     if not (
@@ -940,7 +1128,7 @@ def install_goblin_swamp_runtime(player_session_class, world_service) -> None:
 
         if normalized in {"help", "?"} and _room_is_swamp(self.character.current_room):
             await self.send(
-                "Goblin swamp commands: HERBALISM [target], GATHER <target>, COLLECT WATER, ALCHEMY, BREW <recipe>. "
+                "Goblin swamp commands: HERBALISM [target], GATHER <target>, COLLECT WATER, ALCHEMY [recipe], BREW <recipe>. "
                 "The maintained beginner routes branch north/east/west from the First Piling after Beyond the Painted Line.\r\n"
             )
 
