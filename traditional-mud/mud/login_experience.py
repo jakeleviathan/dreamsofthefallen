@@ -7,33 +7,12 @@ from mud.character_options import CLASSES_BY_KEY, RACES_BY_KEY
 from mud.database import MAX_CHARACTERS_PER_ACCOUNT
 from mud.security import hash_password, verify_password
 from mud.world import ROOMS_BY_KEY
+from mud.welcome_banner import WELCOME_BANNER
 
 
-GOTHIC_WELCOME_BANNER = "\r\n".join(
-    [
-        "",
-        "                 /\\                 /\\                 /\\",
-        "                /  \\      /\\       /  \\       /\\      /  \\",
-        "           ____/____\\____/  \\_____/____\\_____/  \\____/____\\____",
-        "          /                                                         \\",
-        "         /   .---------------------------------------------------.   \\",
-        "        |    |                                                   |    |",
-        "        |    |              DREAMS OF THE FALLEN                 |    |",
-        "        |    |                     ASTRALIS                      |    |",
-        "        |    |                                                   |    |",
-        "         \\   '---------------------------------------------------'   /",
-        "          \\_________________________________________________________/",
-        "                     |      |      |      |      |",
-        "                  ___|______|______|______|______|___",
-        "",
-        "                   Beneath Astralis, something dreams.",
-        "",
-        "                         LOGIN     CREATE ACCOUNT",
-        "",
-        "                   Type HELP for a brief explanation.",
-        "",
-    ]
-) + "\r\n"
+# Compatibility alias retained for tests and any older code that imported the
+# login layer's banner directly. The authoritative art now lives in one module.
+GOTHIC_WELCOME_BANNER = WELCOME_BANNER
 
 LANDING_HELP = (
     "\r\nLOGIN - sign in to an existing account.\r\n"

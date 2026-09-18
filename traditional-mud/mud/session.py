@@ -86,6 +86,7 @@ from mud.npcs import MobileNpcManager, NpcMovement
 from mud.telnet import TelnetConnection
 from mud.client_gui import MudletGuiOffer, configured_mudlet_gui_offer
 from mud.merchants import MERCHANTS_BY_NPC_KEY
+from mud.welcome_banner import WELCOME_BANNER
 
 
 _ABILITY_UI_RESET = "\x1b[0m"
@@ -273,26 +274,6 @@ class SessionState(Enum):
     PLAYING = auto()
     DISCONNECTED = auto()
 
-
-WELCOME_BANNER = "\r\n".join([
-    '',
-    '                         /\\          /\\',
-    '                    /\\  /  \\  /\\    /  \\',
-    '                   /  \\/ /\\ \\/  \\__/ /\\ \\',
-    '              ____/________________________\\____',
-    '             /    _   _   _   _   _   _        \\',
-    '            /____/ \\_/ \\_/ \\_/ \\_/ \\_/ \\_______\\',
-    '            |                               |',
-    '            |       DREAMS OF THE FALLEN    |',
-    '            |            ASTRALIS           |',
-    '            |_______________________________|',
-    '                |   |   |   |   |   |',
-    '             ___|___|___|___|___|___|___',
-    '            /_____________________________\\',
-    '',
-    '              Where the dead still dream.',
-    '',
-]) + "\r\n"
 
 ACCOUNT_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_]{2,19}$")
 
