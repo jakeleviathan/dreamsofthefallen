@@ -198,7 +198,7 @@ SCAR_QUEST = QuestDefinition(
     minimum_level=5,
     description="Dwarf surveyors want the old quarry route reopened, but a vertical cut, a jammed freight brake, and something burrowing in the breaker pit have made the job dangerous.",
     objective_steps=(
-        ("talk_brin", "TALK TORREN at King's Scar Approach."),
+        ("talk_brin", "TALK CALDRIN at King's Scar Approach."),
         ("climb_gantry", "Enter the quarry and CLIMB GANTRY in the lift house."),
         ("release_brake", "Reach the winch chamber and PULL BRAKE."),
         ("defeat_riftback", "Cross into the breaker pit and defeat the Riftback Matriarch."),
@@ -343,7 +343,7 @@ ADVENTURE_ENEMIES = (
 
 SURVEYOR_BRIN = NpcDefinition(
     key="adventure_surveyor_brin",
-    name="Surveyor Torren Stonewake",
+    name="Surveyor Caldrin Stonewake",
     short_description="a Dwarf surveyor comparing an old quarry profile against a fresh chalk sketch",
     room_key=KINGS_SCAR_APPROACH,
     role="King's Scar survey lead",
@@ -482,7 +482,7 @@ def adventure_augmentations() -> dict[str, RoomAugmentation]:
         ),
         KINGS_SCAR_APPROACH: RoomAugmentation(
             extra_exits=(ExitDefinition("east", SCAR_GATE, "King's Scar Quarry", "You pass the survey flags into the abandoned quarry.", ViewCondition(min_level=5)),),
-            features=(_feature("scar_survey_flags", "Survey Flags", "fresh Dwarven flags marking the safer quarry line", "The flags repeatedly mark the old lift house. TALK TORREN before committing to the deeper cut.", ("flags", "survey", "quarry")),),
+            features=(_feature("scar_survey_flags", "Survey Flags", "fresh Dwarven flags marking the safer quarry line", "The flags repeatedly mark the old lift house. TALK CALDRIN before committing to the deeper cut.", ("flags", "survey", "quarry")),),
         ),
         ECHO_RIDGE: RoomAugmentation(
             extra_exits=(ExitDefinition(
@@ -691,7 +691,7 @@ async def _talk_brin(session) -> bool:
     if SCAR_SURVEYED not in _flags(session):
         session.database.grant_flag(session.character.id, SCAR_SURVEYED)
     _advance(session, SCAR_QUEST_KEY, "talk_brin", "climb_gantry")
-    await session.send("Torren taps three points on the quarry profile. 'Old lift house first. CLIMB GANTRY so you can read the cut from above. Deeper in, the freight brake is jammed. PULL BRAKE when you find the winch. The thing in the breaker pit is an animal, not a prophecy.'\r\n")
+    await session.send("Caldrin taps three points on the quarry profile. 'Old lift house first. CLIMB GANTRY so you can read the cut from above. Deeper in, the freight brake is jammed. PULL BRAKE when you find the winch. The thing in the breaker pit is an animal, not a prophecy.'\r\n")
     return True
 
 
@@ -788,7 +788,7 @@ async def _climb(session, target: str) -> bool:
     if session.character.current_room == SCAR_LIFT and (not target or "gantry" in target.lower() or "lift" in target.lower()):
         _start_if_needed(session, SCAR_QUEST_KEY, "talk_brin", 5, SCAR_COMPLETE)
         if SCAR_SURVEYED not in _flags(session):
-            await session.send("You can climb it, but Torren is standing outside with the current survey. TALK TORREN first if you want the route to make sense.\r\n")
+            await session.send("You can climb it, but Caldrin is standing outside with the current survey. TALK CALDRIN first if you want the route to make sense.\r\n")
             return True
         session.database.grant_flag(session.character.id, SCAR_GANTRY_CLIMBED)
         _advance(session, SCAR_QUEST_KEY, "climb_gantry", "release_brake")
@@ -994,7 +994,7 @@ async def _award_boss(session, key: str) -> None:
             member.database.grant_flag(member.character.id, SCAR_BOSS_DOWN)
             if SCAR_COMPLETE not in flags:
                 _complete(member, SCAR_QUEST_KEY, SCAR_COMPLETE, xp=175, item_key=SCAR_NAIL_ITEM.key, text="")
-                await member.send("The Riftback Matriarch crashes into the spoil slope and does not rise. King's Scar Survey complete: 175 XP and a King's Scar Survey Nail. Torren can put a real crew back on the route.\r\n")
+                await member.send("The Riftback Matriarch crashes into the spoil slope and does not rise. King's Scar Survey complete: 175 XP and a King's Scar Survey Nail. Caldrin can put a real crew back on the route.\r\n")
         elif key == LISTENER_BELOW.key and LISTENER_DOWN not in flags:
             member.database.grant_flag(member.character.id, LISTENER_DOWN)
             _advance(member, ECHO_QUEST_KEY, "defeat_listener", "hear_first_echo")
@@ -1084,7 +1084,7 @@ def install_waymeet_adventure_runtime(player_session_class, world_service) -> No
             count = len({TOLL_SECRET, BELL_SECRET, SCAR_SECRET} & flags)
             await self.send(f"You have personally noticed {count}/3 optional outer listening marks. Their missing locations are intentionally not listed. Deep response: {'OPEN' if DEEP_SECRET_OPEN in flags else 'unresolved'}.\r\n")
             return
-        if normalized in {"talk torren", "talk brin", "talk surveyor", "speak torren", "speak brin", "talk torren stonewake", "talk brin stonewake"}:
+        if normalized in {"talk caldrin", "talk brin", "talk surveyor", "speak caldrin", "speak brin", "talk caldrin stonewake", "talk brin stonewake"}:
             handled = await _talk_brin(self)
         elif normalized == "search" or normalized.startswith("search "):
             handled = await _search(self, stripped[6:].strip() if len(stripped) > 6 else "")
