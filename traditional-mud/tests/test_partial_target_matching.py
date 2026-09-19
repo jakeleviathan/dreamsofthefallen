@@ -50,11 +50,18 @@ class PartialTargetMatchingTests(unittest.TestCase):
         with patch.dict("mud.partial_target_matching.NPCS_BY_KEY", {npc.key: npc}, clear=True):
             world = _World(npc_keys=(npc.key,))
             session = _Session()
-            for command in ("talk riveter", "talk nix", "talk hooks", "talk nix hook"):
+            expected = {
+                "talk riveter": "talk riveter",
+                "talk nix": "talk nix",
+                "talk hooks": "talk Riveter Nix Hookspit",
+                "talk nix hook": "talk Riveter Nix Hookspit",
+            }
+            for command, expected_command in expected.items():
                 with self.subTest(command=command):
                     resolved = resolve_target_command(session, command, world)
-                    self.assertEqual(resolved.command, "talk Riveter Nix Hookspit")
-                    self.assertEqual(resolved.matched_name, "Riveter Nix Hookspit")
+                    self.assertEqual(resolved.command, expected_command)
+                    if command != expected_command:
+                        self.assertEqual(resolved.matched_name, "Riveter Nix Hookspit")
 
     def test_speak_is_a_convenience_synonym_for_talk(self):
         npc = NpcDefinition(
