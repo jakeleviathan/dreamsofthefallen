@@ -525,7 +525,11 @@ def _milestone_state(skill_key: str, skill: int) -> tuple[str, int, str | None, 
 def _unlocked_recipe_count(skill_key: str, skill: int) -> tuple[int, int]:
     recipes = [r for r in crafting.ALL_RECIPES if r.trade_skill_key == skill_key]
     return (
-        sum(1 for recipe in recipes if recipe.minimum_skill <= skill),
+        sum(
+            1
+            for recipe in recipes
+            if recipe.can_attempt(skill, max_gap=crafting.MAX_CRAFT_DIFFICULTY_GAP)
+        ),
         len(recipes),
     )
 
@@ -533,7 +537,7 @@ def _unlocked_recipe_count(skill_key: str, skill: int) -> tuple[int, int]:
 async def _show_professions(session) -> None:
     await session.send(f"\r\n{_paint(_HEADER, '=== PROFESSIONS & GATHERING ===')}\r\n")
     await session.send(
-        "Use-based trade skills are the number shown here: successful gathering or crafting raises the relevant skill.\r\n"
+        "Crafting skill-ups are chance-based while a recipe is above your skill. At its trivial value, success is guaranteed and that recipe no longer trains you.\r\n"
     )
 
     await session.send(f"\r\n{_paint(_ACCENT, 'CRAFTING')}\r\n")
@@ -551,7 +555,7 @@ async def _show_professions(session) -> None:
                 if next_name is not None
                 else "  Next      No higher authored milestone yet\r\n"
             )
-            + f"  Recipes   {unlocked}/{total} unlocked"
+            + f"  Recipes   {unlocked}/{total} attemptable"
             + (f"   |   Uses {uses}" if uses else "")
             + "\r\n"
         )
@@ -642,7 +646,7 @@ async def _show_workshop(session, profession_key: str) -> None:
             key=lambda recipe: (recipe.minimum_skill, economy._recipe_output_name(recipe).lower()),
         )
         for recipe in group:
-            if recipe.minimum_skill > skill and recipe.minimum_skill > skill + 15:
+            if recipe.trivial_skill > skill + crafting.MAX_CRAFT_DIFFICULTY_GAP + 15:
                 continue
             state = economy._recipe_state(session, recipe)
             if state["craftable"]:
@@ -650,9 +654,12 @@ async def _show_workshop(session, profession_key: str) -> None:
             elif state["skill_ready"]:
                 label = _paint(_GOLD, "READY")
             else:
-                label = _paint(_DIM, f"SKILL {recipe.minimum_skill}")
+                label = _paint(_DIM, "TOO HARD")
+            success_pct = int(round(float(state["success_chance"]) * 100))
+            chance_text = f"{success_pct}% success" if state["skill_ready"] else "beyond attempt range"
             await session.send(
-                f"  [{label}] {_paint(_NAME, economy._recipe_output_name(recipe))}\r\n"
+                f"  [{label}] {_paint(_NAME, economy._recipe_output_name(recipe))} "
+                f"— Trivial {recipe.trivial_skill} | {chance_text}\r\n"
             )
 
     verb = {
