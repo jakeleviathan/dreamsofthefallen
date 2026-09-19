@@ -9,6 +9,7 @@ import mud.crafting as crafting
 import mud.mechanics as mechanics
 import mud.party_system as party_system
 import mud.session as session_module
+from mud.casting import spend_ability_mana
 from mud.crafting import ItemDefinition
 from mud.gear import CraftingRecipe, MaterialRequirement
 from mud.stats import CharacterStats, EquipmentItem
@@ -135,6 +136,7 @@ WIZARD_ABILITIES = (
         description="Drive a narrow lance of arcane force through one target for heavy direct spell damage.",
         category="spell_damage",
         design_status="approved_midgame_live",
+        cast_time_seconds=2.0,
     ),
 )
 
@@ -189,6 +191,7 @@ DRUID_ABILITIES = (
         description="Restore health to every living party member currently standing with you.",
         category="group_healing",
         design_status="approved_midgame_live",
+        cast_time_seconds=2.0,
     ),
 )
 
@@ -212,6 +215,7 @@ PRIEST_COMMON_ABILITIES = (
         description="Restore health to every living member of your party in the same room.",
         category="group_healing",
         design_status="approved_midgame_live",
+        cast_time_seconds=2.0,
     ),
     mechanics.AbilityDefinition(
         key="sanctuary",
@@ -626,6 +630,7 @@ async def _show_ability_detail(session, target_text: str) -> None:
             f"Mana     : {mana}"
             + (f" (base {base_mana})" if mana != base_mana else "")
             + f"\r\nCooldown : {cooldown:g}s\r\n"
+            + f"Cast time: {float(getattr(ability, 'cast_time_seconds', 0.0) or 0.0):g}s\r\n"
         )
 
         if not ability.skill_improves_effectiveness:
@@ -777,7 +782,7 @@ async def _activate(session, ability) -> bool:
     if not combatant.ability_ready(ability.key):
         await session.send(f"{ability.name} is still on cooldown.\r\n")
         return False
-    if not combatant.spend_mana(mana_cost):
+    if not spend_ability_mana(session, ability, mana_cost):
         await session.send(f"You need {mana_cost} mana for {ability.name}.\r\n")
         return False
     ability_mastery.begin_use(session, ability)

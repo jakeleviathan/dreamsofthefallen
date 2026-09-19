@@ -40,9 +40,10 @@ PRIEST_FOUNDATION_ABILITIES = (
         unlock_level=2,
         mana_cost=5,
         cooldown_seconds=12.0,
-        description="Bless yourself or an ally with four temporary maximum HP for one minute.",
+        description="Bless yourself or an ally with six plus one temporary maximum HP per caster level for one minute.",
         category="ally_buff",
         design_status="approved_early_game_live",
+        cast_time_seconds=1.0,
     ),
     mechanics.AbilityDefinition(
         key="greater_mend",
@@ -53,6 +54,7 @@ PRIEST_FOUNDATION_ABILITIES = (
         description="A slower, stronger targeted heal for damage that Mend Ally cannot efficiently cover.",
         category="healing",
         design_status="approved_early_game_live",
+        cast_time_seconds=2.0,
     ),
     mechanics.AbilityDefinition(
         key="purifying_light",
@@ -85,6 +87,7 @@ PRIEST_FOUNDATION_ABILITIES = (
         category="group_healing",
         skill_improves_effectiveness=False,
         design_status="approved_early_game_live",
+        cast_time_seconds=3.0,
     ),
 )
 
@@ -198,7 +201,7 @@ async def _use_priest_foundation_ability(session, ability, target_text: str) -> 
 
         if key == "blessing_of_resolve":
             was_injured = target.combatant.current_hp < target.combatant.max_hp
-            amount = 4 + ability_mastery.flat_bonus(session, ability)
+            amount = 6 + int(session.character.level) + ability_mastery.flat_bonus(session, ability)
             duration = 60.0 + ability_mastery.duration_bonus(session, ability)
             target._priest_resolve_blessing = amount
             target._priest_resolve_blessing_until = monotonic() + duration

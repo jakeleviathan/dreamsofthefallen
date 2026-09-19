@@ -261,11 +261,11 @@ CLASS_CAPSTONE_ABILITIES = {
     "wizard": mechanics.AbilityDefinition(
         key="starbreak", name="Starbreak", unlock_level=10, mana_cost=16, cooldown_seconds=20.0,
         description="Collapse a tightly controlled arcane point into one enemy for heavy direct spell damage.",
-        category="spell_damage", design_status="approved_level_10_live"),
+        category="spell_damage", design_status="approved_level_10_live", cast_time_seconds=3.0),
     "druid": mechanics.AbilityDefinition(
         key="living_chorus", name="Living Chorus", unlock_level=10, mana_cost=14, cooldown_seconds=24.0,
         description="Heal the living party and briefly ward everyone reached.",
-        category="group_healing", skill_improves_effectiveness=False, design_status="approved_level_10_live"),
+        category="group_healing", skill_improves_effectiveness=False, design_status="approved_level_10_live", cast_time_seconds=2.5),
     "necromancer": mechanics.AbilityDefinition(
         key="soul_harvest", name="Soul Harvest", unlock_level=10, mana_cost=13, cooldown_seconds=16.0,
         description="Drain heavy vitality from one enemy and reclaim part of the damage as health.",

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import mud.party_system as party_system
+from mud.casting import interrupt_cast, spend_ability_mana
 from mud.mechanics import (
     AbilityDefinition,
     DEATH_RULES,
@@ -32,6 +33,7 @@ RESURRECTION_ABILITY = AbilityDefinition(
     category="resurrection",
     skill_improves_effectiveness=False,
     design_status="approved_initial_tuning",
+    cast_time_seconds=4.0,
 )
 
 
@@ -292,7 +294,7 @@ async def resurrect_character(priest, target_name: str) -> bool:
     if target_character is None or target_combatant is None:
         await priest.send("That fallen character cannot be restored right now.\r\n")
         return False
-    if not combatant.spend_mana(RESURRECTION_MANA_COST):
+    if not spend_ability_mana(priest, RESURRECTION_ABILITY, RESURRECTION_MANA_COST):
         await priest.send(f"You need {RESURRECTION_MANA_COST} mana to cast Resurrection.\r\n")
         return False
 
@@ -382,8 +384,10 @@ def install_death_recovery_runtime(player_session_class) -> None:
     previous_death = player_session_class._handle_character_death
     previous_enter = player_session_class.enter_character
     previous_prompt = player_session_class.playing_prompt
+    previous_use_ability = player_session_class.use_ability
 
     async def handle_character_death(self, enemy_name: str) -> None:
+        await interrupt_cast(self, "damage")
         # Keep the original method available beneath this layer for compatibility,
         # but the live rule is now death-in-place followed by RELEASE or Resurrection.
         await mark_character_dead(self, enemy_name)
@@ -413,6 +417,17 @@ def install_death_recovery_runtime(player_session_class) -> None:
             "a Priest standing here can RESURRECT you first.\r\n"
         )
         await self.send_client_state()
+
+    async def use_ability(self, ability_text: str) -> None:
+        normalized = " ".join(ability_text.strip().lower().replace("_", " ").split())
+        if normalized == "resurrection":
+            await self.send("Usage: RESURRECT <dead character name>.\r\n")
+            return
+        if normalized.startswith("resurrection "):
+            target_name = ability_text.strip()[len("resurrection"):].strip()
+            await resurrect_character(self, target_name)
+            return
+        await previous_use_ability(self, ability_text)
 
     async def playing_prompt(self) -> None:
         character = getattr(self, "character", None)
@@ -457,12 +472,13 @@ def install_death_recovery_runtime(player_session_class) -> None:
             await self.send("Usage: RESURRECT <dead character name>.\r\n")
             return
         if normalized.startswith("resurrect "):
-            await resurrect_character(self, stripped.split(maxsplit=1)[1])
+            await self.use_ability("resurrection " + stripped.split(maxsplit=1)[1])
             return
 
         await _delegate_command(self, previous_prompt, command)
 
     player_session_class._handle_character_death = handle_character_death
     player_session_class.enter_character = enter_character
+    player_session_class.use_ability = use_ability
     player_session_class.playing_prompt = playing_prompt
     player_session_class._death_recovery_runtime_installed = True

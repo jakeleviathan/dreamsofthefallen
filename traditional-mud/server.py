@@ -87,6 +87,7 @@ from mud.modern_client_experience import install_modern_client_runtime
 from mud.production_hardening import install_production_hardening_runtime, install_production_server_runtime
 from mud.production_operator import install_production_operator_runtime
 from mud.room_presentation import install_room_presentation_runtime
+from mud.casting import install_casting_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
@@ -281,6 +282,11 @@ install_universal_location_repair_runtime(PlayerSession, WORLD)
 # Keep room presentation outside the authored gameplay stack so every area gets
 # the same readable visual hierarchy without requiring per-room markup.
 install_room_presentation_runtime(PlayerSession, WORLD)
+
+# Casting is installed after every ability wrapper so CAST always passes through
+# the same interruptible timing layer, regardless of which progression module
+# owns the eventual spell effect.
+install_casting_runtime(PlayerSession)
 
 # Post is intentionally the final command wrapper. Its subject/body editor and
 # destructive-action confirmations are modal input: they must see the player's

@@ -99,6 +99,8 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "Restoring Light" in available
     assert "Blessing of Resolve" in available
     assert "Greater Mend" in available
+    assert "Cast 1s" in available
+    assert "Cast 2s" in available
     assert "Resurrection" not in available
     assert "ABILITIES ALL" in available
 

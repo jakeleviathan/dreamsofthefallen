@@ -90,6 +90,7 @@ class AbilityDefinition:
     catalyst_quantity: int = 0
     skill_improves_effectiveness: bool = True
     design_status: str = "locked_identity_tuning_pending"
+    cast_time_seconds: float = 0.0
 
 
 # Class ability identities are fixed rather than selected from a shared talent
@@ -197,6 +198,7 @@ FIXED_CLASS_ABILITIES: dict[str, tuple[AbilityDefinition, ...]] = {
             catalyst_item_key="bone_chips",
             catalyst_quantity=1,
             design_status="approved_identity_tuning_pending",
+            cast_time_seconds=2.5,
         ),
         AbilityDefinition(
             key="rot",
