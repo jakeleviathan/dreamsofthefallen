@@ -174,8 +174,7 @@ TROLL_ROOMS: tuple[RoomDefinition, ...] = (
             "A Troll stronghold has been built where black spruce forest thins into open tundra. Hide-roofed shelters sit low behind stone wind walls, smoke escapes through stitched vents, and heavy sledges rest on raised timber racks above the snow. Nothing is ornamental without also being useful. Hunters, priests, children, and animal handlers cross the same packed central ground while distant ridges disappear into cold haze."
         ),
         exits={"east": TROLL_HIDEWIND_RING_KEY, "north": TROLL_EMBER_HOLLOW_KEY, "west": TROLL_TETHER_YARD_KEY},
-        npc_keys=(RASKA_GREYBARK.key,),
-        npc_keys=("troll_provisioner_yrsa",),
+        npc_keys=(RASKA_GREYBARK.key, "troll_provisioner_yrsa"),
         tags=("troll_start", "safe", "stronghold", "forest_edge", "tundra", "survival"),
     ),
     RoomDefinition(
