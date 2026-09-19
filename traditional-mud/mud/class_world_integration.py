@@ -16,7 +16,6 @@ from mud.sablewater_reach import DROWNED_ROOM_KEYS
 from mud.stats import CharacterStats, EquipmentItem
 from mud.veyra_city import VEYRA_FIVE_WAYS_KEY
 from mud.veyra_underclock import UNDERCLOCK_ROOM_KEYS
-from mud.waymeet_frontier import WAYMEET_SCRIP_KEY
 
 
 # Class progression should become world behavior rather than a menu of spells.
@@ -621,7 +620,7 @@ async def _complete_commission(session, commission: ClassCommission) -> None:
     session.database.complete_quest(session.character.id, commission.quest.key)
     session.database.grant_flag(session.character.id, commission.completion_flag)
     session.database.add_item(session.character.id, commission.plate_item_key, 1)
-    session.database.add_item(session.character.id, WAYMEET_SCRIP_KEY, 2)
+    session.database.add_item(session.character.id, 2)
     new_level = session.database.add_experience(session.character.id, 250)
     refreshed = session.database.get_character_by_name(session.character.name)
     if refreshed is not None:
@@ -632,7 +631,7 @@ async def _complete_commission(session, commission: ClassCommission) -> None:
     await session.send(
         f"\r\n*** CLASS COMMISSION COMPLETE: {commission.quest.name} ***\r\n"
         "Sable signs the field report instead of giving you a speech. Your actions already supplied the argument.\r\n"
-        f"Reward: 250 XP, 2 Waymeet Trade Scrip, and 1x {plate.name}.\r\n"
+        f"Reward: 250 XP, 2 embers in Sols, and 1x {plate.name}.\r\n"
         f"That plate is a crafting component for {advanced.name}. You can craft it yourself or trade the plate and materials to an artisan.\r\n"
         f"Recipe: {recipe_key}. Type CLASS GEAR PATH for the full material route.\r\n"
     )
