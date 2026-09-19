@@ -36,7 +36,7 @@ MOON_ELF_DRUID_QUEST = QuestDefinition(
         "The lesson is that care begins with accurate observation: establish what is hurting the plants, correct the ordinary cause first, use Nurture only after the environment is made safe, then wait long enough to see whether the living thing actually responds."
     ),
     objective_steps=(
-        ("meet_nera", "From the Wind Terrace, go SOUTH to the Alpine Light Garden and TALK LYREN."),
+        ("meet_nera", "From the Wind Terrace, go WEST to the Alpine Light Garden and TALK LYREN."),
         ("inspect_bed", "EXAMINE STARBELL BED before deciding what kind of care it needs."),
         ("compare_views", "VIEW FROM SHADE BENCH and VIEW FROM WATER STEP. Both views are required."),
         ("check_light", "CHECK LIGHT after comparing the two viewpoints."),
@@ -74,7 +74,7 @@ MOON_ELF_ALPINE_GARDEN = RoomDefinition(
         "Adjustable daymirrors mounted along the outer wall redirect limited morning light into shaded corners during the colder months, while sliding cloth screens soften the harsher midday sun. One starbell bed near the center looks noticeably worse than its neighbors: several leaves are pale, curled, and blotched along their upper surfaces. "
         "Nothing here is sacred or ceremonial. It is a neighborhood garden where medicine herbs, tea plants, food, and flowers share the same practical care."
     ),
-    exits={"north": MOON_ELF_WIND_TERRACE_KEY},
+    exits={"east": MOON_ELF_WIND_TERRACE_KEY},
     npc_keys=(NERA_VOSS_KEY,),
     tags=("safe", "moon_elf_start", "druid", "garden", "alpine", "civic_work", "perspective", "ordinary_care"),
 )
@@ -111,10 +111,10 @@ def moon_elf_druid_augmentations() -> dict[str, RoomAugmentation]:
         MOON_ELF_ALPINE_GARDEN_KEY: RoomAugmentation(
             exit_overrides=(
                 ExitDefinition(
-                    "north",
+                    "east",
                     MOON_ELF_WIND_TERRACE_KEY,
                     "Wind Terrace",
-                    travel_text="You climb north from the sheltered garden beds to the residential Wind Terrace.",
+                    travel_text="You climb east from the sheltered garden beds to the residential Wind Terrace.",
                 ),
             ),
             features=(
@@ -229,11 +229,11 @@ def _replace_npc(npc: NpcDefinition) -> None:
 def _patch_wind_terrace() -> RoomDefinition:
     original = legacy_world.ROOMS_BY_KEY[MOON_ELF_WIND_TERRACE_KEY]
     exits = dict(original.exits)
-    exits["south"] = MOON_ELF_ALPINE_GARDEN_KEY
+    exits["west"] = MOON_ELF_ALPINE_GARDEN_KEY
     description = original.description
     if "Alpine Light Garden" not in description:
         description += (
-            " A short stair descends south into the Alpine Light Garden, where neighborhood beds use screens and adjustable daymirrors to manage the severe high-altitude sun."
+            " A short stair descends west into the Alpine Light Garden, where neighborhood beds use screens and adjustable daymirrors to manage the severe high-altitude sun."
         )
     return replace(original, exits=exits, description=description)
 
@@ -256,13 +256,13 @@ def install_moon_elf_druid_content(world_service=None) -> None:
     world_service.augmentations.update(moon_elf_druid_augmentations())
 
     base = world_service.augmentations.get(MOON_ELF_WIND_TERRACE_KEY, RoomAugmentation())
-    exits = [item for item in base.exit_overrides if item.direction != "south"]
+    exits = [item for item in base.exit_overrides if item.direction != "west"]
     exits.append(
         ExitDefinition(
-            "south",
+            "west",
             MOON_ELF_ALPINE_GARDEN_KEY,
             "Alpine Light Garden",
-            travel_text="You descend the short south stair from the Wind Terrace into the sheltered alpine garden beds.",
+            travel_text="You descend the short west stair from the Wind Terrace into the sheltered alpine garden beds.",
         )
     )
     world_service.augmentations[MOON_ELF_WIND_TERRACE_KEY] = replace(base, exit_overrides=tuple(exits))
