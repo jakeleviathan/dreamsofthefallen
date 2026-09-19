@@ -522,8 +522,12 @@ def _milestone_state(skill_key: str, skill: int) -> tuple[str, int, str | None, 
     return current_name, current_floor, next_name, next_threshold
 
 
-def _unlocked_recipe_count(skill_key: str, skill: int) -> tuple[int, int]:
-    recipes = [r for r in crafting.ALL_RECIPES if r.trade_skill_key == skill_key]
+def _unlocked_recipe_count(session, skill_key: str, skill: int) -> tuple[int, int]:
+    recipes = [
+        r
+        for r in crafting.ALL_RECIPES
+        if r.trade_skill_key == skill_key and economy._recipe_visible(session, r)
+    ]
     return (
         sum(
             1
@@ -545,7 +549,7 @@ async def _show_professions(session) -> None:
         uses, skill = _skill_progress(session, profession.key)
         current, floor, next_name, next_threshold = _milestone_state(profession.key, skill)
         bar, fraction = _bar(skill, floor, next_threshold)
-        unlocked, total = _unlocked_recipe_count(profession.key, skill)
+        unlocked, total = _unlocked_recipe_count(session, profession.key, skill)
         await session.send(
             f"\r\n  {_paint(_NAME, profession.name)}\r\n"
             f"  Skill     {skill}   {_paint(_PROGRESS, bar)}  {fraction}\r\n"
@@ -621,7 +625,11 @@ async def _show_workshop(session, profession_key: str) -> None:
     current, floor, next_name, next_threshold = _milestone_state(profession_key, skill)
     bar, fraction = _bar(skill, floor, next_threshold)
     station_here = station_key in economy._stations_here(session)
-    recipes = [r for r in crafting.ALL_RECIPES if r.trade_skill_key == profession_key]
+    recipes = [
+        r
+        for r in crafting.ALL_RECIPES
+        if r.trade_skill_key == profession_key and economy._recipe_visible(session, r)
+    ]
 
     await session.send(
         f"\r\n{_paint(_HEADER, f'=== {title} ===')}\r\n"
@@ -674,7 +682,7 @@ async def _show_workshop(session, profession_key: str) -> None:
 
 
 async def _craft_profession(session, profession_key: str, target: str) -> None:
-    recipe, error = economy._resolve_recipe(target)
+    recipe, error = economy._resolve_recipe(target, session)
     if error:
         await session.send(error + "\r\n")
         return

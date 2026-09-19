@@ -70,6 +70,7 @@ class CraftingRecipe:
     station_key: str | None = None
     description: str = ""
     design_status: str = "provisional_tuning"
+    discovery_flag: str | None = None
 
     def __post_init__(self) -> None:
         if self.output_quantity <= 0:

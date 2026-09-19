@@ -410,6 +410,22 @@ def _recipe_output_name(recipe: CraftingRecipe) -> str:
     return output.name if output is not None else recipe.output_item_key.replace("_", " ").title()
 
 
+def _recipe_visible(session, recipe: CraftingRecipe) -> bool:
+    """Secret recipes stay out of player-facing catalogs until discovered."""
+
+    flag = getattr(recipe, "discovery_flag", None)
+    if not flag:
+        return True
+    character = getattr(session, "character", None)
+    if character is None:
+        return False
+    return flag in set(session.database.list_flags(character.id))
+
+
+def _visible_recipes(session) -> tuple[CraftingRecipe, ...]:
+    return tuple(recipe for recipe in crafting.ALL_RECIPES if _recipe_visible(session, recipe))
+
+
 def _profession_name(key: str) -> str:
     profession = crafting.PROFESSIONS_BY_KEY.get(key)
     return profession.name if profession is not None else key.replace("_", " ").title()
@@ -469,15 +485,19 @@ def _recipe_sort_key(recipe: CraftingRecipe) -> tuple[int, str]:
     return (recipe.minimum_skill, _recipe_output_name(recipe).lower())
 
 
-def _resolve_recipe(target: str) -> tuple[CraftingRecipe | None, str | None]:
+def _resolve_recipe(
+    target: str,
+    session=None,
+) -> tuple[CraftingRecipe | None, str | None]:
     wanted = _normalize(target)
     if not wanted:
         return None, "Name a recipe. Use RECIPES to browse them."
-    exact = [recipe for recipe in crafting.ALL_RECIPES if wanted in _recipe_names(recipe)]
+    source = _visible_recipes(session) if session is not None else crafting.ALL_RECIPES
+    exact = [recipe for recipe in source if wanted in _recipe_names(recipe)]
     if not exact:
         exact = [
             recipe
-            for recipe in crafting.ALL_RECIPES
+            for recipe in source
             if any(wanted in name for name in _recipe_names(recipe))
         ]
     unique_keys = tuple(dict.fromkeys(recipe.key for recipe in exact))
@@ -490,7 +510,6 @@ def _resolve_recipe(target: str) -> tuple[CraftingRecipe | None, str | None]:
         suffix = "..." if len(unique_keys) > 6 else ""
         return None, f"That matches several recipes: {names}{suffix}. Be more specific."
     return crafting.RECIPES_BY_KEY[unique_keys[0]], None
-
 
 def _recipe_filter(value: str) -> tuple[str, str | None]:
     wanted = _normalize(value)
@@ -647,12 +666,12 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
         )
         profession_order = ("blacksmithing", "tailoring", "alchemy", "enchanting", "cooking")
         for key in profession_order:
-            recipes = [r for r in crafting.ALL_RECIPES if r.trade_skill_key == key]
+            recipes = [r for r in _visible_recipes(session) if r.trade_skill_key == key]
             if recipes:
                 await _show_recipe_group(session, key, recipes, overview=True)
         return
 
-    selected = list(crafting.ALL_RECIPES)
+    selected = list(_visible_recipes(session))
     if mode == "profession" and profession is not None:
         selected = [r for r in selected if r.trade_skill_key == profession]
     elif mode == "ready":
@@ -682,7 +701,7 @@ async def _show_recipe_detail(session, target: str) -> None:
     character = getattr(session, "character", None)
     if character is None:
         return
-    recipe, error = _resolve_recipe(target)
+    recipe, error = _resolve_recipe(target, session)
     if error:
         await session.send(error + "\r\n")
         return
@@ -795,7 +814,7 @@ async def _craft(session, target: str) -> None:
         await session.send(f"You are already crafting {active.get('output_name', 'something')}.\r\n")
         return
 
-    recipe, error = _resolve_recipe(target)
+    recipe, error = _resolve_recipe(target, session)
     if error:
         await session.send(error + "\r\n")
         return
