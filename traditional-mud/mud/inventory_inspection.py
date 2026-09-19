@@ -97,6 +97,9 @@ def item_detail_lines(session, definition) -> tuple[str, ...]:
         f"Quantity: {quantity}",
     ]
 
+    sell_value = merchant_buyback_price(definition.key)
+    lines.append(f"Merchant value: {format_sols(sell_value)}" if sell_value > 0 else "Merchant value: not bought by ordinary merchants")
+
     if int(getattr(definition, "tier", 0) or 0) > 0:
         lines.append(f"Tier: {definition.tier}")
 
