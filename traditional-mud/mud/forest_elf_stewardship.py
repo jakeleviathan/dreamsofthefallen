@@ -73,7 +73,7 @@ RAINPOOL_BALANCE_QUEST = QuestDefinition(
     name="What the Rain Remembers",
     style="structured",
     description=(
-        "Keeper Sela Rainbough asks a new Forest Elf to trace why the Circle's teaching rain pools are filling unevenly. "
+        "Keeper Ivara Rainbough asks a new Forest Elf to trace why the Circle's teaching rain pools are filling unevenly. "
         "The lesson is about following water, identifying the smallest useful intervention, and refusing to over-correct a living system."
     ),
     objective_steps=(
@@ -81,7 +81,7 @@ RAINPOOL_BALANCE_QUEST = QuestDefinition(
         ("trace_runoff", "Follow the terrace east to Seepstone Run and EXAMINE LEAF DAM."),
         ("adjust_flow", "CLEAR LEAF DAM carefully enough to reopen one channel without stripping the whole seep."),
         ("listen_flow", "LISTEN WATER at Seepstone Run and confirm that the restored channel is moving naturally."),
-        ("return_sela", "Return to the Greenway and TALK SELA."),
+        ("return_sela", "Return to the Greenway and TALK IVARA."),
         ("complete", "You restored the rain-pool flow with the smallest useful change."),
     ),
 )
@@ -127,12 +127,12 @@ DRUID_FALSE_BLIGHT_QUEST = QuestDefinition(
 
 SELA_RAINBOUGH = NpcDefinition(
     key="forest_elf_keeper_sela_rainbough",
-    name="Keeper Sela Rainbough",
+    name="Keeper Ivara Rainbough",
     short_description="a mud-kneed water keeper carrying reed markers, a hand level, and no spell focus at all",
     room_key=FOREST_ELF_GREENWAY_KEY,
     role="non-Druid Circle water steward and Forest Elf starter mentor",
     dialogue=(
-        "Sela taps the mud from a reed marker. 'Water does not need a wizard. Most days it needs someone willing to find out where it stopped going.'",
+        "Ivara taps the mud from a reed marker. 'Water does not need a wizard. Most days it needs someone willing to find out where it stopped going.'",
         "'The Circle has Druids, growers, healers, path wardens, seed keepers, and people like me who spend embarrassing amounts of time staring at drainage.'",
     ),
 )
@@ -541,7 +541,9 @@ def _talk_target(command: str) -> str:
 
 
 def _is_sela(target: str) -> bool:
-    return target in {"sela", "keeper sela", "sela rainbough", "water keeper", "water-keeper", "keeper"}
+    # The stable function/key names predate the display-name cleanup. Keep them
+    # for save/import compatibility while the player-facing identity is Ivara.
+    return target in {"ivara", "keeper ivara", "ivara rainbough", "water keeper", "water-keeper", "keeper"}
 
 
 def _is_aven(target: str) -> bool:
@@ -695,7 +697,7 @@ async def _handle_rainpool_quest(session, normalized: str) -> bool:
         session.database.advance_quest(session.character.id, RAINPOOL_BALANCE_QUEST.key, "return_sela")
         await session.send(
             "\r\nYou stop moving. Two quiet notes of water now overlap beneath the alder roots: one through the original fork and one through the reopened lower channel. Neither is rushing hard enough to scour the soil.\r\n"
-            "The hillside is sharing water again. Return WEST, then SOUTH to the Greenway and TALK SELA.\r\n"
+            "The hillside is sharing water again. Return WEST, then SOUTH to the Greenway and TALK IVARA.\r\n"
         )
         return True
 
@@ -917,7 +919,7 @@ async def _show_circle(session) -> None:
     await session.send(
         "\r\n--- Circle of Keepers ---\r\n"
         "The local Forest Elf Circle is civic stewardship, not a Druid-only order. Its keepers include growers, water stewards, healers, seed keepers, and path wardens. Druids hold influence because their class training gives them unusual insight into living systems, but ordinary Circle standing does not require the Druid class.\r\n"
-        "Druids visiting the Circle can seek class instruction from Caela Rootwake in Keeper's Nursery. Forest Elves can seek water-stewardship work from Sela Rainbough on the Greenway after Maelis's Heartseed lesson.\r\n"
+        "Druids visiting the Circle can seek class instruction from Caela Rootwake in Keeper's Nursery. Forest Elves can seek water-stewardship work from Ivara Rainbough on the Greenway after Maelis's Heartseed lesson.\r\n"
     )
 
 
@@ -996,7 +998,7 @@ def install_forest_elf_stewardship_runtime(player_session_class, world_service) 
 
         if normalized in {"help", "?"}:
             await self.send(
-                "Circle expansion: CIRCLE explains the Circle of Keepers. Forest Elves can TALK SELA for water-stewardship work after the Heartseed lesson. Druids can TALK CAELA in Keeper's Nursery and use contextual NURTURE <target>.\r\n"
+                "Circle expansion: CIRCLE explains the Circle of Keepers. Forest Elves can TALK IVARA for water-stewardship work after the Heartseed lesson. Druids can TALK CAELA in Keeper's Nursery and use contextual NURTURE <target>.\r\n"
             )
 
     player_session_class.use_ability = use_ability
