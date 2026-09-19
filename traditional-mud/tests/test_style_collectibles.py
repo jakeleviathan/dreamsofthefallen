@@ -135,7 +135,7 @@ class StyleCollectiblesTests(unittest.TestCase):
         style_rows = [entry for entry in guide.COMMANDS if entry.category == "style"]
         syntaxes = {entry.syntax for entry in style_rows}
         self.assertIn("STYLE / WARDROBE / OUTFIT / FASHION", syntaxes)
-        self.assertIn("APPLY FRAGRANCE <name> / SPRAY <name>", syntaxes)
+        self.assertIn("APPLY FRAGRANCE <name> / APPLY PERFUME <name> / SPRAY <name>", syntaxes)
         self.assertIn("PROVENANCE <item>", syntaxes)
         self.assertGreaterEqual(len(guide.COMMANDS), 100)
 
@@ -151,10 +151,13 @@ assert server.PlayerSession._command_guide_runtime_installed
 assert server.PlayerSession._modern_client_runtime_installed
 assert getattr(Database, "_style_xp_precision_tuned", False)
 assert "style_listener_echo_veil" in style.crafting.ITEMS_BY_KEY
-# The launch boutique still owns the original nine scents; production now adds
-# one dungeon-crafted House of Nine Vapors fragrance on top of that catalog.
-assert len(style.FRAGRANCES) == 10
+# Production preserves the original boutique scents and dungeon fragrance while
+# adding the craft-only Alchemy perfumery catalog.
+assert len(style.FRAGRANCES) >= 53
 assert "fragrance_afterimage_no9" in style.FRAGRANCE_BY_KEY
+assert "perfume_greenward_first_rain" in style.FRAGRANCE_BY_KEY
+assert "perfume_astralite_night_market" in style.FRAGRANCE_BY_KEY
+assert style.FRAGRANCE_BY_KEY["perfume_greenward_first_rain"].price_sparks == 0
 assert len(guide.COMMANDS) >= 100
 print("STYLE_GUIDE_OK")
 '''
