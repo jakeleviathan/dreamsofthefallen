@@ -384,6 +384,7 @@ def install_death_recovery_runtime(player_session_class) -> None:
     previous_death = player_session_class._handle_character_death
     previous_enter = player_session_class.enter_character
     previous_prompt = player_session_class.playing_prompt
+    previous_use_ability = player_session_class.use_ability
 
     async def handle_character_death(self, enemy_name: str) -> None:
         # Keep the original method available beneath this layer for compatibility,
@@ -415,6 +416,17 @@ def install_death_recovery_runtime(player_session_class) -> None:
             "a Priest standing here can RESURRECT you first.\r\n"
         )
         await self.send_client_state()
+
+    async def use_ability(self, ability_text: str) -> None:
+        normalized = " ".join(ability_text.strip().lower().replace("_", " ").split())
+        if normalized == "resurrection":
+            await self.send("Usage: RESURRECT <dead character name>.\r\n")
+            return
+        if normalized.startswith("resurrection "):
+            target_name = ability_text.strip()[len("resurrection"):].strip()
+            await resurrect_character(self, target_name)
+            return
+        await previous_use_ability(self, ability_text)
 
     async def playing_prompt(self) -> None:
         character = getattr(self, "character", None)
@@ -459,12 +471,13 @@ def install_death_recovery_runtime(player_session_class) -> None:
             await self.send("Usage: RESURRECT <dead character name>.\r\n")
             return
         if normalized.startswith("resurrect "):
-            await resurrect_character(self, stripped.split(maxsplit=1)[1])
+            await self.use_ability("resurrection " + stripped.split(maxsplit=1)[1])
             return
 
         await _delegate_command(self, previous_prompt, command)
 
     player_session_class._handle_character_death = handle_character_death
     player_session_class.enter_character = enter_character
+    player_session_class.use_ability = use_ability
     player_session_class.playing_prompt = playing_prompt
     player_session_class._death_recovery_runtime_installed = True
