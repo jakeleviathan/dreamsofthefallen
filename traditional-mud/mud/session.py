@@ -6,6 +6,7 @@ import re
 from enum import Enum, auto
 
 import mud.ability_mastery as ability_mastery
+from mud.casting import interrupt_cast, spend_ability_mana
 
 from mud.character_options import (
     CLASSES,
@@ -218,11 +219,12 @@ async def _show_unlocked_abilities(session) -> None:
     for ability in unlocked:
         mana = ability_mastery.effective_mana_cost(session, ability)
         cooldown = ability.cooldown_seconds or 0
+        cast_time = float(getattr(ability, "cast_time_seconds", 0.0) or 0.0)
         await session.send(
             f"\r\n  {_ability_ui(_ABILITY_UI_NAME, ability.name)}  "
             f"{_ability_ui(_ABILITY_UI_DIM, f'[Lv {ability.unlock_level or 1}]')}\r\n"
             f"    {ability.description}\r\n"
-            f"    {_ability_ui(_ABILITY_UI_DIM, f'Mana {mana} | Cooldown {cooldown:g}s | {_ability_command_hint(ability)}')}\r\n"
+            f"    {_ability_ui(_ABILITY_UI_DIM, f'Mana {mana} | Cooldown {cooldown:g}s | Cast {cast_time:g}s | {_ability_command_hint(ability)}')}\r\n"
         )
     await session.send(
         "\r\nType ABILITY <name> for mastery details. Type ABILITIES ALL for future unlocks.\r\n"
@@ -991,6 +993,8 @@ class PlayerSession:
                         f"\r\n{enemy.definition.name} hits you for {damage} damage "
                         f"({self.combatant.current_hp}/{self.combatant.max_hp} HP).\r\n"
                     )
+                    if damage > 0:
+                        await interrupt_cast(self, "damage")
                     await self.send_client_state()
                     next_enemy_attack = now + enemy.definition.auto_attack_interval
                     if self.combatant.current_hp <= 0:
@@ -1243,7 +1247,7 @@ class PlayerSession:
         if not self.combatant.ability_ready(ability.key):
             await self.send("That ability is still on cooldown.\r\n")
             return
-        if not self.combatant.spend_mana(mana_cost):
+        if not spend_ability_mana(self, ability, mana_cost):
             await self.send("You do not have enough mana.\r\n")
             return
 
