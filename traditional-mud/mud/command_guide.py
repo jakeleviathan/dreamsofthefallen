@@ -101,6 +101,8 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("economy", "ENCHANT [item]", "Open the Runic Workbench or craft a named Enchanting recipe."),
     CommandEntry("economy", "COOK [item]", "Open the Cookfire or prepare a named Cooking recipe."),
     CommandEntry("economy", "FOOD / EAT <food>", "List carried prepared food or eat it for its restorative and temporary nourishment effects."),
+    CommandEntry("economy", "POTIONS / DRINK <potion>", "List carried alchemical drinks or consume one for its restorative and temporary effects."),
+    CommandEntry("economy", "RECIPES SUMMARY / RECIPE COUNTS", "Show the number of currently known recipes in each crafting profession; undiscovered secrets remain hidden."),
     CommandEntry("economy", "RECIPES", "Open the concise recipe book: grouped professions, usable recipes, and next unlocks."),
     CommandEntry("economy", "RECIPES <profession> / READY / CRAFTABLE / ALL", "Filter the recipe book by trade, unlocked recipes, craftable-now recipes, or the full catalog."),
     CommandEntry("economy", "RECIPE <name>", "Inspect one recipe's skill, station, ingredients, owned quantities, description, and craft readiness."),
