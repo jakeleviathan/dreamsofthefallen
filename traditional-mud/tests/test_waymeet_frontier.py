@@ -146,7 +146,7 @@ class WaymeetFrontierTests(unittest.TestCase):
             self.assertTrue(asyncio.run(_talk_foreman(session)))
             self.assertEqual(database.item_quantity(session.character.id, SLATEBACK_CLAW_KEY), 0)
             self.assertEqual(database.get_quest(session.character.id, WAYMEET_QUARRY_QUEST_KEY)["status"], "completed")
-            self.assertEqual(database.get_sols(session.character.id), 10)
+            self.assertEqual(database.get_sols(session.character.id), 20)
         finally:
             tempdir.cleanup()
 
@@ -157,7 +157,7 @@ class WaymeetFrontierTests(unittest.TestCase):
             database.add_sols(session.character.id, 12)
             self.assertTrue(asyncio.run(_buy_market(session, "iron")))
             self.assertEqual(database.item_quantity(session.character.id, "iron_ore"), 1)
-            self.assertEqual(database.get_sols(session.character.id), 10)
+            self.assertEqual(database.get_sols(session.character.id), 8)
             self.assertTrue(asyncio.run(_buy_market(session, "thread")))
             self.assertEqual(database.item_quantity(session.character.id, "cotton_thread"), 1)
             self.assertEqual(database.get_sols(session.character.id), 0)
