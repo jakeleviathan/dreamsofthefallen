@@ -58,6 +58,7 @@ class FakeDatabase:
         output_item_key: str,
         output_quantity: int = 1,
         skill_xp_gain: int = 1,
+        craft_succeeded: bool = True,
     ) -> bool:
         for requirement in materials:
             if self.item_quantity(character_id, requirement.item_key) < requirement.quantity:
@@ -65,7 +66,8 @@ class FakeDatabase:
         for requirement in materials:
             key = (character_id, requirement.item_key)
             self.items[key] -= requirement.quantity
-        self.add_item(character_id, output_item_key, output_quantity)
+        if craft_succeeded:
+            self.add_item(character_id, output_item_key, output_quantity)
         self.record_trade_skill_use(character_id, trade_skill_key, skill_xp_gain)
         return True
 
@@ -287,7 +289,7 @@ class GoblinSwampTests(unittest.TestCase):
         self.assertEqual(session.database.item_quantity(701, "minor_healing_potion"), 1)
         self.assertEqual(session.database.item_quantity(701, "greenleaf"), 0)
         self.assertEqual(session.database.item_quantity(701, "spring_water"), 0)
-        self.assertEqual(session.database.get_trade_skill_progress(701, "alchemy")["skill_xp"], 1)
+        self.assertEqual(session.database.get_trade_skill_progress(701, "alchemy")["skill_xp"], 0)
         self.assertTrue(any("Minor Healing Potion" in text for text in session.outputs))
 
     def test_field_alchemy_is_culturally_goblin_but_not_race_locked(self) -> None:
