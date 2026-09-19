@@ -109,6 +109,17 @@ class SolEconomyTests(unittest.TestCase):
         moon = MERCHANTS_BY_NPC_KEY["moon_elf_lantern_trader"]
         self.assertEqual({row.item_key: row.price_units for row in moon.stock}["moonsilver_ore"], 20)
 
+    def test_character_ui_exposes_sols_and_item_merchant_value(self):
+        from mud import equipment_system, inventory_inspection
+        import inspect
+        equipment_source = inspect.getsource(equipment_system)
+        inspection_source = inspect.getsource(inventory_inspection)
+        self.assertIn("Sols :", equipment_source)
+        self.assertIn("Sols:", equipment_source)
+        self.assertIn("Merchant value:", equipment_source)
+        self.assertIn("Merchant value:", inspection_source)
+        self.assertIn("merchant_buyback_price", inspection_source)
+
 
 if __name__ == "__main__":
     unittest.main()
