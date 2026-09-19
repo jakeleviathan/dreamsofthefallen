@@ -20,7 +20,8 @@ from mud.sablewater_reach import BRASS_AUDITOR_KEY
 from mud.veyra_city import VEYRA_BRASSMARKET_KEY
 from mud.veyra_underclock import GOVERNOR_KEY
 from mud.waymeet_adventure_arc import LISTENER_BELOW
-from mud.waymeet_frontier import WAYMEET_LANTERN_MARKET_KEY, WAYMEET_SCRIP_KEY
+from mud.sols import format_sols
+from mud.waymeet_frontier import WAYMEET_LANTERN_MARKET_KEY
 
 
 STYLE_VERSION = "1.0.0"
@@ -41,7 +42,7 @@ class StyleMetadata:
     house: str
     collection: str
     acquisition_hint: str
-    price_scrip: int = 0
+    price_sparks: int = 0
     provenance_track: bool = False
     limited: bool = False
 
@@ -55,7 +56,7 @@ class FragranceDefinition:
     bottle: str
     duration_seconds: int = 3600
     xp_bonus_percent: int = 10
-    price_scrip: int = 3
+    price_sparks: int = 30
 
 
 # ---------------------------------------------------------------------------
@@ -361,7 +362,7 @@ def _resolve_boutique_item(session, target: str, *, fragrance_only: bool | None 
     wanted = _normalize(target)
     keys = []
     if fragrance_only is not True:
-        keys.extend(meta.item_key for meta in STYLE_META if meta.price_scrip > 0)
+        keys.extend(meta.item_key for meta in STYLE_META if meta.price_sparks > 0)
     if fragrance_only is not False:
         keys.extend(item.item_key for item in FRAGRANCES)
     if session.character.current_room == WAYMEET_LANTERN_MARKET_KEY:
@@ -479,16 +480,16 @@ async def _show_boutique(session) -> None:
         await session.send("There is no fashion counter here. Veyra Brassmarket has the full boutique; Waymeet Lantern Market carries a smaller traveling trunk.\r\n")
         return
     await session.send("\r\n--- Astralis Style Counter ---\r\n")
-    keys = [meta.item_key for meta in STYLE_META if meta.price_scrip > 0] + [item.item_key for item in FRAGRANCES]
+    keys = [meta.item_key for meta in STYLE_META if meta.price_sparks > 0] + [item.item_key for item in FRAGRANCES]
     if session.character.current_room == WAYMEET_LANTERN_MARKET_KEY:
         keys = [key for key in keys if key in WAYMEET_STYLE_KEYS]
     for key in keys:
         if key in STYLE_META_BY_KEY:
             meta = STYLE_META_BY_KEY[key]
-            await session.send(f"[{meta.rarity.upper()}] {_item_name(key)} — {meta.price_scrip} scrip — {STYLE_SLOT_LABELS[meta.style_slot]} — {', '.join(meta.style_tags)}\r\n")
+            await session.send(f"[{meta.rarity.upper()}] {_item_name(key)} — {format_sols(meta.price_sparks)} — {STYLE_SLOT_LABELS[meta.style_slot]} — {', '.join(meta.style_tags)}\r\n")
         else:
             scent = FRAGRANCE_BY_KEY[key]
-            await session.send(f"[{scent.rarity.upper()}] {scent.house} — {_item_name(key)} — {scent.price_scrip} scrip — +{scent.xp_bonus_percent}% XP for {scent.duration_seconds // 60} min\r\n")
+            await session.send(f"[{scent.rarity.upper()}] {scent.house} — {_item_name(key)} — {format_sols(scent.price_sparks)} — +{scent.xp_bonus_percent}% XP for {scent.duration_seconds // 60} min\r\n")
     await session.send("BUY STYLE <item> or BUY FRAGRANCE <name>. Fashion has no combat stats; fragrance is the only progression effect here.\r\n")
 
 
@@ -500,14 +501,17 @@ async def _buy_boutique(session, target: str, *, fragrance: bool) -> None:
         await session.send(error + "\r\n")
         return
     assert key is not None
-    price = FRAGRANCE_BY_KEY[key].price_scrip if key in FRAGRANCE_BY_KEY else STYLE_META_BY_KEY[key].price_scrip
-    if session.database.item_quantity(session.character.id, WAYMEET_SCRIP_KEY) < price:
-        await session.send(f"You need {price} Waymeet Trade Scrip.\r\n")
+    price = FRAGRANCE_BY_KEY[key].price_sparks if key in FRAGRANCE_BY_KEY else STYLE_META_BY_KEY[key].price_sparks
+    if session.database.get_sols(session.character.id) < price:
+        await session.send(f"You need {format_sols(price)}.\r\n")
         return
-    session.database.consume_item(session.character.id, WAYMEET_SCRIP_KEY, price)
-    session.database.add_item(session.character.id, key, 1)
+    if not session.database.complete_merchant_purchase(
+        session.character.id, item_key=key, quantity=1, total_price=price
+    ):
+        await session.send("The purchase could not be completed safely.\r\n")
+        return
     _mark_discovered(session.database, session.character.id, key)
-    await session.send(f"The counter wraps {_item_name(key)} carefully. You pay {price} Waymeet Trade Scrip.\r\n")
+    await session.send(f"The counter wraps {_item_name(key)} carefully. You pay {format_sols(price)}.\r\n")
 
 
 async def _show_wardrobe(session) -> None:
