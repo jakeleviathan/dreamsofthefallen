@@ -75,7 +75,7 @@ HUMAN_FIRST_MILE_OVERLOOK = RoomDefinition(
         "A short set of roadside steps climbs to a basalt shoulder above the caravan road. Blackwall fills the western view, huge and horned against the sky, while the land beyond it opens instead of closing: farm lanes, smoke from distant kiln towns, a pale northern road toward Dwarven country, and blue ridges stacked along the horizon. "
         "The overlook is not a monument. Teamsters stop here to tighten straps, travelers check weather, and somebody has wedged a chipped cup behind the milepost for whoever forgot one."
     ),
-    exits={"west": HUMAN_OUTER_CARAVAN_ROAD_KEY},
+    exits={"north": HUMAN_OUTER_CARAVAN_ROAD_KEY},
     tags=("outside_city", "safe", "world_handoff", "vista", "human_start"),
 )
 
@@ -85,10 +85,10 @@ def human_playable_slice_augmentations() -> dict[str, RoomAugmentation]:
         HUMAN_FIRST_MILE_OVERLOOK_KEY: RoomAugmentation(
             exit_overrides=(
                 ExitDefinition(
-                    "west",
+                    "north",
                     HUMAN_OUTER_CARAVAN_ROAD_KEY,
                     "Outer Caravan Road",
-                    travel_text="You descend the short roadside steps and return to the road beneath Blackwall.",
+                    travel_text="You descend the short roadside steps north and return to the road beneath Blackwall.",
                 ),
             ),
             features=(
@@ -142,11 +142,11 @@ def _replace_room(room: RoomDefinition) -> None:
 def _patch_outer_road() -> RoomDefinition:
     original = legacy_world.ROOMS_BY_KEY[HUMAN_OUTER_CARAVAN_ROAD_KEY]
     exits = dict(original.exits)
-    exits["east"] = HUMAN_FIRST_MILE_OVERLOOK_KEY
+    exits["south"] = HUMAN_FIRST_MILE_OVERLOOK_KEY
     description = original.description
     if "roadside overlook" not in description.lower():
         description += (
-            " A short flight of basalt steps climbs east to a roadside overlook used by teamsters checking the weather before longer journeys."
+            " A short flight of basalt steps climbs off the south shoulder to a roadside overlook used by teamsters checking the weather before longer journeys."
         )
     return replace(original, exits=exits, description=description)
 
@@ -175,10 +175,10 @@ def install_human_playable_slice_content(world_service=None) -> None:
     world_service.augmentations.update(human_playable_slice_augmentations())
 
     base = world_service.augmentations.get(HUMAN_OUTER_CARAVAN_ROAD_KEY, RoomAugmentation())
-    exits = [item for item in base.exit_overrides if item.direction != "east"]
+    exits = [item for item in base.exit_overrides if item.direction != "south"]
     exits.append(
         ExitDefinition(
-            "east",
+            "south",
             HUMAN_FIRST_MILE_OVERLOOK_KEY,
             "First-Mile Overlook",
             travel_text="You leave the wagon ruts for a few steps and climb the basalt shoulder above the road.",
