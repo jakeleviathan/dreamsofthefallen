@@ -1,5 +1,5 @@
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.2
+-- Version 2.2.3
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -7,7 +7,7 @@
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.2"
+H.version = "2.2.3"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -27,7 +27,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.2"
+local MODERN_UI_VERSION = "2.2.3"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -233,6 +233,12 @@ end
 function H.runAction(command)
   if not command or command == "" then return end
   send(command, true)
+end
+
+function H.inspectInventoryItem(name)
+  name = tostring(name or ""):gsub("[\r\n]", " ")
+  if name == "" then return end
+  send("ITEM " .. name, true)
 end
 
 function H.selectAlly(name)
@@ -748,7 +754,18 @@ function H.renderInventoryPanel()
     local quantity = tonumber(item.quantity) or 0
     local name = tostring(item.name or item.key or "Unknown item")
 
-    H.inventoryList:echo(string.format("%dx %s", quantity, name))
+    local clickName = name
+    if echoLink then
+      echoLink(
+        "DreamsHUD.InventoryList",
+        string.format("%dx %s", quantity, name),
+        function() H.inspectInventoryItem(clickName) end,
+        "Inspect " .. name .. " (ITEM " .. name .. ")",
+        true
+      )
+    else
+      H.inventoryList:echo(string.format("%dx %s", quantity, name))
+    end
 
     if item.equipped then
       H.inventoryList:cecho(
