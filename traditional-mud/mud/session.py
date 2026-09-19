@@ -1381,7 +1381,7 @@ class PlayerSession:
                 "Commands: LOOK, EXITS, NORTH/SOUTH/EAST/WEST, SCORE, STATS, HEALTH, LORE, SKILLS, ABILITIES, ABILITIES ALL, "
                 "ATTACK/KILL <target>, USE/CAST <ability>, FLEE, BIND, ACCESS, INVENTORY, READ, QUESTS, TALK, "
                 "EXAMINE, TOUCH, LISTEN, "
-                "TRADES, PROFESSIONS, RECIPES, CRAFT, MINE, HARVEST, HERBALISM, SHOP, MENU, QUIT\r\n"
+                "TRADES, PROFESSIONS, RECIPES, CRAFT, MINE, HARVEST, HERBALISM, SOLS, SHOP, BUY, SELL, VALUE, MENU, QUIT\r\n"
                 "Mining is node-based; actual nodes will be placed into rooms when the room world is authored. "
                 "Blacksmithing recipes are already executable when the character is at a forge with materials.\r\n"
             )
@@ -1804,9 +1804,10 @@ class PlayerSession:
             for stock in merchant.stock:
                 item = ITEMS_BY_KEY.get(stock.item_key)
                 name = item.name if item else stock.item_key
-                await self.send(f"{name}\r\n")
+                price = f" — {stock.price_units} sparks" if stock.price_units is not None else ""
+                await self.send(f"{name}{price}\r\n")
             await self.send(
-                "Bone Chips are common merchant stock. Prices will be attached when Astralis's currency system is finalized.\r\n"
+                "Sols are Astralis's sun-stamped currency. Use BUY, SELL, VALUE, or SOLS in the assembled live game.\r\n"
             )
             return
 
