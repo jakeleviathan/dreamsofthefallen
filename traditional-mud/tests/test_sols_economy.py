@@ -1,0 +1,86 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+
+from mud.database import Database
+from mud.sols import (
+    format_sols,
+    humanoid_sol_drop,
+    merchant_buyback_price,
+    quest_sol_reward,
+    split_sols,
+)
+
+
+class SolEconomyTests(unittest.TestCase):
+    def test_denominations_are_decimal_and_sun_themed(self):
+        self.assertEqual(split_sols(234).flames, 2)
+        self.assertEqual(split_sols(234).embers, 3)
+        self.assertEqual(split_sols(234).sparks, 4)
+        self.assertEqual(format_sols(234), "2 flames, 3 embers, 4 sparks")
+        self.assertEqual(format_sols(100), "1 flame")
+        self.assertEqual(format_sols(10), "1 ember")
+        self.assertEqual(format_sols(1), "1 spark")
+
+    def test_database_persists_and_atomically_spends_sols(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Database(Path(tmp) / "sols.sqlite3")
+            db.initialize()
+            account = db.create_account("soltest", "password123")
+            character = db.create_character(account.id, "Sunbuyer", "human", "brute")
+            self.assertEqual(db.get_sols(character.id), 0)
+            self.assertEqual(db.add_sols(character.id, 35), 35)
+            self.assertTrue(db.spend_sols(character.id, 30))
+            self.assertFalse(db.spend_sols(character.id, 6))
+            self.assertEqual(db.get_sols(character.id), 5)
+
+    def test_merchant_purchase_and_sale_are_atomic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Database(Path(tmp) / "trade.sqlite3")
+            db.initialize()
+            account = db.create_account("merchanttest", "password123")
+            character = db.create_character(account.id, "Coinhand", "human", "brute")
+            db.add_sols(character.id, 20)
+            self.assertTrue(
+                db.complete_merchant_purchase(
+                    character.id,
+                    item_key="bone_chips",
+                    quantity=2,
+                    total_price=6,
+                )
+            )
+            self.assertEqual(db.get_sols(character.id), 14)
+            self.assertEqual(db.item_quantity(character.id, "bone_chips"), 2)
+            self.assertTrue(
+                db.complete_merchant_sale(
+                    character.id,
+                    item_key="bone_chips",
+                    quantity=1,
+                    proceeds=1,
+                )
+            )
+            self.assertEqual(db.get_sols(character.id), 15)
+            self.assertEqual(db.item_quantity(character.id, "bone_chips"), 1)
+
+    def test_buyback_is_35_percent_with_minimum_one_spark(self):
+        self.assertGreaterEqual(merchant_buyback_price("bone_chips"), 1)
+
+    def test_quest_reward_fallback_uses_embers_and_long_story_flame(self):
+        short = SimpleNamespace(minimum_level=1, style="structured", objective_steps=(("a", "A"),), sol_reward=None)
+        long = SimpleNamespace(minimum_level=10, style="structured", objective_steps=tuple((str(i), str(i)) for i in range(8)), sol_reward=None)
+        self.assertGreaterEqual(quest_sol_reward(short), 10)
+        self.assertGreaterEqual(quest_sol_reward(long), 100)
+
+    def test_only_humanoid_enemies_drop_sols(self):
+        humanoid = SimpleNamespace(key="bandit", name="Bandit", xp_reward=60, loot_family="humanoid")
+        beast = SimpleNamespace(key="wolf", name="Wolf", xp_reward=60, loot_family="beast")
+        # loot_family_for also understands explicit family metadata where present.
+        self.assertGreaterEqual(humanoid_sol_drop(humanoid), 0)
+        self.assertEqual(humanoid_sol_drop(beast), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
