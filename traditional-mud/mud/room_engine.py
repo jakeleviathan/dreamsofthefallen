@@ -395,21 +395,64 @@ class WorldService:
 
         augmentation = self.augmentations.get(room_key, RoomAugmentation())
         override_by_direction = {exit_def.direction: exit_def for exit_def in augmentation.exit_overrides}
+
+        # A room can be expanded in two layers: its legacy RoomDefinition and a
+        # richer RoomAugmentation. Several later content installers correctly
+        # patch a newly-authored route into the legacy room so movement works
+        # everywhere, while also supplying the same route as an extra exit so it
+        # has authored travel text/conditions. Treat those as one logical exit.
+        #
+        # Direction is the player's command surface, so there may never be two
+        # simultaneously-defined routes for the same direction. Identical
+        # legacy+augmentation routes collapse to the richer augmentation entry;
+        # different destinations are an authoring conflict and fail loudly.
         exits: list[ExitDefinition] = []
+        exit_index_by_direction: dict[str, int] = {}
+
+        def add_exit(exit_def: ExitDefinition, *, source: str, prefer_new: bool = True) -> None:
+            direction = exit_def.direction.strip().lower()
+            existing_index = exit_index_by_direction.get(direction)
+            if existing_index is None:
+                exit_index_by_direction[direction] = len(exits)
+                exits.append(exit_def)
+                return
+
+            existing = exits[existing_index]
+            if existing.destination_key != exit_def.destination_key:
+                raise RuntimeError(
+                    "Ambiguous room exit definition: "
+                    f"{room_key} has {direction!r} pointing to both "
+                    f"{existing.destination_key!r} and {exit_def.destination_key!r} "
+                    f"(latest source: {source})."
+                )
+            if prefer_new:
+                exits[existing_index] = exit_def
+
         for direction, destination_key in legacy.exits.items():
             override = override_by_direction.get(direction)
             if override is not None:
-                exits.append(override)
+                add_exit(override, source="exit override")
                 continue
             destination = self.legacy_rooms.get(destination_key)
-            exits.append(
+            add_exit(
                 ExitDefinition(
                     direction=direction,
                     destination_key=destination_key,
                     name=destination.name if destination else destination_key,
-                )
+                ),
+                source="legacy room",
             )
-        exits.extend(augmentation.extra_exits)
+
+        # An explicit override is authoritative if a later extra exit repeats
+        # the same direction/destination; otherwise the extra exit is preferred
+        # over a plain legacy definition because it usually carries travel text,
+        # visibility conditions, door state, or aliases.
+        for exit_def in augmentation.extra_exits:
+            add_exit(
+                exit_def,
+                source="extra exit",
+                prefer_new=exit_def.direction not in override_by_direction,
+            )
 
         scene = RoomSceneDefinition(
             key=legacy.key,
@@ -425,6 +468,68 @@ class WorldService:
         )
         self._scene_cache[room_key] = scene
         return scene
+
+    def audit_exit_sources(self) -> tuple[str, ...]:
+        """Report redundant or conflicting raw exit definitions across the world.
+
+        This inspects the authored sources before scene canonicalization. It is
+        useful for production audits because a clean rendered scene should not
+        depend on players happening to avoid duplicated content layers.
+        """
+
+        problems: list[str] = []
+        for room_key, legacy in sorted(self.legacy_rooms.items()):
+            augmentation = self.augmentations.get(room_key, RoomAugmentation())
+            by_direction: dict[str, tuple[str, str]] = {}
+
+            for direction, destination_key in legacy.exits.items():
+                normalized = direction.strip().lower()
+                by_direction[normalized] = (destination_key, "legacy")
+
+            for exit_def in augmentation.exit_overrides:
+                normalized = exit_def.direction.strip().lower()
+                previous = by_direction.get(normalized)
+                if previous is not None and previous[0] != exit_def.destination_key:
+                    problems.append(
+                        f"CONFLICT {room_key} {normalized}: {previous[0]} ({previous[1]}) vs "
+                        f"{exit_def.destination_key} (override)"
+                    )
+                by_direction[normalized] = (exit_def.destination_key, "override")
+
+            for exit_def in augmentation.extra_exits:
+                normalized = exit_def.direction.strip().lower()
+                previous = by_direction.get(normalized)
+                if previous is None:
+                    by_direction[normalized] = (exit_def.destination_key, "extra")
+                    continue
+                kind = "REDUNDANT" if previous[0] == exit_def.destination_key else "CONFLICT"
+                problems.append(
+                    f"{kind} {room_key} {normalized}: {previous[0]} ({previous[1]}) vs "
+                    f"{exit_def.destination_key} (extra)"
+                )
+        return tuple(problems)
+
+    def validate_exit_integrity(self) -> None:
+        """Fail fast on ambiguous exits and verify every built scene is unique."""
+
+        conflicts = [row for row in self.audit_exit_sources() if row.startswith("CONFLICT ")]
+        if conflicts:
+            raise RuntimeError("World exit integrity failed:\n- " + "\n- ".join(conflicts))
+
+        duplicates: list[str] = []
+        for room_key in sorted(self.legacy_rooms):
+            scene = self.scene(room_key)
+            if scene is None:
+                continue
+            seen: set[str] = set()
+            for exit_def in scene.exits:
+                direction = exit_def.direction.strip().lower()
+                if direction in seen:
+                    duplicates.append(f"{room_key}: duplicate {direction}")
+                seen.add(direction)
+        if duplicates:
+            raise RuntimeError("World scene exit uniqueness failed:\n- " + "\n- ".join(duplicates))
+
 
     def context_with_world(self, context: PlayerRoomContext, room_key: str) -> PlayerRoomContext:
         scene = self.scene(room_key)
