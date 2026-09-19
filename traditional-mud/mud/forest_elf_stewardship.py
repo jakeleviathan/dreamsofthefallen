@@ -605,13 +605,13 @@ async def _druid_nurture_heartseed(session) -> bool:
 async def _talk_sela(session) -> bool:
     assert session.character is not None
     if session.character.race != "forest_elf":
-        await session.send("\r\nSela is friendly, but the rain-pool check is part of the local Forest Elf keeper curriculum rather than a general contract.\r\n")
+        await session.send("\r\nIvara is friendly, but the rain-pool check is part of the local Forest Elf keeper curriculum rather than a general contract.\r\n")
         return True
 
     flags = session.database.list_flags(session.character.id)
     if FOREST_ELF_NURTURE_COMPLETE_FLAG not in flags:
         await session.send(
-            "\r\nSela glances toward Circle Clearing. 'Maelis has you first. Learn to make one careful change to one living thing before I ask you to follow water across a hillside.'\r\n"
+            "\r\nIvara glances toward Circle Clearing. 'Maelis has you first. Learn to make one careful change to one living thing before I ask you to follow water across a hillside.'\r\n"
         )
         return True
 
@@ -619,27 +619,27 @@ async def _talk_sela(session) -> bool:
     if quest is None:
         session.database.start_quest(session.character.id, RAINPOOL_BALANCE_QUEST.key, "inspect_pools")
         await session.send(
-            "\r\nSela plants two reed markers in the Greenway mud. 'The teaching pools north of here filled unevenly after the last runoff. I could fix them in five minutes. You will learn more if I don't.'\r\n"
+            "\r\nIvara plants two reed markers in the Greenway mud. 'The teaching pools north of here filled unevenly after the last runoff. I could fix them in five minutes. You will learn more if I don't.'\r\n"
             "'Start by looking at the pools. Do not assume low water means drought and do not assume a blockage should be removed completely.'\r\n"
             "New quest: What the Rain Remembers. Go NORTH and EXAMINE RAIN POOLS.\r\n"
         )
         return True
 
     if quest.get("status") == "completed":
-        await session.send("\r\nSela nods at the current water marks. 'Still dividing cleanly. Good. The best repair is often one the next rain can revise without asking us.'\r\n")
+        await session.send("\r\nIvara nods at the current water marks. 'Still dividing cleanly. Good. The best repair is often one the next rain can revise without asking us.'\r\n")
         return True
 
     if quest.get("current_step") == "return_sela":
         session.database.grant_flag(session.character.id, FOREST_ELF_RAIN_BALANCED_FLAG)
         session.database.complete_quest(session.character.id, RAINPOOL_BALANCE_QUEST.key)
         await session.send(
-            "\r\nSela listens to your description of the leaf dam, then checks that you left most of it intact. 'Exactly. The dam was habitat. The wedged branch was the problem. If you had cleaned the whole run, you would have traded one imbalance for another.'\r\n"
+            "\r\nIvara listens to your description of the leaf dam, then checks that you left most of it intact. 'Exactly. The dam was habitat. The wedged branch was the problem. If you had cleaned the whole run, you would have traded one imbalance for another.'\r\n"
             "Quest complete: What the Rain Remembers.\r\n"
         )
         return True
 
     objective = RAINPOOL_BALANCE_QUEST.objective_for_step(quest.get("current_step"))
-    await session.send("\r\nSela asks for the observation before the conclusion.\r\n")
+    await session.send("\r\nIvara asks for the observation before the conclusion.\r\n")
     if objective:
         await session.send(f"Current objective: {objective}\r\n")
     return True
