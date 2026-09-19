@@ -75,10 +75,9 @@ class SolEconomyTests(unittest.TestCase):
         self.assertGreaterEqual(quest_sol_reward(long), 100)
 
     def test_only_humanoid_enemies_drop_sols(self):
-        humanoid = SimpleNamespace(key="bandit", name="Bandit", xp_reward=60, loot_family="humanoid")
-        beast = SimpleNamespace(key="wolf", name="Wolf", xp_reward=60, loot_family="beast")
-        # loot_family_for also understands explicit family metadata where present.
-        self.assertGreaterEqual(humanoid_sol_drop(humanoid), 0)
+        humanoid = SimpleNamespace(key="road_bandit", name="Road Bandit", description="a human bandit", xp_reward=60)
+        beast = SimpleNamespace(key="marsh_wolf", name="Marsh Wolf", description="a wild wolf", xp_reward=60)
+        self.assertGreater(humanoid_sol_drop(humanoid), 0)
         self.assertEqual(humanoid_sol_drop(beast), 0)
 
 
