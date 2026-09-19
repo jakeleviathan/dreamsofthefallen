@@ -411,7 +411,7 @@ BELL_ROOMS = (
 )
 
 SCAR_ROOMS = (
-    _room(SCAR_GATE, "King's Scar Gate", SCAR_REGION_KEY, "Two Dwarf-cut pillars mark the quarry entrance. Safety notices have been refreshed more recently than the road.", {"west": KINGS_SCAR_APPROACH, "east": SCAR_LIFT}, enemies=(QUARRY_SKITTER.key,), tags=("dungeon", "level_5_7")),
+    _room(SCAR_GATE, "King's Scar Gate", SCAR_REGION_KEY, "Two Dwarf-cut pillars mark the quarry entrance. Safety notices have been refreshed more recently than the road.", {"south": KINGS_SCAR_APPROACH, "east": SCAR_LIFT}, enemies=(QUARRY_SKITTER.key,), tags=("dungeon", "level_5_7")),
     _room(SCAR_LIFT, "Lift House", SCAR_REGION_KEY, "A dead freight lift occupies half the room. Above it, an inspection gantry still spans the shaft. CLIMB GANTRY is stenciled directly on an old maintenance board.", {"west": SCAR_GATE, "east": SCAR_LOWER_CUT}, tags=("dungeon", "vertical")),
     _room(SCAR_LOWER_CUT, "Lower Cut", SCAR_REGION_KEY, "The quarry floor falls away in benches. Old drill holes create black rows in pale stone while skitters dart between spoil piles.", {"west": SCAR_LIFT, "north": SCAR_POWDER, "east": SCAR_BROKEN_BRIDGE}, enemies=(QUARRY_SKITTER.key,), tags=("dungeon",)),
     _room(SCAR_POWDER, "Powder Store", SCAR_REGION_KEY, "The blasting powder is long gone. Empty waxed barrels remain, along with warning plaques so thoroughly bureaucratic they survived looting.", {"south": SCAR_LOWER_CUT, "east": SCAR_FOREMAN}, enemies=(STONEBORER.key,), tags=("dungeon", "side_room")),
@@ -469,7 +469,7 @@ def _merge(existing: RoomAugmentation | None, extra: RoomAugmentation) -> RoomAu
 def adventure_augmentations() -> dict[str, RoomAugmentation]:
     return {
         WAYMEET_BROKEN_MILE_KEY: RoomAugmentation(extra_exits=(ExitDefinition("south", OLD_TOLL_ROAD, "Old Toll Road", "You follow the older road south toward a roofless tollhouse.", ViewCondition(min_level=2)),)),
-        WAYMEET_BRIARCUT_KEY: RoomAugmentation(extra_exits=(ExitDefinition("east", BRIARWOOD_EDGE, "Briarwood Track", "You take the narrow east track beneath the briars.", ViewCondition(min_level=3)),)),
+        WAYMEET_BRIARCUT_KEY: RoomAugmentation(extra_exits=(ExitDefinition("north", BRIARWOOD_EDGE, "Briarwood Track", "You take the narrow north track beneath the briars.", ViewCondition(min_level=3)),)),
         WAYMEET_QUARRY_KEY: RoomAugmentation(extra_exits=(ExitDefinition("north", KINGS_SCAR_APPROACH, "King's Scar Track", "You follow old quarry stakes toward the larger cut in the hills.", ViewCondition(min_level=5)),)),
         WAYMEET_HIGH_ROAD_KEY: RoomAugmentation(extra_exits=(ExitDefinition("east", ECHO_RIDGE, "Echo Ridge", "You climb a bare side ridge where the wind returns footsteps strangely.", ViewCondition(min_level=2)),)),
         OLD_TOLL_ROAD: RoomAugmentation(
@@ -481,7 +481,7 @@ def adventure_augmentations() -> dict[str, RoomAugmentation]:
             features=(_feature("crooked_bell_sound", "Crooked Bell", "one dull bell-note arriving at the wrong interval", "The bell is north. This dungeon rewards LISTEN before PULL.", ("bell", "sound", "chapel")),),
         ),
         KINGS_SCAR_APPROACH: RoomAugmentation(
-            extra_exits=(ExitDefinition("east", SCAR_GATE, "King's Scar Quarry", "You pass the survey flags into the abandoned quarry.", ViewCondition(min_level=5)),),
+            extra_exits=(ExitDefinition("north", SCAR_GATE, "King's Scar Quarry", "You pass the survey flags north into the abandoned quarry.", ViewCondition(min_level=5)),),
             features=(_feature("scar_survey_flags", "Survey Flags", "fresh Dwarven flags marking the safer quarry line", "The flags repeatedly mark the old lift house. TALK CALDRIN before committing to the deeper cut.", ("flags", "survey", "quarry")),),
         ),
         ECHO_RIDGE: RoomAugmentation(
