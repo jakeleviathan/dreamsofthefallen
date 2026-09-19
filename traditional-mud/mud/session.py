@@ -1334,6 +1334,7 @@ class PlayerSession:
             used = True
         elif ability.key == "guardian_ward":
             self.ward_until = asyncio.get_running_loop().time() + 10.0
+            self._ward_effect_name = "Guardian Ward"
             await self.send("A protective ward settles around you, softening incoming blows.\r\n")
             used = True
         elif ability.key == "raise_skeleton":
