@@ -94,11 +94,30 @@ UNDEAD_CHISEL_MERCHANT = MerchantDefinition(
     ),
 )
 
+# Human district storefronts already have authored stock and proprietors. Mirror
+# that stock into the universal merchant registry so their SHOP displays are
+# transactional rather than decorative.
+HUMAN_DISTRICT_MERCHANTS: tuple[MerchantDefinition, ...] = (
+    MerchantDefinition("human_edda_vane", additional_stock=(
+        MerchantStockEntry("spring_water"), MerchantStockEntry("grain_alcohol"), MerchantStockEntry("bone_chips"), MerchantStockEntry("greenleaf"),
+    )),
+    MerchantDefinition("human_mirel_quill", additional_stock=(
+        MerchantStockEntry("greenleaf"), MerchantStockEntry("bitterroot"), MerchantStockEntry("lavender_blossom"), MerchantStockEntry("spring_water"), MerchantStockEntry("lavender_essential_oil"),
+    )),
+    MerchantDefinition("human_dain_rusk", additional_stock=(
+        MerchantStockEntry("starter_weapon"), MerchantStockEntry("iron_dagger"), MerchantStockEntry("iron_sword"), MerchantStockEntry("bone_chips"),
+    )),
+    MerchantDefinition("human_nessa_pike", additional_stock=(
+        MerchantStockEntry("iron_ore"), MerchantStockEntry("coal"), MerchantStockEntry("raw_cotton"), MerchantStockEntry("bone_chips"),
+    )),
+)
+
 MERCHANTS: tuple[MerchantDefinition, ...] = (
     ASHEN_WAY_CURIO_PEDDLER_MERCHANT,
     WAYMEET_VEKK_MERCHANT,
     WAYMEET_SEVRA_MERCHANT,
     GOBLIN_BRASSGUT_MERCHANT,
     UNDEAD_CHISEL_MERCHANT,
+    *HUMAN_DISTRICT_MERCHANTS,
 )
 MERCHANTS_BY_NPC_KEY = {merchant.npc_key: merchant for merchant in MERCHANTS}
