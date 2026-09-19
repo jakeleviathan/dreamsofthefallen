@@ -124,7 +124,7 @@ class ForestElfReadingForestTests(unittest.TestCase):
 
             database.set_character_room(session.character.id, WHITEWOOD_LOOKOUT_KEY)
             session.refresh()
-            self.assertTrue(asyncio.run(_handle_lookout(session, "talk serael")))
+            self.assertTrue(asyncio.run(_handle_lookout(session, "talk serael reedwatch")))
             self.assertIn("what did you hear", session.text().lower())
             self.assertEqual(database.item_quantity(session.character.id, RIVER_MOSS_BUNDLE_KEY), 0)
 
