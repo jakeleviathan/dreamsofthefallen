@@ -398,7 +398,11 @@ def _context_actions(session, world, room: dict | None) -> dict:
         for enemy_key in scene.enemy_keys[:1]:
             enemy = combat.ENEMIES_BY_KEY.get(enemy_key)
             if enemy is not None and getattr(session, "active_enemy", None) is None:
-                actions.append({"label": f"Attack {enemy.name}", "command": f"ATTACK {enemy.name}", "kind": "combat"})
+                selected = getattr(session, "selected_enemy", None)
+                if selected is not None and selected.definition.key == enemy.key:
+                    actions.append({"label": f"Attack {enemy.name}", "command": "ATTACK", "kind": "combat"})
+                else:
+                    actions.append({"label": f"Target {enemy.name}", "command": f"TARGET {enemy.name}", "kind": "target"})
 
     for feature in room.get("features", [])[:2]:
         action = _feature_action(feature)
