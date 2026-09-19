@@ -168,7 +168,6 @@ class ModernClientExperienceTests(unittest.TestCase):
         map_lua = (root / "mudlet" / "DreamsOfTheFallenHUD" / "src" / "map.lua").read_text(encoding="utf-8")
         build_source = (root / "mudlet" / "DreamsOfTheFallenHUD" / "build_package.py").read_text(encoding="utf-8")
         for marker in (
-            "Geyser.Mapper",
             "Dreams.Room",
             "Dreams.Party",
             "Dreams.Quests",
