@@ -1493,15 +1493,30 @@ class PersistenceTests(unittest.TestCase):
             self.assertTrue(bloom.depleted)
 
             spun = craft_recipe(
-                db, character.id, "spin_astralweave_thread", station_key="loom"
+                db,
+                character.id,
+                "spin_astralweave_thread",
+                station_key="loom",
+                success_roll=0.0,
+                skillup_roll=1.0,
             )
             self.assertTrue(spun.success)
             woven = craft_recipe(
-                db, character.id, "weave_astralweave_cloth", station_key="loom"
+                db,
+                character.id,
+                "weave_astralweave_cloth",
+                station_key="loom",
+                success_roll=0.0,
+                skillup_roll=1.0,
             )
             self.assertTrue(woven.success)
             hood = craft_recipe(
-                db, character.id, "sew_astralweave_hood", station_key="loom"
+                db,
+                character.id,
+                "sew_astralweave_hood",
+                station_key="loom",
+                success_roll=0.0,
+                skillup_roll=1.0,
             )
             self.assertTrue(hood.success)
             self.assertEqual(db.item_quantity(character.id, "astralweave_hood"), 1)
