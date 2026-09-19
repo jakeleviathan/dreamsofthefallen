@@ -28,7 +28,6 @@ from mud.waymeet_frontier import (
     WAYMEET_QUARRY_QUEST_KEY,
     WAYMEET_ROOM_KEYS,
     WAYMEET_ROOMS,
-    "__obsolete_waymeet_scrip__",
     _buy_market,
     _ensure_intro,
     _inspect_collapse,
@@ -151,7 +150,7 @@ class WaymeetFrontierTests(unittest.TestCase):
         finally:
             tempdir.cleanup()
 
-    def test_market_turns_local_contract_scrip_into_useful_economy_inputs(self):
+    def test_market_turns_contract_sols_into_useful_economy_inputs(self):
         tempdir, database, session = self._session()
         try:
             session.move_to(WAYMEET_LANTERN_MARKET_KEY)
