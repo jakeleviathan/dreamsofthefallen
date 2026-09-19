@@ -364,7 +364,7 @@ def _resolve_boutique_item(session, target: str, *, fragrance_only: bool | None 
     if fragrance_only is not True:
         keys.extend(meta.item_key for meta in STYLE_META if meta.price_sparks > 0)
     if fragrance_only is not False:
-        keys.extend(item.item_key for item in FRAGRANCES)
+        keys.extend(item.item_key for item in FRAGRANCES if item.price_sparks > 0)
     if session.character.current_room == WAYMEET_LANTERN_MARKET_KEY:
         keys = [key for key in keys if key in WAYMEET_STYLE_KEYS]
     exact = [key for key in keys if wanted in {_normalize(key), _normalize(_item_name(key))}]
@@ -480,7 +480,7 @@ async def _show_boutique(session) -> None:
         await session.send("There is no fashion counter here. Veyra Brassmarket has the full boutique; Waymeet Lantern Market carries a smaller traveling trunk.\r\n")
         return
     await session.send("\r\n--- Astralis Style Counter ---\r\n")
-    keys = [meta.item_key for meta in STYLE_META if meta.price_sparks > 0] + [item.item_key for item in FRAGRANCES]
+    keys = [meta.item_key for meta in STYLE_META if meta.price_sparks > 0] + [item.item_key for item in FRAGRANCES if item.price_sparks > 0]
     if session.character.current_room == WAYMEET_LANTERN_MARKET_KEY:
         keys = [key for key in keys if key in WAYMEET_STYLE_KEYS]
     for key in keys:
@@ -591,11 +591,11 @@ async def _show_fragrances(session) -> None:
         if key in FRAGRANCE_BY_KEY:
             owned.append((key, int(row["quantity"])))
     if not owned:
-        await session.send("No bottles currently carried. Boutiques in Veyra and Waymeet sell fragrance.\r\n")
+        await session.send("No bottles currently carried. Boutiques in Veyra and Waymeet sell select fragrances, and Alchemists can craft perfumes.\r\n")
     for key, quantity in owned:
         scent = FRAGRANCE_BY_KEY[key]
         await session.send(f"{quantity}x {scent.house} — {_item_name(key)} [{scent.rarity.upper()}] — {', '.join(scent.notes)} — +{scent.xp_bonus_percent}% XP / {scent.duration_seconds // 60} min\r\n")
-    await session.send("APPLY FRAGRANCE <name> consumes one bottle and starts its real-time effect. SCENT shows the current fragrance.\r\n")
+    await session.send("APPLY FRAGRANCE <name>, APPLY PERFUME <name>, or SPRAY <name> consumes one bottle and starts its real-time XP effect. SCENT shows the current fragrance.\r\n")
 
 
 async def _apply_fragrance(session, target: str) -> None:
@@ -946,6 +946,8 @@ def install_style_collectibles_runtime(player_session_class, world_service=None)
             await _show_fragrances(self); return
         if normalized.startswith("apply fragrance "):
             await _apply_fragrance(self, stripped[len("apply fragrance "):]); return
+        if normalized.startswith("apply perfume "):
+            await _apply_fragrance(self, stripped[len("apply perfume "):]); return
         if normalized.startswith("spray "):
             await _apply_fragrance(self, stripped[len("spray "):]); return
         if normalized.startswith("apply "):

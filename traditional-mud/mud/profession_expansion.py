@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import mud.crafting as crafting
 import mud.economy_loop as economy
 import mud.profession_workshops as workshops
+import mud.style_collectibles as style
 from mud.crafting import ConsumableEffect, ItemDefinition, ResourceNodeDefinition
 from mud.gear import CraftingRecipe, MaterialRequirement
 from mud.stats import CharacterStats, EquipmentItem
@@ -31,12 +32,38 @@ PROFESSION_BANDS: tuple[ProfessionBand, ...] = (
     ProfessionBand("astralite", "Astralite", 175, 8, "astralite_ore"),
 )
 
+# Perfumery is an Alchemy specialization with deliberately simple power rules:
+# one real-time fragrance effect at a time, character XP only, never tradeskill XP.
+# Higher tiers improve both strength and duration; applying another perfume replaces
+# the current scent instead of stacking with it.
+PERFUME_TIER_EFFECTS: dict[int, tuple[int, int]] = {
+    1: (5, 20 * 60),
+    2: (7, 25 * 60),
+    3: (10, 30 * 60),
+    4: (12, 35 * 60),
+    5: (15, 40 * 60),
+    6: (18, 45 * 60),
+    7: (21, 50 * 60),
+    8: (25, 60 * 60),
+}
+
+PERFUME_FORMULAS: tuple[tuple[str, str, tuple[str, str]], ...] = (
+    ("first_rain", "First Rain", ("rain air", "clean herbs")),
+    ("velvet_road", "Velvet Road", ("warm spice", "dark resin")),
+    ("quiet_lantern", "Quiet Lantern", ("lavender", "soft smoke")),
+    ("glass_orchard", "Glass Orchard", ("cool water", "mineral fruit")),
+    ("night_market", "Night Market", ("green tincture", "soft amber")),
+)
+
 SECRET_RECIPE_FLAGS = {
     "secret_fallen_star_greatblade": "recipe_secret_fallen_star_greatblade",
     "secret_astral_dreamcloak": "recipe_secret_astral_dreamcloak",
     "secret_one_breath_elixir": "recipe_secret_one_breath_elixir",
     "secret_last_door_focus": "recipe_secret_last_door_focus",
     "secret_seven_roads_feast": "recipe_secret_seven_roads_feast",
+    "secret_perfume_fallen_star_no7": "recipe_secret_perfume_fallen_star_no7",
+    "secret_perfume_queens_funeral": "recipe_secret_perfume_queens_funeral",
+    "secret_perfume_brassgut_nocturne": "recipe_secret_perfume_brassgut_nocturne",
 }
 
 
@@ -717,6 +744,203 @@ def _enchanting_expansion() -> tuple[tuple[ItemDefinition, ...], tuple[CraftingR
     return tuple(items), tuple(recipes)
 
 
+def _perfumery_expansion() -> tuple[
+    tuple[ItemDefinition, ...],
+    tuple[CraftingRecipe, ...],
+    tuple[style.FragranceDefinition, ...],
+]:
+    """Build the Alchemy perfumery ladder and its finished XP fragrances."""
+
+    items: list[ItemDefinition] = []
+    recipes: list[CraftingRecipe] = []
+    fragrances: list[style.FragranceDefinition] = []
+
+    rarity_by_tier = {
+        1: "common",
+        2: "uncommon",
+        3: "uncommon",
+        4: "rare",
+        5: "rare",
+        6: "rare",
+        7: "epic",
+        8: "epic",
+    }
+    fixatives = (
+        "lavender_essential_oil",
+        "greenleaf_tincture",
+        "spring_water",
+        "arcane_residue",
+        None,
+    )
+
+    for band, ingredient in zip(PROFESSION_BANDS, PANTRY_INGREDIENTS):
+        xp_bonus, duration_seconds = PERFUME_TIER_EFFECTS[band.tier]
+        concentrate_key = f"perfume_{band.key}_concentrate"
+        concentrate_name = f"{band.name} Perfume Concentrate"
+        items.append(
+            ItemDefinition(
+                concentrate_key,
+                concentrate_name,
+                f"A concentrated aromatic base distilled for tier {band.tier} perfumery. "
+                "It is intentionally too strong to wear until diluted and fixed into a finished perfume.",
+                "alchemy_material",
+                tier=band.tier,
+            )
+        )
+        recipes.append(
+            CraftingRecipe(
+                f"distill_{band.key}_perfume_concentrate",
+                "alchemy",
+                concentrate_key,
+                band.trivial + 2,
+                band.trivial + 27,
+                (
+                    MaterialRequirement(f"profexp_{band.key}_catalyst", 1),
+                    MaterialRequirement(ingredient.key, 2),
+                    MaterialRequirement("grain_alcohol", 1),
+                ),
+                station_key="perfumer_bench",
+                description=f"Distill {ingredient.name} through a {band.name} Catalyst into a stable aromatic concentrate.",
+                design_status="perfumery_concentrate",
+            )
+        )
+
+        for index, ((slug, label, supporting_notes), fixative) in enumerate(
+            zip(PERFUME_FORMULAS, fixatives),
+            start=1,
+        ):
+            item_key = f"perfume_{band.key}_{slug}"
+            item_name = f"{band.name} {label}"
+            notes = (ingredient.name.lower(), *supporting_notes)
+            bottle = (
+                f"a tier {band.tier} artisan bottle marked with a narrow {band.name.lower()} band "
+                "and a hand-written batch number"
+            )
+            items.append(
+                ItemDefinition(
+                    item_key,
+                    item_name,
+                    f"An Alchemist-crafted perfume of {', '.join(notes)}. "
+                    f"When applied, it grants +{xp_bonus}% character XP for {duration_seconds // 60} real minutes.",
+                    "fragrance",
+                    tier=band.tier,
+                )
+            )
+            fragrances.append(
+                style.FragranceDefinition(
+                    item_key,
+                    "Astralis Perfumers' Guild",
+                    rarity_by_tier[band.tier],
+                    notes,
+                    bottle,
+                    duration_seconds,
+                    xp_bonus,
+                    0,
+                )
+            )
+
+            materials = [
+                MaterialRequirement(concentrate_key, 1),
+                MaterialRequirement("grain_alcohol", 1),
+            ]
+            if fixative is None:
+                materials.append(MaterialRequirement(ingredient.key, 1))
+            else:
+                materials.append(MaterialRequirement(fixative, 1))
+            recipes.append(
+                CraftingRecipe(
+                    f"blend_perfume_{band.key}_{slug}",
+                    "alchemy",
+                    item_key,
+                    band.trivial + 4 + index * 2,
+                    band.trivial + 34 + index * 2,
+                    tuple(materials),
+                    station_key="perfumer_bench",
+                    description=f"Blend {item_name} from {concentrate_name}, then dilute and fix the scent for safe wear.",
+                    design_status="perfumery_formula",
+                )
+            )
+
+    secret_specs = (
+        (
+            "perfume_fallen_star_no7",
+            "Fallen Star No. 7",
+            ("cold iron", "night air", "violet smoke"),
+            "secret_perfume_fallen_star_no7",
+            (
+                MaterialRequirement("perfume_astralite_concentrate", 1),
+                MaterialRequirement("stariron_ore", 1),
+                MaterialRequirement("lavender_essential_oil", 1),
+                MaterialRequirement("grain_alcohol", 1),
+            ),
+        ),
+        (
+            "perfume_queens_funeral",
+            "Queen's Funeral",
+            ("grave sage", "white flowers", "quiet incense"),
+            "secret_perfume_queens_funeral",
+            (
+                MaterialRequirement("perfume_astralite_concentrate", 1),
+                MaterialRequirement("grave_sage", 1),
+                MaterialRequirement("greenleaf_tincture", 1),
+                MaterialRequirement("grain_alcohol", 1),
+            ),
+        ),
+        (
+            "perfume_brassgut_nocturne",
+            "Brassgut Nocturne",
+            ("brasscap", "burnt sugar", "warm machinery"),
+            "secret_perfume_brassgut_nocturne",
+            (
+                MaterialRequirement("perfume_astralite_concentrate", 1),
+                MaterialRequirement("brasscap_mushroom", 1),
+                MaterialRequirement("arcane_residue", 1),
+                MaterialRequirement("grain_alcohol", 1),
+            ),
+        ),
+    )
+    max_bonus, max_duration = PERFUME_TIER_EFFECTS[8]
+    for offset, (item_key, item_name, notes, recipe_key, materials) in enumerate(secret_specs):
+        items.append(
+            ItemDefinition(
+                item_key,
+                item_name,
+                f"A secret master-perfumer formula of {', '.join(notes)}. "
+                f"It grants +{max_bonus}% character XP for {max_duration // 60} real minutes.",
+                "fragrance",
+                tier=8,
+            )
+        )
+        fragrances.append(
+            style.FragranceDefinition(
+                item_key,
+                "Unattributed Formula",
+                "epic",
+                notes,
+                "an unmarked master-perfumer bottle with no commercial seal",
+                max_duration,
+                max_bonus,
+                0,
+            )
+        )
+        recipes.append(
+            CraftingRecipe(
+                recipe_key,
+                "alchemy",
+                item_key,
+                190 + offset * 2,
+                225 + offset * 2,
+                materials,
+                station_key="perfumer_bench",
+                description=f"Blend the hidden master formula for {item_name}. Its effect matches top-tier perfume; its distinction is discovery and craft identity.",
+                design_status="perfumery_secret_recipe",
+                discovery_flag=SECRET_RECIPE_FLAGS[recipe_key],
+            )
+        )
+
+    return tuple(items), tuple(recipes), tuple(fragrances)
+
+
 def _secret_content() -> tuple[tuple[ItemDefinition, ...], tuple[CraftingRecipe, ...]]:
     items = (
         _equipment(
@@ -867,6 +1091,22 @@ def _register_items(items: tuple[ItemDefinition, ...]) -> None:
     crafting.ITEMS_BY_KEY.update({item.key: item for item in additions})
 
 
+def _register_fragrances(
+    items: tuple[ItemDefinition, ...],
+    fragrances: tuple[style.FragranceDefinition, ...],
+) -> None:
+    known_item_keys = {item.key for item in style.FRAGRANCE_ITEMS}
+    item_additions = tuple(item for item in items if item.category == "fragrance" and item.key not in known_item_keys)
+    if item_additions:
+        style.FRAGRANCE_ITEMS = style.FRAGRANCE_ITEMS + item_additions
+
+    known_fragrances = set(style.FRAGRANCE_BY_KEY)
+    additions = tuple(fragrance for fragrance in fragrances if fragrance.item_key not in known_fragrances)
+    if additions:
+        style.FRAGRANCES = style.FRAGRANCES + additions
+        style.FRAGRANCE_BY_KEY.update({fragrance.item_key: fragrance for fragrance in additions})
+
+
 def _register_nodes(nodes: tuple[ResourceNodeDefinition, ...]) -> None:
     additions = tuple(node for node in nodes if node.key not in crafting.RESOURCE_NODES_BY_KEY)
     if not additions:
@@ -912,16 +1152,20 @@ def _install_world_access() -> None:
         if ingredient.node_key not in current:
             economy.ROOM_RESOURCE_NODE_KEYS[ingredient.room_key] = current + (ingredient.node_key,)
 
+    economy.STATION_LABELS.setdefault("perfumer_bench", "Perfumer's Bench")
+
     station_additions = {
-        "waymeet_hammer_thread_row": ("forge", "loom", "enchanting_table"),
+        "waymeet_hammer_thread_row": ("forge", "loom", "enchanting_table", "perfumer_bench"),
         "waymeet_commonhouse_yard": ("cookfire",),
         "veyra_hammer_hall": ("forge", "enchanting_table"),
         "veyra_loom_hall": ("loom",),
-        "veyra_greenhall": ("mortar_and_pestle", "alchemy_table"),
+        "veyra_greenhall": ("mortar_and_pestle", "alchemy_table", "perfumer_bench"),
         "veyra_scholars_rise": ("enchanting_table", "alchemy_table"),
         "veyra_public_hearth": ("cookfire",),
         "sablewater_reed_farms": ("cookfire",),
-        "greywake_lantern_hospice": ("mortar_and_pestle", "alchemy_table", "cookfire"),
+        "greywake_lantern_hospice": ("mortar_and_pestle", "alchemy_table", "perfumer_bench", "cookfire"),
+        "forest_elf_hearthwalk": ("perfumer_bench",),
+        "goblin_apothecary_blind": ("perfumer_bench",),
     }
     for room_key, station_keys in station_additions.items():
         current = economy.ROOM_STATIONS.get(room_key, ())
@@ -959,6 +1203,21 @@ def validate_profession_expansion() -> dict[str, int]:
     thin = {key: count for key, count in counts.items() if count < 80}
     if thin:
         raise RuntimeError(f"Every crafting profession must have at least 80 recipes: {thin}")
+
+    perfume_recipes = [
+        recipe for recipe in crafting.ALL_RECIPES
+        if recipe.trade_skill_key == "alchemy" and recipe.design_status.startswith("perfumery_")
+    ]
+    if len(perfume_recipes) < 51:
+        raise RuntimeError(f"Perfumery must expose at least 51 Alchemy recipes, found {len(perfume_recipes)}")
+    missing_fragrance_definitions = sorted(
+        recipe.output_item_key
+        for recipe in perfume_recipes
+        if recipe.design_status != "perfumery_concentrate"
+        and recipe.output_item_key not in style.FRAGRANCE_BY_KEY
+    )
+    if missing_fragrance_definitions:
+        raise RuntimeError(f"Perfumery outputs are missing fragrance behavior: {missing_fragrance_definitions}")
     return counts
 
 
@@ -974,6 +1233,7 @@ def install_profession_expansion_content() -> dict[str, int]:
     pantry_items, pantry_nodes = _pantry_content()
     cooking_items, cooking_recipes = _cooking_expansion()
     enchanting_items, enchanting_recipes = _enchanting_expansion()
+    perfume_items, perfume_recipes, perfume_fragrances = _perfumery_expansion()
     secret_items, secret_recipes = _secret_content()
 
     all_items = (
@@ -983,6 +1243,7 @@ def install_profession_expansion_content() -> dict[str, int]:
         + pantry_items
         + cooking_items
         + enchanting_items
+        + perfume_items
         + secret_items
     )
     all_recipes = (
@@ -991,10 +1252,12 @@ def install_profession_expansion_content() -> dict[str, int]:
         + alchemy_recipes
         + cooking_recipes
         + enchanting_recipes
+        + perfume_recipes
         + secret_recipes
     )
 
     _register_items(all_items)
+    _register_fragrances(perfume_items, perfume_fragrances)
     _register_nodes(pantry_nodes)
     _register_recipes(all_recipes)
     _install_world_access()
@@ -1088,6 +1351,40 @@ async def _show_potions(session) -> None:
     await session.send("\r\nUse DRINK <name>.\r\n")
 
 
+async def _show_perfumery(session) -> None:
+    recipes = [
+        recipe
+        for recipe in crafting.ALL_RECIPES
+        if recipe.trade_skill_key == "alchemy"
+        and recipe.design_status.startswith("perfumery_")
+        and economy._recipe_visible(session, recipe)
+    ]
+    recipes.sort(key=lambda recipe: (recipe.trivial_skill, economy._recipe_output_name(recipe).lower()))
+
+    await session.send("\r\n=== PERFUMERY — ALCHEMY SPECIALIZATION ===\r\n")
+    await session.send(
+        "Perfumes are wearable XP consumables: one scent can be active at a time, "
+        "a new application replaces the old one, and bonuses affect character XP only — never tradeskill XP.\r\n"
+    )
+
+    current_tier = None
+    for recipe in recipes:
+        output = crafting.ITEMS_BY_KEY[recipe.output_item_key]
+        tier = max(1, output.tier)
+        if tier != current_tier:
+            current_tier = tier
+            bonus, seconds = PERFUME_TIER_EFFECTS[tier]
+            await session.send(
+                f"\r\nTier {tier} — +{bonus}% character XP for {seconds // 60} real minutes\r\n"
+            )
+        await session.send(economy._recipe_line(session, recipe))
+
+    await session.send(
+        "\r\nUse RECIPE <name> for ingredients, CRAFT <name> at a Perfumer's Bench, "
+        "PERFUMES to list carried bottles, and APPLY PERFUME <name> or SPRAY <name> to use one.\r\n"
+    )
+
+
 async def _show_recipe_summary(session) -> None:
     visible = [
         recipe
@@ -1134,6 +1431,21 @@ _SECRET_DISCOVERIES = {
         SECRET_RECIPE_FLAGS["secret_seven_roads_feast"],
         "secret_seven_roads_feast",
         "Tiny ingredient marks scratched into eight hearth tiles form an old cook's mnemonic for balancing foods gathered from distant roads.",
+    ),
+    ("greywake_riftfield", "examine fallen star"): (
+        SECRET_RECIPE_FLAGS["secret_perfume_fallen_star_no7"],
+        "secret_perfume_fallen_star_no7",
+        "A sharp metallic scent rises from a glassy stone seam. Scratched measurements beside it describe a seven-stage cold infusion rather than a mining assay.",
+    ),
+    ("gravewatch_chapel_nave", "examine funerary incense"): (
+        SECRET_RECIPE_FLAGS["secret_perfume_queens_funeral"],
+        "secret_perfume_queens_funeral",
+        "The old incense formula is written as a memorial prayer, but the repeated quantities resolve into a complete perfume accord when read as an alchemist's ratio.",
+    ),
+    ("goblin_apothecary_blind", "examine perfume ledger"): (
+        SECRET_RECIPE_FLAGS["secret_perfume_brassgut_nocturne"],
+        "secret_perfume_brassgut_nocturne",
+        "A grease-stained ledger hides an unsigned night-market perfume formula between ordinary salvage invoices. The measurements are precise enough to reproduce.",
     ),
 }
 
@@ -1206,6 +1518,9 @@ def install_profession_expansion_runtime(player_session_class) -> None:
 
         if normalized in {"potions", "elixirs", "alchemy drinks"}:
             await _show_potions(self)
+            return
+        if normalized in {"perfumery", "perfume recipes", "perfumes recipes", "recipes perfume", "recipes perfumes", "recipes perfumery"}:
+            await _show_perfumery(self)
             return
         if normalized == "drink":
             await self.send("Use DRINK <potion or elixir>. Type POTIONS to see what you are carrying.\r\n")
