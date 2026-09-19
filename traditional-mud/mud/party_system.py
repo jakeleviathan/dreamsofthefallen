@@ -5,6 +5,7 @@ import random
 from dataclasses import dataclass, field, replace
 
 from mud.combat import EnemyState
+from mud.casting import interrupt_cast
 from mud.social_experience import _ACTIVE_SESSIONS
 
 
@@ -547,6 +548,8 @@ async def _party_combat_loop(session, enemy: EnemyState) -> None:
                     await target.send(
                         f"\r\n{enemy.definition.name} hits you for {damage} damage ({target.combatant.current_hp}/{target.combatant.max_hp} HP).\r\n"
                     )
+                    if damage > 0:
+                        await interrupt_cast(target, "damage")
                     await _send_party(
                         encounter.party,
                         f"[Party Combat] {enemy.definition.name} hits {target.character.name} for {damage} ({target.combatant.current_hp}/{target.combatant.max_hp}).\r\n",
