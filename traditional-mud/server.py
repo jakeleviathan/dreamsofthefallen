@@ -89,6 +89,8 @@ from mud.modern_client_experience import install_modern_client_runtime
 from mud.production_hardening import install_production_hardening_runtime, install_production_server_runtime
 from mud.production_operator import install_production_operator_runtime
 from mud.room_presentation import install_room_presentation_runtime
+from mud.npc_name_audit import validate_unique_npc_names
+import mud.npcs as mobile_npcs
 from mud.casting import install_casting_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
@@ -248,6 +250,13 @@ apply_living_world_event_variety(PlayerSession)
 # help/GMCP presentation. Its entrances remain contextual and undisclosed: there
 # is intentionally no seven-plane checklist for players to complete.
 install_planar_realms_runtime(PlayerSession, WORLD)
+
+# NPC names are part of the player-facing command namespace: TALK commonly accepts
+# a given name, and two authored people sharing one makes rooms and quests
+# needlessly ambiguous. Validate the final assembled static + mobile population
+# after all content installers have run. A future duplicate proper name now fails
+# production startup and CI instead of reaching players.
+_NPC_NAME_RECORD_COUNT = validate_unique_npc_names(__import__("mud.world", fromlist=["*"]), mobile_npcs)
 
 # Replace any surviving development-era item labels only after every item-producing
 # content installer has run. Stable item keys remain untouched, so old characters,
