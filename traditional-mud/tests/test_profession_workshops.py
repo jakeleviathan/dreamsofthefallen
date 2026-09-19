@@ -99,7 +99,7 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "Trail Flatbread" in cooking
     assert "MEALS & PROVISIONS" in cooking
 
-    # Cooking actually crafts and advances its skill.
+    # Starter Cooking is already trivial at skill 0: it crafts reliably without a free skill point.
     db.add_item(character.id, "field_grain", 2)
     db.add_item(character.id, "spring_water", 1)
     result = crafting.craft_recipe(
@@ -107,9 +107,9 @@ with tempfile.TemporaryDirectory() as tmp:
     )
     assert result.success, result.message
     assert db.item_quantity(character.id, "trail_flatbread") == 1
-    assert db.get_trade_skill_progress(character.id, "cooking")["skill_xp"] == 1
+    assert db.get_trade_skill_progress(character.id, "cooking")["skill_xp"] == 0
 
-    # Enchanting actually crafts and advances its skill.
+    # Starter Enchanting follows the same trivial-recipe rule.
     db.add_item(character.id, "iron_dagger", 1)
     db.add_item(character.id, "arcane_residue", 1)
     db.add_item(character.id, "lavender_essential_oil", 1)
@@ -118,7 +118,7 @@ with tempfile.TemporaryDirectory() as tmp:
     )
     assert result.success, result.message
     assert db.item_quantity(character.id, "runed_iron_dagger") == 1
-    assert db.get_trade_skill_progress(character.id, "enchanting")["skill_xp"] == 1
+    assert db.get_trade_skill_progress(character.id, "enchanting")["skill_xp"] == 0
 
     # Prepared food is not decorative inventory: EAT consumes it, heals, and
     # applies its authored temporary nourishment bonus.
