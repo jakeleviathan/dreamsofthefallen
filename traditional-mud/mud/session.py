@@ -301,6 +301,12 @@ class PlayerSession:
         self.character: CharacterRecord | None = None
         self.combatant: CombatantState | None = None
         self.active_enemy: EnemyState | None = None
+        # TARGET can select an enemy before combat begins. active_enemy remains
+        # the actual encounter opponent so older combat systems do not mistake
+        # passive selection for an engaged fight.
+        self.selected_enemy: EnemyState | None = None
+        self.selected_mobile_npc_key: str | None = None
+        self.selected_enemy_room_key: str | None = None
         self.active_mobile_npc_key: str | None = None
         self.combat_task: asyncio.Task | None = None
         self.ward_until: float = 0.0
@@ -350,7 +356,7 @@ class PlayerSession:
         if self.character is None or self.combatant is None or not self.telnet.gmcp_enabled:
             return
 
-        target = self.active_enemy
+        target = self.active_enemy or getattr(self, "selected_enemy", None)
         vitals = {
             "hp": self.combatant.current_hp,
             "maxhp": self.combatant.max_hp,
@@ -399,6 +405,7 @@ class PlayerSession:
             "hp": target.current_hp if target is not None else 0,
             "max_hp": target.definition.max_hp if target is not None else 0,
             "active": target is not None,
+            "engaged": self.active_enemy is not None,
         })
 
     async def run(self) -> None:
@@ -1379,7 +1386,7 @@ class PlayerSession:
         if verb in {"help", "?"}:
             await self.send(
                 "Commands: LOOK, EXITS, NORTH/SOUTH/EAST/WEST, SCORE, STATS, HEALTH, LORE, SKILLS, ABILITIES, ABILITIES ALL, "
-                "ATTACK/KILL <target>, USE/CAST <ability>, FLEE, BIND, ACCESS, INVENTORY, READ, QUESTS, TALK, "
+                "TARGET <enemy>, CLEAR TARGET, ATTACK/KILL <target>, USE/CAST <ability>, FLEE, BIND, ACCESS, INVENTORY, READ, QUESTS, TALK, "
                 "EXAMINE, TOUCH, LISTEN, "
                 "TRADES, PROFESSIONS, RECIPES, CRAFT, PERFUMERY, FOOD, EAT, POTIONS, DRINK, PERFUMES, SPRAY, MINE, HARVEST, HERBALISM, SOLS, SHOP, BUY, SELL, VALUE, MENU, QUIT\r\n"
                 "Mining is node-based; actual nodes will be placed into rooms when the room world is authored. "
@@ -1711,7 +1718,7 @@ class PlayerSession:
             if self.combatant is None:
                 await self.send("Combat state is not initialized.\r\n")
             else:
-                target = self.active_enemy
+                target = self.active_enemy or getattr(self, "selected_enemy", None)
                 await self.send(
                     f"HP: {self.combatant.current_hp}/{self.combatant.max_hp}  Mana: {self.combatant.current_mana}/{self.combatant.max_mana}  Movement: {self.combatant.current_movement}/{self.combatant.max_movement}\r\n"
                 )

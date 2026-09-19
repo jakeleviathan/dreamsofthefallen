@@ -200,7 +200,7 @@ def _parse_target_command(command: str) -> tuple[str, str, str] | None:
             target = stripped[len(prefix):].strip()
             return "talk", target, "npc"
 
-    for prefix in ("attack ", "kill "):
+    for prefix in ("target ", "attack ", "kill "):
         if normalized.startswith(prefix):
             target = stripped[len(prefix):].strip()
             return prefix.strip(), target, "enemy"
