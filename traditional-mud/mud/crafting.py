@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import random
 from typing import TYPE_CHECKING
 
 from mud.gear import CraftingRecipe, MaterialRequirement
@@ -1058,6 +1059,60 @@ ALL_RECIPES = BLACKSMITHING_RECIPES + TAILORING_RECIPES + ALCHEMY_RECIPES
 RECIPES_BY_KEY = {recipe.key: recipe for recipe in ALL_RECIPES}
 
 
+MAX_CRAFT_DIFFICULTY_GAP = 50
+
+
+def craft_success_chance(skill_value: int, trivial_skill: int) -> float:
+    """Return the success chance for a completed crafting attempt.
+
+    Once the crafter reaches the recipe trivial value the craft is guaranteed.
+    Recipes more than 50 skill above the crafter are rejected before this roll.
+    """
+
+    gap = trivial_skill - skill_value
+    if gap <= 0:
+        return 1.0
+    if gap <= 5:
+        return 0.95
+    if gap <= 10:
+        return 0.85
+    if gap <= 20:
+        return 0.70
+    if gap <= 30:
+        return 0.50
+    if gap <= 40:
+        return 0.30
+    if gap <= MAX_CRAFT_DIFFICULTY_GAP:
+        return 0.15
+    return 0.0
+
+
+def craft_skillup_chance(skill_value: int, trivial_skill: int) -> float:
+    """Chance that one completed attempt raises the relevant trade skill by 1."""
+
+    gap = trivial_skill - skill_value
+    if gap <= 0:
+        return 0.0
+    if gap <= 5:
+        return 0.06
+    if gap <= 10:
+        return 0.12
+    if gap <= 20:
+        return 0.20
+    if gap <= 30:
+        return 0.25
+    if gap <= MAX_CRAFT_DIFFICULTY_GAP:
+        return 0.30
+    return 0.0
+
+
+def craft_time_seconds(recipe: CraftingRecipe) -> float:
+    """Short deliberate channel time based on recipe material complexity."""
+
+    material_units = sum(requirement.quantity for requirement in recipe.materials)
+    return min(6.0, max(3.0, 3.0 + max(0, material_units - 1) * 0.5))
+
+
 @dataclass(frozen=True, slots=True)
 class CraftAttemptResult:
     success: bool
@@ -1065,10 +1120,15 @@ class CraftAttemptResult:
     output_item_key: str | None = None
     output_quantity: int = 0
     high_quality: bool = False
+    completed: bool = False
+    skill_increased: bool = False
+    new_skill_value: int | None = None
+    success_chance: float = 0.0
+    trivial_skill: int | None = None
 
 
 def trade_skill_value(database: "Database", character_id: int, trade_skill_key: str) -> int:
-    """Current development mapping: persisted skill XP is the usable skill value."""
+    """Persisted trade-skill XP is the usable crafting skill value."""
 
     return database.get_trade_skill_progress(character_id, trade_skill_key)["skill_xp"]
 
@@ -1079,7 +1139,18 @@ def craft_recipe(
     recipe_key: str,
     *,
     station_key: str | None = None,
+    success_roll: float | None = None,
+    skillup_roll: float | None = None,
 ) -> CraftAttemptResult:
+    """Resolve one completed craft.
+
+    Validation failures do not consume materials. Once an eligible attempt
+    completes, materials are consumed whether the result succeeds or fails.
+    Success and skill improvement are separate rolls; failed work can still
+    teach the crafter, while a recipe at or below current skill is trivial and
+    can no longer grant skill.
+    """
+
     recipe = RECIPES_BY_KEY.get(recipe_key)
     if recipe is None:
         return CraftAttemptResult(False, "Unknown recipe.")
@@ -1088,10 +1159,16 @@ def craft_recipe(
         return CraftAttemptResult(False, f"Requires a {recipe.station_key}.")
 
     skill_value = trade_skill_value(database, character_id, recipe.trade_skill_key)
-    if not recipe.can_craft(skill_value):
+    trivial = recipe.trivial_skill
+    if not recipe.can_attempt(skill_value, max_gap=MAX_CRAFT_DIFFICULTY_GAP):
         return CraftAttemptResult(
             False,
-            f"Requires {recipe.trade_skill_key} skill {recipe.minimum_skill}; current skill is {skill_value}.",
+            (
+                f"This recipe is too difficult to attempt: {recipe.trade_skill_key} "
+                f"{skill_value}, trivial {trivial}. You can attempt recipes up to "
+                f"{MAX_CRAFT_DIFFICULTY_GAP} skill above you."
+            ),
+            trivial_skill=trivial,
         )
 
     missing = [
@@ -1101,27 +1178,60 @@ def craft_recipe(
     ]
     if missing:
         text = ", ".join(f"{req.quantity}x {req.item_key}" for req in missing)
-        return CraftAttemptResult(False, f"Missing materials: {text}.")
+        return CraftAttemptResult(False, f"Missing materials: {text}.", trivial_skill=trivial)
 
-    success = database.complete_crafting_transaction(
+    success_chance = craft_success_chance(skill_value, trivial)
+    skillup_chance = craft_skillup_chance(skill_value, trivial)
+    if success_chance >= 1.0:
+        crafted = True
+    else:
+        resolved_success_roll = random.random() if success_roll is None else float(success_roll)
+        crafted = resolved_success_roll < success_chance
+
+    skill_increased = False
+    if skillup_chance > 0.0:
+        resolved_skillup_roll = random.random() if skillup_roll is None else float(skillup_roll)
+        skill_increased = resolved_skillup_roll < skillup_chance
+
+    committed = database.complete_crafting_transaction(
         character_id,
         trade_skill_key=recipe.trade_skill_key,
         materials=recipe.materials,
         output_item_key=recipe.output_item_key,
         output_quantity=recipe.output_quantity,
-        skill_xp_gain=1,
+        skill_xp_gain=1 if skill_increased else 0,
+        craft_succeeded=crafted,
     )
-    if not success:
-        return CraftAttemptResult(False, "The required materials were no longer available.")
+    if not committed:
+        return CraftAttemptResult(
+            False,
+            "The required materials were no longer available.",
+            trivial_skill=trivial,
+        )
+
+    new_skill = skill_value + (1 if skill_increased else 0)
+    learning = (
+        f" {recipe.trade_skill_key.title()} improves to {new_skill}."
+        if skill_increased
+        else ""
+    )
+    if crafted:
+        message = f"Crafted {recipe.output_quantity}x {recipe.output_item_key}." + learning
+    else:
+        message = "The crafting attempt fails, consuming the materials." + learning
 
     return CraftAttemptResult(
-        True,
-        f"Crafted {recipe.output_quantity}x {recipe.output_item_key}.",
-        output_item_key=recipe.output_item_key,
-        output_quantity=recipe.output_quantity,
-        high_quality=recipe.produces_high_quality_result(skill_value),
+        crafted,
+        message,
+        output_item_key=recipe.output_item_key if crafted else None,
+        output_quantity=recipe.output_quantity if crafted else 0,
+        high_quality=crafted and recipe.produces_high_quality_result(skill_value),
+        completed=True,
+        skill_increased=skill_increased,
+        new_skill_value=new_skill,
+        success_chance=success_chance,
+        trivial_skill=trivial,
     )
-
 
 def gather_node(
     database: "Database",

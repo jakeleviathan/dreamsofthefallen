@@ -74,9 +74,31 @@ class CraftingRecipe:
     def __post_init__(self) -> None:
         if self.output_quantity <= 0:
             raise ValueError("Crafting output quantity must be positive.")
+        if self.minimum_skill < 0:
+            raise ValueError("Crafting recipe trivial skill cannot be negative.")
+
+    @property
+    def trivial_skill(self) -> int:
+        """Skill at which this recipe becomes failure-proof.
+
+        minimum_skill is kept as the persisted/authored field name so the
+        existing recipe catalog remains compatible. Player-facing crafting uses
+        it as the recipe trivial value rather than a hard unlock requirement.
+        """
+
+        return self.minimum_skill
+
+    def can_attempt(self, skill_value: int, *, max_gap: int = 50) -> bool:
+        """Whether a crafter is close enough to attempt this recipe."""
+
+        if max_gap < 0:
+            raise ValueError("Crafting attempt gap cannot be negative.")
+        return self.trivial_skill - skill_value <= max_gap
 
     def can_craft(self, skill_value: int) -> bool:
-        return skill_value >= self.minimum_skill
+        """Legacy mastery check retained for older content integrations."""
+
+        return skill_value >= self.trivial_skill
 
     def produces_high_quality_result(self, skill_value: int) -> bool:
         return skill_value >= self.high_skill_quality_threshold

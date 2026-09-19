@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from time import monotonic
 
@@ -439,10 +440,16 @@ def _recipe_state(session, recipe: CraftingRecipe) -> dict[str, object]:
     materials = _material_state(session, recipe)
     materials_ready = all(owned >= needed for owned, needed, _name in materials)
     station_ready = recipe.station_key is None or recipe.station_key in set(_stations_here(session))
-    skill_ready = current >= recipe.minimum_skill
+    skill_ready = recipe.can_attempt(current, max_gap=crafting.MAX_CRAFT_DIFFICULTY_GAP)
+    mastered = current >= recipe.trivial_skill
+    success_chance = crafting.craft_success_chance(current, recipe.trivial_skill)
+    skillup_chance = crafting.craft_skillup_chance(current, recipe.trivial_skill)
     return {
         "skill": current,
         "skill_ready": skill_ready,
+        "mastered": mastered,
+        "success_chance": success_chance,
+        "skillup_chance": skillup_chance,
         "materials": materials,
         "materials_ready": materials_ready,
         "station_ready": station_ready,
@@ -456,8 +463,7 @@ def _recipe_status_label(session, recipe: CraftingRecipe) -> str:
         return _recipe_paint(_RECIPE_READY, "CRAFT NOW")
     if state["skill_ready"]:
         return _recipe_paint(_RECIPE_AVAILABLE, "READY")
-    return _recipe_paint(_RECIPE_LOCKED, f"LOCKED {state['skill']}/{recipe.minimum_skill}")
-
+    return _recipe_paint(_RECIPE_LOCKED, "TOO HARD")
 
 def _recipe_sort_key(recipe: CraftingRecipe) -> tuple[int, str]:
     return (recipe.minimum_skill, _recipe_output_name(recipe).lower())
@@ -523,9 +529,14 @@ def _recipe_filter(value: str) -> tuple[str, str | None]:
 
 def _recipe_line(session, recipe: CraftingRecipe, *, include_materials: bool = True) -> str:
     station = STATION_LABELS.get(recipe.station_key, recipe.station_key or "No station")
+    state = _recipe_state(session, recipe)
     status = _recipe_status_label(session, recipe)
     name = _recipe_paint(_RECIPE_NAME, _recipe_output_name(recipe))
-    line = f"  {status:<28} {name}  {_recipe_paint(_RECIPE_LOCKED, station)}\r\n"
+    success_pct = int(round(float(state["success_chance"]) * 100))
+    line = (
+        f"  {status:<28} {name}  {_recipe_paint(_RECIPE_LOCKED, station)}"
+        f"  Trivial {recipe.trivial_skill} | {success_pct}% success\r\n"
+    )
     if include_materials:
         materials = ", ".join(
             f"{need}x {_material_name(requirement.item_key)}"
@@ -534,23 +545,23 @@ def _recipe_line(session, recipe: CraftingRecipe, *, include_materials: bool = T
         line += f"       {_recipe_paint(_RECIPE_MATERIAL, materials)}\r\n"
     return line
 
-
 async def _show_recipe_help(session) -> None:
     await session.send(
         "\r\n--- Recipe Book Commands ---\r\n"
-        "RECIPES                  concise overview: usable recipes plus your next unlocks\r\n"
+        "RECIPES                  concise overview: attemptable recipes plus the next harder recipes\r\n"
         "RECIPES BLACKSMITHING    full Blacksmithing catalog\r\n"
         "RECIPES TAILORING        full Tailoring catalog\r\n"
         "RECIPES ALCHEMY          full Alchemy catalog\r\n"
         "RECIPES ENCHANTING       full Enchanting catalog\r\n"
         "RECIPES COOKING          full Cooking catalog\r\n"
-        "RECIPES READY            every recipe your current skill has unlocked\r\n"
-        "RECIPES CRAFTABLE        recipes you can craft right now with your inventory and local station\r\n"
+        "RECIPES READY            every recipe within 50 skill of your current ability\r\n"
+        "RECIPES CRAFTABLE        attemptable recipes with the materials and station ready now\r\n"
         "RECIPES ALL              complete catalog\r\n"
-        "RECIPE <name>            detailed ingredients, inventory counts, station, description, and craft command\r\n"
-        "CRAFT <name>             craft by output name; internal recipe keys are not required\r\n"
+        "RECIPE <name>            trivial value, success chance, ingredients, station, and details\r\n"
+        "CRAFT <name>             begin an interruptible crafting action\r\n\r\n"
+        "At a recipe trivial value, success is guaranteed and that recipe can no longer raise your skill.\r\n"
+        "Completed failures consume ingredients. Movement or damage interrupts crafting without consuming them.\r\n"
     )
-
 
 async def _show_recipe_group(
     session,
@@ -561,40 +572,46 @@ async def _show_recipe_group(
 ) -> None:
     character = session.character
     skill = crafting.trade_skill_value(session.database, character.id, profession_key)
-    ready = [recipe for recipe in recipes if skill >= recipe.minimum_skill]
-    locked = [recipe for recipe in recipes if skill < recipe.minimum_skill]
-    craftable = [recipe for recipe in ready if _recipe_state(session, recipe)["craftable"]]
+    attemptable = [
+        recipe for recipe in recipes
+        if recipe.can_attempt(skill, max_gap=crafting.MAX_CRAFT_DIFFICULTY_GAP)
+    ]
+    too_hard = [recipe for recipe in recipes if recipe not in attemptable]
+    craftable = [recipe for recipe in attemptable if _recipe_state(session, recipe)["craftable"]]
 
     title = (
         f"{_profession_name(profession_key)} — skill {skill} — "
-        f"{len(ready)} unlocked, {len(craftable)} craftable now, {len(locked)} locked"
+        f"{len(attemptable)} attemptable, {len(craftable)} craftable now, {len(too_hard)} too difficult"
     )
     await session.send(f"\r\n{_recipe_paint(_RECIPE_PROFESSION, title)}\r\n")
 
     if overview:
-        # Keep the default screen useful even for a master artisan with dozens of
-        # recipes: show at most six most-recently-unlocked recipes and three next.
-        shown_ready = sorted(ready, key=_recipe_sort_key)[-6:]
-        if shown_ready:
-            await session.send(_recipe_paint(_RECIPE_HEADER, "  USABLE") + "\r\n")
-            for recipe in shown_ready:
+        shown = sorted(
+            sorted(
+                attemptable,
+                key=lambda recipe: (abs(recipe.trivial_skill - skill), recipe.trivial_skill, _recipe_output_name(recipe).lower()),
+            )[:6],
+            key=_recipe_sort_key,
+        )
+        if shown:
+            await session.send(_recipe_paint(_RECIPE_HEADER, "  ATTEMPTABLE") + "\r\n")
+            for recipe in shown:
                 await session.send(_recipe_line(session, recipe))
         else:
-            await session.send("  No recipes unlocked yet.\r\n")
+            await session.send("  No recipes are close enough to attempt yet.\r\n")
 
-        next_locked = sorted(locked, key=_recipe_sort_key)[:3]
-        if next_locked:
-            await session.send(_recipe_paint(_RECIPE_HEADER, "  NEXT UNLOCKS") + "\r\n")
-            for recipe in next_locked:
+        next_hard = sorted(too_hard, key=_recipe_sort_key)[:3]
+        if next_hard:
+            await session.send(_recipe_paint(_RECIPE_HEADER, "  TOO DIFFICULT") + "\r\n")
+            for recipe in next_hard:
                 await session.send(
-                    f"  {_recipe_paint(_RECIPE_LOCKED, f'Skill {recipe.minimum_skill:>3}')}  "
+                    f"  {_recipe_paint(_RECIPE_LOCKED, f'Trivial {recipe.trivial_skill:>3}')}  "
                     f"{_recipe_paint(_RECIPE_NAME, _recipe_output_name(recipe))}\r\n"
                 )
         return
 
     for recipe in sorted(recipes, key=_recipe_sort_key):
         await session.send(_recipe_line(session, recipe))
-
 
 async def _show_recipes(session, recipe_filter: str = "") -> None:
     character = getattr(session, "character", None)
@@ -641,8 +658,10 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
     elif mode == "ready":
         selected = [
             r for r in selected
-            if crafting.trade_skill_value(session.database, character.id, r.trade_skill_key)
-            >= r.minimum_skill
+            if r.can_attempt(
+                crafting.trade_skill_value(session.database, character.id, r.trade_skill_key),
+                max_gap=crafting.MAX_CRAFT_DIFFICULTY_GAP,
+            )
         ]
     elif mode == "craftable":
         selected = [r for r in selected if _recipe_state(session, r)["craftable"]]
@@ -675,18 +694,28 @@ async def _show_recipe_detail(session, target: str) -> None:
     profession = _profession_name(recipe.trade_skill_key)
     station = STATION_LABELS.get(recipe.station_key, recipe.station_key or "No station")
     station_state = "HERE" if state["station_ready"] else "NOT HERE"
-    skill_state = (
-        "READY"
-        if state["skill_ready"]
-        else f"LOCKED — need {recipe.minimum_skill - int(state['skill'])} more skill"
-    )
+    success_pct = int(round(float(state["success_chance"]) * 100))
+    skillup_pct = int(round(float(state["skillup_chance"]) * 100))
+    if state["mastered"]:
+        skill_state = "MASTERED — 100% success; this recipe no longer raises skill"
+    elif state["skill_ready"]:
+        skill_state = f"ATTEMPTABLE — {success_pct}% success; {skillup_pct}% skill-up chance"
+    else:
+        skill_state = (
+            f"TOO DIFFICULT — recipes more than {crafting.MAX_CRAFT_DIFFICULTY_GAP} "
+            "skill above you cannot be attempted"
+        )
 
     await session.send(
         f"\r\n{_recipe_paint(_RECIPE_HEADER, '=== RECIPE ===')}\r\n"
         f"{_recipe_paint(_RECIPE_NAME, output_name)}\r\n"
         f"{recipe.description}\r\n\r\n"
         f"Profession : {profession}\r\n"
-        f"Skill      : {state['skill']} / {recipe.minimum_skill}  ({skill_state})\r\n"
+        f"Skill      : {state['skill']}\r\n"
+        f"Trivial    : {recipe.trivial_skill}\r\n"
+        f"Success    : {success_pct}%\r\n"
+        f"Training   : {skill_state}\r\n"
+        f"Craft time : {crafting.craft_time_seconds(recipe):g}s\r\n"
         f"Station    : {station}  ({station_state})\r\n"
         f"Output     : {recipe.output_quantity}x {output_name}\r\n"
         f"Ingredients:\r\n"
@@ -701,23 +730,54 @@ async def _show_recipe_detail(session, target: str) -> None:
     if output is not None and output.description:
         await session.send(f"\r\nItem: {output.description}\r\n")
 
+    await session.send(
+        "\r\nCompleted failures consume the listed ingredients. Movement or damage interrupts the craft with no material loss.\r\n"
+    )
     if state["craftable"]:
         await session.send(
-            f"\r\n{_recipe_paint(_RECIPE_READY, 'You can craft this now.')} "
+            f"{_recipe_paint(_RECIPE_READY, 'You can attempt this now.')} "
             f"Use CRAFT {output_name}.\r\n"
         )
     else:
         reasons = []
         if not state["skill_ready"]:
-            reasons.append("skill")
+            reasons.append("recipe is too difficult")
         if not state["materials_ready"]:
             reasons.append("materials")
         if not state["station_ready"]:
             reasons.append("station")
         await session.send(
-            f"\r\nNot craftable yet: {', '.join(reasons)}. "
-            f"When ready, use CRAFT {output_name}.\r\n"
+            f"Not ready: {', '.join(reasons)}. When ready, use CRAFT {output_name}.\r\n"
         )
+
+_CRAFT_BAR_WIDTH = 20
+
+
+def _craft_bar(fraction: float) -> str:
+    fraction = max(0.0, min(1.0, fraction))
+    filled = int(round(_CRAFT_BAR_WIDTH * fraction))
+    return "[" + ("█" * filled) + ("░" * (_CRAFT_BAR_WIDTH - filled)) + "]"
+
+
+async def _interrupt_craft(session, reason: str = "interrupted") -> bool:
+    state = getattr(session, "_active_craft", None)
+    if not isinstance(state, dict):
+        return False
+
+    session._active_craft = None
+    task = state.get("task")
+    if task is not None and task is not asyncio.current_task() and not task.done():
+        task.cancel()
+
+    output_name = str(state.get("output_name") or "the item")
+    if reason == "movement":
+        message = f"You stop crafting {output_name} as you move."
+    elif reason == "damage":
+        message = f"Your work on {output_name} is interrupted by damage."
+    else:
+        message = f"Your work on {output_name} is interrupted."
+    await session.send("\r\x1b[2K" + message + " No materials are consumed.\r\n")
+    return True
 
 
 async def _craft(session, target: str) -> None:
@@ -727,35 +787,138 @@ async def _craft(session, target: str) -> None:
     if getattr(session, "active_enemy", None) is not None:
         await session.send("You cannot craft while fighting.\r\n")
         return
+    if isinstance(getattr(session, "_active_cast", None), dict):
+        await session.send("Finish or interrupt your spell before crafting.\r\n")
+        return
+    active = getattr(session, "_active_craft", None)
+    if isinstance(active, dict):
+        await session.send(f"You are already crafting {active.get('output_name', 'something')}.\r\n")
+        return
+
     recipe, error = _resolve_recipe(target)
     if error:
         await session.send(error + "\r\n")
         return
     assert recipe is not None
 
-    stations = set(_stations_here(session))
-    if recipe.station_key is not None and recipe.station_key not in stations:
+    state = _recipe_state(session, recipe)
+    if not state["skill_ready"]:
+        await session.send(
+            f"{_recipe_output_name(recipe)} is too difficult to attempt. "
+            f"Your {recipe.trade_skill_key.title()} is {state['skill']}; "
+            f"the recipe trivial is {recipe.trivial_skill}.\r\n"
+        )
+        return
+    if not state["station_ready"]:
         label = STATION_LABELS.get(recipe.station_key, recipe.station_key)
         await session.send(f"This recipe requires a {label}. Use RESOURCES to see local stations.\r\n")
         return
-
-    result = crafting.craft_recipe(
-        session.database,
-        character.id,
-        recipe.key,
-        station_key=recipe.station_key if recipe.station_key in stations else None,
-    )
-    if not result.success:
-        await session.send(result.message + "\r\n")
+    if not state["materials_ready"]:
+        missing = [
+            f"{needed - owned}x {name}"
+            for owned, needed, name in state["materials"]
+            if owned < needed
+        ]
+        await session.send("Missing materials: " + ", ".join(missing) + ".\r\n")
         return
-    output = crafting.ITEMS_BY_KEY.get(result.output_item_key or "")
-    output_name = output.name if output is not None else (result.output_item_key or "item")
-    skill = crafting.trade_skill_value(session.database, character.id, recipe.trade_skill_key)
-    quality = " The work comes out especially clean." if result.high_quality else ""
-    await session.send(
-        f"Crafted {result.output_quantity}x {output_name}. {recipe.trade_skill_key.title()} is now {skill}.{quality}\r\n"
-    )
 
+    output_name = _recipe_output_name(recipe)
+    duration = crafting.craft_time_seconds(recipe)
+    success_pct = int(round(float(state["success_chance"]) * 100))
+    craft_state = {
+        "recipe": recipe,
+        "output_name": output_name,
+        "character_id": character.id,
+        "room_key": character.current_room,
+        "task": None,
+    }
+    session._active_craft = craft_state
+    await session.send(
+        f"You begin crafting {output_name} ({duration:g}s, {success_pct}% success, "
+        f"trivial {recipe.trivial_skill}). Movement or damage will interrupt you.\r\n"
+    )
+    await session.send(f"\r\x1b[2KCrafting {_craft_bar(0.0)}   0%")
+
+    async def finish_craft() -> None:
+        started = monotonic()
+        combatant = getattr(session, "combatant", None)
+        last_hp = getattr(combatant, "current_hp", None) if combatant is not None else None
+        try:
+            while True:
+                elapsed = monotonic() - started
+                remaining = duration - elapsed
+                if remaining <= 0:
+                    break
+                await asyncio.sleep(min(0.25, remaining))
+                if getattr(session, "_active_craft", None) is not craft_state:
+                    return
+
+                current_character = getattr(session, "character", None)
+                if current_character is None or current_character.id != craft_state["character_id"]:
+                    await _interrupt_craft(session)
+                    return
+                if current_character.current_room != craft_state["room_key"]:
+                    await _interrupt_craft(session, "movement")
+                    return
+
+                current_combatant = getattr(session, "combatant", None)
+                current_hp = getattr(current_combatant, "current_hp", None) if current_combatant is not None else None
+                if last_hp is not None and current_hp is not None and current_hp < last_hp:
+                    await _interrupt_craft(session, "damage")
+                    return
+                last_hp = current_hp
+
+                fraction = min(1.0, (monotonic() - started) / duration)
+                await session.send(
+                    f"\r\x1b[2KCrafting {_craft_bar(fraction)} {int(round(fraction * 100)):>3}%"
+                )
+
+            if getattr(session, "_active_craft", None) is not craft_state:
+                return
+            current_character = getattr(session, "character", None)
+            if current_character is None or current_character.current_room != craft_state["room_key"]:
+                await _interrupt_craft(session, "movement")
+                return
+
+            stations = set(_stations_here(session))
+            station_key = recipe.station_key if recipe.station_key in stations else None
+            result = crafting.craft_recipe(
+                session.database,
+                current_character.id,
+                recipe.key,
+                station_key=station_key,
+            )
+            if getattr(session, "_active_craft", None) is not craft_state:
+                return
+            session._active_craft = None
+            await session.send(f"\r\x1b[2KCrafting {_craft_bar(1.0)} 100%\r\n")
+
+            if not result.completed:
+                await session.send(result.message + "\r\n")
+                return
+
+            if result.success:
+                quality = " The work comes out especially clean." if result.high_quality else ""
+                await session.send(
+                    f"You finish crafting {recipe.output_quantity}x {output_name}.{quality}\r\n"
+                )
+            else:
+                await session.send(
+                    f"Your attempt to craft {output_name} fails. The materials are consumed.\r\n"
+                )
+
+            if result.skill_increased:
+                await session.send(
+                    f"{recipe.trade_skill_key.title()} improves to {result.new_skill_value}!\r\n"
+                )
+        except asyncio.CancelledError:
+            return
+        finally:
+            if getattr(session, "_active_craft", None) is craft_state:
+                session._active_craft = None
+
+    task = asyncio.create_task(finish_craft())
+    craft_state["task"] = task
 
 def _loot_for(enemy) -> tuple[LootDrop, ...]:
     key = str(getattr(getattr(enemy, "definition", None), "key", ""))
@@ -817,6 +980,9 @@ def install_economy_loop_runtime(player_session_class, world_service=None) -> No
     if getattr(player_session_class, "_economy_loop_runtime_installed", False):
         return
     install_economy_content()
+    previous_move_character = getattr(player_session_class, "move_character", None)
+    previous_close = getattr(player_session_class, "close", None)
+
 
     previous_show_current_room = getattr(player_session_class, "show_current_room", None)
     if previous_show_current_room is not None:
@@ -923,4 +1089,25 @@ def install_economy_loop_runtime(player_session_class, world_service=None) -> No
         await _delegate_command(self, previous_playing_prompt, command)
 
     player_session_class.playing_prompt = playing_prompt
+
+    if previous_move_character is not None:
+        async def move_character(self, *args, **kwargs):
+            if isinstance(getattr(self, "_active_craft", None), dict):
+                await _interrupt_craft(self, "movement")
+            return await previous_move_character(self, *args, **kwargs)
+
+        player_session_class.move_character = move_character
+
+    if previous_close is not None:
+        async def close(self, *args, **kwargs):
+            state = getattr(self, "_active_craft", None)
+            if isinstance(state, dict):
+                task = state.get("task")
+                if task is not None and not task.done():
+                    task.cancel()
+                self._active_craft = None
+            return await previous_close(self, *args, **kwargs)
+
+        player_session_class.close = close
+
     player_session_class._economy_loop_runtime_installed = True

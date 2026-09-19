@@ -584,8 +584,14 @@ class Database:
         output_item_key: str,
         output_quantity: int = 1,
         skill_xp_gain: int = 1,
+        craft_succeeded: bool = True,
     ) -> bool:
-        """Atomically consume recipe materials, create output, and advance the trade skill."""
+        """Atomically resolve a completed craft attempt.
+
+        Completed attempts always consume their materials and count as a use.
+        Failed attempts simply skip output creation; skill XP is awarded only
+        when the caller has already won the recipe-specific skill-up roll.
+        """
         if output_quantity <= 0:
             raise ValueError("Crafting output quantity must be positive.")
         if skill_xp_gain < 0:
@@ -618,15 +624,16 @@ class Database:
                         (character_id, requirement.item_key),
                     )
 
-            db.execute(
-                """
-                INSERT INTO character_items (character_id, item_key, quantity)
-                VALUES (?, ?, ?)
-                ON CONFLICT(character_id, item_key) DO UPDATE SET
-                    quantity = quantity + excluded.quantity
-                """,
-                (character_id, output_item_key, output_quantity),
-            )
+            if craft_succeeded:
+                db.execute(
+                    """
+                    INSERT INTO character_items (character_id, item_key, quantity)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(character_id, item_key) DO UPDATE SET
+                        quantity = quantity + excluded.quantity
+                    """,
+                    (character_id, output_item_key, output_quantity),
+                )
             db.execute(
                 """
                 INSERT INTO character_trade_skills (character_id, trade_skill_key, uses, skill_xp)
