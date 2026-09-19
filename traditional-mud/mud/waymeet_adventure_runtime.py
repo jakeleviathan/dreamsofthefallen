@@ -32,8 +32,8 @@ def corrected_adventure_augmentations() -> dict[str, RoomAugmentation]:
         )),
         arc.WAYMEET_BRIARCUT_KEY: RoomAugmentation(extra_exits=(
             ExitDefinition(
-                direction="east", destination_key=arc.BRIARWOOD_EDGE,
-                name="Briarwood Track", travel_text="You take the narrow east track beneath the briars.",
+                direction="north", destination_key=arc.BRIARWOOD_EDGE,
+                name="Briarwood Track", travel_text="You take the narrow north track beneath the briars.",
                 condition=ViewCondition(min_level=3), hidden_when_unavailable=True,
             ),
         )),
@@ -77,8 +77,8 @@ def corrected_adventure_augmentations() -> dict[str, RoomAugmentation]:
         ),
         arc.KINGS_SCAR_APPROACH: RoomAugmentation(
             extra_exits=(ExitDefinition(
-                direction="east", destination_key=arc.SCAR_GATE,
-                name="King's Scar Quarry", travel_text="You pass the survey flags into the abandoned quarry.",
+                direction="north", destination_key=arc.SCAR_GATE,
+                name="King's Scar Quarry", travel_text="You pass the survey flags north into the abandoned quarry.",
                 condition=ViewCondition(min_level=5), hidden_when_unavailable=True,
             ),),
             features=(_feature(
