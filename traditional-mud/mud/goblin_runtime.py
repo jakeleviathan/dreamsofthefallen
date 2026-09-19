@@ -169,15 +169,6 @@ def install_goblin_runtime(player_session_class, world_service) -> None:
             )
             return
 
-        if normalized in {"shop", "wares", "market"} and self.character.current_room == GOBLIN_BRASSGUT_MARKET_KEY:
-            await self.send(
-                "\r\n--- Brassgut Market ---\r\n"
-                "Dozens of independent stalls trade repaired tools, salvage, household goods, mechanisms, curios, clothing, and unidentified parts. "
-                "The market is active, but permanent item prices and Astralis currency have not been finalized yet, so buying and selling are not enabled here yet. "
-                "EXAMINE SALVAGE STALLS or TALK RUSKLE to learn more.\r\n"
-            )
-            return
-
         # Replay everything else into the complete seasonal/calendar/room stack.
         had_instance_prompt = "prompt" in self.__dict__
         prior_instance_prompt = self.__dict__.get("prompt")
@@ -196,7 +187,7 @@ def install_goblin_runtime(player_session_class, world_service) -> None:
 
         if normalized in {"help", "?"}:
             await self.send(
-                "Goblin start commands: CITY summarizes the safe Junk City core; TALK VIKKA and TALK RUSKLE speak with local contacts; Brassgut Market responds to SHOP/MARKET.\r\n"
+                "Goblin start commands: CITY summarizes the safe Junk City core; TALK VIKKA and TALK RUSKLE speak with local contacts; Brassgut Market uses SHOP/WARES, BUY, SELL, and VALUE with Sols.\r\n"
             )
 
     player_session_class.enter_character = enter_character

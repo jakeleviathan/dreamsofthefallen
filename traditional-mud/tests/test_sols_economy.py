@@ -80,6 +80,16 @@ class SolEconomyTests(unittest.TestCase):
         self.assertGreater(humanoid_sol_drop(humanoid), 0)
         self.assertEqual(humanoid_sol_drop(beast), 0)
 
+    def test_authored_starter_markets_are_real_merchants(self):
+        from mud.merchants import MERCHANTS_BY_NPC_KEY
+
+        brassgut = MERCHANTS_BY_NPC_KEY["goblin_ruskle_coil"]
+        self.assertTrue(brassgut.sells("iron_ore"))
+        self.assertTrue(brassgut.sells("raw_cotton"))
+        chisel = MERCHANTS_BY_NPC_KEY["undead_bonewright_kell"]
+        self.assertTrue(chisel.sells("bone_chips"))
+        self.assertTrue(chisel.sells("iron_ore"))
+
 
 if __name__ == "__main__":
     unittest.main()
