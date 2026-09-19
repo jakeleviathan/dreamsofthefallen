@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import mud.party_system as party_system
+from mud.casting import spend_ability_mana
 from mud.mechanics import (
     AbilityDefinition,
     DEATH_RULES,
@@ -32,6 +33,7 @@ RESURRECTION_ABILITY = AbilityDefinition(
     category="resurrection",
     skill_improves_effectiveness=False,
     design_status="approved_initial_tuning",
+    cast_time_seconds=4.0,
 )
 
 
@@ -292,7 +294,7 @@ async def resurrect_character(priest, target_name: str) -> bool:
     if target_character is None or target_combatant is None:
         await priest.send("That fallen character cannot be restored right now.\r\n")
         return False
-    if not combatant.spend_mana(RESURRECTION_MANA_COST):
+    if not spend_ability_mana(priest, RESURRECTION_ABILITY, RESURRECTION_MANA_COST):
         await priest.send(f"You need {RESURRECTION_MANA_COST} mana to cast Resurrection.\r\n")
         return False
 
