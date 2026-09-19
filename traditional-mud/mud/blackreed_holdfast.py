@@ -10,7 +10,6 @@ from mud.crafting import ItemDefinition
 from mud.greywake_march import GREYWAKE_WEST_MILE_KEY
 from mud.quests import QuestDefinition
 from mud.room_engine import ExitDefinition, FeatureDefinition, RoomAugmentation, ViewCondition
-from mud.waymeet_frontier import WAYMEET_SCRIP_KEY
 from mud.world import NpcDefinition, RoomDefinition
 
 
@@ -665,11 +664,11 @@ async def _raise_road_lantern(session) -> bool:
         session.database.complete_quest(session.character.id, BLACKREED_QUEST_KEY)
         session.database.grant_flag(session.character.id, BLACKREED_COMPLETE_FLAG)
         session.database.add_item(session.character.id, BLACKREED_ROUTE_TOKEN_KEY, 1)
-        session.database.add_item(session.character.id, WAYMEET_SCRIP_KEY, 2)
+        session.database.add_item(session.character.id, 2)
         session.database.add_experience(session.character.id, 240)
         _refresh(session)
         await session.send(
-            "You drag down the Black Reed pennant, trim the old route lamp, and raise its shutter toward Greywake. The light is deliberately boring: one public road is open again. The Black Flag on the Mile complete: 240 XP, 2 Waymeet Trade Scrip, and a Blackreed Route Token.\r\n"
+            "You drag down the Black Reed pennant, trim the old route lamp, and raise its shutter toward Greywake. The light is deliberately boring: one public road is open again. The Black Flag on the Mile complete: 240 XP, 2 embers in Sols, and a Blackreed Route Token.\r\n"
         )
         return True
     if BLACKREED_COMPLETE_FLAG in _flags(session):
