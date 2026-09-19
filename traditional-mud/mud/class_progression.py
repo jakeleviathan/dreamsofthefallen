@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from time import monotonic
 from dataclasses import replace
 
 import mud.ability_mastery as ability_mastery
@@ -877,6 +878,8 @@ async def _expire_oakheart(target, amount: int, duration: float = 60.0) -> None:
         target.combatant.max_hp = max(1, target.combatant.max_hp - amount)
         target.combatant.current_hp = min(target.combatant.current_hp, target.combatant.max_hp)
         target._oakheart_active = False
+        target._oakheart_amount = 0
+        target._oakheart_until = 0.0
         await target.send("Oakheart fades; your maximum HP returns to normal.\r\n")
         await target.send_client_state()
     except asyncio.CancelledError:
@@ -946,6 +949,7 @@ async def _use_progression_ability(session, ability, target_text: str) -> bool:
     elif key == "hold_the_line":
         duration = 14.0 if _has_affinity_item(session, "lineholder_shield", "brute") else 10.0
         session.ward_until = asyncio.get_running_loop().time() + duration
+        session._ward_effect_name = "Hold the Line"
         await session.send(f"You plant yourself and Hold the Line for {int(duration)} seconds; incoming blows are softened.\r\n")
     elif key == "rallying_roar":
         enemy = session.active_enemy
@@ -967,6 +971,7 @@ async def _use_progression_ability(session, ability, target_text: str) -> bool:
             await session.send(f"Ice-blue force locks {enemy.definition.name} in place for three seconds.\r\n")
     elif key == "minor_barrier":
         session.ward_until = asyncio.get_running_loop().time() + 8.0
+        session._ward_effect_name = "Minor Barrier"
         await session.send("A Minor Barrier tightens around you for eight seconds.\r\n")
     elif key == "arcane_surge":
         session._arcane_surge_until = asyncio.get_running_loop().time() + 15.0
@@ -979,6 +984,8 @@ async def _use_progression_ability(session, ability, target_text: str) -> bool:
         amount = 6 + ability_mastery.flat_bonus(session, ability)
         duration = 60.0 + ability_mastery.duration_bonus(session, ability)
         target._oakheart_active = True
+        target._oakheart_amount = amount
+        target._oakheart_until = monotonic() + duration
         target.combatant.max_hp += amount
         target.combatant.current_hp += amount
         ability_mastery.mark_support_practice(session, target, target_was_injured=was_injured)
@@ -998,11 +1005,13 @@ async def _use_progression_ability(session, ability, target_text: str) -> bool:
             target,
             target_was_injured=target.combatant.current_hp < target.combatant.max_hp,
         )
+        target._rejuvenation_until = monotonic() + 6.2
         await session.send(f"Rejuvenation takes root on {target.character.name}; three healing pulses will follow.\r\n")
         _track_task(session, _rejuvenation(session, target, ability))
     elif key in {"barkskin", "guardian_ward"}:
         duration = 10.0
         target.ward_until = asyncio.get_running_loop().time() + duration
+        target._ward_effect_name = ability.name
         await session.send(f"{ability.name} protects {target.character.name} for ten seconds.\r\n")
         if target is not session:
             await target.send(f"{session.character.name}'s {ability.name} settles around you.\r\n")
@@ -1023,11 +1032,13 @@ async def _use_progression_ability(session, ability, target_text: str) -> bool:
         until = asyncio.get_running_loop().time() + 8.0
         for member in targets:
             member.ward_until = max(getattr(member, "ward_until", 0.0), until)
+            member._ward_effect_name = "Sanctuary"
             if member is not session:
                 await member.send(f"{session.character.name}'s Sanctuary protects you for eight seconds.\r\n")
         await session.send(f"Sanctuary protects {len(targets)} living party member{'s' if len(targets) != 1 else ''} for eight seconds.\r\n")
     elif key == "bone_ward":
         session.ward_until = asyncio.get_running_loop().time() + 10.0
+        session._ward_effect_name = "Bone Ward"
         await session.send("A pale Bone Ward locks around you for ten seconds.\r\n")
     elif key == "grave_command":
         bonus = 2 if _has_affinity_item(session, "regent_bone_wand", "necromancer") else 0
