@@ -17,7 +17,7 @@ from mud.room_engine import DescriptionLayer, ExitDefinition, FeatureDefinition,
 from mud.sablewater_reach import DROWNED_BRASS_SCRAP_KEY, SABLEWATER_SALTGRASS_BEND_KEY
 from mud.stats import CharacterStats, EquipmentItem
 from mud.veyra_city import VEYRA_BRASSMARKET_KEY, VEYRA_CARAVAN_COURT_KEY, VEYRA_RESIDENT_FLAG, VEYRA_SCHOLARS_RISE_KEY
-from mud.waymeet_frontier import WAYMEET_BROKEN_MILE_KEY, WAYMEET_SCRIP_KEY
+from mud.waymeet_frontier import WAYMEET_BROKEN_MILE_KEY
 from mud.world import RoomDefinition
 
 
@@ -437,7 +437,7 @@ def install_content_foundry_runtime(player_session_class, world_service):
             await self.send("The Widow's web is tensioned through three hanging glass fruits. BREAK RED FRUIT, BREAK BLUE FRUIT, and BREAK CLEAR FRUIT first.\r\n")
             return
         if boss.key == ASH_DRIVER and not _flag(self, "ash_driver_fare_declared"):
-            await self.send("The driver does not move. One gloved hand remains extended. 'Fare.' OFFER NAME or OFFER SCRIP.\r\n")
+            await self.send("The driver does not move. One gloved hand remains extended. 'Fare.' OFFER NAME or OFFER SOL.\r\n")
             return
         if boss.key == PALE_DISTILLER and not _flag(self, "nine_vapors_vent_chosen"):
             await self.send("The Distiller is dormant behind mixed vapor. SMELL AIR, then OPEN GREEN VENT, OPEN AMBER VENT, or OPEN SILVER VENT.\r\n")
@@ -491,16 +491,18 @@ def install_content_foundry_runtime(player_session_class, world_service):
                     await self.send("All three tension fruits are gone. The Orchard Widow drops from the branches. ATTACK WIDOW.\r\n")
             return
 
-        if room == ASH_TURNTABLE and verb in {"offer name", "offer scrip"}:
+        if room == ASH_TURNTABLE and verb in {"offer name", "offer sol", "offer sols"}:
             if _flag(self, "ash_driver_fare_declared"):
                 await self.send("The Ash Driver has already accepted your fare.\r\n")
                 return
-            if verb == "offer scrip":
-                if self.database.item_quantity(self.character.id, WAYMEET_SCRIP_KEY) <= 0:
-                    await self.send("You have no Waymeet Trade Scrip. OFFER NAME is also valid.\r\n")
+            if verb in {"offer sol", "offer sols"}:
+                if self.database.get_sols(self.character.id) < 10:
+                    await self.send("The fare is 1 ember in Sols. OFFER NAME is also valid.\r\n")
                     return
-                self.database.consume_item(self.character.id, WAYMEET_SCRIP_KEY, 1)
-                await self.send("You place one modern scrip token in the ancient fare box. The Driver punches it anyway. 'Transfer accepted.'\r\n")
+                if not self.database.spend_sols(self.character.id, 10):
+                    await self.send("The fare could not be completed safely.\r\n")
+                    return
+                await self.send("You place sun-stamped Sols in the ancient fare box. The Driver punches the transfer anyway. 'Accepted.'\r\n")
             else:
                 await self.send(f"You give your name: {self.character.name}. The Driver punches an empty brass ticket and files it under a route that no longer exists. 'Fare accepted.'\r\n")
             _grant_flag(self, "ash_driver_fare_declared")

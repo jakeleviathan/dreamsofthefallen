@@ -23,6 +23,7 @@ from mud.server import MudServer, PlayerSession, WORLD
 from mud.trade_experience import install_trade_experience_runtime
 from mud.economy_loop import install_economy_loop_runtime
 from mud.economy_balance import install_economy_balance_runtime
+from mud.sols import install_sols_runtime
 from mud.forest_elf_reading_forest import install_reading_forest_runtime
 from mud.starter_signature_moments import install_signature_moment_runtime
 from mud.starter_class_moments import install_starter_class_moment_runtime
@@ -131,6 +132,10 @@ install_gravewatch_repeatable_runtime(PlayerSession)
 
 install_economy_loop_runtime(PlayerSession, WORLD)
 install_economy_balance_runtime(PlayerSession)
+# Sols are the universal Astralis currency: sun-stamped coins stored in sparks,
+# with embers and flames as display denominations. This layer also owns generic
+# merchant BUY/SELL/VALUE, quest payouts, and humanoid coin drops.
+install_sols_runtime(PlayerSession, Database)
 install_gravewatch_party_runtime(PlayerSession)
 install_trade_experience_runtime(PlayerSession)
 install_party_runtime(PlayerSession)

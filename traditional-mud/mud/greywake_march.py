@@ -13,7 +13,7 @@ from mud.crafting import ItemDefinition
 from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
 from mud.quests import QuestDefinition
 from mud.room_engine import DescriptionLayer, ExitDefinition, FeatureDefinition, RoomAugmentation, ViewCondition
-from mud.waymeet_frontier import WAYMEET_GLOAM_MOUTH_KEY, WAYMEET_SCRIP_KEY
+from mud.waymeet_frontier import WAYMEET_GLOAM_MOUTH_KEY
 from mud.world import NpcDefinition, RoomDefinition
 
 
@@ -668,12 +668,12 @@ async def _record_surge_kill(session) -> None:
             continue
         explorer.database.grant_flag(character.id, GREYWAKE_SURGE_VETERAN_FLAG)
         explorer.database.add_experience(character.id, 100)
-        explorer.database.add_item(character.id, WAYMEET_SCRIP_KEY, 2)
+        explorer.database.add_item(character.id, 2)
         q = explorer.database.get_quest(character.id, BELL_BELOW_WIND_QUEST_KEY)
         if q and q["status"] == "active" and q["current_step"] == "break_surge":
             explorer.database.advance_quest(character.id, BELL_BELOW_WIND_QUEST_KEY, "report")
         _refresh(explorer)
-        await explorer.send("The second note under the March bell stops. The shared Gloam Surge is broken. Participants gain 100 XP and 2 Waymeet Trade Scrip; report at Three-Banner Camp.\r\n")
+        await explorer.send("The second note under the March bell stops. The shared Gloam Surge is broken. Participants gain 100 XP and 2 embers in Sols; report at Three-Banner Camp.\r\n")
 
 
 def _maybe_start_event_enemy(session) -> bool:

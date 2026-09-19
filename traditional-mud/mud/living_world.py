@@ -30,7 +30,6 @@ from mud.waymeet_frontier import (
     WAYMEET_COMMONHOUSE_KEY,
     WAYMEET_LANTERN_MARKET_KEY,
     WAYMEET_QUARRY_KEY,
-    WAYMEET_SCRIP_KEY,
 )
 from mud.world import ROOMS_BY_KEY
 
@@ -38,7 +37,7 @@ from mud.world import ROOMS_BY_KEY
 LIVING_WORLD_VERSION = "1.0.0"
 ROOM_STORAGE_CAPACITY = 20
 ROOM_DISPLAY_SLOTS = 5
-ROOM_RENT_COST_SCRIP = 2
+ROOM_RENT_COST_SPARKS = 20
 PRIVATE_ROOM_PREFIX = "living_private_room_"
 
 SOCIAL_HUBS = {
@@ -114,7 +113,7 @@ PULSE_TEMPLATES: tuple[DailyPulse, ...] = (
         room_key=WAYMEET_LANTERN_MARKET_KEY,
         room_name="Waymeet Lantern Market",
         command_hint="BROWSE WANDERER",
-        merchant_wares=(("iron_ore", 1), ("raw_cotton", 1), ("greenleaf", 1)),
+        merchant_wares=(("iron_ore", 5), ("raw_cotton", 5), ("greenleaf", 5)),
     ),
     DailyPulse(
         key="glass_thread_peddler",
@@ -128,7 +127,7 @@ PULSE_TEMPLATES: tuple[DailyPulse, ...] = (
         room_key=VEYRA_BRASSMARKET_KEY,
         room_name="Veyra Brassmarket",
         command_hint="BROWSE WANDERER",
-        merchant_wares=(("lavender_blossom", 1), ("cotton_thread", 1), ("coal", 1)),
+        merchant_wares=(("lavender_blossom", 5), ("cotton_thread", 5), ("coal", 5)),
     ),
     DailyPulse(
         key="briar_bloom",
@@ -657,7 +656,7 @@ async def _browse_wanderer(session) -> bool:
         return False
     await session.send(f"\r\n--- Wandering Stock: {pulse.headline} ---\r\n")
     for item_key, cost in pulse.merchant_wares:
-        await session.send(f"{_item_label(item_key)} - {cost} Waymeet Trade Scrip\r\n")
+        await session.send(f"{_item_label(item_key)} - {cost} sparks\r\n")
     await session.send("BUY WANDERER <item> purchases one. The stock leaves when the Astralis day changes.\r\n")
     return True
 
@@ -680,12 +679,18 @@ async def _buy_wanderer(session, item_text: str) -> bool:
         await session.send("The wanderer is not carrying that today. Use BROWSE WANDERER.\r\n")
         return True
     item_key, cost = match
-    if session.database.item_quantity(character.id, WAYMEET_SCRIP_KEY) < cost:
-        await session.send(f"You need {cost} Waymeet Trade Scrip.\r\n")
+    if session.database.get_sols(character.id) < cost:
+        await session.send(f"You need {cost} sparks.\r\n")
         return True
-    session.database.consume_item(character.id, WAYMEET_SCRIP_KEY, cost)
-    session.database.add_item(character.id, item_key, 1)
-    await session.send(f"You trade {cost} scrip for 1x {_item_label(item_key)}.\r\n")
+    if not session.database.complete_merchant_purchase(
+        character.id,
+        item_key=item_key,
+        quantity=1,
+        total_price=cost,
+    ):
+        await session.send("The purchase could not be completed safely.\r\n")
+        return True
+    await session.send(f"You spend {cost} sparks for 1x {_item_label(item_key)}.\r\n")
     return True
 
 
@@ -897,7 +902,7 @@ async def _show_room_status(session) -> None:
     await session.send("\r\n--- Your Room ---\r\n")
     if row is None:
         await session.send(
-            f"You have not rented a small room yet. At Waymeet Commonhouse or Veyra Public Hearth, RENT ROOM costs {ROOM_RENT_COST_SCRIP} Waymeet Trade Scrip.\r\n"
+            f"You have not rented a small room yet. At Waymeet Commonhouse or Veyra Public Hearth, RENT ROOM costs {ROOM_RENT_COST_SPARKS} sparks (2 embers).\r\n"
         )
         return
     hub = SOCIAL_HUBS.get(str(row["hub_room_key"]), str(row["hub_room_key"]))
@@ -918,10 +923,12 @@ async def _rent_room(session) -> None:
     if character.current_room not in SOCIAL_HUBS:
         await session.send("Rooms are rented through the Waymeet Commonhouse or Veyra Public Hearth.\r\n")
         return
-    if session.database.item_quantity(character.id, WAYMEET_SCRIP_KEY) < ROOM_RENT_COST_SCRIP:
-        await session.send(f"A small long-term room deposit costs {ROOM_RENT_COST_SCRIP} Waymeet Trade Scrip.\r\n")
+    if session.database.get_sols(character.id) < ROOM_RENT_COST_SPARKS:
+        await session.send(f"A small long-term room deposit costs {ROOM_RENT_COST_SPARKS} sparks (2 embers).\r\n")
         return
-    session.database.consume_item(character.id, WAYMEET_SCRIP_KEY, ROOM_RENT_COST_SCRIP)
+    if not session.database.spend_sols(character.id, ROOM_RENT_COST_SPARKS):
+        await session.send("The room deposit could not be completed safely.\r\n")
+        return
     moment = ASTRALIS_CLOCK.now()
     ensure_living_world_schema(session.database)
     with session.database.connect() as db:
@@ -1276,7 +1283,7 @@ async def _record_daily_threat_completion(session, enemy, metadata) -> None:
         return
     if not _mark_event_done(session, day, pulse):
         return
-    session.database.add_item(character.id, WAYMEET_SCRIP_KEY, 1)
+    session.database.add_sols(character.id, 10)
     _chronicle_insert(
         session.database,
         event_key=f"pulse:{day}:{pulse.key}:{character.id}",
@@ -1287,7 +1294,7 @@ async def _record_daily_threat_completion(session, enemy, metadata) -> None:
         text=f"{character.name} helped quiet {pulse.headline.rstrip('.').lower()}",
     )
     await session.send(
-        "A local warden leaves you 1 Waymeet Trade Scrip for dealing with today's disturbance. There is no repeat payout today.\r\n"
+        "A local warden leaves you 1 ember in sun-stamped Sols for dealing with today's disturbance. There is no repeat payout today.\r\n"
     )
 
 

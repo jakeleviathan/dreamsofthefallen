@@ -51,7 +51,6 @@ WAYMEET_QUARRY_QUEST_KEY = "waymeet_quarry_teeth"
 WAYMEET_INTRO_COMPLETE_FLAG = "waymeet_roads_meet_here_complete"
 WAYMEET_GLOAM_SEEN_FLAG = "waymeet_gloam_mouth_seen"
 
-WAYMEET_SCRIP_KEY = "waymeet_trade_scrip"
 THORNBACK_FANG_KEY = "waymeet_thornback_fang"
 SLATEBACK_CLAW_KEY = "waymeet_slateback_claw"
 GLOAM_RESIDUE_KEY = "waymeet_gloam_residue"
@@ -84,6 +83,7 @@ WAYMEET_INTRO_QUEST = QuestDefinition(
         ("return_marshal", "Return to Waymeet Crossroads and TALK MARSHAL."),
         ("complete", "You learned the local roads and found the first evidence that the abandoned Gloamworks below them are not as empty as Waymeet hoped."),
     ),
+    sol_reward=0,
 )
 
 WAYMEET_JACKAL_QUEST = QuestDefinition(
@@ -98,6 +98,7 @@ WAYMEET_JACKAL_QUEST = QuestDefinition(
         ("turn_in", "TALK WARDEN with 3 Thornback Fangs."),
         ("complete", "The road is a little safer for the next caravan. The contract can be taken again."),
     ),
+    sol_reward=0,
 )
 
 WAYMEET_QUARRY_QUEST = QuestDefinition(
@@ -112,20 +113,12 @@ WAYMEET_QUARRY_QUEST = QuestDefinition(
         ("turn_in", "TALK FOREMAN with 2 Slateback Claws."),
         ("complete", "The quarry crew gets another workable shift. The contract can be taken again."),
     ),
+    sol_reward=0,
 )
 
 WAYMEET_QUESTS = (WAYMEET_INTRO_QUEST, WAYMEET_JACKAL_QUEST, WAYMEET_QUARRY_QUEST)
 
 
-WAYMEET_SCRIP = ItemDefinition(
-    key=WAYMEET_SCRIP_KEY,
-    name="Waymeet Trade Scrip",
-    description=(
-        "A stamped brass chit accepted by the practical merchants around Waymeet. It is not intended as Astralis-wide currency; the settlement issues it for road work and takes it back for common supplies."
-    ),
-    category="currency",
-    tier=1,
-)
 THORNBACK_FANG = ItemDefinition(
     key=THORNBACK_FANG_KEY,
     name="Thornback Fang",
@@ -149,7 +142,7 @@ GLOAM_RESIDUE = ItemDefinition(
     category="material",
     tier=1,
 )
-WAYMEET_ITEMS = (WAYMEET_SCRIP, THORNBACK_FANG, SLATEBACK_CLAW, GLOAM_RESIDUE)
+WAYMEET_ITEMS = (THORNBACK_FANG, SLATEBACK_CLAW, GLOAM_RESIDUE)
 
 
 THORNBACK_JACKAL = EnemyDefinition(
@@ -258,11 +251,11 @@ FOREMAN = NpcDefinition(
 BROKER = NpcDefinition(
     key=BROKER_KEY,
     name="Vekk Coil",
-    short_description="a Goblin broker sitting behind neat stacks of ore, fiber, herbs, and locally stamped brass scrip",
+    short_description="a Goblin broker sitting behind neat stacks of ore, fiber, herbs, and little sun-stamped Sol coins",
     room_key=WAYMEET_LANTERN_MARKET_KEY,
     role="raw-material merchant",
     dialogue=(
-        "Vekk flicks a brass chit onto the counter. 'Waymeet scrip comes from road work and goes back into road supplies. Nice little circle.'",
+        "Vekk flicks a sun-stamped coin onto the counter. 'Sols come off the roads and go back into road supplies. Nice little circle.'",
         "'BROWSE VEKK if you want the boring useful stuff. Boring useful stuff keeps adventurers alive.'",
     ),
 )
@@ -274,7 +267,7 @@ PROVISIONER = NpcDefinition(
     role="processed-material merchant",
     dialogue=(
         "Sevra stacks two iron ingots. 'Vekk sells beginnings. I sell the part after somebody else did a little work.'",
-        "'BROWSE SEVRA. Two scrip for processed stock. Convenience should cost something, but not your entire afternoon.'",
+        "'BROWSE SEVRA. Eight sparks for processed stock. Convenience should cost something, but not your entire afternoon.'",
     ),
 )
 WAYMEET_NPCS = (MARSHAL, WARDEN, FOREMAN, BROKER, PROVISIONER)
@@ -625,11 +618,11 @@ def _restart_repeatable(session, quest_key: str) -> None:
         )
 
 
-def _award(session, xp: int, scrip: int) -> int:
+def _award(session, xp: int, sparks: int) -> int:
     assert session.character is not None
     old_level = session.character.level
     new_level = session.database.add_experience(session.character.id, xp)
-    session.database.add_item(session.character.id, WAYMEET_SCRIP_KEY, scrip)
+    session.database.add_sols(session.character.id, sparks)
     _refresh_character(session)
     return max(0, new_level - old_level)
 
@@ -657,11 +650,11 @@ async def _talk_marshal(session) -> bool:
     if step == "return_marshal":
         session.database.complete_quest(session.character.id, WAYMEET_INTRO_QUEST_KEY)
         session.database.grant_flag(session.character.id, WAYMEET_INTRO_COMPLETE_FLAG)
-        gained = _award(session, 70, 2)
+        gained = _award(session, 70, 20)
         await session.send(
             "Aven listens without interrupting. When you mention the cold draft and the knocking below the sealed door, the strings between his maps suddenly look less decorative.\r\n"
             "'Then the Gloamworks are our first shared problem, not somebody else's old ruin.'\r\n"
-            "Quest complete: Where the Roads Meet. Reward: 70 XP and 2 Waymeet Trade Scrip.\r\n"
+            "Quest complete: Where the Roads Meet. Reward: 70 XP and 2 embers in Sols.\r\n"
         )
         if gained:
             await session.send(f"You gained {gained} level.\r\n")
@@ -713,8 +706,8 @@ async def _talk_warden(session) -> bool:
         return True
     session.database.consume_item(session.character.id, THORNBACK_FANG_KEY, 3)
     session.database.complete_quest(session.character.id, WAYMEET_JACKAL_QUEST_KEY)
-    gained = _award(session, 35, 1)
-    await session.send("Korr counts the three fangs, wraps them in scrap cloth, and hands over a brass chit. Repeatable contract complete: 35 XP and 1 Waymeet Trade Scrip. TALK WARDEN again whenever you want another run.\r\n")
+    gained = _award(session, 35, 10)
+    await session.send("Korr counts the three fangs, wraps them in scrap cloth, and pays an ember in sun-stamped Sols. Repeatable contract complete: 35 XP and 1 ember. TALK WARDEN again whenever you want another run.\r\n")
     if gained:
         await session.send(f"You gained {gained} level.\r\n")
     return True
@@ -734,27 +727,27 @@ async def _talk_foreman(session) -> bool:
         return True
     session.database.consume_item(session.character.id, SLATEBACK_CLAW_KEY, 2)
     session.database.complete_quest(session.character.id, WAYMEET_QUARRY_QUEST_KEY)
-    gained = _award(session, 45, 1)
-    await session.send("Hedda drops the claws into a marked bin and pays one brass chit. Repeatable contract complete: 45 XP and 1 Waymeet Trade Scrip. TALK FOREMAN again to repeat it.\r\n")
+    gained = _award(session, 45, 10)
+    await session.send("Hedda drops the claws into a marked bin and pays an ember in sun-stamped Sols. Repeatable contract complete: 45 XP and 1 ember. TALK FOREMAN again to repeat it.\r\n")
     if gained:
         await session.send(f"You gained {gained} level.\r\n")
     return True
 
 
 RAW_WARES = {
-    "iron": ("iron_ore", 1, 1, "Iron Ore"),
-    "iron ore": ("iron_ore", 1, 1, "Iron Ore"),
-    "cotton": ("raw_cotton", 1, 1, "Raw Cotton"),
-    "raw cotton": ("raw_cotton", 1, 1, "Raw Cotton"),
-    "herbs": ("greenleaf", 1, 1, "Greenleaf"),
-    "greenleaf": ("greenleaf", 1, 1, "Greenleaf"),
-    "coal": ("coal", 1, 1, "Coal"),
+    "iron": ("iron_ore", 1, 4, "Iron Ore"),
+    "iron ore": ("iron_ore", 1, 4, "Iron Ore"),
+    "cotton": ("raw_cotton", 1, 4, "Raw Cotton"),
+    "raw cotton": ("raw_cotton", 1, 4, "Raw Cotton"),
+    "herbs": ("greenleaf", 1, 4, "Greenleaf"),
+    "greenleaf": ("greenleaf", 1, 4, "Greenleaf"),
+    "coal": ("coal", 1, 4, "Coal"),
 }
 PROCESSED_WARES = {
-    "ingot": ("iron_ingot", 1, 2, "Iron Ingot"),
-    "iron ingot": ("iron_ingot", 1, 2, "Iron Ingot"),
-    "thread": ("cotton_thread", 1, 2, "Cotton Thread"),
-    "cotton thread": ("cotton_thread", 1, 2, "Cotton Thread"),
+    "ingot": ("iron_ingot", 1, 8, "Iron Ingot"),
+    "iron ingot": ("iron_ingot", 1, 8, "Iron Ingot"),
+    "thread": ("cotton_thread", 1, 8, "Cotton Thread"),
+    "cotton thread": ("cotton_thread", 1, 8, "Cotton Thread"),
 }
 
 
@@ -767,14 +760,14 @@ async def _browse_market(session, target: str) -> bool:
             "Waymeet merchants:\r\n"
             "- Vekk Coil: raw road supplies. BROWSE VEKK.\r\n"
             "- Sevra Lent: processed starter materials. BROWSE SEVRA.\r\n"
-            "Waymeet Trade Scrip comes from local road work and repeatable contracts.\r\n"
+            "Sols are accepted here; local road work and repeatable contracts pay them.\r\n"
         )
         return True
     if normalized in {"nix", "nix coil", "broker"}:
-        await session.send("Vekk Coil - 1 scrip each: BUY IRON, BUY COTTON, BUY HERBS, BUY COAL.\r\n")
+        await session.send("Vekk Coil - 4 sparks each: BUY IRON, BUY COTTON, BUY HERBS, BUY COAL.\r\n")
         return True
     if normalized in {"sevra", "sevra lent", "provisioner"}:
-        await session.send("Sevra Lent - 2 scrip each: BUY INGOT, BUY THREAD.\r\n")
+        await session.send("Sevra Lent - 8 sparks each: BUY INGOT, BUY THREAD.\r\n")
         return True
     return False
 
@@ -788,14 +781,19 @@ async def _buy_market(session, target: str) -> bool:
         await session.send("That is not a Waymeet market shorthand. BROWSE VEKK or BROWSE SEVRA.\r\n")
         return True
     item_key, quantity, cost, label = ware
-    if session.database.item_quantity(session.character.id, WAYMEET_SCRIP_KEY) < cost:
-        await session.send(f"You need {cost} Waymeet Trade Scrip for {label}.\r\n")
+    balance = session.database.get_sols(session.character.id)
+    if balance < cost:
+        await session.send(f"You need {cost} sparks for {label}; you have {balance}.\r\n")
         return True
-    if not session.database.consume_item(session.character.id, WAYMEET_SCRIP_KEY, cost):
+    if not session.database.complete_merchant_purchase(
+        session.character.id,
+        item_key=item_key,
+        quantity=quantity,
+        total_price=cost,
+    ):
         await session.send("The purchase could not be completed safely.\r\n")
         return True
-    session.database.add_item(session.character.id, item_key, quantity)
-    await session.send(f"You spend {cost} Waymeet Trade Scrip and receive {quantity}x {label}.\r\n")
+    await session.send(f"You spend {cost} sparks and receive {quantity}x {label}.\r\n")
     return True
 
 
@@ -880,7 +878,7 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
             return
         if normalized in {"examine sealed door", "look sealed door", "examine door", "look door", "examine gloamworks"} and await _inspect_gloam(self):
             return
-        if normalized == "browse":
+        if normalized in {"browse", "shop", "wares", "list"}:
             if await _browse_market(self, ""):
                 return
         if normalized.startswith("browse "):

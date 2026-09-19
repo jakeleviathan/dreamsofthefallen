@@ -94,6 +94,7 @@ class Database:
                     hp_stat INTEGER NOT NULL DEFAULT 0,
                     current_room TEXT,
                     bind_room TEXT,
+                    sols INTEGER NOT NULL DEFAULT 0 CHECK (sols >= 0),
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     last_played_at TEXT,
                     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
@@ -165,6 +166,29 @@ class Database:
                 """
             )
             self._ensure_character_columns(db)
+            # Sols replaced the development-era Waymeet Trade Scrip as Astralis's
+            # universal currency. Preserve old characters by converting each
+            # remaining scrip chit to one ember (10 sparks), then remove the
+            # obsolete inventory currency. This migration is naturally idempotent.
+            db.execute(
+                """
+                UPDATE characters
+                SET sols = sols + COALESCE((
+                    SELECT SUM(quantity) * 10
+                    FROM character_items
+                    WHERE character_items.character_id = characters.id
+                      AND item_key = 'waymeet_trade_scrip'
+                ), 0)
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM character_items
+                    WHERE character_items.character_id = characters.id
+                      AND item_key = 'waymeet_trade_scrip'
+                      AND quantity > 0
+                )
+                """
+            )
+            db.execute("DELETE FROM character_items WHERE item_key = 'waymeet_trade_scrip'")
             # Development migrations for the fungal race name as it was finalized.
             db.execute("UPDATE characters SET race = 'sporekin' WHERE race IN ('fungal', 'sporkkin', 'sporkin')")
             # Necromancer catalyst terminology was refined from generic Bones
@@ -231,6 +255,8 @@ class Database:
             db.execute("ALTER TABLE characters ADD COLUMN current_room TEXT")
         if "bind_room" not in columns:
             db.execute("ALTER TABLE characters ADD COLUMN bind_room TEXT")
+        if "sols" not in columns:
+            db.execute("ALTER TABLE characters ADD COLUMN sols INTEGER NOT NULL DEFAULT 0")
 
     def get_account_by_name(self, name: str) -> AccountRecord | None:
         with self.connect() as db:
@@ -401,6 +427,115 @@ class Database:
                 "UPDATE characters SET deity_key = ? WHERE id = ?",
                 (deity_key, character_id),
             )
+
+    def get_sols(self, character_id: int) -> int:
+        """Return a character's Sol balance in sparks (the base denomination)."""
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT sols FROM characters WHERE id = ?",
+                (character_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(f"Unknown character id {character_id}")
+        return int(row["sols"])
+
+    def add_sols(self, character_id: int, amount: int) -> int:
+        """Credit Sols in sparks and return the new balance."""
+        if amount < 0:
+            raise ValueError("Sol credit cannot be negative.")
+        with self.connect() as db:
+            cursor = db.execute(
+                "UPDATE characters SET sols = sols + ? WHERE id = ?",
+                (amount, character_id),
+            )
+            if cursor.rowcount != 1:
+                raise KeyError(f"Unknown character id {character_id}")
+            row = db.execute(
+                "SELECT sols FROM characters WHERE id = ?",
+                (character_id,),
+            ).fetchone()
+        return int(row["sols"])
+
+    def spend_sols(self, character_id: int, amount: int) -> bool:
+        """Atomically spend sparks when the character can afford the amount."""
+        if amount < 0:
+            raise ValueError("Sol spend cannot be negative.")
+        with self.connect() as db:
+            cursor = db.execute(
+                "UPDATE characters SET sols = sols - ? WHERE id = ? AND sols >= ?",
+                (amount, character_id, amount),
+            )
+        return cursor.rowcount == 1
+
+    def complete_merchant_purchase(
+        self,
+        character_id: int,
+        *,
+        item_key: str,
+        quantity: int,
+        total_price: int,
+    ) -> bool:
+        """Atomically exchange Sols for merchant stock."""
+        if quantity <= 0 or total_price < 0:
+            raise ValueError("Invalid merchant purchase.")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT sols FROM characters WHERE id = ?",
+                (character_id,),
+            ).fetchone()
+            if row is None or int(row["sols"]) < total_price:
+                return False
+            db.execute(
+                "UPDATE characters SET sols = sols - ? WHERE id = ?",
+                (total_price, character_id),
+            )
+            db.execute(
+                """
+                INSERT INTO character_items (character_id, item_key, quantity)
+                VALUES (?, ?, ?)
+                ON CONFLICT(character_id, item_key) DO UPDATE SET
+                    quantity = quantity + excluded.quantity
+                """,
+                (character_id, item_key, quantity),
+            )
+        return True
+
+    def complete_merchant_sale(
+        self,
+        character_id: int,
+        *,
+        item_key: str,
+        quantity: int,
+        proceeds: int,
+    ) -> bool:
+        """Atomically exchange carried items for Sols."""
+        if quantity <= 0 or proceeds < 0:
+            raise ValueError("Invalid merchant sale.")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT quantity FROM character_items WHERE character_id = ? AND item_key = ?",
+                (character_id, item_key),
+            ).fetchone()
+            if row is None or int(row["quantity"]) < quantity:
+                return False
+            remaining = int(row["quantity"]) - quantity
+            if remaining:
+                db.execute(
+                    "UPDATE character_items SET quantity = ? WHERE character_id = ? AND item_key = ?",
+                    (remaining, character_id, item_key),
+                )
+            else:
+                db.execute(
+                    "DELETE FROM character_items WHERE character_id = ? AND item_key = ?",
+                    (character_id, item_key),
+                )
+            db.execute(
+                "UPDATE characters SET sols = sols + ? WHERE id = ?",
+                (proceeds, character_id),
+            )
+        return True
 
     def add_item(self, character_id: int, item_key: str, quantity: int = 1) -> None:
         if quantity <= 0:
