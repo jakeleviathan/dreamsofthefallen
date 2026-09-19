@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import mud.party_system as party_system
-from mud.casting import spend_ability_mana
+from mud.casting import interrupt_cast, spend_ability_mana
 from mud.mechanics import (
     AbilityDefinition,
     DEATH_RULES,
@@ -387,6 +387,7 @@ def install_death_recovery_runtime(player_session_class) -> None:
     previous_use_ability = player_session_class.use_ability
 
     async def handle_character_death(self, enemy_name: str) -> None:
+        await interrupt_cast(self, "damage")
         # Keep the original method available beneath this layer for compatibility,
         # but the live rule is now death-in-place followed by RELEASE or Resurrection.
         await mark_character_dead(self, enemy_name)
