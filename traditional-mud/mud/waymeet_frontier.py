@@ -51,7 +51,6 @@ WAYMEET_QUARRY_QUEST_KEY = "waymeet_quarry_teeth"
 WAYMEET_INTRO_COMPLETE_FLAG = "waymeet_roads_meet_here_complete"
 WAYMEET_GLOAM_SEEN_FLAG = "waymeet_gloam_mouth_seen"
 
-WAYMEET_SCRIP_KEY = "waymeet_trade_scrip"
 THORNBACK_FANG_KEY = "waymeet_thornback_fang"
 SLATEBACK_CLAW_KEY = "waymeet_slateback_claw"
 GLOAM_RESIDUE_KEY = "waymeet_gloam_residue"
@@ -120,15 +119,6 @@ WAYMEET_QUARRY_QUEST = QuestDefinition(
 WAYMEET_QUESTS = (WAYMEET_INTRO_QUEST, WAYMEET_JACKAL_QUEST, WAYMEET_QUARRY_QUEST)
 
 
-WAYMEET_SCRIP = ItemDefinition(
-    key=WAYMEET_SCRIP_KEY,
-    name="Waymeet Trade Scrip",
-    description=(
-        "A stamped brass chit accepted by the practical merchants around Waymeet. It is not intended as Astralis-wide currency; the settlement issues it for road work and takes it back for common supplies."
-    ),
-    category="currency",
-    tier=1,
-)
 THORNBACK_FANG = ItemDefinition(
     key=THORNBACK_FANG_KEY,
     name="Thornback Fang",
