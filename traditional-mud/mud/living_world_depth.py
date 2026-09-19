@@ -25,7 +25,6 @@ from mud.waymeet_frontier import (
     WAYMEET_COMMONHOUSE_KEY,
     WAYMEET_LANTERN_MARKET_KEY,
     WAYMEET_QUARRY_KEY,
-    WAYMEET_SCRIP_KEY,
 )
 
 
@@ -459,10 +458,10 @@ def _visitor_matches(visitor: ScheduledVisitor, text: str) -> bool:
 
 def _weekly_wares(day_number: int) -> tuple[tuple[str, int], ...]:
     rotations = (
-        (("iron_ore", 1), ("raw_cotton", 1), ("greenleaf", 1)),
-        (("coal", 1), ("cotton_thread", 1), ("lavender_blossom", 1)),
-        (("rough_hide", 1), ("bitterroot", 1), ("imp_horn", 2)),
-        (("iron_ore", 1), ("greenleaf", 1), ("cotton_thread", 1)),
+        (("iron_ore", 5), ("raw_cotton", 5), ("greenleaf", 5)),
+        (("coal", 5), ("cotton_thread", 5), ("lavender_blossom", 5)),
+        (("rough_hide", 5), ("bitterroot", 5), ("imp_horn", 8)),
+        (("iron_ore", 5), ("greenleaf", 5), ("cotton_thread", 5)),
     )
     week = (int(day_number) - 1) // 7
     return rotations[week % len(rotations)]
@@ -753,7 +752,7 @@ async def _browse_hesta(session) -> bool:
         return False
     await session.send("\r\n--- Hesta Ashcart's Weekly Wagon ---\r\n")
     for item_key, cost in _weekly_wares(moment.day_number):
-        await session.send(f"{living._item_label(item_key)} - {cost} Waymeet Trade Scrip\r\n")
+        await session.send(f"{living._item_label(item_key)} - {cost} sparks\r\n")
     await session.send("BUY HESTA <item> purchases one. Hesta carries convenience, never exclusive materials.\r\n")
     return True
 
@@ -775,12 +774,18 @@ async def _buy_hesta(session, item_text: str) -> bool:
         await session.send("Hesta is not carrying that this week. Use BROWSE HESTA.\r\n")
         return True
     item_key, cost = match
-    if session.database.item_quantity(character.id, WAYMEET_SCRIP_KEY) < cost:
-        await session.send(f"You need {cost} Waymeet Trade Scrip.\r\n")
+    if session.database.get_sols(character.id) < cost:
+        await session.send(f"You need {cost} sparks.\r\n")
         return True
-    session.database.consume_item(character.id, WAYMEET_SCRIP_KEY, cost)
-    session.database.add_item(character.id, item_key, 1)
-    await session.send(f"Hesta trades you 1x {living._item_label(item_key)} for {cost} scrip.\r\n")
+    if not session.database.complete_merchant_purchase(
+        character.id,
+        item_key=item_key,
+        quantity=1,
+        total_price=cost,
+    ):
+        await session.send("The purchase could not be completed safely.\r\n")
+        return True
+    await session.send(f"Hesta sells you 1x {living._item_label(item_key)} for {cost} sparks.\r\n")
     return True
 
 
