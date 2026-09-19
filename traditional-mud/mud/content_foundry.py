@@ -496,11 +496,13 @@ def install_content_foundry_runtime(player_session_class, world_service):
                 await self.send("The Ash Driver has already accepted your fare.\r\n")
                 return
             if verb in {"offer sol", "offer sols"}:
-                if self.database.item_quantity(self.character.id) <= 0:
-                    await self.send("You have no Waymeet Trade Scrip. OFFER NAME is also valid.\r\n")
+                if self.database.get_sols(self.character.id) < 10:
+                    await self.send("The fare is 1 ember in Sols. OFFER NAME is also valid.\r\n")
                     return
-                self.database.consume_item(self.character.id, 1)
-                await self.send("You place one modern scrip token in the ancient fare box. The Driver punches it anyway. 'Transfer accepted.'\r\n")
+                if not self.database.spend_sols(self.character.id, 10):
+                    await self.send("The fare could not be completed safely.\r\n")
+                    return
+                await self.send("You place sun-stamped Sols in the ancient fare box. The Driver punches the transfer anyway. 'Accepted.'\r\n")
             else:
                 await self.send(f"You give your name: {self.character.name}. The Driver punches an empty brass ticket and files it under a route that no longer exists. 'Fare accepted.'\r\n")
             _grant_flag(self, "ash_driver_fare_declared")
