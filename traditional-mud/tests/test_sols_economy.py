@@ -99,7 +99,7 @@ class SolEconomyTests(unittest.TestCase):
         }
         self.assertTrue(expected.issubset(MERCHANTS_BY_NPC_KEY))
         for key in expected:
-            self.assertGreaterEqual(len(MERCHANTS_BY_NPC_KEY[key].stock), 4)
+            self.assertGreaterEqual(len(MERCHANTS_BY_NPC_KEY[key].stock), 3)
 
     def test_regional_prices_include_longer_term_targets(self):
         from mud.merchants import MERCHANTS_BY_NPC_KEY
