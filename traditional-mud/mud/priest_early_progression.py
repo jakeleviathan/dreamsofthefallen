@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from time import monotonic
 
 import mud.ability_mastery as ability_mastery
 import mud.class_progression as class_progression
@@ -157,6 +158,7 @@ async def _expire_resolve_blessing(target, amount: int, duration: float = 60.0) 
         combatant.max_hp = max(1, combatant.max_hp - amount)
         combatant.current_hp = min(combatant.current_hp, combatant.max_hp)
         target._priest_resolve_blessing = 0
+        target._priest_resolve_blessing_until = 0.0
         await target.send("Blessing of Resolve fades; your maximum HP returns to normal.\r\n")
         await target.send_client_state()
     except asyncio.CancelledError:
@@ -199,6 +201,7 @@ async def _use_priest_foundation_ability(session, ability, target_text: str) -> 
             amount = 4 + ability_mastery.flat_bonus(session, ability)
             duration = 60.0 + ability_mastery.duration_bonus(session, ability)
             target._priest_resolve_blessing = amount
+            target._priest_resolve_blessing_until = monotonic() + duration
             target.combatant.max_hp += amount
             target.combatant.current_hp += amount
             ability_mastery.mark_support_practice(
@@ -220,6 +223,7 @@ async def _use_priest_foundation_ability(session, ability, target_text: str) -> 
         else:
             until = asyncio.get_running_loop().time() + 12.0
             target.ward_until = max(getattr(target, "ward_until", 0.0), until)
+            target._ward_effect_name = "Aegis of Faith"
             await session.send(
                 f"Aegis of Faith protects {target.character.name} for twelve seconds.\r\n"
             )
@@ -227,6 +231,7 @@ async def _use_priest_foundation_ability(session, ability, target_text: str) -> 
                 await target.send(
                     f"{session.character.name}'s Aegis of Faith settles around you.\r\n"
                 )
+                await target.send_client_state()
 
         await class_progression._complete_use(session, ability)
         return True
@@ -244,8 +249,10 @@ async def _use_priest_foundation_ability(session, ability, target_text: str) -> 
         for member in targets:
             await class_progression._heal(session, member, 8, "Divine Concord")
             member.ward_until = max(getattr(member, "ward_until", 0.0), until)
+            member._ward_effect_name = "Divine Concord"
             if member is not session:
                 await member.send("Divine Concord wards you for eight seconds.\r\n")
+                await member.send_client_state()
         await class_progression._complete_use(session, ability)
         return True
 

@@ -17,6 +17,7 @@ from mud.database import Database
 from mud.mechanics import CombatantState
 from mud.modern_client_experience import (
     MODERN_CLIENT_VERSION,
+    _effects_snapshot,
     _mark_onboarding_command,
     _onboarding_snapshot,
     _room_snapshot,
@@ -111,6 +112,25 @@ class ModernClientExperienceTests(unittest.TestCase):
             _mark_onboarding_command(session, "cast heavy strike")
             self.assertFalse(_onboarding_snapshot(session, room)["active"])
 
+    def test_effect_snapshot_reports_timed_player_effects(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session = self._session(Path(temp_dir))
+            from time import monotonic
+
+            session._priest_resolve_blessing = 4
+            session._priest_resolve_blessing_until = monotonic() + 30.0
+            session._ward_effect_name = "Aegis of Faith"
+            session.ward_until = monotonic() + 12.0
+            session._arcane_surge_until = monotonic() + 15.0
+
+            effects = _effects_snapshot(session)["effects"]
+            by_key = {effect["key"]: effect for effect in effects}
+
+            self.assertEqual(by_key["blessing_of_resolve"]["detail"], "+4 maximum Health")
+            self.assertEqual(by_key["protective_ward"]["name"], "Aegis of Faith")
+            self.assertIn("arcane_surge", by_key)
+            self.assertGreater(by_key["blessing_of_resolve"]["remaining"], 0)
+
     def test_full_push_emits_modern_structured_surfaces(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             session = self._session(Path(temp_dir))
@@ -122,6 +142,7 @@ class ModernClientExperienceTests(unittest.TestCase):
                     "Dreams.Room",
                     "Dreams.Party",
                     "Dreams.Abilities",
+                    "Dreams.Effects",
                     "Dreams.Context",
                     "Dreams.Onboarding",
                     "Dreams.Inventory",
@@ -132,13 +153,14 @@ class ModernClientExperienceTests(unittest.TestCase):
             payloads = {package: payload for package, payload in session.telnet.messages}
             self.assertEqual(payloads["Room.Info"]["num"], stable_room_number("human_demon_gate"))
             self.assertTrue(payloads["Dreams.Abilities"]["abilities"])
+            self.assertEqual(payloads["Dreams.Effects"]["effects"], [])
             self.assertTrue(payloads["Dreams.Context"]["actions"])
             self.assertTrue(payloads["Dreams.Inventory"]["items"])
             self.assertTrue(payloads["Dreams.Quests"]["active"])
 
     def test_official_client_sources_include_discovery_mapper_and_release_version(self):
         self.assertEqual(MODERN_CLIENT_VERSION, "2.0.0")
-        self.assertEqual(CURRENT_MUDLET_HUD_VERSION, "2.2.1")
+        self.assertEqual(CURRENT_MUDLET_HUD_VERSION, "2.2.2")
         self.assertEqual(configured_mudlet_gui_offer().version, OFFICIAL_MUDLET_HUD_VERSION)
 
         root = Path(__file__).resolve().parents[1]
@@ -146,12 +168,12 @@ class ModernClientExperienceTests(unittest.TestCase):
         map_lua = (root / "mudlet" / "DreamsOfTheFallenHUD" / "src" / "map.lua").read_text(encoding="utf-8")
         build_source = (root / "mudlet" / "DreamsOfTheFallenHUD" / "build_package.py").read_text(encoding="utf-8")
         for marker in (
-            "Geyser.Mapper",
             "Dreams.Room",
             "Dreams.Party",
             "Dreams.Quests",
             "Dreams.Inventory",
             "Dreams.Abilities",
+            "Dreams.Effects",
             "Dreams.Context",
             "Dreams.Onboarding",
             "synthCue",
@@ -159,8 +181,12 @@ class ModernClientExperienceTests(unittest.TestCase):
             "cycleHotbarSlot",
             "table.save",
             "DreamsHUD.HotbarSet",
+            "DreamsHUD.EffectsPane",
+            "ACTIVE EFFECTS",
         ):
             self.assertIn(marker, modern_lua)
+        self.assertNotIn("Geyser.Mapper:new", modern_lua)
+        self.assertIn('{ "effects", "EFFECTS" }', modern_lua)
         self.assertIn("Dreams.Map", map_lua)
         self.assertIn("discovered_count", map_lua)
         self.assertIn('ROOT / "src" / "modern.lua"', build_source)
@@ -177,7 +203,7 @@ assert server.PlayerSession._modern_client_runtime_installed
 assert server.PlayerSession._exploration_map_runtime_installed
 assert server.PlayerSession._exploration_map_gmcp_runtime_installed
 assert MODERN_CLIENT_VERSION == "2.0.0"
-assert CURRENT_MUDLET_HUD_VERSION == "2.2.1"
+assert CURRENT_MUDLET_HUD_VERSION == "2.2.2"
 assert configured_mudlet_gui_offer().enabled
 print("MODERN_CLIENT_OK")
 '''

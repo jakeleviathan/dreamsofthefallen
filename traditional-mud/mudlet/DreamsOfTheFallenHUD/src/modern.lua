@@ -1,5 +1,5 @@
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.0.0
+-- Version 2.2.2
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -7,7 +7,7 @@
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.0.0"
+H.version = "2.2.2"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -15,16 +15,36 @@ H.state.party = H.state.party or { active = false, members = {} }
 H.state.quests = H.state.quests or { active = {} }
 H.state.inventory = H.state.inventory or { items = {} }
 H.state.abilities = H.state.abilities or { abilities = {} }
+H.state.effects = H.state.effects or { effects = {} }
 H.state.context = H.state.context or { actions = {} }
 H.state.onboarding = H.state.onboarding or { active = false }
 H.state.selected_ally = H.state.selected_ally or ""
-H.activePanel = H.activePanel or "map"
+H.activePanel = (H.activePanel == nil or H.activePanel == "map") and "effects" or H.activePanel
 H.modernHandlers = H.modernHandlers or {}
 H.modernTriggers = H.modernTriggers or {}
 H.soundEnabled = H.soundEnabled ~= false
 H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
+
+local MODERN_UI_VERSION = "2.2.2"
+if H.modernUiVersion ~= MODERN_UI_VERSION then
+  -- Client.GUI can replace a package while the Mudlet profile stays alive.
+  -- Tear down the old dock so new releases can safely change widget structure
+  -- without leaving stale Geyser objects (the 2.2.1 Pack migration exposed this).
+  if H.sideFrame and H.sideFrame.delete then pcall(function() H.sideFrame:delete() end) end
+  if H.bottomFrame and H.bottomFrame.delete then pcall(function() H.bottomFrame:delete() end) end
+  if H.eventBanner and H.eventBanner.delete then pcall(function() H.eventBanner:delete() end) end
+  H.sideFrame = nil
+  H.bottomFrame = nil
+  H.eventBanner = nil
+  H.mapWidget = nil
+  H.mapFallback = nil
+  H.modernBuilt = false
+  H.activePanel = "effects"
+  H.effectsTickScheduled = false
+end
+H.modernUiVersion = MODERN_UI_VERSION
 
 local function escape(value)
   value = tostring(value or "")
@@ -235,15 +255,14 @@ function H.runAbility(index)
 end
 
 function H.setPanel(panel)
-  H.activePanel = panel or "map"
-  local panels = { "map", "party", "quests", "inventory" }
+  H.activePanel = panel or "effects"
+  local panels = { "effects", "party", "quests", "inventory" }
   for _, key in ipairs(panels) do
     if H.panelButtons and H.panelButtons[key] then
       H.panelButtons[key]:setStyleSheet(key == H.activePanel and BUTTON_ACTIVE_STYLE or BUTTON_STYLE)
     end
   end
-  if H.mapWidget then if H.activePanel == "map" then H.mapWidget:show() else H.mapWidget:hide() end end
-  if H.mapFallback then if H.activePanel == "map" and not H.mapWidget then H.mapFallback:show() else H.mapFallback:hide() end end
+  if H.effectsPane then if H.activePanel == "effects" then H.effectsPane:show() else H.effectsPane:hide() end end
   if H.partyPane then if H.activePanel == "party" then H.partyPane:show() else H.partyPane:hide() end end
   if H.questPane then if H.activePanel == "quests" then H.questPane:show() else H.questPane:hide() end end
   if H.inventoryPane then if H.activePanel == "inventory" then H.inventoryPane:show() else H.inventoryPane:hide() end end
@@ -375,7 +394,7 @@ function H.buildModern()
 
   H.panelButtons = {}
   local tabs = {
-    { "map", "MAP" }, { "party", "PARTY" }, { "quests", "QUESTS" }, { "inventory", "PACK" },
+    { "effects", "EFFECTS" }, { "party", "PARTY" }, { "quests", "QUESTS" }, { "inventory", "PACK" },
   }
   for index, spec in ipairs(tabs) do
     local button = label(H.sideFrame, "DreamsHUD.Tab." .. spec[1],
@@ -389,18 +408,20 @@ function H.buildModern()
     name = "DreamsHUD.SideContent", x = "2%", y = 39, width = "96%", height = -47,
   }, H.sideFrame)
 
-  if Geyser.Mapper then
-    local ok, mapper = pcall(function()
-      return Geyser.Mapper:new({
-        name = "DreamsHUD.Mapper", x = 0, y = 0, width = "100%", height = "100%",
-      }, H.contentFrame)
-    end)
-    if ok then H.mapWidget = mapper end
-  end
-  if not H.mapWidget then
-    H.mapFallback = label(H.contentFrame, "DreamsHUD.MapFallback", 8, 8, -16, -16, SMALL_TEXT)
-    H.mapFallback:echo("<center>MAP<br/><br/>Your client does not expose the embedded mapper widget.<br/>Room data is still being received through GMCP.</center>")
-  end
+  H.effectsPane = Geyser.Container:new({ name = "DreamsHUD.EffectsPane", x = 0, y = 0, width = "100%", height = "100%" }, H.contentFrame)
+  H.effectsHeader = label(H.effectsPane, "DreamsHUD.EffectsHeader", 8, 6, -16, 28, GOLD_TEXT)
+  H.effectsList = Geyser.MiniConsole:new({
+    name = "DreamsHUD.EffectsList",
+    x = 8,
+    y = 38,
+    width = -16,
+    height = -46,
+    autoWrap = true,
+    color = "#08060a",
+    scrollBar = true,
+    fontSize = 10,
+  }, H.effectsPane)
+  H.effectsList:setColor("#08060a")
 
   H.partyPane = Geyser.Container:new({ name = "DreamsHUD.PartyPane", x = 0, y = 0, width = "100%", height = "100%" }, H.contentFrame)
   H.partyHeader = label(H.partyPane, "DreamsHUD.PartyHeader", 8, 5, -16, 28, GOLD_TEXT)
@@ -544,6 +565,69 @@ function H.updateMapper()
     end
   end
   if centerview then pcall(centerview, current) end
+end
+
+function H.renderEffectsPanel()
+  if not H.modernBuilt or not H.effectsList then return end
+  local effects = ((H.state or {}).effects or {}).effects or {}
+  local visible = {}
+
+  for _, effect in ipairs(effects) do
+    local remaining = tonumber(effect.remaining)
+    if remaining == nil or remaining > 0 then
+      visible[#visible + 1] = effect
+    end
+  end
+
+  H.effectsHeader:echo(string.format("ACTIVE EFFECTS  •  %d", #visible))
+  H.effectsList:clear()
+  H.effectsList:fg("white")
+
+  if #visible == 0 then
+    H.effectsList:cecho("<gray>No active temporary effects.<reset>\n\n")
+    H.effectsList:echo("Buffs, wards, healing-over-time effects, and other timed conditions will appear here.")
+    return
+  end
+
+  for _, effect in ipairs(visible) do
+    local name = tostring(effect.name or effect.key or "Effect")
+    local detail = tostring(effect.detail or "")
+    local kind = string.upper(tostring(effect.kind or "effect"))
+    local remaining = tonumber(effect.remaining)
+
+    H.effectsList:cecho("<gold>" .. name .. "<reset>")
+    if remaining then
+      H.effectsList:cecho(string.format(" <white>[%ds]<reset>", math.max(1, math.ceil(remaining))))
+    end
+    H.effectsList:cecho("\n<gray>" .. kind .. "<reset>")
+    if detail ~= "" then
+      H.effectsList:echo("  •  " .. detail)
+    end
+    H.effectsList:echo("\n\n")
+  end
+end
+
+function H.tickEffects()
+  local effects = ((H.state or {}).effects or {}).effects or {}
+  local changed = false
+  for _, effect in ipairs(effects) do
+    local remaining = tonumber(effect.remaining)
+    if remaining and remaining > 0 then
+      effect.remaining = math.max(0, remaining - 1)
+      changed = true
+    end
+  end
+  if changed then H.renderEffectsPanel() end
+end
+
+function H.scheduleEffectsTick()
+  if H.effectsTickScheduled or not tempTimer then return end
+  H.effectsTickScheduled = true
+  tempTimer(1, function()
+    H.effectsTickScheduled = false
+    H.tickEffects()
+    H.scheduleEffectsTick()
+  end)
 end
 
 function H.renderPartyPanel()
@@ -736,6 +820,7 @@ end
 
 function H.renderModernAll()
   if not H.modernBuilt then return end
+  H.renderEffectsPanel()
   H.renderPartyPanel()
   H.renderQuestPanel()
   H.renderInventoryPanel()
@@ -743,14 +828,12 @@ function H.renderModernAll()
   H.renderHotbarConfig()
   H.renderContext()
   H.renderOnboarding()
-  H.updateMapper()
 end
 
 function H.onRoomModern()
   local room = gmcp and gmcp.Dreams and gmcp.Dreams.Room
   if not room then return end
   H.state.room = room
-  H.updateMapper()
 end
 
 function H.onPartyModern()
@@ -780,6 +863,13 @@ function H.onAbilitiesModern()
   H.state.abilities = data
   H.renderHotbar()
   H.renderHotbarConfig()
+end
+
+function H.onEffectsModern()
+  local data = gmcp and gmcp.Dreams and gmcp.Dreams.Effects
+  if not data then return end
+  H.state.effects = data
+  H.renderEffectsPanel()
 end
 
 function H.onContextModern()
@@ -830,6 +920,7 @@ function H.registerModernHandlers()
     quests = {"gmcp.Dreams.Quests", H.onQuestsModern},
     inventory = {"gmcp.Dreams.Inventory", H.onInventoryModern},
     abilities = {"gmcp.Dreams.Abilities", H.onAbilitiesModern},
+    effects = {"gmcp.Dreams.Effects", H.onEffectsModern},
     context = {"gmcp.Dreams.Context", H.onContextModern},
     onboarding = {"gmcp.Dreams.Onboarding", H.onOnboardingModern},
     event = {"gmcp.Dreams.Event", H.onEventModern},
@@ -850,6 +941,7 @@ function H.initModern()
   H.registerModernHandlers()
   H.registerTextEmphasis()
   H.ensureCueFiles()
+  H.scheduleEffectsTick()
   if sendGMCP then
     pcall(function()
       sendGMCP('Core.Supports.Add ["Dreams 2","Room 1","Char 1"]')
