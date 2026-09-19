@@ -94,6 +94,7 @@ from mud.npc_name_audit import validate_unique_npc_names
 from mud.quest_npc_audit import validate_quest_talk_references
 import mud.npcs as mobile_npcs
 from mud.casting import install_casting_runtime
+from mud.enemy_targeting import install_enemy_targeting_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
@@ -311,9 +312,15 @@ install_universal_location_repair_runtime(PlayerSession, WORLD)
 # the same readable visual hierarchy without requiring per-room markup.
 install_room_presentation_runtime(PlayerSession, WORLD)
 
+# Enemy targeting sits immediately outside the complete authored ability stack.
+# TARGET selects without aggro; an enemy-targeted hotbar ability promotes that
+# selection into combat as the ability resolves.
+install_enemy_targeting_runtime(PlayerSession, WORLD)
+
 # Casting is installed after every ability wrapper so CAST always passes through
 # the same interruptible timing layer, regardless of which progression module
-# owns the eventual spell effect.
+# owns the eventual spell effect. Because targeting is installed first, cast-time
+# spells retain the selected enemy and engage it when the cast completes.
 install_casting_runtime(PlayerSession)
 
 # Post is intentionally the final command wrapper. Its subject/body editor and
