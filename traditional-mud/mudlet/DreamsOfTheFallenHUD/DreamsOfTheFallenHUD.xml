@@ -3,8 +3,7 @@
 <MudletPackage version="1.001">
   <TriggerPackage>
     <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
-      <name>DreamsOfTheFallenHUD Bootstrap</name>
-      <script>-- Dreams of the Fallen HUD runtime-install bootstrap
+      <name>DreamsOfTheFallenHUD Bootstrap</name><script>-- Dreams of the Fallen HUD runtime-install bootstrap
 --
 -- Client.GUI can install or upgrade a package after the Mudlet profile has
 -- already finished its normal script-load pass. In that case the Script item is
@@ -59,38 +58,11 @@ local function startInstalledHud()
 end
 
 startInstalledHud()
-</script>
-      <triggerType>0</triggerType>
-      <conditonLineDelta>0</conditonLineDelta>
-      <mStayOpen>0</mStayOpen>
-      <mCommand></mCommand>
-      <packageName>DreamsOfTheFallenHUD</packageName>
-      <mFgColor>#ff0000</mFgColor>
-      <mBgColor>#ffff00</mBgColor>
-      <mSoundFile></mSoundFile>
-      <colorTriggerFgColor>#000000</colorTriggerFgColor>
-      <colorTriggerBgColor>#000000</colorTriggerBgColor>
-      <regexCodeList>
-        <string>^.*$</string>
-      </regexCodeList>
-      <regexCodePropertyList>
-        <integer>1</integer>
-      </regexCodePropertyList>
+</script><triggerType>0</triggerType><conditonLineDelta>0</conditonLineDelta><mStayOpen>0</mStayOpen><mCommand></mCommand><packageName>DreamsOfTheFallenHUD</packageName><mFgColor>#ff0000</mFgColor><mBgColor>#ffff00</mBgColor><mSoundFile></mSoundFile><colorTriggerFgColor>#000000</colorTriggerFgColor><colorTriggerBgColor>#000000</colorTriggerBgColor><regexCodeList><string>^.*$</string></regexCodeList><regexCodePropertyList><integer>1</integer></regexCodePropertyList>
     </Trigger>
   </TriggerPackage>
-  <TimerPackage />
-  <AliasPackage />
-  <ActionPackage />
-  <ScriptPackage>
-    <ScriptGroup isActive="yes" isFolder="yes">
-      <name>DreamsOfTheFallenHUD</name>
-      <packageName>DreamsOfTheFallenHUD</packageName>
-      <script></script>
-      <eventHandlerList />
-      <Script isActive="yes" isFolder="no">
-        <name>Dreams of the Fallen Official HUD</name>
-        <packageName>DreamsOfTheFallenHUD</packageName>
-        <script>-- BEGIN hud.lua
+  <TimerPackage /><AliasPackage /><ActionPackage />
+  <ScriptPackage><ScriptGroup isActive="yes" isFolder="yes"><name>DreamsOfTheFallenHUD</name><packageName>DreamsOfTheFallenHUD</packageName><script></script><eventHandlerList /><Script isActive="yes" isFolder="no"><name>Dreams of the Fallen Official HUD</name><packageName>DreamsOfTheFallenHUD</packageName><script>-- BEGIN hud.lua
 -- Dreams of the Fallen - Official Mudlet HUD
 -- Version 1.0.0
 --
@@ -493,7 +465,7 @@ H.init()
 
 -- BEGIN modern.lua
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.3
+-- Version 2.2.4
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -501,7 +473,7 @@ H.init()
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.3"
+H.version = "2.2.4"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -521,7 +493,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.3"
+local MODERN_UI_VERSION = "2.2.4"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -1248,14 +1220,14 @@ function H.renderInventoryPanel()
     local quantity = tonumber(item.quantity) or 0
     local name = tostring(item.name or item.key or "Unknown item")
 
-    local clickName = name
     if echoLink then
+      local command = string.format("send(%q, true)", "ITEM " .. name)
       echoLink(
         "DreamsHUD.InventoryList",
         string.format("%dx %s", quantity, name),
-        function() H.inspectInventoryItem(clickName) end,
+        command,
         "Inspect " .. name .. " (ITEM " .. name .. ")",
-        true
+        false
       )
     else
       H.inventoryList:echo(string.format("%dx %s", quantity, name))
@@ -1467,14 +1439,14 @@ H.initModern()
 
 -- BEGIN map.lua
 -- Dreams of the Fallen - Persistent Discovery Mapper
--- HUD 2.2.3
+-- HUD 2.2.4
 --
 -- The server owns discovery. This panel deliberately refuses to invent rooms
 -- from visible exits: Dreams.Map contains only places this character has entered.
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.3"
+H.version = "2.2.4"
 H.state = H.state or {}
 H.state.map = H.state.map or { current = 0, discovered_count = 0, rooms = {} }
 H.mapCoordinates = H.mapCoordinates or {}
@@ -1669,11 +1641,6 @@ end
 
 H.updateMapper()
 -- END map.lua
-</script>
-        <eventHandlerList />
-      </Script>
-    </ScriptGroup>
-  </ScriptPackage>
-  <KeyPackage />
-  <VariablePackage><HiddenVariables /></VariablePackage>
+</script><eventHandlerList /></Script></ScriptGroup></ScriptPackage>
+  <KeyPackage /><VariablePackage><HiddenVariables /></VariablePackage>
 </MudletPackage>
