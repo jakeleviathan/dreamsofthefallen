@@ -120,7 +120,13 @@ class EconomyBalanceTests(unittest.TestCase):
         self.db.add_item(self.character.id, "cotton_cloth", 1)
         self.db.add_item(self.character.id, "iron_ingot", 1)
 
-        asyncio.run(session.playing_prompt())
+        async def finish_craft():
+            await session.playing_prompt()
+            task = session._active_craft["task"]
+            await task
+
+        with patch("mud.economy_loop.crafting.craft_time_seconds", return_value=0.02):
+            asyncio.run(finish_craft())
 
         self.assertEqual(self.db.item_quantity(self.character.id, "reinforced_field_vest"), 1)
         self.assertIn("Reinforced Field Vest", "".join(session.outputs))
