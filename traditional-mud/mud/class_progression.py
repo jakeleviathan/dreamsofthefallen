@@ -997,6 +997,8 @@ async def _use_progression_ability(session, ability, target_text: str) -> bool:
                 f"{session.character.name}'s Oakheart grants you {amount} maximum HP for {int(duration)} seconds.\r\n"
             )
         _track_task(target, _expire_oakheart(target, amount, duration))
+        if target is not session:
+            await target.send_client_state()
     elif key == "thorn_lash":
         await _deal_damage(session, ability, session.combatant.spell_damage(7))
     elif key == "rejuvenation":
@@ -1007,6 +1009,8 @@ async def _use_progression_ability(session, ability, target_text: str) -> bool:
         )
         target._rejuvenation_until = monotonic() + 6.2
         await session.send(f"Rejuvenation takes root on {target.character.name}; three healing pulses will follow.\r\n")
+        if target is not session:
+            await target.send_client_state()
         _track_task(session, _rejuvenation(session, target, ability))
     elif key in {"barkskin", "guardian_ward"}:
         duration = 10.0
@@ -1015,6 +1019,7 @@ async def _use_progression_ability(session, ability, target_text: str) -> bool:
         await session.send(f"{ability.name} protects {target.character.name} for ten seconds.\r\n")
         if target is not session:
             await target.send(f"{session.character.name}'s {ability.name} settles around you.\r\n")
+            await target.send_client_state()
     elif key == "verdant_pulse":
         targets = _support_targets(session)
         await session.send(f"Verdant Pulse spreads through {len(targets)} living party member{'s' if len(targets) != 1 else ''}.\r\n")
@@ -1035,6 +1040,7 @@ async def _use_progression_ability(session, ability, target_text: str) -> bool:
             member._ward_effect_name = "Sanctuary"
             if member is not session:
                 await member.send(f"{session.character.name}'s Sanctuary protects you for eight seconds.\r\n")
+                await member.send_client_state()
         await session.send(f"Sanctuary protects {len(targets)} living party member{'s' if len(targets) != 1 else ''} for eight seconds.\r\n")
     elif key == "bone_ward":
         session.ward_until = asyncio.get_running_loop().time() + 10.0
