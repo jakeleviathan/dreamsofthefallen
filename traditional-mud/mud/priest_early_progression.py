@@ -231,6 +231,7 @@ async def _use_priest_foundation_ability(session, ability, target_text: str) -> 
                 await target.send(
                     f"{session.character.name}'s Aegis of Faith settles around you.\r\n"
                 )
+                await target.send_client_state()
 
         await class_progression._complete_use(session, ability)
         return True
@@ -251,6 +252,7 @@ async def _use_priest_foundation_ability(session, ability, target_text: str) -> 
             member._ward_effect_name = "Divine Concord"
             if member is not session:
                 await member.send("Divine Concord wards you for eight seconds.\r\n")
+                await member.send_client_state()
         await class_progression._complete_use(session, ability)
         return True
 
