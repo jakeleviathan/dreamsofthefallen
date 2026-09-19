@@ -230,7 +230,7 @@ def _room(key, name, region, description, exits, enemies=(), tags=()):
     return RoomDefinition(key=key, name=name, region_key=region, description=description, exits=exits, enemy_keys=enemies, tags=("shared_world", "dungeon", "content_wave_one", *tags))
 
 GLASS_ROOMS = (
-    _room(GLASS_GATE, "Shattered Orchard Gate", GLASS_REGION, "The Resonant Orchard continues through a wrought gate pushed inward by roots. Beyond it, living pear trees carry fruit gone clear and hard as glass. Pale silk crosses the path like a warning nobody wrote down.", {"west": GREYWAKE_RESONANT_ORCHARD_KEY, "east": GLASS_PEAR_ROWS}, (GLASS_DRONE,), ("level_5_7", "entry")),
+    _room(GLASS_GATE, "Shattered Orchard Gate", GLASS_REGION, "The Resonant Orchard continues through a wrought gate pushed inward by roots. Beyond it, living pear trees carry fruit gone clear and hard as glass. Pale silk crosses the path like a warning nobody wrote down.", {"north": GREYWAKE_RESONANT_ORCHARD_KEY, "east": GLASS_PEAR_ROWS}, (GLASS_DRONE,), ("level_5_7", "entry")),
     _room(GLASS_PEAR_ROWS, "Glass Pear Rows", GLASS_REGION, "Rows of old orchard trees stand too straight, every third branch stitched to the next by pale silk. Red glassfruit hangs on the north row.", {"west": GLASS_GATE, "east": GLASS_TRENCH, "north": GLASS_GLASSHOUSE}, (ORCHARD_HUSK,), ("level_5_7",)),
     _room(GLASS_TRENCH, "Irrigation Trench", GLASS_REGION, "A dry stone irrigation trench divides the orchard. Blue glassfruit has grown around one old sluice wheel, turning it into a brittle blue crown.", {"west": GLASS_PEAR_ROWS, "east": GLASS_COCOON}, (GLASS_DRONE,), ("level_5_7",)),
     _room(GLASS_GLASSHOUSE, "Broken Glasshouse", GLASS_REGION, "Most panes are gone, but the surviving roof feeds one impossible clear-fruited tree. Silk-Tenders have webbed broken frames into usable architecture.", {"south": GLASS_PEAR_ROWS, "east": GLASS_ROOT_CELLAR}, (SILK_TENDER,), ("level_5_7", "side_room")),
@@ -334,7 +334,7 @@ def register_content_wave_one(world_service):
 
     augmentations = {
         GREYWAKE_RESONANT_ORCHARD_KEY: RoomAugmentation(
-            extra_exits=(ExitDefinition("east", GLASS_GATE, "broken orchard gate", aliases=("orchard", "underbough"), travel_text="You pass through the root-bent gate into the glass-fruited underbough.", condition=ViewCondition(min_level=5), hidden_when_unavailable=True),),
+            extra_exits=(ExitDefinition("south", GLASS_GATE, "broken orchard gate", aliases=("orchard", "underbough"), travel_text="You pass south through the root-bent gate into the glass-fruited underbough.", condition=ViewCondition(min_level=5), hidden_when_unavailable=True),),
             features=(FeatureDefinition("root_bent_gate", "Root-Bent Orchard Gate", aliases=("gate", "orchard gate", "glass orchard"), summary="a root-bent gate leading into stranger orchard rows", examine_text="Beyond the gate, several pears have gone perfectly transparent. Pale silk links the branches."),),
         ),
         VEYRA_CARAVAN_COURT_KEY: RoomAugmentation(
