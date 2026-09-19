@@ -151,6 +151,37 @@ class SocialExperienceTests(unittest.TestCase):
         self.assertNotIn("current_room", output)
         self.assertNotIn("human_demon_gate", output)
 
+    def test_who_shows_staff_role_tag_only_while_staff_mode_is_on(self):
+        alice, bob = self._pair(["who", "who"])
+        with self.db.connect() as db:
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS staff_roles (
+                    account_id INTEGER PRIMARY KEY,
+                    role TEXT NOT NULL,
+                    granted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            db.execute(
+                "INSERT INTO staff_roles (account_id, role) VALUES (?, 'gm')",
+                (self.bob_account.id,),
+            )
+
+        bob._staff_mode = True
+        asyncio.run(alice.playing_prompt())
+        first_output = "".join(alice.outputs)
+        self.assertIn("[GM] Bob - Level 1", first_output)
+        self.assertIn("Alice - Level 1", first_output)
+        self.assertNotIn("[GM] Alice", first_output)
+
+        alice.outputs.clear()
+        bob._staff_mode = False
+        asyncio.run(alice.playing_prompt())
+        second_output = "".join(alice.outputs)
+        self.assertIn("Bob - Level 1", second_output)
+        self.assertNotIn("[GM] Bob", second_output)
+
 
 if __name__ == "__main__":
     unittest.main()

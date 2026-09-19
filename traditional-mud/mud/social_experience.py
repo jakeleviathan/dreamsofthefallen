@@ -339,6 +339,28 @@ async def _ignore(session, target_name: str, remove: bool = False) -> None:
         )
 
 
+def _visible_staff_role(session) -> str | None:
+    """Return a public staff tag only while that staff member is on duty."""
+    if not bool(getattr(session, "_staff_mode", False)):
+        return None
+    account = getattr(session, "account", None)
+    database = getattr(session, "database", None)
+    if account is None or database is None:
+        return None
+    try:
+        with database.connect() as db:
+            row = db.execute(
+                "SELECT role FROM staff_roles WHERE account_id = ?",
+                (account.id,),
+            ).fetchone()
+    except Exception:
+        return None
+    if row is None:
+        return None
+    role = str(row["role"]).lower()
+    return role if role in {"helper", "gm", "builder", "admin", "owner"} else None
+
+
 async def _who(session) -> None:
     rows = []
     for other in tuple(_ACTIVE_SESSIONS):
@@ -352,11 +374,13 @@ async def _who(session) -> None:
             int(character.level),
             race.name if race else (character.race or "Unknown"),
             klass.name if klass else (character.character_class or "Unknown").title(),
+            _visible_staff_role(other),
         ))
     rows.sort(key=lambda value: value[0].lower())
     await session.send(f"\r\n--- Who Is In Astralis ({len(rows)}) ---\r\n")
-    for name, level, race, klass in rows:
-        await session.send(f"{name} - Level {level} {race} {klass}\r\n")
+    for name, level, race, klass, staff_role in rows:
+        tag = f"[{staff_role.upper()}] " if staff_role else ""
+        await session.send(f"{tag}{name} - Level {level} {race} {klass}\r\n")
     if not rows:
         await session.send("No characters are currently visible as connected.\r\n")
 
