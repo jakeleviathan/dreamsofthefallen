@@ -207,6 +207,86 @@ def _ability_snapshot(session) -> dict:
     }
 
 
+def _effects_snapshot(session) -> dict:
+    """Return temporary player effects for structured clients.
+
+    Effects remain authoritative on the server; the client only receives names,
+    descriptions, and approximate remaining durations for presentation.
+    """
+    now = monotonic()
+    result: list[dict] = []
+
+    def add(key: str, name: str, kind: str, detail: str, until: float | None) -> None:
+        remaining = None
+        if until is not None and until > 0:
+            remaining = max(0.0, float(until) - now)
+            if remaining <= 0:
+                return
+            remaining = round(remaining, 1)
+        result.append(
+            {
+                "key": key,
+                "name": name,
+                "kind": kind,
+                "detail": detail,
+                "remaining": remaining,
+            }
+        )
+
+    resolve_amount = int(getattr(session, "_priest_resolve_blessing", 0) or 0)
+    if resolve_amount:
+        add(
+            "blessing_of_resolve",
+            "Blessing of Resolve",
+            "buff",
+            f"+{resolve_amount} maximum Health",
+            float(getattr(session, "_priest_resolve_blessing_until", 0.0) or 0.0),
+        )
+
+    if bool(getattr(session, "_oakheart_active", False)):
+        oakheart_amount = int(getattr(session, "_oakheart_amount", 0) or 0)
+        add(
+            "oakheart",
+            "Oakheart",
+            "buff",
+            f"+{oakheart_amount} maximum Health" if oakheart_amount else "Maximum Health increased",
+            float(getattr(session, "_oakheart_until", 0.0) or 0.0),
+        )
+
+    ward_until = float(getattr(session, "ward_until", 0.0) or 0.0)
+    if ward_until > now:
+        add(
+            "protective_ward",
+            str(getattr(session, "_ward_effect_name", "") or "Protective Ward"),
+            "ward",
+            "Incoming damage is being softened",
+            ward_until,
+        )
+
+    arcane_until = float(getattr(session, "_arcane_surge_until", 0.0) or 0.0)
+    if arcane_until > now:
+        add(
+            "arcane_surge",
+            "Arcane Surge",
+            "buff",
+            "Empowers your next damaging Wizard spell",
+            arcane_until,
+        )
+
+    rejuvenation_until = float(getattr(session, "_rejuvenation_until", 0.0) or 0.0)
+    if rejuvenation_until > now:
+        add(
+            "rejuvenation",
+            "Rejuvenation",
+            "healing",
+            "Healing pulses are still active",
+            rejuvenation_until,
+        )
+
+    result.sort(key=lambda effect: (effect["kind"], effect["name"].lower()))
+    return {"effects": result}
+
+
 def _party_snapshot(session) -> dict:
     character = session.character
     party = party_system._party_for_session(session)
@@ -488,6 +568,7 @@ async def push_modern_state(session, world, *, full: bool = False) -> None:
 
     await _send_if_changed(session, "Dreams.Party", _party_snapshot(session))
     await _send_if_changed(session, "Dreams.Abilities", _ability_snapshot(session))
+    await _send_if_changed(session, "Dreams.Effects", _effects_snapshot(session))
     await _send_if_changed(session, "Dreams.Context", _context_actions(session, world, room))
     await _send_if_changed(session, "Dreams.Onboarding", _onboarding_snapshot(session, room))
 
