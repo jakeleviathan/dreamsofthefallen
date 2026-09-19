@@ -15,7 +15,7 @@ from mud.astralis_time import AstralisMoment
 from mud.database import Database
 from mud.mechanics import CombatantState
 from mud.veyra_city import VEYRA_BRASSMARKET_KEY
-from mud.waymeet_frontier import WAYMEET_COMMONHOUSE_KEY, WAYMEET_LANTERN_MARKET_KEY, WAYMEET_SCRIP_KEY
+from mud.waymeet_frontier import WAYMEET_COMMONHOUSE_KEY, WAYMEET_LANTERN_MARKET_KEY
 
 
 class DummyClock:
@@ -112,19 +112,19 @@ class LivingWorldDepthTests(unittest.TestCase):
             session = self._session(Path(temp_dir), "Buyer")
             moment = self._moment(4, 9)
             session.database.set_character_room(session.character.id, WAYMEET_LANTERN_MARKET_KEY)
-            session.database.add_item(session.character.id, WAYMEET_SCRIP_KEY, 4)
+            session.database.add_item(session.character.id, 4)
             session.refresh()
             wares = depth._weekly_wares(moment.day_number)
             item_key, cost = wares[0]
             self.assertIn(item_key, __import__("mud.crafting", fromlist=["ITEMS_BY_KEY"]).ITEMS_BY_KEY)
-            before_scrip = session.database.item_quantity(session.character.id, WAYMEET_SCRIP_KEY)
+            before_sols = session.database.item_quantity(session.character.id)
             with patch.object(depth, "ASTRALIS_CLOCK", DummyClock(moment)):
                 self.assertTrue(asyncio.run(depth._browse_hesta(session)))
                 self.assertTrue(asyncio.run(depth._buy_hesta(session, living._item_label(item_key))))
             self.assertEqual(session.database.item_quantity(session.character.id, item_key), 1)
             self.assertEqual(
-                session.database.item_quantity(session.character.id, WAYMEET_SCRIP_KEY),
-                before_scrip - cost,
+                session.database.item_quantity(session.character.id),
+                before_sols - cost,
             )
 
     def test_multi_day_arc_has_authored_progression_and_becomes_chronicle_history(self):
