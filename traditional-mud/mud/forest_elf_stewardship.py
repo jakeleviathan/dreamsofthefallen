@@ -73,7 +73,7 @@ RAINPOOL_BALANCE_QUEST = QuestDefinition(
     name="What the Rain Remembers",
     style="structured",
     description=(
-        "Keeper Sela Rainbough asks a new Forest Elf to trace why the Circle's teaching rain pools are filling unevenly. "
+        "Keeper Ivara Rainbough asks a new Forest Elf to trace why the Circle's teaching rain pools are filling unevenly. "
         "The lesson is about following water, identifying the smallest useful intervention, and refusing to over-correct a living system."
     ),
     objective_steps=(
@@ -81,7 +81,7 @@ RAINPOOL_BALANCE_QUEST = QuestDefinition(
         ("trace_runoff", "Follow the terrace east to Seepstone Run and EXAMINE LEAF DAM."),
         ("adjust_flow", "CLEAR LEAF DAM carefully enough to reopen one channel without stripping the whole seep."),
         ("listen_flow", "LISTEN WATER at Seepstone Run and confirm that the restored channel is moving naturally."),
-        ("return_sela", "Return to the Greenway and TALK SELA."),
+        ("return_sela", "Return to the Greenway and TALK IVARA."),
         ("complete", "You restored the rain-pool flow with the smallest useful change."),
     ),
 )
@@ -127,12 +127,12 @@ DRUID_FALSE_BLIGHT_QUEST = QuestDefinition(
 
 SELA_RAINBOUGH = NpcDefinition(
     key="forest_elf_keeper_sela_rainbough",
-    name="Keeper Sela Rainbough",
+    name="Keeper Ivara Rainbough",
     short_description="a mud-kneed water keeper carrying reed markers, a hand level, and no spell focus at all",
     room_key=FOREST_ELF_GREENWAY_KEY,
     role="non-Druid Circle water steward and Forest Elf starter mentor",
     dialogue=(
-        "Sela taps the mud from a reed marker. 'Water does not need a wizard. Most days it needs someone willing to find out where it stopped going.'",
+        "Ivara taps the mud from a reed marker. 'Water does not need a wizard. Most days it needs someone willing to find out where it stopped going.'",
         "'The Circle has Druids, growers, healers, path wardens, seed keepers, and people like me who spend embarrassing amounts of time staring at drainage.'",
     ),
 )
@@ -541,7 +541,9 @@ def _talk_target(command: str) -> str:
 
 
 def _is_sela(target: str) -> bool:
-    return target in {"sela", "keeper sela", "sela rainbough", "water keeper", "water-keeper", "keeper"}
+    # The stable function/key names predate the display-name cleanup. Keep them
+    # for save/import compatibility while the player-facing identity is Ivara.
+    return target in {"ivara", "keeper ivara", "ivara rainbough", "water keeper", "water-keeper", "keeper"}
 
 
 def _is_aven(target: str) -> bool:
@@ -603,13 +605,13 @@ async def _druid_nurture_heartseed(session) -> bool:
 async def _talk_sela(session) -> bool:
     assert session.character is not None
     if session.character.race != "forest_elf":
-        await session.send("\r\nSela is friendly, but the rain-pool check is part of the local Forest Elf keeper curriculum rather than a general contract.\r\n")
+        await session.send("\r\nIvara is friendly, but the rain-pool check is part of the local Forest Elf keeper curriculum rather than a general contract.\r\n")
         return True
 
     flags = session.database.list_flags(session.character.id)
     if FOREST_ELF_NURTURE_COMPLETE_FLAG not in flags:
         await session.send(
-            "\r\nSela glances toward Circle Clearing. 'Maelis has you first. Learn to make one careful change to one living thing before I ask you to follow water across a hillside.'\r\n"
+            "\r\nIvara glances toward Circle Clearing. 'Maelis has you first. Learn to make one careful change to one living thing before I ask you to follow water across a hillside.'\r\n"
         )
         return True
 
@@ -617,27 +619,27 @@ async def _talk_sela(session) -> bool:
     if quest is None:
         session.database.start_quest(session.character.id, RAINPOOL_BALANCE_QUEST.key, "inspect_pools")
         await session.send(
-            "\r\nSela plants two reed markers in the Greenway mud. 'The teaching pools north of here filled unevenly after the last runoff. I could fix them in five minutes. You will learn more if I don't.'\r\n"
+            "\r\nIvara plants two reed markers in the Greenway mud. 'The teaching pools north of here filled unevenly after the last runoff. I could fix them in five minutes. You will learn more if I don't.'\r\n"
             "'Start by looking at the pools. Do not assume low water means drought and do not assume a blockage should be removed completely.'\r\n"
             "New quest: What the Rain Remembers. Go NORTH and EXAMINE RAIN POOLS.\r\n"
         )
         return True
 
     if quest.get("status") == "completed":
-        await session.send("\r\nSela nods at the current water marks. 'Still dividing cleanly. Good. The best repair is often one the next rain can revise without asking us.'\r\n")
+        await session.send("\r\nIvara nods at the current water marks. 'Still dividing cleanly. Good. The best repair is often one the next rain can revise without asking us.'\r\n")
         return True
 
     if quest.get("current_step") == "return_sela":
         session.database.grant_flag(session.character.id, FOREST_ELF_RAIN_BALANCED_FLAG)
         session.database.complete_quest(session.character.id, RAINPOOL_BALANCE_QUEST.key)
         await session.send(
-            "\r\nSela listens to your description of the leaf dam, then checks that you left most of it intact. 'Exactly. The dam was habitat. The wedged branch was the problem. If you had cleaned the whole run, you would have traded one imbalance for another.'\r\n"
+            "\r\nIvara listens to your description of the leaf dam, then checks that you left most of it intact. 'Exactly. The dam was habitat. The wedged branch was the problem. If you had cleaned the whole run, you would have traded one imbalance for another.'\r\n"
             "Quest complete: What the Rain Remembers.\r\n"
         )
         return True
 
     objective = RAINPOOL_BALANCE_QUEST.objective_for_step(quest.get("current_step"))
-    await session.send("\r\nSela asks for the observation before the conclusion.\r\n")
+    await session.send("\r\nIvara asks for the observation before the conclusion.\r\n")
     if objective:
         await session.send(f"Current objective: {objective}\r\n")
     return True
@@ -695,7 +697,7 @@ async def _handle_rainpool_quest(session, normalized: str) -> bool:
         session.database.advance_quest(session.character.id, RAINPOOL_BALANCE_QUEST.key, "return_sela")
         await session.send(
             "\r\nYou stop moving. Two quiet notes of water now overlap beneath the alder roots: one through the original fork and one through the reopened lower channel. Neither is rushing hard enough to scour the soil.\r\n"
-            "The hillside is sharing water again. Return WEST, then SOUTH to the Greenway and TALK SELA.\r\n"
+            "The hillside is sharing water again. Return WEST, then SOUTH to the Greenway and TALK IVARA.\r\n"
         )
         return True
 
@@ -917,7 +919,7 @@ async def _show_circle(session) -> None:
     await session.send(
         "\r\n--- Circle of Keepers ---\r\n"
         "The local Forest Elf Circle is civic stewardship, not a Druid-only order. Its keepers include growers, water stewards, healers, seed keepers, and path wardens. Druids hold influence because their class training gives them unusual insight into living systems, but ordinary Circle standing does not require the Druid class.\r\n"
-        "Druids visiting the Circle can seek class instruction from Caela Rootwake in Keeper's Nursery. Forest Elves can seek water-stewardship work from Sela Rainbough on the Greenway after Maelis's Heartseed lesson.\r\n"
+        "Druids visiting the Circle can seek class instruction from Caela Rootwake in Keeper's Nursery. Forest Elves can seek water-stewardship work from Ivara Rainbough on the Greenway after Maelis's Heartseed lesson.\r\n"
     )
 
 
@@ -996,7 +998,7 @@ def install_forest_elf_stewardship_runtime(player_session_class, world_service) 
 
         if normalized in {"help", "?"}:
             await self.send(
-                "Circle expansion: CIRCLE explains the Circle of Keepers. Forest Elves can TALK SELA for water-stewardship work after the Heartseed lesson. Druids can TALK CAELA in Keeper's Nursery and use contextual NURTURE <target>.\r\n"
+                "Circle expansion: CIRCLE explains the Circle of Keepers. Forest Elves can TALK IVARA for water-stewardship work after the Heartseed lesson. Druids can TALK CAELA in Keeper's Nursery and use contextual NURTURE <target>.\r\n"
             )
 
     player_session_class.use_ability = use_ability

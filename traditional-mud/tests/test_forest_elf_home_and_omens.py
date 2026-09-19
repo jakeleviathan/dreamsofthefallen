@@ -112,7 +112,7 @@ class ForestElfHomeAndOmensTests(unittest.TestCase):
         move(session, FOREST_ELF_HEARTHWALK_KEY)
         self.assertTrue(asyncio.run(_talk_neris(session)))
         move(session, "forest_elf_greenway")
-        # The live runtime intercepts TALK SELA. Directly exercise the same
+        # The live runtime intercepts TALK IVARA. Directly exercise the same
         # state transition through the home action path around it.
         quest = session.database.get_quest(session.character.id, MORNING_ALREADY_UNDERWAY.key)
         self.assertEqual(quest["current_step"], "deliver_parcel")

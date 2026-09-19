@@ -24,12 +24,38 @@ class NpcNameHeuristicTests(unittest.TestCase):
         self.assertIsNone(likely_given_name("High Acolyte"))
         self.assertIsNone(likely_given_name("Blackwall Guard"))
 
+    def test_role_text_catches_new_titles_without_a_title_dictionary_update(self):
+        self.assertEqual(
+            likely_given_name(
+                "Herbalist Sela Fernhand",
+                "Forest Elf herbalist and ordinary-remedy teacher",
+            ),
+            "sela",
+        )
+
     def test_duplicate_given_names_catch_titled_and_untitled_people(self):
         records = (
             NpcNameRecord("a", "Claimwright Pella Six-Wires", "static"),
             NpcNameRecord("b", "Pella Mireglass", "static"),
         )
         self.assertIn("pella", duplicate_given_names(records))
+
+    def test_duplicate_given_names_use_role_text_for_unknown_titles(self):
+        records = (
+            NpcNameRecord(
+                "a",
+                "Herbalist Sela Fernhand",
+                "static",
+                "Forest Elf herbalist and ordinary-remedy teacher",
+            ),
+            NpcNameRecord(
+                "b",
+                "Keeper Sela Rainbough",
+                "static",
+                "Circle keeper and water steward",
+            ),
+        )
+        self.assertIn("sela", duplicate_given_names(records))
 
 
 class ProductionNpcNameUniquenessTests(unittest.TestCase):
@@ -43,14 +69,15 @@ from mud.npc_name_audit import (
     duplicate_given_names,
     format_duplicate_report,
     production_npc_name_records,
+    validate_unique_npc_names,
 )
 
 records = production_npc_name_records(world, mobile)
 full = duplicate_full_names(records)
-# Given-name reuse is a problem for authored people because TALK commonly accepts
-# first names. Mobile wildlife/role labels are covered by full-name uniqueness.
+# Given-name reuse is a problem anywhere a display name represents a person.
+# Wildlife and role-only mobile labels are filtered by likely_given_name().
 static_records = tuple(row for row in records if row.source == "static")
-given = duplicate_given_names(static_records)
+given = duplicate_given_names(records)
 report = format_duplicate_report(full, given)
 if full or given:
     import sys
@@ -77,7 +104,11 @@ names = {row.name for row in static_records}
 assert "Claimwright Pella Six-Wires" in names
 assert "Rixa Mireglass" in names
 assert "Pella Mireglass" not in names
+assert "Herbalist Sela Fernhand" in names
+assert "Keeper Ivara Rainbough" in names
+assert "Keeper Sela Rainbough" not in names
 
+assert validate_unique_npc_names(world, mobile) == len(records)
 print(f"NPC_NAME_AUDIT_OK:{len(records)}")
 """
         result = subprocess.run(
