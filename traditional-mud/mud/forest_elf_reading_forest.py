@@ -507,7 +507,7 @@ async def _handle_lookout(session, normalized: str) -> bool:
         return False
     step = quest.get("current_step")
 
-    if normalized in {"talk serael", "talk to serael", "talk lookout", "talk to lookout", "talk keeper", "talk reedwatch"}:
+    if normalized in {"talk serael", "talk to serael", "talk serael reedwatch", "talk to serael reedwatch", "talk lookout", "talk to lookout", "talk keeper", "talk reedwatch"}:
         if step == "report_lookout":
             if session.database.item_quantity(session.character.id, RIVER_MOSS_BUNDLE_KEY) <= 0:
                 _ensure_one(session, RIVER_MOSS_BUNDLE_KEY)
