@@ -73,9 +73,32 @@ WAYMEET_SEVRA_MERCHANT = MerchantDefinition(
     uses_common_stock=False,
 )
 
+# Starter-city merchants. These turn authored market/shop scenery into usable
+# Sol economy endpoints instead of leaving them as descriptive placeholders.
+GOBLIN_BRASSGUT_MERCHANT = MerchantDefinition(
+    "goblin_ruskle_coil",
+    additional_stock=(
+        MerchantStockEntry("iron_ore", price_units=4),
+        MerchantStockEntry("coal", price_units=4),
+        MerchantStockEntry("raw_cotton", price_units=4),
+        MerchantStockEntry("bone_chips", price_units=3),
+    ),
+)
+
+UNDEAD_CHISEL_MERCHANT = MerchantDefinition(
+    "undead_bonewright_kell",
+    additional_stock=(
+        MerchantStockEntry("bone_chips", price_units=3),
+        MerchantStockEntry("iron_ore", price_units=4),
+        MerchantStockEntry("coal", price_units=4),
+    ),
+)
+
 MERCHANTS: tuple[MerchantDefinition, ...] = (
     ASHEN_WAY_CURIO_PEDDLER_MERCHANT,
     WAYMEET_VEKK_MERCHANT,
     WAYMEET_SEVRA_MERCHANT,
+    GOBLIN_BRASSGUT_MERCHANT,
+    UNDEAD_CHISEL_MERCHANT,
 )
 MERCHANTS_BY_NPC_KEY = {merchant.npc_key: merchant for merchant in MERCHANTS}
