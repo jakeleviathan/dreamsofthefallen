@@ -744,6 +744,203 @@ def _enchanting_expansion() -> tuple[tuple[ItemDefinition, ...], tuple[CraftingR
     return tuple(items), tuple(recipes)
 
 
+def _perfumery_expansion() -> tuple[
+    tuple[ItemDefinition, ...],
+    tuple[CraftingRecipe, ...],
+    tuple[style.FragranceDefinition, ...],
+]:
+    """Build the Alchemy perfumery ladder and its finished XP fragrances."""
+
+    items: list[ItemDefinition] = []
+    recipes: list[CraftingRecipe] = []
+    fragrances: list[style.FragranceDefinition] = []
+
+    rarity_by_tier = {
+        1: "common",
+        2: "uncommon",
+        3: "uncommon",
+        4: "rare",
+        5: "rare",
+        6: "rare",
+        7: "epic",
+        8: "epic",
+    }
+    fixatives = (
+        "lavender_essential_oil",
+        "greenleaf_tincture",
+        "spring_water",
+        "arcane_residue",
+        None,
+    )
+
+    for band, ingredient in zip(PROFESSION_BANDS, PANTRY_INGREDIENTS):
+        xp_bonus, duration_seconds = PERFUME_TIER_EFFECTS[band.tier]
+        concentrate_key = f"perfume_{band.key}_concentrate"
+        concentrate_name = f"{band.name} Perfume Concentrate"
+        items.append(
+            ItemDefinition(
+                concentrate_key,
+                concentrate_name,
+                f"A concentrated aromatic base distilled for tier {band.tier} perfumery. "
+                "It is intentionally too strong to wear until diluted and fixed into a finished perfume.",
+                "alchemy_material",
+                tier=band.tier,
+            )
+        )
+        recipes.append(
+            CraftingRecipe(
+                f"distill_{band.key}_perfume_concentrate",
+                "alchemy",
+                concentrate_key,
+                band.trivial + 2,
+                band.trivial + 27,
+                (
+                    MaterialRequirement(f"profexp_{band.key}_catalyst", 1),
+                    MaterialRequirement(ingredient.key, 2),
+                    MaterialRequirement("grain_alcohol", 1),
+                ),
+                station_key="perfumer_bench",
+                description=f"Distill {ingredient.name} through a {band.name} Catalyst into a stable aromatic concentrate.",
+                design_status="perfumery_concentrate",
+            )
+        )
+
+        for index, ((slug, label, supporting_notes), fixative) in enumerate(
+            zip(PERFUME_FORMULAS, fixatives),
+            start=1,
+        ):
+            item_key = f"perfume_{band.key}_{slug}"
+            item_name = f"{band.name} {label}"
+            notes = (ingredient.name.lower(), *supporting_notes)
+            bottle = (
+                f"a tier {band.tier} artisan bottle marked with a narrow {band.name.lower()} band "
+                "and a hand-written batch number"
+            )
+            items.append(
+                ItemDefinition(
+                    item_key,
+                    item_name,
+                    f"An Alchemist-crafted perfume of {', '.join(notes)}. "
+                    f"When applied, it grants +{xp_bonus}% character XP for {duration_seconds // 60} real minutes.",
+                    "fragrance",
+                    tier=band.tier,
+                )
+            )
+            fragrances.append(
+                style.FragranceDefinition(
+                    item_key,
+                    "Astralis Perfumers' Guild",
+                    rarity_by_tier[band.tier],
+                    notes,
+                    bottle,
+                    duration_seconds,
+                    xp_bonus,
+                    0,
+                )
+            )
+
+            materials = [
+                MaterialRequirement(concentrate_key, 1),
+                MaterialRequirement("grain_alcohol", 1),
+            ]
+            if fixative is None:
+                materials.append(MaterialRequirement(ingredient.key, 1))
+            else:
+                materials.append(MaterialRequirement(fixative, 1))
+            recipes.append(
+                CraftingRecipe(
+                    f"blend_perfume_{band.key}_{slug}",
+                    "alchemy",
+                    item_key,
+                    band.trivial + 4 + index * 2,
+                    band.trivial + 34 + index * 2,
+                    tuple(materials),
+                    station_key="perfumer_bench",
+                    description=f"Blend {item_name} from {concentrate_name}, then dilute and fix the scent for safe wear.",
+                    design_status="perfumery_formula",
+                )
+            )
+
+    secret_specs = (
+        (
+            "perfume_fallen_star_no7",
+            "Fallen Star No. 7",
+            ("cold iron", "night air", "violet smoke"),
+            "secret_perfume_fallen_star_no7",
+            (
+                MaterialRequirement("perfume_astralite_concentrate", 1),
+                MaterialRequirement("stariron_ore", 1),
+                MaterialRequirement("lavender_essential_oil", 1),
+                MaterialRequirement("grain_alcohol", 1),
+            ),
+        ),
+        (
+            "perfume_queens_funeral",
+            "Queen's Funeral",
+            ("grave sage", "white flowers", "quiet incense"),
+            "secret_perfume_queens_funeral",
+            (
+                MaterialRequirement("perfume_astralite_concentrate", 1),
+                MaterialRequirement("grave_sage", 1),
+                MaterialRequirement("greenleaf_tincture", 1),
+                MaterialRequirement("grain_alcohol", 1),
+            ),
+        ),
+        (
+            "perfume_brassgut_nocturne",
+            "Brassgut Nocturne",
+            ("brasscap", "burnt sugar", "warm machinery"),
+            "secret_perfume_brassgut_nocturne",
+            (
+                MaterialRequirement("perfume_astralite_concentrate", 1),
+                MaterialRequirement("brasscap_mushroom", 1),
+                MaterialRequirement("arcane_residue", 1),
+                MaterialRequirement("grain_alcohol", 1),
+            ),
+        ),
+    )
+    max_bonus, max_duration = PERFUME_TIER_EFFECTS[8]
+    for offset, (item_key, item_name, notes, recipe_key, materials) in enumerate(secret_specs):
+        items.append(
+            ItemDefinition(
+                item_key,
+                item_name,
+                f"A secret master-perfumer formula of {', '.join(notes)}. "
+                f"It grants +{max_bonus}% character XP for {max_duration // 60} real minutes.",
+                "fragrance",
+                tier=8,
+            )
+        )
+        fragrances.append(
+            style.FragranceDefinition(
+                item_key,
+                "Unattributed Formula",
+                "epic",
+                notes,
+                "an unmarked master-perfumer bottle with no commercial seal",
+                max_duration,
+                max_bonus,
+                0,
+            )
+        )
+        recipes.append(
+            CraftingRecipe(
+                recipe_key,
+                "alchemy",
+                item_key,
+                190 + offset * 2,
+                225 + offset * 2,
+                materials,
+                station_key="perfumer_bench",
+                description=f"Blend the hidden master formula for {item_name}. Its effect matches top-tier perfume; its distinction is discovery and craft identity.",
+                design_status="perfumery_secret_recipe",
+                discovery_flag=SECRET_RECIPE_FLAGS[recipe_key],
+            )
+        )
+
+    return tuple(items), tuple(recipes), tuple(fragrances)
+
+
 def _secret_content() -> tuple[tuple[ItemDefinition, ...], tuple[CraftingRecipe, ...]]:
     items = (
         _equipment(
