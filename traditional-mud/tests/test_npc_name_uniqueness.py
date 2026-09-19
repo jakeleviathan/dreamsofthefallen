@@ -69,6 +69,7 @@ from mud.npc_name_audit import (
     duplicate_given_names,
     format_duplicate_report,
     production_npc_name_records,
+    validate_unique_npc_names,
 )
 
 records = production_npc_name_records(world, mobile)
@@ -103,7 +104,11 @@ names = {row.name for row in static_records}
 assert "Claimwright Pella Six-Wires" in names
 assert "Rixa Mireglass" in names
 assert "Pella Mireglass" not in names
+assert "Herbalist Sela Fernhand" in names
+assert "Keeper Ivara Rainbough" in names
+assert "Keeper Sela Rainbough" not in names
 
+assert validate_unique_npc_names(world, mobile) == len(records)
 print(f"NPC_NAME_AUDIT_OK:{len(records)}")
 """
         result = subprocess.run(
