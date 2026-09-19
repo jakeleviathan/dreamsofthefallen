@@ -127,6 +127,7 @@ DWARF_ROOMS: tuple[RoomDefinition, ...] = (
             "Finished pieces are displayed beside rejected ones with notes explaining the defect. Craftsmanship here is presented less as secret genius than as documented, repeatable work that can survive inspection."
         ),
         exits={"north": DWARF_START_ROOM_KEY, "west": DWARF_TRADE_ARCADE_KEY},
+        npc_keys=("dwarf_toolwright_bram",),
         tags=("safe", "crafting", "workshops", "public_infrastructure", "apprenticeship"),
     ),
     RoomDefinition(
@@ -142,6 +143,13 @@ DWARF_ROOMS: tuple[RoomDefinition, ...] = (
     ),
 )
 
+
+BRAM_TOOLWRIGHT = NpcDefinition(
+    key="dwarf_toolwright_bram", name="Bram Gaugehand",
+    short_description="a Dwarven toolwright selling measured stocks of fuel, ingots, and field supplies",
+    room_key=DWARF_WORKSHOP_TIER_KEY, role="public-tier toolwright",
+    dialogue=("Bram taps a stamped ingot. 'Cheap tools waste expensive time. Buy once, measure twice.'",),
+)
 
 HELGA_BRASSMEASURE = NpcDefinition(
     key="dwarf_registrar_helga_brassmeasure",
@@ -179,7 +187,7 @@ DORI_CHAINMARK = NpcDefinition(
     ),
 )
 
-DWARF_NPCS = (HELGA_BRASSMEASURE, TORREN_COALHAND, DORI_CHAINMARK)
+DWARF_NPCS = (HELGA_BRASSMEASURE, TORREN_COALHAND, DORI_CHAINMARK, BRAM_TOOLWRIGHT)
 
 
 APPRENTICE_WORK_ORDER = ItemDefinition(
