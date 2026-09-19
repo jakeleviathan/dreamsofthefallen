@@ -22,6 +22,7 @@ GENERIC_TALK_TARGETS = {
     "captain",
     "clerk",
     "druid",
+    "diver",
     "engineer",
     "factor",
     "foreman",
@@ -66,7 +67,7 @@ def _trim_target(raw: str) -> str:
     # The regexp can consume an all-caps conjunction after a one-word target,
     # e.g. TALK BRIN AND RETURN. Stop those prose continuations here.
     words = raw.split()
-    stop = {"AND", "OR", "THEN", "BEFORE", "AFTER", "TO", "AT", "IN", "ON", "WITH", "FOR"}
+    stop = {"ABOUT", "AND", "OR", "THEN", "BEFORE", "AFTER", "TO", "AT", "IN", "ON", "WITH", "FOR"}
     kept: list[str] = []
     for word in words:
         if kept and word in stop:
