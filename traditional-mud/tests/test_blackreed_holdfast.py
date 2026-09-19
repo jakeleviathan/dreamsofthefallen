@@ -48,7 +48,6 @@ from mud.blackreed_holdfast import (
 from mud.database import Database
 from mud.greywake_march import GREYWAKE_WEST_MILE_KEY
 from mud.mechanics import PROGRESSION_RULES
-from mud.waymeet_frontier import WAYMEET_SCRIP_KEY
 
 
 class _Session:
@@ -150,7 +149,7 @@ class BlackreedHoldfastTests(unittest.TestCase):
             self.assertEqual(quest["status"], "completed")
             self.assertIn(BLACKREED_COMPLETE_FLAG, database.list_flags(session.character.id))
             self.assertEqual(database.item_quantity(session.character.id, BLACKREED_ROUTE_TOKEN_KEY), 1)
-            self.assertEqual(database.item_quantity(session.character.id, WAYMEET_SCRIP_KEY), 2)
+            self.assertEqual(database.get_sols(session.character.id), 20)
             self.assertIn("public road is open again", "".join(session.sent))
         finally:
             tempdir.cleanup()
