@@ -4,6 +4,7 @@ import asyncio
 # when the fully assembled live WORLD is passed back through that installer.
 import mud.dwarf_first_shift as dwarf_first_shift
 import mud.crafting as crafting
+import mud.world as legacy_world
 
 if not hasattr(dwarf_first_shift, "BELLOWSWORKS_SHIFT_FLOOR_KEY"):
     dwarf_first_shift.BELLOWSWORKS_SHIFT_FLOOR_KEY = dwarf_first_shift.DWARF_BELLOWSWORKS_FLOOR_KEY
@@ -256,7 +257,7 @@ install_planar_realms_runtime(PlayerSession, WORLD)
 # needlessly ambiguous. Validate the final assembled static + mobile population
 # after all content installers have run. A future duplicate proper name now fails
 # production startup and CI instead of reaching players.
-_NPC_NAME_RECORD_COUNT = validate_unique_npc_names(__import__("mud.world", fromlist=["*"]), mobile_npcs)
+_NPC_NAME_RECORD_COUNT = validate_unique_npc_names(legacy_world, mobile_npcs)
 
 # Replace any surviving development-era item labels only after every item-producing
 # content installer has run. Stable item keys remain untouched, so old characters,
