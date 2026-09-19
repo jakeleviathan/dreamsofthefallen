@@ -193,7 +193,7 @@ MOON_ELF_ROOMS: tuple[RoomDefinition, ...] = (
 
 
 LANTERN_TRADER = NpcDefinition(
-    key="moon_elf_lantern_trader", name="Ilyra Venn",
+    key="moon_elf_lantern_trader", name="Selune Venn",
     short_description="a Moon Elf trader setting polished reagents and mountain goods beneath a shielded lantern",
     room_key=MOON_ELF_NIGHT_MARKET_KEY, role="Lantern Market trader",
     dialogue=("'Useful things do not become less beautiful by being useful,' Ilyra says.",),
