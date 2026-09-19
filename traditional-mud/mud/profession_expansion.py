@@ -1351,6 +1351,40 @@ async def _show_potions(session) -> None:
     await session.send("\r\nUse DRINK <name>.\r\n")
 
 
+async def _show_perfumery(session) -> None:
+    recipes = [
+        recipe
+        for recipe in crafting.ALL_RECIPES
+        if recipe.trade_skill_key == "alchemy"
+        and recipe.design_status.startswith("perfumery_")
+        and economy._recipe_visible(session, recipe)
+    ]
+    recipes.sort(key=lambda recipe: (recipe.trivial_skill, economy._recipe_output_name(recipe).lower()))
+
+    await session.send("\r\n=== PERFUMERY — ALCHEMY SPECIALIZATION ===\r\n")
+    await session.send(
+        "Perfumes are wearable XP consumables: one scent can be active at a time, "
+        "a new application replaces the old one, and bonuses affect character XP only — never tradeskill XP.\r\n"
+    )
+
+    current_tier = None
+    for recipe in recipes:
+        output = crafting.ITEMS_BY_KEY[recipe.output_item_key]
+        tier = max(1, output.tier)
+        if tier != current_tier:
+            current_tier = tier
+            bonus, seconds = PERFUME_TIER_EFFECTS[tier]
+            await session.send(
+                f"\r\nTier {tier} — +{bonus}% character XP for {seconds // 60} real minutes\r\n"
+            )
+        await session.send(economy._recipe_line(session, recipe))
+
+    await session.send(
+        "\r\nUse RECIPE <name> for ingredients, CRAFT <name> at a Perfumer's Bench, "
+        "PERFUMES to list carried bottles, and APPLY PERFUME <name> or SPRAY <name> to use one.\r\n"
+    )
+
+
 async def _show_recipe_summary(session) -> None:
     visible = [
         recipe
@@ -1397,6 +1431,21 @@ _SECRET_DISCOVERIES = {
         SECRET_RECIPE_FLAGS["secret_seven_roads_feast"],
         "secret_seven_roads_feast",
         "Tiny ingredient marks scratched into eight hearth tiles form an old cook's mnemonic for balancing foods gathered from distant roads.",
+    ),
+    ("greywake_riftfield", "examine fallen star"): (
+        SECRET_RECIPE_FLAGS["secret_perfume_fallen_star_no7"],
+        "secret_perfume_fallen_star_no7",
+        "A sharp metallic scent rises from a glassy stone seam. Scratched measurements beside it describe a seven-stage cold infusion rather than a mining assay.",
+    ),
+    ("gravewatch_chapel_nave", "examine funerary incense"): (
+        SECRET_RECIPE_FLAGS["secret_perfume_queens_funeral"],
+        "secret_perfume_queens_funeral",
+        "The old incense formula is written as a memorial prayer, but the repeated quantities resolve into a complete perfume accord when read as an alchemist's ratio.",
+    ),
+    ("goblin_apothecary_blind", "examine perfume ledger"): (
+        SECRET_RECIPE_FLAGS["secret_perfume_brassgut_nocturne"],
+        "secret_perfume_brassgut_nocturne",
+        "A grease-stained ledger hides an unsigned night-market perfume formula between ordinary salvage invoices. The measurements are precise enough to reproduce.",
     ),
 }
 
@@ -1469,6 +1518,9 @@ def install_profession_expansion_runtime(player_session_class) -> None:
 
         if normalized in {"potions", "elixirs", "alchemy drinks"}:
             await _show_potions(self)
+            return
+        if normalized in {"perfumery", "perfume recipes", "perfumes recipes", "recipes perfume", "recipes perfumes", "recipes perfumery"}:
+            await _show_perfumery(self)
             return
         if normalized == "drink":
             await self.send("Use DRINK <potion or elixir>. Type POTIONS to see what you are carrying.\r\n")
