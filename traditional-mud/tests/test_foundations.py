@@ -1416,7 +1416,7 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(db.item_quantity(character.id, "iron_ingot"), 1)
             self.assertEqual(
                 db.get_trade_skill_progress(character.id, "blacksmithing"),
-                {"uses": 1, "skill_xp": 1},
+                {"uses": 1, "skill_xp": 0},
             )
 
             dagger = craft_recipe(
@@ -1464,14 +1464,19 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(db.item_quantity(character.id, "cotton_cloth"), 2)
 
             tunic = craft_recipe(
-                db, character.id, "sew_cotton_tunic", station_key="loom"
+                db,
+                character.id,
+                "sew_cotton_tunic",
+                station_key="loom",
+                success_roll=0.0,
+                skillup_roll=0.0,
             )
             self.assertTrue(tunic.success)
             self.assertEqual(db.item_quantity(character.id, "cotton_cloth"), 0)
             self.assertEqual(db.item_quantity(character.id, "cotton_tunic"), 1)
             self.assertEqual(
                 db.get_trade_skill_progress(character.id, "tailoring"),
-                {"uses": 5, "skill_xp": 5},
+                {"uses": 5, "skill_xp": 1},
             )
 
     def test_astralweave_endgame_tailoring_loop(self) -> None:
