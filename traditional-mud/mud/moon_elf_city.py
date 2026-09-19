@@ -133,6 +133,7 @@ MOON_ELF_ROOMS: tuple[RoomDefinition, ...] = (
             "Musicians favor strings and soft hand percussion that carry without fighting the wind. The market becomes busier after sunset, when people finish work and the high city settles into its preferred evening rhythm."
         ),
         exits={"west": MOON_ELF_START_ROOM_KEY, "east": MOON_ELF_SPIRE_LOBBY_KEY},
+        npc_keys=("moon_elf_lantern_trader",),
         tags=("safe", "market", "nightlife", "food", "music", "pleasant"),
     ),
     RoomDefinition(
@@ -191,6 +192,13 @@ MOON_ELF_ROOMS: tuple[RoomDefinition, ...] = (
 )
 
 
+LANTERN_TRADER = NpcDefinition(
+    key="moon_elf_lantern_trader", name="Selune Venn",
+    short_description="a Moon Elf trader setting polished reagents and mountain goods beneath a shielded lantern",
+    room_key=MOON_ELF_NIGHT_MARKET_KEY, role="Lantern Market trader",
+    dialogue=("'Useful things do not become less beautiful by being useful,' Ilyra says.",),
+)
+
 HORIZON_STEWARD = NpcDefinition(
     key="moon_elf_horizon_steward",
     name="Horizon Steward",
@@ -228,7 +236,7 @@ SPIRE_ATTENDANT = NpcDefinition(
     ),
 )
 
-MOON_ELF_CITY_NPCS = (HORIZON_STEWARD, JOURNAL_KEEPER, SPIRE_ATTENDANT)
+MOON_ELF_CITY_NPCS = (HORIZON_STEWARD, JOURNAL_KEEPER, SPIRE_ATTENDANT, LANTERN_TRADER)
 
 
 def _feature(

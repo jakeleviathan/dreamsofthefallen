@@ -90,6 +90,25 @@ class SolEconomyTests(unittest.TestCase):
         self.assertTrue(chisel.sells("bone_chips"))
         self.assertTrue(chisel.sells("iron_ore"))
 
+    def test_every_starter_culture_has_regional_shopping(self):
+        from mud.merchants import MERCHANTS_BY_NPC_KEY
+        expected = {
+            "goblin_ruskle_coil", "undead_bonewright_kell",
+            "forest_elf_greenway_herbalist", "moon_elf_lantern_trader",
+            "dwarf_toolwright_bram", "troll_provisioner_yrsa", "sporekin_tender_murr",
+        }
+        self.assertTrue(expected.issubset(MERCHANTS_BY_NPC_KEY))
+        for key in expected:
+            self.assertGreaterEqual(len(MERCHANTS_BY_NPC_KEY[key].stock), 3)
+
+    def test_regional_prices_include_longer_term_targets(self):
+        from mud.merchants import MERCHANTS_BY_NPC_KEY
+        dwarf = MERCHANTS_BY_NPC_KEY["dwarf_toolwright_bram"]
+        prices = {row.item_key: row.price_units for row in dwarf.stock}
+        self.assertEqual(prices["cobalt_ingot"], 50)
+        moon = MERCHANTS_BY_NPC_KEY["moon_elf_lantern_trader"]
+        self.assertEqual({row.item_key: row.price_units for row in moon.stock}["moonsilver_ore"], 20)
+
 
 if __name__ == "__main__":
     unittest.main()

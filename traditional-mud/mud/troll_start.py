@@ -116,6 +116,13 @@ TROLL_OUTSIDER_QUEST = QuestDefinition(
 )
 
 
+YRSA_PROVISIONER = NpcDefinition(
+    key="troll_provisioner_yrsa", name="Yrsa Flintjaw",
+    short_description="a Troll provisioner packing trail goods into hide-wrapped bundles",
+    room_key=TROLL_TETHER_YARD_KEY, role="starter provisioner",
+    dialogue=("Yrsa knots a bundle shut. 'Warm, dry, fed. Heroics come after those three.'",),
+)
+
 RASKA_GREYBARK = NpcDefinition(
     key="troll_hunter_raska_greybark",
     name="Hunter Raska Greybark",
@@ -155,7 +162,7 @@ BRANNIK_SLATEBOOT = NpcDefinition(
     ),
 )
 
-TROLL_NPCS = (RASKA_GREYBARK, MORA_ELKHAND, BRANNIK_SLATEBOOT)
+TROLL_NPCS = (RASKA_GREYBARK, MORA_ELKHAND, BRANNIK_SLATEBOOT, YRSA_PROVISIONER)
 
 
 TROLL_ROOMS: tuple[RoomDefinition, ...] = (
@@ -167,7 +174,7 @@ TROLL_ROOMS: tuple[RoomDefinition, ...] = (
             "A Troll stronghold has been built where black spruce forest thins into open tundra. Hide-roofed shelters sit low behind stone wind walls, smoke escapes through stitched vents, and heavy sledges rest on raised timber racks above the snow. Nothing is ornamental without also being useful. Hunters, priests, children, and animal handlers cross the same packed central ground while distant ridges disappear into cold haze."
         ),
         exits={"east": TROLL_HIDEWIND_RING_KEY, "north": TROLL_EMBER_HOLLOW_KEY, "west": TROLL_TETHER_YARD_KEY},
-        npc_keys=(RASKA_GREYBARK.key,),
+        npc_keys=(RASKA_GREYBARK.key, "troll_provisioner_yrsa"),
         tags=("troll_start", "safe", "stronghold", "forest_edge", "tundra", "survival"),
     ),
     RoomDefinition(

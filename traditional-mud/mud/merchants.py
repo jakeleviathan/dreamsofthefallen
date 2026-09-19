@@ -94,11 +94,48 @@ UNDEAD_CHISEL_MERCHANT = MerchantDefinition(
     ),
 )
 
+# Regional shopping pass: every starter culture gets a useful, culturally
+# distinct merchant. Prices are sparks (10 = ember, 100 = flame). Existing
+# materials are used so these wares plug into crafting immediately.
+REGIONAL_STARTER_MERCHANTS: tuple[MerchantDefinition, ...] = (
+    MerchantDefinition("forest_elf_greenway_herbalist", additional_stock=(
+        MerchantStockEntry("greenleaf", price_units=4),
+        MerchantStockEntry("bitterroot", price_units=6),
+        MerchantStockEntry("spring_water", price_units=3),
+        MerchantStockEntry("lavender_blossom", price_units=10),
+    )),
+    MerchantDefinition("moon_elf_lantern_trader", additional_stock=(
+        MerchantStockEntry("lavender_blossom", price_units=5),
+        MerchantStockEntry("spring_water", price_units=8),
+        MerchantStockEntry("moonflax_fiber", price_units=10),
+        MerchantStockEntry("moonsilver_ore", price_units=20),
+    )),
+    MerchantDefinition("dwarf_toolwright_bram", additional_stock=(
+        MerchantStockEntry("coal", price_units=8),
+        MerchantStockEntry("iron_ingot", price_units=20),
+        MerchantStockEntry("steel_ingot", price_units=30),
+        MerchantStockEntry("cobalt_ingot", price_units=50),
+    )),
+    MerchantDefinition("troll_provisioner_yrsa", additional_stock=(
+        MerchantStockEntry("spring_water", price_units=3),
+        MerchantStockEntry("raw_wool", price_units=6),
+        MerchantStockEntry("starter_weapon", price_units=15),
+        MerchantStockEntry("greenleaf", price_units=20),
+    )),
+    MerchantDefinition("sporekin_tender_murr", additional_stock=(
+        MerchantStockEntry("greenleaf", price_units=2),
+        MerchantStockEntry("bitterroot", price_units=7),
+        MerchantStockEntry("spring_water", price_units=10),
+        MerchantStockEntry("ghostmoss_fiber", price_units=30),
+    )),
+)
+
 MERCHANTS: tuple[MerchantDefinition, ...] = (
     ASHEN_WAY_CURIO_PEDDLER_MERCHANT,
     WAYMEET_VEKK_MERCHANT,
     WAYMEET_SEVRA_MERCHANT,
     GOBLIN_BRASSGUT_MERCHANT,
     UNDEAD_CHISEL_MERCHANT,
+    *REGIONAL_STARTER_MERCHANTS,
 )
 MERCHANTS_BY_NPC_KEY = {merchant.npc_key: merchant for merchant in MERCHANTS}
