@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import mud.crafting as crafting
 import mud.economy_loop as economy
 import mud.profession_workshops as workshops
+import mud.style_collectibles as style
 from mud.crafting import ConsumableEffect, ItemDefinition, ResourceNodeDefinition
 from mud.gear import CraftingRecipe, MaterialRequirement
 from mud.stats import CharacterStats, EquipmentItem
@@ -31,12 +32,38 @@ PROFESSION_BANDS: tuple[ProfessionBand, ...] = (
     ProfessionBand("astralite", "Astralite", 175, 8, "astralite_ore"),
 )
 
+# Perfumery is an Alchemy specialization with deliberately simple power rules:
+# one real-time fragrance effect at a time, character XP only, never tradeskill XP.
+# Higher tiers improve both strength and duration; applying another perfume replaces
+# the current scent instead of stacking with it.
+PERFUME_TIER_EFFECTS: dict[int, tuple[int, int]] = {
+    1: (5, 20 * 60),
+    2: (7, 25 * 60),
+    3: (10, 30 * 60),
+    4: (12, 35 * 60),
+    5: (15, 40 * 60),
+    6: (18, 45 * 60),
+    7: (21, 50 * 60),
+    8: (25, 60 * 60),
+}
+
+PERFUME_FORMULAS: tuple[tuple[str, str, tuple[str, str]], ...] = (
+    ("first_rain", "First Rain", ("rain air", "clean herbs")),
+    ("velvet_road", "Velvet Road", ("warm spice", "dark resin")),
+    ("quiet_lantern", "Quiet Lantern", ("lavender", "soft smoke")),
+    ("glass_orchard", "Glass Orchard", ("cool water", "mineral fruit")),
+    ("night_market", "Night Market", ("green tincture", "soft amber")),
+)
+
 SECRET_RECIPE_FLAGS = {
     "secret_fallen_star_greatblade": "recipe_secret_fallen_star_greatblade",
     "secret_astral_dreamcloak": "recipe_secret_astral_dreamcloak",
     "secret_one_breath_elixir": "recipe_secret_one_breath_elixir",
     "secret_last_door_focus": "recipe_secret_last_door_focus",
     "secret_seven_roads_feast": "recipe_secret_seven_roads_feast",
+    "secret_perfume_fallen_star_no7": "recipe_secret_perfume_fallen_star_no7",
+    "secret_perfume_queens_funeral": "recipe_secret_perfume_queens_funeral",
+    "secret_perfume_brassgut_nocturne": "recipe_secret_perfume_brassgut_nocturne",
 }
 
 
