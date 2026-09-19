@@ -283,8 +283,10 @@ def resolve_target_command(session, command: str, world_service) -> TargetResolu
     # that to "talk Serael Reedwatch" used to bypass the quest's TALK SERAEL
     # handler and fall through to the base "no one by that name" response.
     if verb == "talk":
-        name_words = normalize_target(candidate.name).split()
-        if query in name_words:
+        normalized_name = normalize_target(candidate.name)
+        name_words = normalized_name.split()
+        exact_name_phrase = f" {query} " in f" {normalized_name} "
+        if query in name_words or exact_name_phrase:
             canonical = f"talk {query}"
             if normalize_target(command) == normalize_target(canonical):
                 return TargetResolution(command)
