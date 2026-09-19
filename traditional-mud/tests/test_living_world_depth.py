@@ -112,18 +112,18 @@ class LivingWorldDepthTests(unittest.TestCase):
             session = self._session(Path(temp_dir), "Buyer")
             moment = self._moment(4, 9)
             session.database.set_character_room(session.character.id, WAYMEET_LANTERN_MARKET_KEY)
-            session.database.add_item(session.character.id, 4)
+            session.database.add_sols(session.character.id, 40)
             session.refresh()
             wares = depth._weekly_wares(moment.day_number)
             item_key, cost = wares[0]
             self.assertIn(item_key, __import__("mud.crafting", fromlist=["ITEMS_BY_KEY"]).ITEMS_BY_KEY)
-            before_sols = session.database.item_quantity(session.character.id)
+            before_sols = session.database.get_sols(session.character.id)
             with patch.object(depth, "ASTRALIS_CLOCK", DummyClock(moment)):
                 self.assertTrue(asyncio.run(depth._browse_hesta(session)))
                 self.assertTrue(asyncio.run(depth._buy_hesta(session, living._item_label(item_key))))
             self.assertEqual(session.database.item_quantity(session.character.id, item_key), 1)
             self.assertEqual(
-                session.database.item_quantity(session.character.id),
+                session.database.get_sols(session.character.id),
                 before_sols - cost,
             )
 
