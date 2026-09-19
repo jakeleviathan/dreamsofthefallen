@@ -30,7 +30,6 @@ from mud.veyra_living_core import (
     market_day,
     weekly_contract,
 )
-from mud.waymeet_frontier import WAYMEET_SCRIP_KEY
 
 
 class _Session:
@@ -99,7 +98,7 @@ class VeyraLivingCoreTests(unittest.TestCase):
             self.assertTrue(asyncio.run(_accept_weekly_contract(session)))
             self.assertTrue(asyncio.run(_turn_in_weekly_contract(session)))
             self.assertEqual(database.item_quantity(session.character.id, contract.item_key), 0)
-            self.assertEqual(database.item_quantity(session.character.id, WAYMEET_SCRIP_KEY), contract.scrip_reward)
+            self.assertEqual(database.item_quantity(session.character.id), contract.sol_reward_sparks)
             standing = ensure_faction_standing(session)
             assert standing is not None
             self.assertEqual(standing[1], 1)
