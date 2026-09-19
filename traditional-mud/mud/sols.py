@@ -239,13 +239,10 @@ def _unreserved_quantity(session, item_key: str) -> int:
     if character is None:
         return 0
     owned = session.database.item_quantity(character.id, item_key)
-    try:
-        from mud.equipment_system import equipped_item_keys
+    from mud.equipment_system import equipped_item_keys
 
-        equipped = equipped_item_keys(session.database, character.id)
-        reserved = sum(1 for key in equipped.values() if key == item_key)
-    except Exception:
-        reserved = 0
+    equipped = equipped_item_keys(session.database, character.id)
+    reserved = sum(1 for key in equipped.values() if key == item_key)
     return max(0, owned - reserved)
 
 
