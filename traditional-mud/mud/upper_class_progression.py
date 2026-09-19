@@ -3,6 +3,7 @@ from __future__ import annotations
 from time import monotonic
 
 import mud.ability_mastery as ability_mastery
+from mud.casting import spend_ability_mana
 import mud.mechanics as mechanics
 
 
@@ -283,7 +284,7 @@ async def _pay(session, key: str) -> bool:
         await session.send(f"{definition.name} is not ready for another {ready_at - now:.1f}s.\r\n")
         return False
     cost = ability_mastery.effective_mana_cost(session, definition)
-    if not session.combatant.spend_mana(cost):
+    if not spend_ability_mana(session, definition, cost):
         await session.send(f"You need {cost} mana for {definition.name}.\r\n")
         return False
     _cooldowns(session)[key] = now + (definition.cooldown_seconds or 0.0)
