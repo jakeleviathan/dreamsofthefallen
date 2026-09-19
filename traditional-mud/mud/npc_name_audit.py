@@ -98,22 +98,34 @@ class NpcNameRecord:
     key: str
     name: str
     source: str
+    role: str = ""
 
 
 def _tokens(name: str) -> list[str]:
     return _TOKEN_RE.findall(name)
 
 
-def likely_given_name(name: str) -> str | None:
-    """Extract a likely personal first name from an authored NPC display name.
+def likely_given_name(name: str, role: str = "") -> str | None:
+    """Extract the personal given name from an authored NPC display name.
 
-    This intentionally ignores role-only labels such as Blackwall Guard and
-    Grey-Cloaked Informant. It is conservative: exact full-name duplication is
-    audited separately, so a mononym still cannot silently duplicate exactly.
+    NPC display names often begin with an occupational title ("Keeper Sela
+    Rainbough", "Herbalist Sela Fernhand"). Older auditing depended on a fixed
+    title list, so any newly invented title could hide a duplicate given name.
+    Role text now participates in title stripping as well: if the display-name
+    prefix is also a word in the NPC's authored role, it is treated as a title.
+
+    Role-only labels such as "Blackwall Guard" remain excluded. This function is
+    intentionally deterministic because production startup uses it as a hard
+    uniqueness invariant.
     """
 
     tokens = _tokens(name)
-    while tokens and tokens[0].casefold() in TITLE_PREFIXES:
+    role_tokens = {token.casefold() for token in _tokens(role)}
+
+    while tokens and (
+        tokens[0].casefold() in TITLE_PREFIXES
+        or tokens[0].casefold() in role_tokens
+    ):
         tokens.pop(0)
 
     if len(tokens) < 2:
@@ -137,7 +149,7 @@ def duplicate_full_names(records: Iterable[NpcNameRecord]) -> dict[str, tuple[Np
 def duplicate_given_names(records: Iterable[NpcNameRecord]) -> dict[str, tuple[NpcNameRecord, ...]]:
     grouped: dict[str, list[NpcNameRecord]] = defaultdict(list)
     for record in records:
-        given = likely_given_name(record.name)
+        given = likely_given_name(record.name, record.role)
         if given:
             grouped[given].append(record)
     return {
@@ -156,7 +168,7 @@ def production_npc_name_records(world_module, mobile_module=None) -> tuple[NpcNa
         if identity in seen_keys:
             continue
         seen_keys.add(identity)
-        records.append(NpcNameRecord(npc.key, npc.name, "static"))
+        records.append(NpcNameRecord(npc.key, npc.name, "static", getattr(npc, "role", "")))
 
     if mobile_module is not None:
         for npc in mobile_module.MOBILE_NPCS_BY_KEY.values():
@@ -164,7 +176,7 @@ def production_npc_name_records(world_module, mobile_module=None) -> tuple[NpcNa
             if identity in seen_keys:
                 continue
             seen_keys.add(identity)
-            records.append(NpcNameRecord(npc.key, npc.name, "mobile"))
+            records.append(NpcNameRecord(npc.key, npc.name, "mobile", getattr(npc, "role", "")))
 
     return tuple(records)
 
