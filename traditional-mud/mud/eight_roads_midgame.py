@@ -448,7 +448,7 @@ HUMAN_ROOMS = (
     _room(
         HUMAN_ENTRY_KEY, "South Ferry Road", HUMAN_REGION_KEY,
         "The timber sprawl gives way to a floodplain road where Human teamsters paint old horned civic marks beside ordinary ferry prices. Nothing here pretends the descendants of Earth are still from Earth.",
-        {"east": VEYRA_SOUTH_SPRAWL_KEY, "south": "blackglass_cinder_road"},
+        {"up": VEYRA_SOUTH_SPRAWL_KEY, "south": "blackglass_cinder_road"},
         enemies=(BLACKGLASS_ROADCROW.key,), tags=("level_12_13", "human_road"),
     ),
     _room(
@@ -837,7 +837,7 @@ def _merge_augmentation(existing: RoomAugmentation | None, added: RoomAugmentati
 def eight_road_augmentations() -> dict[str, RoomAugmentation]:
     return {
         VEYRA_SOUTH_SPRAWL_KEY: RoomAugmentation(extra_exits=(
-            ExitDefinition(direction="west", destination_key=HUMAN_ENTRY_KEY, name="Blackglass March", aliases=("blackglass", "human road"), travel_text="You leave Veyra's timber sprawl west by the old Human ferry road.", condition=ViewCondition(min_level=12), failure_text="The western relay road is rated for experienced travelers: level 12."),
+            ExitDefinition(direction="down", destination_key=HUMAN_ENTRY_KEY, name="Blackglass March", aliases=("blackglass", "human road"), travel_text="You descend from Veyra's timber sprawl by the old Human ferry road.", condition=ViewCondition(min_level=12), failure_text="The lower relay road is rated for experienced travelers: level 12."),
         )),
         VEYRA_GREENHALL_KEY: RoomAugmentation(extra_exits=(
             ExitDefinition(direction="south", destination_key=FOREST_ENTRY_KEY, name="Alderwake Road", aliases=("alderwake", "green lane"), travel_text="You follow herb caravans out along the planted Green Lane.", condition=ViewCondition(min_level=12), failure_text="The Alderwake road is level-12 frontier work."),
