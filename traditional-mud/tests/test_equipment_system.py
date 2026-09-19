@@ -15,6 +15,7 @@ from mud.equipment_system import (
     LIVE_EQUIPMENT_RULES,
     _bootstrap_equipment,
     _equip,
+    _show_item_detail,
     _unequip,
     apply_equipment_to_combatant,
     claim_new_equipment_rewards,
@@ -197,6 +198,20 @@ class EquipmentSystemTests(unittest.TestCase):
         )
         apply_equipment_to_combatant(session)
         self.assertEqual(session.combatant.max_hp, baseline + 2)
+
+    def test_item_detail_supports_non_equipment_inventory_items(self):
+        temp, database, session = self._session("InspectMaterial")
+        self.addCleanup(temp.cleanup)
+        database.add_item(session.character.id, "bitterroot", 7)
+
+        asyncio.run(_show_item_detail(session, "Bitterroot"))
+
+        output = "".join(session.outputs)
+        self.assertIn("Bitterroot", output)
+        self.assertIn("sharp medicinal root", output)
+        self.assertIn("Category: Herb", output)
+        self.assertIn("Tier: 1", output)
+        self.assertNotIn("not carrying equipment", output.lower())
 
     def test_brute_starter_harness_and_weapon_auto_equip_but_are_not_restrictions(self):
         temp, database, session = self._session("BruteStart", race="goblin", character_class="brute")

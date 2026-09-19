@@ -681,6 +681,26 @@ def _stat_parts(equipment: EquipmentItem) -> list[str]:
     return parts or ["no stat modifiers"]
 
 
+def _owned_item_matches(session, target: str) -> list[ItemDefinition]:
+    """Resolve any carried item by exact or partial key/name match."""
+    assert session.character is not None
+    wanted = target.strip().lower().replace("_", " ")
+    matches: list[ItemDefinition] = []
+    for row in session.database.list_items(session.character.id):
+        if int(row["quantity"]) <= 0:
+            continue
+        key = str(row["item_key"])
+        definition = crafting.ITEMS_BY_KEY.get(key)
+        if definition is None:
+            continue
+        names = {definition.key.lower().replace("_", " "), definition.name.lower()}
+        if wanted in names:
+            return [definition]
+        if any(wanted in name for name in names):
+            matches.append(definition)
+    return matches
+
+
 def _owned_equipment_matches(session, target: str) -> list[ItemDefinition]:
     assert session.character is not None
     wanted = target.strip().lower().replace("_", " ")
@@ -763,23 +783,55 @@ async def _show_inventory(session) -> None:
 
 
 async def _show_item_detail(session, target: str) -> None:
-    matches = _owned_equipment_matches(session, target)
+    """Show the authoritative detail view for any item the character carries."""
+    matches = _owned_item_matches(session, target)
     if not matches:
-        await session.send("You are not carrying equipment by that name.\r\n")
+        await session.send("You are not carrying an item by that name.\r\n")
         return
     if len(matches) > 1:
         await session.send("That matches more than one item: " + ", ".join(item.name for item in matches) + ".\r\n")
         return
+
     definition = matches[0]
-    assert definition.equipment is not None
+    category = definition.category.replace("_", " ").title()
     await session.send(
-        f"\r\n{definition.name}\r\n{definition.description}\r\n"
-        f"Slot: {SLOT_LABELS[normalize_slot(definition.equipment.slot)]}\r\n"
-        f"Stats: {', '.join(_stat_parts(definition.equipment))}\r\n"
-        "Wearability: universal - every race and class can use this item.\r\n"
+        f"\r\n{definition.name}\r\n"
+        f"{definition.description}\r\n"
+        f"Category: {category}\r\n"
+        + (f"Tier: {definition.tier}\r\n" if definition.tier else "")
     )
-    if definition.equipment.scripted_effects:
-        await session.send("Special effects: " + ", ".join(definition.equipment.scripted_effects) + "\r\n")
+
+    if definition.equipment is not None:
+        await session.send(
+            f"Slot: {SLOT_LABELS[normalize_slot(definition.equipment.slot)]}\r\n"
+            f"Stats: {', '.join(_stat_parts(definition.equipment))}\r\n"
+            "Wearability: universal - every race and class can use this item.\r\n"
+        )
+        if definition.equipment.scripted_effects:
+            await session.send("Special effects: " + ", ".join(definition.equipment.scripted_effects) + "\r\n")
+
+    if definition.consumable is not None:
+        effect = definition.consumable
+        await session.send(f"Use: {effect.use_mode.upper()} {definition.name.upper()}\r\n")
+        if effect.heal_hp:
+            await session.send(f"Restores: {effect.heal_hp} Health\r\n")
+
+        temporary = []
+        for key, label in (
+            ("might", "Might"),
+            ("grace", "Grace"),
+            ("love", "Love"),
+            ("mind", "Mind"),
+            ("hp", "HP"),
+        ):
+            value = getattr(effect.temporary_stat_bonuses, key)
+            if value:
+                temporary.append(f"{label} {value:+d}")
+        if temporary:
+            duration = f" for {effect.duration_ticks} ticks" if effect.duration_ticks else ""
+            await session.send("Temporary effects: " + ", ".join(temporary) + duration + "\r\n")
+        if effect.effect_tags:
+            await session.send("Effect tags: " + ", ".join(effect.effect_tags) + "\r\n")
 
 
 async def _compare_item(session, target: str) -> None:
