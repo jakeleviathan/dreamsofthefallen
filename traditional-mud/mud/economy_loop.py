@@ -586,7 +586,13 @@ async def _show_recipe_group(
     await session.send(f"\r\n{_recipe_paint(_RECIPE_PROFESSION, title)}\r\n")
 
     if overview:
-        shown = sorted(attemptable, key=_recipe_sort_key)[-6:]
+        shown = sorted(
+            sorted(
+                attemptable,
+                key=lambda recipe: (abs(recipe.trivial_skill - skill), recipe.trivial_skill, _recipe_output_name(recipe).lower()),
+            )[:6],
+            key=_recipe_sort_key,
+        )
         if shown:
             await session.send(_recipe_paint(_RECIPE_HEADER, "  ATTEMPTABLE") + "\r\n")
             for recipe in shown:
