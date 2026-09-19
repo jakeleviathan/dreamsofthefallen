@@ -664,7 +664,7 @@ async def _raise_road_lantern(session) -> bool:
         session.database.complete_quest(session.character.id, BLACKREED_QUEST_KEY)
         session.database.grant_flag(session.character.id, BLACKREED_COMPLETE_FLAG)
         session.database.add_item(session.character.id, BLACKREED_ROUTE_TOKEN_KEY, 1)
-        session.database.add_item(session.character.id, 2)
+        session.database.add_sols(session.character.id, 20)
         session.database.add_experience(session.character.id, 240)
         _refresh(session)
         await session.send(
