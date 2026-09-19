@@ -7,6 +7,7 @@ from mud.character_options import CLASSES_BY_KEY, RACES_BY_KEY
 from mud.crafting import ItemDefinition
 from mud.mechanics import PRIEST_DEITIES_BY_KEY, PROGRESSION_RULES
 from mud.stats import CharacterStats, EquipmentItem
+from mud.sols import format_sols, merchant_buyback_price
 
 
 EQUIPMENT_SLOTS: tuple[str, ...] = (
@@ -755,6 +756,7 @@ async def _show_equipment(session) -> None:
         f"AC {armor_class}; Might {bonus.might:+d}; Grace {bonus.grace:+d}; "
         f"Love {bonus.love:+d}; Mind {bonus.mind:+d}; HP {bonus.hp:+d}\r\n"
     )
+    await session.send(f"Sols       : {format_sols(session.database.get_sols(session.character.id))}\r\n")
     await session.send("Commands: EQUIP <item>, UNEQUIP <slot or item>, COMPARE <item>.\r\n")
 
 
@@ -769,6 +771,7 @@ async def _show_inventory(session) -> None:
     await session.send("\r\n--- Inventory ---\r\n")
     if not items:
         await session.send("Empty.\r\n")
+        await session.send(f"Sols: {format_sols(session.database.get_sols(session.character.id))}\r\n")
         return
     for row in items:
         item_key = str(row["item_key"])
@@ -780,6 +783,7 @@ async def _show_inventory(session) -> None:
         elif definition and definition.equipment:
             suffix = f" [gear: {SLOT_LABELS[normalize_slot(definition.equipment.slot)]}]"
         await session.send(f"{int(row['quantity'])}x {name}{suffix}\r\n")
+    await session.send(f"Sols: {format_sols(session.database.get_sols(session.character.id))}\r\n")
 
 
 async def _show_item_detail(session, target: str) -> None:
@@ -800,6 +804,9 @@ async def _show_item_detail(session, target: str) -> None:
         f"Category: {category}\r\n"
         + (f"Tier: {definition.tier}\r\n" if definition.tier else "")
     )
+
+    sell_value = merchant_buyback_price(definition.key)
+    await session.send(f"Merchant value: {format_sols(sell_value)}\r\n" if sell_value > 0 else "Merchant value: not bought by ordinary merchants\r\n")
 
     if definition.equipment is not None:
         await session.send(
@@ -945,6 +952,7 @@ async def _show_live_stats(session) -> None:
         )
         + f"Level: {session.character.level}\r\n"
         f"XP   : {session.character.experience}\r\n"
+        f"Sols : {format_sols(session.database.get_sols(session.character.id))}\r\n"
         f"Next : {PROGRESSION_RULES.cumulative_xp_for_level(session.character.level + 1)} total XP\r\n"
         "\r\n--- Stats (base + equipment = total) ---\r\n"
         f"Might: {session.character.might} {bonus.might:+d} = {total.might}\r\n"
