@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import mud.crafting as crafting
@@ -116,7 +117,8 @@ class EconomyLoopTests(unittest.TestCase):
         self.assertIn("Tailoring", output)
         self.assertIn("Alchemy", output)
         self.assertIn("Iron Ingot", output)
-        self.assertIn("NEXT UNLOCKS", output)
+        self.assertIn("TOO DIFFICULT", output)
+        self.assertIn("Trivial", output)
         self.assertNotIn("smelt_iron_ingot:", output)
         self.assertIn("RECIPE <name>", output)
 
@@ -133,7 +135,7 @@ class EconomyLoopTests(unittest.TestCase):
         self.assertIn("Forge", output)
         self.assertIn("1/2", output)
         self.assertIn("Iron Ore", output)
-        self.assertIn("Not craftable yet: materials", output)
+        self.assertIn("Not ready: materials", output)
 
     def test_recipes_craftable_only_lists_items_possible_right_now(self):
         self.db.add_item(self.character.id, "iron_ore", 2)
@@ -150,11 +152,20 @@ class EconomyLoopTests(unittest.TestCase):
         session = self._session_in("dwarf_workshop_tier", ["craft smelt iron ingot"])
         self.db.add_item(self.character.id, "iron_ore", 2)
 
-        asyncio.run(session.playing_prompt())
+        async def finish_craft():
+            await session.playing_prompt()
+            task = session._active_craft["task"]
+            await task
+
+        with patch.object(crafting, "craft_time_seconds", return_value=0.02):
+            asyncio.run(finish_craft())
 
         self.assertEqual(self.db.item_quantity(self.character.id, "iron_ore"), 0)
         self.assertEqual(self.db.item_quantity(self.character.id, "iron_ingot"), 1)
-        self.assertEqual(self.db.get_trade_skill_progress(self.character.id, "blacksmithing")["skill_xp"], 1)
+        # Iron Ingot is trivial at 0: guaranteed success, but no free skill point.
+        self.assertEqual(self.db.get_trade_skill_progress(self.character.id, "blacksmithing")["skill_xp"], 0)
+        self.assertIn("Crafting [", "".join(session.outputs))
+        self.assertIn("100%", "".join(session.outputs))
 
     def test_enemy_defeat_awards_hunter_material(self):
         session = self._session_in("human_vermin_pens")
@@ -173,7 +184,13 @@ class EconomyLoopTests(unittest.TestCase):
         self.db.add_item(self.character.id, "iron_ingot", 1)
         self.db.add_item(self.character.id, "imp_horn", 1)
 
-        asyncio.run(session.playing_prompt())
+        async def finish_craft():
+            await session.playing_prompt()
+            task = session._active_craft["task"]
+            await task
+
+        with patch.object(crafting, "craft_time_seconds", return_value=0.02):
+            asyncio.run(finish_craft())
 
         self.assertEqual(self.db.item_quantity(self.character.id, "iron_ingot"), 0)
         self.assertEqual(self.db.item_quantity(self.character.id, "imp_horn"), 0)
