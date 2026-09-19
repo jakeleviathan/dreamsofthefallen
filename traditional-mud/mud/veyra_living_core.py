@@ -6,14 +6,15 @@ from datetime import date
 import mud.veyra_city as veyra
 from mud.greywake_march import LANTERN_FLAG, LEDGER_FLAG, ROADWARDEN_FLAG
 from mud.sablewater_reach import DROWNED_BRASS_SCRAP_KEY, SABLEWATER_NORTH_FERRY_KEY
-from mud.waymeet_frontier import WAYMEET_GLOAM_MOUTH_KEY, WAYMEET_SCRIP_KEY
+from mud.sols import format_sols
+from mud.waymeet_frontier import WAYMEET_GLOAM_MOUTH_KEY
 
 
 @dataclass(frozen=True, slots=True)
 class MarketDemand:
     item_key: str
     bundle_size: int
-    scrip_per_bundle: int
+    sparks_per_bundle: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,7 +33,7 @@ class WeeklyContract:
     item_key: str
     quantity: int
     xp_reward: int
-    scrip_reward: int
+    sol_reward_sparks: int
 
 
 MARKET_DAYS: tuple[MarketDay, ...] = (
@@ -40,43 +41,43 @@ MARKET_DAYS: tuple[MarketDay, ...] = (
         "smiths_day",
         "Smiths' Day",
         "Repair crews and small forges buy raw metal and fuel faster than caravans can sort it.",
-        (MarketDemand("iron_ore", 2, 1), MarketDemand("coal", 2, 1), MarketDemand("iron_ingot", 1, 1)),
+        (MarketDemand("iron_ore", 2, 10), MarketDemand("coal", 2, 10), MarketDemand("iron_ingot", 1, 10)),
     ),
     MarketDay(
         "cloth_day",
         "Cloth Day",
         "Tailors, ropewalks, boarding houses, and wagon crews all want ordinary fiber at once.",
-        (MarketDemand("raw_cotton", 3, 1), MarketDemand("cotton_thread", 2, 1), MarketDemand("cotton_cloth", 1, 1)),
+        (MarketDemand("raw_cotton", 3, 10), MarketDemand("cotton_thread", 2, 10), MarketDemand("cotton_cloth", 1, 10)),
     ),
     MarketDay(
         "physickers_day",
         "Physickers' Day",
         "Hospices and apothecaries restock common medicines before they start paying rare-herb prices.",
-        (MarketDemand("greenleaf", 3, 1), MarketDemand("bitterroot", 2, 1), MarketDemand("lavender_blossom", 3, 1)),
+        (MarketDemand("greenleaf", 3, 10), MarketDemand("bitterroot", 2, 10), MarketDemand("lavender_blossom", 3, 10)),
     ),
     MarketDay(
         "repair_day",
         "Repair Day",
         "The city buys the ugly useful things: hide, old fittings, and brass that can become something else.",
-        (MarketDemand("rough_hide", 2, 1), MarketDemand(DROWNED_BRASS_SCRAP_KEY, 2, 2), MarketDemand("iron_ingot", 1, 1)),
+        (MarketDemand("rough_hide", 2, 10), MarketDemand(DROWNED_BRASS_SCRAP_KEY, 2, 20), MarketDemand("iron_ingot", 1, 10)),
     ),
     MarketDay(
         "caravan_day",
         "Caravan Day",
         "Outbound teams pay for processed stock because a wagon leaving at dusk does not care that raw materials are cheaper.",
-        (MarketDemand("iron_ingot", 1, 1), MarketDemand("cotton_cloth", 1, 1), MarketDemand("cotton_thread", 2, 1)),
+        (MarketDemand("iron_ingot", 1, 10), MarketDemand("cotton_cloth", 1, 10), MarketDemand("cotton_thread", 2, 10)),
     ),
     MarketDay(
         "oddments_day",
         "Oddments Day",
         "Small specialists arrive looking for materials too peculiar to justify permanent stalls.",
-        (MarketDemand("imp_horn", 2, 1), MarketDemand("lavender_blossom", 3, 1), MarketDemand(DROWNED_BRASS_SCRAP_KEY, 2, 2)),
+        (MarketDemand("imp_horn", 2, 10), MarketDemand("lavender_blossom", 3, 10), MarketDemand(DROWNED_BRASS_SCRAP_KEY, 2, 20)),
     ),
     MarketDay(
         "civic_stores_day",
         "Civic Stores Day",
         "Public kitchens, repair sheds, clinics, and ward depots replenish basic reserves for the coming week.",
-        (MarketDemand("iron_ore", 2, 1), MarketDemand("raw_cotton", 3, 1), MarketDemand("greenleaf", 3, 1)),
+        (MarketDemand("iron_ore", 2, 10), MarketDemand("raw_cotton", 3, 10), MarketDemand("greenleaf", 3, 10)),
     ),
 )
 
@@ -89,7 +90,7 @@ WEEKLY_CONTRACTS: tuple[WeeklyContract, ...] = (
         "iron_ore",
         5,
         160,
-        2,
+        20,
     ),
     WeeklyContract(
         "hospice_dressings",
@@ -98,7 +99,7 @@ WEEKLY_CONTRACTS: tuple[WeeklyContract, ...] = (
         "raw_cotton",
         6,
         160,
-        2,
+        20,
     ),
     WeeklyContract(
         "greenhall_reserve",
@@ -107,7 +108,7 @@ WEEKLY_CONTRACTS: tuple[WeeklyContract, ...] = (
         "greenleaf",
         5,
         160,
-        2,
+        20,
     ),
     WeeklyContract(
         "river_reclamation",
@@ -116,7 +117,7 @@ WEEKLY_CONTRACTS: tuple[WeeklyContract, ...] = (
         DROWNED_BRASS_SCRAP_KEY,
         3,
         200,
-        3,
+        30,
     ),
 )
 
@@ -314,7 +315,7 @@ async def _show_market_day(session) -> bool:
     day = market_day()
     lines = [f"VEYRA MARKET DAY — {day.name}", day.description]
     for demand in day.demands:
-        lines.append(f" - {_item_name(demand.item_key)}: {demand.bundle_size} for {demand.scrip_per_bundle} Waymeet Trade Scrip")
+        lines.append(f" - {_item_name(demand.item_key)}: {demand.bundle_size} for {format_sols(demand.sparks_per_bundle)}")
     lines.append("At Brassmarket use SELL DEMAND <qty> <item>. Partial bundles stay in your inventory.")
     await session.send("\r\n".join(lines) + "\r\n")
     return True
@@ -344,9 +345,9 @@ async def _sell_demand(session, quantity: int, item_text: str) -> bool:
     if not session.database.consume_item(session.character.id, item.key, consumed):
         await session.send("The sale could not be completed because your inventory changed.\r\n")
         return True
-    payout = bundles * demand.scrip_per_bundle
-    session.database.add_item(session.character.id, WAYMEET_SCRIP_KEY, payout)
-    await session.send(f"The demand desk takes {consumed} x {_item_name(item.key)} and pays {payout} Waymeet Trade Scrip. Veyra's demand is a real material sink, not an infinite generic vendor.\r\n")
+    payout = bundles * demand.sparks_per_bundle
+    session.database.add_sols(session.character.id, payout)
+    await session.send(f"The demand desk takes {consumed} x {_item_name(item.key)} and pays {format_sols(payout)} in Sols. Veyra's demand is a real material sink, not an infinite generic vendor.\r\n")
     return True
 
 
@@ -370,7 +371,7 @@ async def _show_weekly_contract(session) -> bool:
     await session.send(
         f"VEYRA WEEKLY CONTRACT {week_id} — {contract.name}\r\n"
         f"{contract.description}\r\n"
-        f"Deliver {contract.quantity} x {_item_name(contract.item_key)}. Reward: {contract.xp_reward} XP, {contract.scrip_reward} Waymeet Trade Scrip, and 1 faction service point if you hold a ranked Veyra faction seal.\r\n"
+        f"Deliver {contract.quantity} x {_item_name(contract.item_key)}. Reward: {contract.xp_reward} XP, {format_sols(contract.sol_reward_sparks)} in Sols, and 1 faction service point if you hold a ranked Veyra faction seal.\r\n"
         f"Status: {state}. Use ACCEPT CONTRACT, then TURN IN CONTRACT here.\r\n"
     )
     return True
@@ -410,7 +411,7 @@ async def _turn_in_weekly_contract(session) -> bool:
         await session.send("The turn-in failed because your inventory changed.\r\n")
         return True
     session.database.add_experience(session.character.id, contract.xp_reward)
-    session.database.add_item(session.character.id, WAYMEET_SCRIP_KEY, contract.scrip_reward)
+    session.database.add_sols(session.character.id, contract.sol_reward_sparks)
     points = add_faction_service(session, 1)
     with session.database.connect() as db:
         db.execute(
@@ -419,7 +420,7 @@ async def _turn_in_weekly_contract(session) -> bool:
         )
     veyra._refresh(session)
     extra = f" Faction service now {points} point(s)." if points else ""
-    await session.send(f"Weekly contract complete: {contract.xp_reward} XP and {contract.scrip_reward} Waymeet Trade Scrip.{extra}\r\n")
+    await session.send(f"Weekly contract complete: {contract.xp_reward} XP and {format_sols(contract.sol_reward_sparks)} in Sols.{extra}\r\n")
     return True
 
 
@@ -485,7 +486,7 @@ async def _faction_duty(session, accept: bool = False, turn_in: bool = False) ->
             await session.send("The duty turn-in failed because your inventory changed.\r\n")
             return True
         session.database.add_experience(session.character.id, 110)
-        session.database.add_item(session.character.id, WAYMEET_SCRIP_KEY, 1)
+        session.database.add_sols(session.character.id, 10)
         points = add_faction_service(session, 1)
         with session.database.connect() as db:
             db.execute(
@@ -493,7 +494,7 @@ async def _faction_duty(session, accept: bool = False, turn_in: bool = False) ->
                 (session.character.id, week_id),
             )
         veyra._refresh(session)
-        await session.send(f"Faction duty complete: 110 XP, 1 Waymeet Trade Scrip, and 1 service point. Standing: {points}.\r\n")
+        await session.send(f"Faction duty complete: 110 XP, 1 ember in Sols, and 1 service point. Standing: {points}.\r\n")
         return True
     state = "not accepted" if row is None else str(row["status"])
     await session.send(f"Weekly {FACTION_NAMES[faction]} duty: {description} Deliver {qty} x {_item_name(item_key)}. Status: {state}. Use ACCEPT FACTION DUTY or TURN IN FACTION DUTY.\r\n")
