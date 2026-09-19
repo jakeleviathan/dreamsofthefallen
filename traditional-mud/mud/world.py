@@ -227,7 +227,8 @@ FOREST_ELF_ROOMS: tuple[RoomDefinition, ...] = (
             "be heard behind you. To the east, the sound of running water marks the old river path."
         ),
         exits={"south": FOREST_ELF_START_ROOM_KEY, "east": FOREST_ELF_OLD_RIVER_PATH_KEY},
-        tags=("peaceful", "forest_town_edge", "exploration"),
+        npc_keys=("forest_elf_greenway_herbalist",),
+        tags=("peaceful", "forest_town_edge", "exploration", "market"),
     ),
     RoomDefinition(
         key=FOREST_ELF_OLD_RIVER_PATH_KEY,
@@ -316,7 +317,8 @@ SPOREKIN_ROOMS: tuple[RoomDefinition, ...] = (
             "north between curtains of mycelium."
         ),
         exits={"north": "sporekin_mycelial_gallery"},
-        tags=("sporekin_start", "bioluminescent", "underground", "quiet"),
+        npc_keys=("sporekin_tender_murr",),
+        tags=("sporekin_start", "bioluminescent", "underground", "quiet", "market"),
     ),
     RoomDefinition(
         key="sporekin_mycelial_gallery",
@@ -428,7 +430,20 @@ LOWER_WARDS_INFORMANT = NpcDefinition(
     ),
 )
 
-NPCS: tuple[NpcDefinition, ...] = (HIGH_ACOLYTE, LOWER_WARDS_INFORMANT)
+FOREST_ELF_GREENWAY_HERBALIST = NpcDefinition(
+    key="forest_elf_greenway_herbalist", name="Herbalist Sela Fernhand",
+    short_description="a Forest Elf herbalist arranging fresh remedies in woven bark trays",
+    room_key="forest_elf_greenway", role="starter herbalist",
+    dialogue=("Sela smiles. 'Take what helps, learn what grows here, and leave enough for the forest to replace.'",),
+)
+SPOREKIN_TENDER_MURR = NpcDefinition(
+    key="sporekin_tender_murr", name="Tender Murr",
+    short_description="a broad-capped Sporekin tending baskets of useful roots, spores, and moss",
+    room_key=SPOREKIN_START_ROOM_KEY, role="starter spore tender",
+    dialogue=("Murr's voice arrives softly. 'Food, medicine, fiber. The same soil can answer several needs if you listen before harvesting.'",),
+)
+
+NPCS: tuple[NpcDefinition, ...] = (HIGH_ACOLYTE, LOWER_WARDS_INFORMANT, FOREST_ELF_GREENWAY_HERBALIST, SPOREKIN_TENDER_MURR)
 NPCS_BY_KEY = {npc.key: npc for npc in NPCS}
 
 
