@@ -104,6 +104,12 @@ def npc_talk_names(npcs_by_key) -> set[str]:
         # Surnames and distinctive name-parts are common MUD talk targets too.
         for token in tokens:
             names.add(_normalize(token))
+            # Hyphenated personal names are commonly addressed by one component
+            # in authored commands (Guide Somn-of-Rain -> TALK SOMN).
+            for component in re.split(r"[-']", token):
+                component = _normalize(component)
+                if component:
+                    names.add(component)
         for index in range(len(tokens)):
             suffix = _normalize(" ".join(tokens[index:]))
             if suffix:
