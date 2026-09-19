@@ -103,7 +103,7 @@ class EightRoadsMidgameTests(unittest.TestCase):
     def test_five_new_roads_depart_from_distinct_parts_of_veyra_at_level_twelve(self):
         augmentations = eight_road_augmentations()
         expected = (
-            (VEYRA_SOUTH_SPRAWL_KEY, "south"),
+            (VEYRA_SOUTH_SPRAWL_KEY, "down"),
             (VEYRA_GREENHALL_KEY, "south"),
             (VEYRA_LOWER_QUAYS_KEY, "south"),
             (VEYRA_OLD_BRIDGE_KEY, "east"),

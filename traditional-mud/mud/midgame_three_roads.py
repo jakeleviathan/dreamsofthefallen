@@ -237,7 +237,7 @@ def midgame_augmentations():
         MOON_ELF_START_ROOM_KEY: RoomAugmentation(extra_exits=(_x("down", MOON_ENDPOINT_KEY, "Counterstar Highroad", "A ridge road descends toward the old survey route.", ViewCondition(min_level=13)),)),
         TROLL_ENDPOINT_KEY: RoomAugmentation(extra_exits=(_x("down", MERIDIAN_CAMP_KEY, "Hidden Confluence Descent", "The three witnesses reveal a marked descent beneath the roots.", all_three),)),
         DWARF_ENDPOINT_KEY: RoomAugmentation(extra_exits=(_x("down", MERIDIAN_CAMP_KEY, "Zero-Depth Expedition Lift", "A locked expedition lift descends below the mapped mountain.", all_three),)),
-        MOON_ENDPOINT_KEY: RoomAugmentation(extra_exits=(_x("down", MERIDIAN_CAMP_KEY, "Counterstar Descent", "The aligned route points down toward Confluence Camp.", all_three),)),
+        MOON_ENDPOINT_KEY: RoomAugmentation(extra_exits=(_x("east", MERIDIAN_CAMP_KEY, "Counterstar Descent", "The aligned route turns east into a hidden descent toward Confluence Camp.", all_three),)),
         TROLL_BOSS_KEY: RoomAugmentation(extra_exits=(_x("east", "thornwake_priest_grove", "Priest Road", "With the Ravager down, the priest road opens.", ViewCondition(required_flags=(TROLL_BOSS_FLAG,))),)),
         DWARF_BOSS_KEY: RoomAugmentation(extra_exits=(_x("south", DWARF_CLUE_KEY, "Zero-Depth Survey", "With the drill stopped, the survey line is quiet.", ViewCondition(required_flags=(DWARF_BOSS_FLAG,))),)),
         MOON_BOSS_KEY: RoomAugmentation(extra_exits=(_x("east", "counterstar_horizon_scar", "Horizon Scar", "With the Warden silent, the old observing road continues.", ViewCondition(required_flags=(MOON_BOSS_FLAG,))),)),

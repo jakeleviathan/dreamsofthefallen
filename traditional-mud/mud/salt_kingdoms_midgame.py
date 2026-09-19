@@ -394,7 +394,7 @@ SALT_KINGDOMS_ROOMS: tuple[RoomDefinition, ...] = (
     _room(OLD_BREAKWATER_KEY, "Old Breakwater", SALT_REGION_KEY, "A harbor breakwater runs across dry land toward Keelspire. Warehouses were built against its landward face after the sea vanished, turning marine infrastructure into a city wall one generation at a time.", {"east": PILGRIM_SALT_KEY, "south": KEELSPIRE_GATE_KEY}, tags=("level_24_30", "city_approach")),
     _room(TIDEMARK_SINK_KEY, "Tidemark Sink", SALT_REGION_KEY, "A fresh collapse exposes layers of salt, mud, and old harbor silt. The lowest crack is wet. Blue mineral lines on the walls form a tide mark several yards below the supposedly dry basin floor.", {"east": SUNKEN_MILE_KEY, "south": KEELSPIRE_GATE_KEY}, enemies=(GLASS_SCORPION_KEY,), tags=("level_21_26", "evidence")),
     _room(SPRINGCUT_GORGE_KEY, "Springcut Gorge", SALT_REGION_KEY, "A new stream has cut a narrow brown-green gorge through salt that was white yesterday. Water runs openly here only because the Undertide was released back into the natural southward fault channels.", {"up": PILGRIM_SALT_KEY, "north": TIDEMARK_SINK_KEY}, tags=("level_30", "post_capstone", "current_route")),
-    _room(CISTERN_ROAD_KEY, "The Refilled Cistern Road", SALT_REGION_KEY, "A chain of roadside cistern mouths gleams dark with new water. Painted depth marks replace emergency ration notices, and caravans stop here to refill without entering Keelspire first.", {"east": KEELSPIRE_THREE_WELLS_KEY, "west": DUSTWELL_CAMP_KEY}, tags=("level_30", "post_capstone", "wells_route")),
+    _room(CISTERN_ROAD_KEY, "The Refilled Cistern Road", SALT_REGION_KEY, "A chain of roadside cistern mouths gleams dark with new water. Painted depth marks replace emergency ration notices, and caravans stop here to refill without entering Keelspire first.", {"south": KEELSPIRE_THREE_WELLS_KEY, "west": DUSTWELL_CAMP_KEY}, tags=("level_30", "post_capstone", "wells_route")),
 
     _room(KEELSPIRE_GATE_KEY, "Keelspire Dry Harbor Gate", KEELSPIRE_REGION_KEY, "Keelspire rises inside the bowl of an ancient harbor. Stone quays now form streets, lighthouse towers are watch posts, and several buildings incorporate whole ship hulls into their upper floors. The city's gate occupies what was once a harbor chainhouse.", {"north": OLD_BREAKWATER_KEY, "south": KEELSPIRE_CROWN_SQUARE_KEY, "west": KEELSPIRE_QUAYS_KEY}, tags=("level_22_30", "city", "safe")),
     _room(KEELSPIRE_QUAYS_KEY, "The Dry Quays", KEELSPIRE_REGION_KEY, "Broad quay stairs descend to dust instead of water. Salvage cranes swing over market carts, and shipwright sheds now repair wagons beneath beams originally sized for masts. Orro Pike has claimed one bollard as an expedition desk.", {"east": KEELSPIRE_GATE_KEY, "south": KEELSPIRE_ROPEMARKET_KEY}, npcs=(ORRO_KEY,), tags=("level_22_30", "city", "salvage", "safe")),
@@ -474,10 +474,10 @@ def salt_kingdoms_augmentations() -> dict[str, RoomAugmentation]:
         KEELSPIRE_THREE_WELLS_KEY: RoomAugmentation(
             extra_exits=(
                 ExitDefinition(
-                    direction="west",
+                    direction="north",
                     destination_key=CISTERN_ROAD_KEY,
                     name="Refilled Cistern Road",
-                    travel_text="You follow the new public water line west through the reopened cistern chain.",
+                    travel_text="You follow the new public water line north through the reopened cistern chain.",
                     condition=ViewCondition(required_flags=(WELLS_ENDING_FLAG,)),
                     hidden_when_unavailable=True,
                 ),

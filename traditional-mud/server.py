@@ -288,6 +288,11 @@ install_production_server_runtime(MudServer)
 _LIVE_ROOMS = live_rooms_for_world(WORLD)
 validate_authored_exit_targets(_LIVE_ROOMS)
 validate_starter_route_walks(_LIVE_ROOMS)
+# Exit direction is part of the command grammar. Audit the fully assembled room
+# service after every content installer has run so duplicate directions can never
+# leak into LOOK/EXITS again, and conflicting routes fail startup instead of
+# becoming order-dependent movement bugs.
+WORLD.validate_exit_integrity()
 install_universal_location_repair_runtime(PlayerSession, WORLD)
 
 # Keep room presentation outside the authored gameplay stack so every area gets

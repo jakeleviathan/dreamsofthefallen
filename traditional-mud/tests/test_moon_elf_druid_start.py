@@ -133,7 +133,7 @@ class MoonElfDruidStartTests(unittest.TestCase):
         self.assertIn("ordinary_care", room.tags)
         self.assertEqual(room.enemy_keys, ())
         self.assertIn(NERA_VOSS_KEY, room.npc_keys)
-        self.assertEqual(world.ROOMS_BY_KEY[MOON_ELF_WIND_TERRACE_KEY].exits["south"], MOON_ELF_ALPINE_GARDEN_KEY)
+        self.assertEqual(world.ROOMS_BY_KEY[MOON_ELF_WIND_TERRACE_KEY].exits["west"], MOON_ELF_ALPINE_GARDEN_KEY)
 
         augmentation = moon_elf_druid_augmentations()[MOON_ELF_ALPINE_GARDEN_KEY]
         self.assertGreaterEqual(len(augmentation.features), 7)
@@ -143,7 +143,7 @@ class MoonElfDruidStartTests(unittest.TestCase):
         service = WorldService(rooms=world.ROOMS_BY_KEY, augmentations={})
         install_moon_elf_druid_content(service)
         context = PlayerRoomContext(character_id=1, race_key="moon_elf", class_key="druid", level=1)
-        result = service.resolve_exit(MOON_ELF_WIND_TERRACE_KEY, "south", context)
+        result = service.resolve_exit(MOON_ELF_WIND_TERRACE_KEY, "west", context)
         self.assertTrue(result.allowed)
         self.assertEqual(result.exit.destination_key, MOON_ELF_ALPINE_GARDEN_KEY)
         self.assertEqual(result.exit.name, "Alpine Light Garden")

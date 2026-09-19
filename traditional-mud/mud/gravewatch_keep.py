@@ -328,7 +328,7 @@ GRAVEWATCH_ROOMS: tuple[RoomDefinition, ...] = (
         GRAVEWATCH_RIVER_MILE_KEY,
         "Gravewatch River Mile",
         "Veyra's downstream road narrows between willow scrub and a high green river. Half a day's travel is compressed into old milestones, cart ruts, and the distant square silhouette of Gravewatch Keep. A small road camp marks the last reliably safe place to stop.",
-        {"west": VEYRA_EAST_RIVER_GATE_KEY, "east": GRAVEWATCH_FERRY_RUIN_KEY},
+        {"north": VEYRA_EAST_RIVER_GATE_KEY, "east": GRAVEWATCH_FERRY_RUIN_KEY},
         npcs=(SERGEANT_NPC_KEY,), tags=("approach", "safe"),
     ),
     _room(
@@ -473,10 +473,10 @@ def gravewatch_augmentations() -> dict[str, RoomAugmentation]:
         VEYRA_EAST_RIVER_GATE_KEY: RoomAugmentation(
             extra_exits=(
                 ExitDefinition(
-                    direction="east",
+                    direction="south",
                     destination_key=GRAVEWATCH_RIVER_MILE_KEY,
                     name="Gravewatch River Road",
-                    travel_text="You follow the downstream river road beyond Veyra toward the square ruin of Gravewatch Keep.",
+                    travel_text="You follow the downstream river road south beyond Veyra toward the square ruin of Gravewatch Keep.",
                     condition=ViewCondition(required_flags=(VEYRA_RESIDENT_FLAG,), min_level=8),
                     hidden_when_unavailable=True,
                 ),

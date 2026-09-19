@@ -94,7 +94,7 @@ assert harbor_quays["north"] == TIDEMARK_SINK_KEY
 wells = PlayerRoomContext(1, "goblin", "priest", 30, frozenset({WELLS_ENDING_FLAG}))
 well_city = {item.direction: item.destination_key for item in server.WORLD.build_view(KEELSPIRE_THREE_WELLS_KEY, wells).exits}
 well_road = {item.direction: item.destination_key for item in server.WORLD.build_view(DUSTWELL_CAMP_KEY, wells).exits}
-assert well_city["west"] == CISTERN_ROAD_KEY
+assert well_city["north"] == CISTERN_ROAD_KEY
 assert well_road["east"] == CISTERN_ROAD_KEY
 
 current = PlayerRoomContext(1, "goblin", "priest", 30, frozenset({CURRENT_ENDING_FLAG}))
