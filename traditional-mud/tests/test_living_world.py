@@ -189,7 +189,7 @@ class LivingWorldTests(unittest.TestCase):
     def test_small_room_is_a_real_persistent_place_with_storage_and_five_display_slots(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             session = self._session(Path(temp_dir), name="Homekeeper")
-            session.database.add_item(session.character.id, 5)
+            session.database.add_sols(session.character.id, 50)
             session.database.add_item(session.character.id, "raw_cotton", 8)
             session.database.set_character_room(session.character.id, WAYMEET_COMMONHOUSE_KEY)
             session.refresh()
@@ -199,7 +199,7 @@ class LivingWorldTests(unittest.TestCase):
             row = living._quarters_row(session)
             self.assertIsNotNone(row)
             self.assertEqual(str(row["hub_room_key"]), WAYMEET_COMMONHOUSE_KEY)
-            self.assertEqual(session.database.item_quantity(session.character.id), 3)
+            self.assertEqual(session.database.get_sols(session.character.id), 30)
 
             asyncio.run(living._enter_room(session))
             self.assertTrue(living._is_private_room(session))
@@ -252,13 +252,13 @@ class LivingWorldTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             session = self._session(Path(temp_dir), name="Shopper")
             session.database.set_character_room(session.character.id, pulse.room_key)
-            session.database.add_item(session.character.id, 3)
+            session.database.add_sols(session.character.id, 30)
             session.refresh()
             with patch.object(living, "ASTRALIS_CLOCK", DummyClock(moment)):
                 self.assertTrue(asyncio.run(living._browse_wanderer(session)))
                 self.assertTrue(asyncio.run(living._buy_wanderer(session, "iron ore")))
             self.assertEqual(session.database.item_quantity(session.character.id, "iron_ore"), 1)
-            self.assertEqual(session.database.item_quantity(session.character.id), 2)
+            self.assertEqual(session.database.get_sols(session.character.id), 25)
 
     def test_daily_disturbance_participation_cannot_be_farmed_for_repeat_payouts(self):
         day = next(
