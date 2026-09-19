@@ -14,6 +14,9 @@ class QuestDefinition:
     gate: ContentGate = ContentGate()
     description: str = ""
     objective_steps: tuple[tuple[str, str], ...] = ()
+    # Optional explicit payout in sparks. When omitted, the universal Sol
+    # economy derives a reward from quest level, style, and story length.
+    sol_reward: int | None = None
 
     def objective_for_step(self, step_key: str | None) -> str | None:
         if step_key is None:
