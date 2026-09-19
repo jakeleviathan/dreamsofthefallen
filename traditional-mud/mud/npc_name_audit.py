@@ -181,6 +181,23 @@ def production_npc_name_records(world_module, mobile_module=None) -> tuple[NpcNa
     return tuple(records)
 
 
+def validate_unique_npc_names(world_module, mobile_module=None) -> int:
+    """Validate the fully assembled NPC namespace and return its record count.
+
+    Full display names must be globally unique. Personal given names must also
+    be globally unique whenever they can be identified, because first names are
+    commonly valid TALK targets and repeated names make rooms and quests harder
+    to read. This is designed to run in both CI and production startup.
+    """
+
+    records = production_npc_name_records(world_module, mobile_module)
+    full = duplicate_full_names(records)
+    given = duplicate_given_names(records)
+    if full or given:
+        raise RuntimeError(format_duplicate_report(full, given))
+    return len(records)
+
+
 def format_duplicate_report(
     full_names: dict[str, tuple[NpcNameRecord, ...]],
     given_names: dict[str, tuple[NpcNameRecord, ...]],
