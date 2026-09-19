@@ -270,6 +270,26 @@ def resolve_target_command(session, command: str, world_service) -> TargetResolu
         return TargetResolution(command, ambiguous_names=best_names)
 
     candidate = best[0]
+
+    # TALK is unusually sensitive to command spelling because many authored
+    # quest runtimes intentionally register a memorable first name, surname, or
+    # role word (TALK SERAEL, TALK SOMN, TALK KEEPER) rather than the NPC's full
+    # display label. If the player's target is already an exact whole word in
+    # the uniquely matched visible NPC name, it is already unambiguous and must
+    # not be cosmetically expanded into a different command that an older quest
+    # handler may not recognize.
+    #
+    # Example: "talk serael" uniquely identifies "Serael Reedwatch". Rewriting
+    # that to "talk Serael Reedwatch" used to bypass the quest's TALK SERAEL
+    # handler and fall through to the base "no one by that name" response.
+    if verb == "talk":
+        name_words = normalize_target(candidate.name).split()
+        if query in name_words:
+            canonical = f"talk {query}"
+            if normalize_target(command) == normalize_target(canonical):
+                return TargetResolution(command)
+            return TargetResolution(canonical, matched_name=candidate.name)
+
     canonical = f"{verb} {candidate.name}"
     # Leave an already-canonical command alone. This matters for telemetry and
     # prevents cosmetic rewrites from making ordinary full-name input look new.
