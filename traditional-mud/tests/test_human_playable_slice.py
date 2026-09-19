@@ -114,11 +114,11 @@ class HumanPlayableSliceTests(unittest.TestCase):
 
     def test_slice_adds_real_loot_and_a_safe_world_handoff_overlook(self):
         outer = legacy_world.ROOMS_BY_KEY[HUMAN_OUTER_CARAVAN_ROAD_KEY]
-        self.assertEqual(outer.exits["east"], HUMAN_FIRST_MILE_OVERLOOK_KEY)
+        self.assertEqual(outer.exits["south"], HUMAN_FIRST_MILE_OVERLOOK_KEY)
 
         overlook = legacy_world.ROOMS_BY_KEY[HUMAN_FIRST_MILE_OVERLOOK_KEY]
         self.assertIn("safe", overlook.tags)
-        self.assertEqual(overlook.exits["west"], HUMAN_OUTER_CARAVAN_ROAD_KEY)
+        self.assertEqual(overlook.exits["north"], HUMAN_OUTER_CARAVAN_ROAD_KEY)
 
         augmentation = human_playable_slice_augmentations()[HUMAN_FIRST_MILE_OVERLOOK_KEY]
         self.assertGreaterEqual(len(augmentation.features), 2)
