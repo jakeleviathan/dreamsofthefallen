@@ -1091,6 +1091,22 @@ def _register_items(items: tuple[ItemDefinition, ...]) -> None:
     crafting.ITEMS_BY_KEY.update({item.key: item for item in additions})
 
 
+def _register_fragrances(
+    items: tuple[ItemDefinition, ...],
+    fragrances: tuple[style.FragranceDefinition, ...],
+) -> None:
+    known_item_keys = {item.key for item in style.FRAGRANCE_ITEMS}
+    item_additions = tuple(item for item in items if item.category == "fragrance" and item.key not in known_item_keys)
+    if item_additions:
+        style.FRAGRANCE_ITEMS = style.FRAGRANCE_ITEMS + item_additions
+
+    known_fragrances = set(style.FRAGRANCE_BY_KEY)
+    additions = tuple(fragrance for fragrance in fragrances if fragrance.item_key not in known_fragrances)
+    if additions:
+        style.FRAGRANCES = style.FRAGRANCES + additions
+        style.FRAGRANCE_BY_KEY.update({fragrance.item_key: fragrance for fragrance in additions})
+
+
 def _register_nodes(nodes: tuple[ResourceNodeDefinition, ...]) -> None:
     additions = tuple(node for node in nodes if node.key not in crafting.RESOURCE_NODES_BY_KEY)
     if not additions:
@@ -1136,16 +1152,20 @@ def _install_world_access() -> None:
         if ingredient.node_key not in current:
             economy.ROOM_RESOURCE_NODE_KEYS[ingredient.room_key] = current + (ingredient.node_key,)
 
+    economy.STATION_LABELS.setdefault("perfumer_bench", "Perfumer's Bench")
+
     station_additions = {
-        "waymeet_hammer_thread_row": ("forge", "loom", "enchanting_table"),
+        "waymeet_hammer_thread_row": ("forge", "loom", "enchanting_table", "perfumer_bench"),
         "waymeet_commonhouse_yard": ("cookfire",),
         "veyra_hammer_hall": ("forge", "enchanting_table"),
         "veyra_loom_hall": ("loom",),
-        "veyra_greenhall": ("mortar_and_pestle", "alchemy_table"),
+        "veyra_greenhall": ("mortar_and_pestle", "alchemy_table", "perfumer_bench"),
         "veyra_scholars_rise": ("enchanting_table", "alchemy_table"),
         "veyra_public_hearth": ("cookfire",),
         "sablewater_reed_farms": ("cookfire",),
-        "greywake_lantern_hospice": ("mortar_and_pestle", "alchemy_table", "cookfire"),
+        "greywake_lantern_hospice": ("mortar_and_pestle", "alchemy_table", "perfumer_bench", "cookfire"),
+        "forest_elf_hearthwalk": ("perfumer_bench",),
+        "goblin_apothecary_blind": ("perfumer_bench",),
     }
     for room_key, station_keys in station_additions.items():
         current = economy.ROOM_STATIONS.get(room_key, ())
@@ -1183,6 +1203,21 @@ def validate_profession_expansion() -> dict[str, int]:
     thin = {key: count for key, count in counts.items() if count < 80}
     if thin:
         raise RuntimeError(f"Every crafting profession must have at least 80 recipes: {thin}")
+
+    perfume_recipes = [
+        recipe for recipe in crafting.ALL_RECIPES
+        if recipe.trade_skill_key == "alchemy" and recipe.design_status.startswith("perfumery_")
+    ]
+    if len(perfume_recipes) < 51:
+        raise RuntimeError(f"Perfumery must expose at least 51 Alchemy recipes, found {len(perfume_recipes)}")
+    missing_fragrance_definitions = sorted(
+        recipe.output_item_key
+        for recipe in perfume_recipes
+        if recipe.design_status != "perfumery_concentrate"
+        and recipe.output_item_key not in style.FRAGRANCE_BY_KEY
+    )
+    if missing_fragrance_definitions:
+        raise RuntimeError(f"Perfumery outputs are missing fragrance behavior: {missing_fragrance_definitions}")
     return counts
 
 
@@ -1198,6 +1233,7 @@ def install_profession_expansion_content() -> dict[str, int]:
     pantry_items, pantry_nodes = _pantry_content()
     cooking_items, cooking_recipes = _cooking_expansion()
     enchanting_items, enchanting_recipes = _enchanting_expansion()
+    perfume_items, perfume_recipes, perfume_fragrances = _perfumery_expansion()
     secret_items, secret_recipes = _secret_content()
 
     all_items = (
@@ -1207,6 +1243,7 @@ def install_profession_expansion_content() -> dict[str, int]:
         + pantry_items
         + cooking_items
         + enchanting_items
+        + perfume_items
         + secret_items
     )
     all_recipes = (
@@ -1215,10 +1252,12 @@ def install_profession_expansion_content() -> dict[str, int]:
         + alchemy_recipes
         + cooking_recipes
         + enchanting_recipes
+        + perfume_recipes
         + secret_recipes
     )
 
     _register_items(all_items)
+    _register_fragrances(perfume_items, perfume_fragrances)
     _register_nodes(pantry_nodes)
     _register_recipes(all_recipes)
     _install_world_access()
