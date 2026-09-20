@@ -102,6 +102,7 @@ class DiscordPresenceServiceTests(unittest.TestCase):
         self.assertIn("Priest", status["details"])
         self.assertIn("Ashen Way", status["state"])
         self.assertEqual(status["smallimage"][0], "class-priest")
+        self.assertTrue(all(icon == icon.lower() for icon in status["smallimage"]))
         self.assertEqual(status["starttime"], "1700000000")
         self.assertEqual(status["game"], "Dreams of the Fallen")
 
