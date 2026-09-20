@@ -356,6 +356,19 @@ class PlayerSession:
             self.mudlet_gui_offer_sent = True
         return sent
 
+    def _discord_presence_service(self) -> DiscordPresenceService:
+        """Return the per-session presence service, including legacy test shells.
+
+        A few production-stack regression harnesses construct PlayerSession
+        objects without calling __init__. Keeping this lazy makes Rich Presence
+        an additive capability instead of changing that long-standing contract.
+        """
+        service = getattr(self, "discord_presence", None)
+        if service is None:
+            service = DiscordPresenceService()
+            self.discord_presence = service
+        return service
+
     async def _handle_client_gmcp(self, package: str, payload: object) -> None:
         """Handle supported client-originated GMCP extensions.
 
@@ -366,17 +379,19 @@ class PlayerSession:
         """
         normalized = package.lower()
         if normalized == "external.discord.hello":
-            self.discord_presence.ready = True
-            await self.telnet.send_gmcp("External.Discord.Info", self.discord_presence.info_payload())
+            presence = self._discord_presence_service()
+            presence.ready = True
+            await self.telnet.send_gmcp("External.Discord.Info", presence.info_payload())
             await self.send_discord_presence(force=True)
         elif normalized == "external.discord.get":
-            self.discord_presence.ready = True
+            self._discord_presence_service().ready = True
             await self.send_discord_presence(force=True)
 
     async def send_discord_presence(self, *, force: bool = False) -> bool:
-        if not self.telnet.gmcp_enabled or not self.discord_presence.ready:
+        presence = self._discord_presence_service()
+        if not self.telnet.gmcp_enabled or not presence.ready:
             return False
-        payload = self.discord_presence.status_if_changed(self, force=force)
+        payload = presence.status_if_changed(self, force=force)
         if payload is None:
             return False
         return await self.telnet.send_gmcp("External.Discord.Status", payload)
@@ -1489,7 +1504,7 @@ class PlayerSession:
         # Transient presence such as "Crafting ..." lasts until the player
         # actually begins their next command, then normal exploration/combat
         # state takes over again.
-        self.discord_presence.clear_activity()
+        self._discord_presence_service().clear_activity()
 
         verb = command.strip().lower()
         if verb in {"help", "?"}:
@@ -1995,7 +2010,7 @@ class PlayerSession:
             if result.completed:
                 output = ITEMS_BY_KEY.get(result.output_item_key or "")
                 label = output.name if output is not None else recipe_key.replace("_", " ").title()
-                self.discord_presence.set_activity("crafting", label)
+                self._discord_presence_service().set_activity("crafting", label)
                 await self.send_discord_presence(force=True)
             return
 
@@ -2025,7 +2040,7 @@ class PlayerSession:
             self.character = None
             self.combatant = None
             self.state = SessionState.CHARACTER_MENU
-            self.discord_presence.clear_activity()
+            self._discord_presence_service().clear_activity()
             await self.send_discord_presence(force=True)
             return
 
