@@ -78,7 +78,14 @@ def visible_actors(session, world_service) -> tuple[VisibleActor, ...]:
                     key=definition.key,
                     name=definition.name,
                     description=definition.short_description,
-                    kind="enemy" if bool(getattr(definition, "aggressive", False)) else "npc",
+                    kind=(
+                        "enemy"
+                        if (
+                            bool(getattr(definition, "aggressive", False))
+                            or bool(getattr(definition, "attackable", False))
+                        )
+                        else "npc"
+                    ),
                     aliases=tuple(getattr(definition, "aliases", ())),
                     aggressive=bool(getattr(definition, "aggressive", False)),
                 )
