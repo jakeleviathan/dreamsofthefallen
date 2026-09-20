@@ -1,5 +1,5 @@
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.4
+-- Version 2.2.5
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -7,7 +7,7 @@
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.4"
+H.version = "2.2.5"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -27,7 +27,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.4"
+local MODERN_UI_VERSION = "2.2.5"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -141,6 +141,42 @@ local GOLD_TEXT = [[
     font-weight: bold;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignVCenter';
+  }
+]]
+
+-- Quest copy gets its own larger, higher-contrast typography. The general
+-- SMALL_TEXT/MUTED_TEXT styles remain compact for denser panels like Party.
+local QUEST_TITLE_TEXT = [[
+  QLabel {
+    background-color: transparent;
+    border: 0px;
+    color: #f0d39d;
+    font-size: 13pt;
+    font-weight: bold;
+    qproperty-wordWrap: true;
+    qproperty-alignment: 'AlignLeft|AlignTop';
+  }
+]]
+
+local QUEST_OBJECTIVE_TEXT = [[
+  QLabel {
+    background-color: transparent;
+    border: 0px;
+    color: #f1e9dd;
+    font-size: 11pt;
+    qproperty-wordWrap: true;
+    qproperty-alignment: 'AlignLeft|AlignTop';
+  }
+]]
+
+local QUEST_MORE_TEXT = [[
+  QLabel {
+    background-color: transparent;
+    border: 0px;
+    color: #c7bac9;
+    font-size: 10pt;
+    qproperty-wordWrap: true;
+    qproperty-alignment: 'AlignLeft|AlignTop';
   }
 ]]
 
@@ -438,9 +474,9 @@ function H.buildModern()
   H.partyFooter = label(H.partyPane, "DreamsHUD.PartyFooter", 8, 260, -16, -8, MUTED_TEXT)
 
   H.questPane = Geyser.Container:new({ name = "DreamsHUD.QuestPane", x = 0, y = 0, width = "100%", height = "100%" }, H.contentFrame)
-  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 8, 8, -16, 30, GOLD_TEXT)
-  H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 42, -16, 120, SMALL_TEXT)
-  H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 166, -16, 70, MUTED_TEXT)
+  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 8, 10, -16, 38, QUEST_TITLE_TEXT)
+  H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 58, -16, 112, QUEST_OBJECTIVE_TEXT)
+  H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 180, -16, 58, QUEST_MORE_TEXT)
   H.questButton = label(H.questPane, "DreamsHUD.QuestButton", 8, -42, -16, 34, BUTTON_STYLE)
   H.questButton:echo("<center>OPEN QUEST LOG</center>")
   H.questButton:setClickCallback("DreamsHUD.runAction", "QUESTS")
@@ -699,7 +735,7 @@ function H.renderQuestPanel()
     return
   end
   H.questTitle:echo(escape(quest.name))
-  H.questObjective:echo("<b>Current objective</b><br/>" .. escape(quest.objective or "Explore and learn what the situation requires."))
+  H.questObjective:echo("<span style=\"color:#dfc18c\"><b>Current objective</b></span><br/>" .. escape(quest.objective or "Explore and learn what the situation requires."))
   local other = #active - 1
   H.questMore:echo(other > 0 and (tostring(other) .. " other active quest" .. (other == 1 and "" or "s") .. ". Open the log to switch context.") or "This is your only active quest.")
 end
