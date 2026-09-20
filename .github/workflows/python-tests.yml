@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
@@ -27,24 +27,6 @@ jobs:
           sudo apt-get install -y lua5.1
       - name: Build official Mudlet package
         run: python mudlet/DreamsOfTheFallenHUD/build_package.py
-      - name: Commit rebuilt Mudlet package
-        if: github.event_name == 'pull_request'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin "${GITHUB_HEAD_REF}"
-          git checkout -B "${GITHUB_HEAD_REF}" "origin/${GITHUB_HEAD_REF}"
-          python mudlet/DreamsOfTheFallenHUD/build_package.py
-          git add \
-            ../DreamsOfTheFallenHUD.mpackage \
-            mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage \
-            mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.xml
-          if git diff --cached --quiet; then
-            echo "Mudlet package already current."
-            exit 0
-          fi
-          git commit -m "Rebuild official Mudlet HUD 2.2.10"
-          git push origin "${GITHUB_HEAD_REF}"
       - name: Run regression suite
         run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Verify modern Mudlet package
