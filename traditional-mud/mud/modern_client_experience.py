@@ -11,6 +11,12 @@ import mud.mechanics as mechanics
 import mud.party_quality as party_quality
 import mud.party_system as party_system
 import mud.quests as quests
+from mud.racial_abilities import (
+    RACIAL_ACTIVE_ALIASES,
+    RACIAL_ACTIVE_COOLDOWNS,
+    RACIAL_ACTIVE_KEYS,
+    RACIAL_TEXT,
+)
 from mud.equipment_system import equipped_item_keys
 from mud.room_engine import PlayerRoomContext
 from mud.world import NPCS_BY_KEY
@@ -174,6 +180,73 @@ def _ability_command(ability) -> str:
     return "CAST " + ability.name.upper()
 
 
+def _racial_hotbar_entries(session, now: float) -> list[dict]:
+    """Expose the character's active racial ability through Dreams.Abilities.
+
+    The Mudlet hotbar intentionally consumes one unified action catalog. Racial
+    actives therefore live beside learned class abilities instead of requiring
+    a second race-only UI. Human Adapt is parameterized, so its four legal stat
+    choices are exposed as four independently assignable hotbar actions while
+    sharing the same underlying racial cooldown.
+    """
+
+    character = getattr(session, "character", None)
+    if character is None:
+        return []
+    race_key = character.race or ""
+    active_key = RACIAL_ACTIVE_KEYS.get(race_key)
+    authored = RACIAL_TEXT.get(race_key)
+    aliases = RACIAL_ACTIVE_ALIASES.get(race_key, ())
+    cooldown = RACIAL_ACTIVE_COOLDOWNS.get(race_key)
+    if active_key is None or authored is None or not aliases or cooldown is None:
+        return []
+
+    _passive_name, _passive_description, ability_name, description = authored
+    combatant = getattr(session, "combatant", None)
+    ready_at = (
+        float(combatant.cooldowns.get(active_key, 0.0))
+        if combatant is not None
+        else 0.0
+    )
+    remaining = max(0.0, ready_at - now)
+    ready = remaining <= 0.0
+    target_mode = "enemy" if race_key == "troll" else "group" if race_key == "sporekin" else "self"
+
+    def entry(*, key: str, name: str, command: str) -> dict:
+        return {
+            "key": key,
+            "name": name,
+            "category": "racial",
+            "description": description,
+            "mana": 0,
+            "cooldown": float(cooldown),
+            "cooldown_remaining": remaining,
+            "ready": ready,
+            "target_mode": target_mode,
+            "command": command,
+            "source": "racial",
+            "race": race_key,
+        }
+
+    if race_key == "human":
+        return [
+            entry(
+                key=f"{active_key}_{stat}",
+                name=f"{ability_name}: {stat.title()}",
+                command=f"RACIAL {aliases[0].upper()} {stat.upper()}",
+            )
+            for stat in ("might", "grace", "love", "mind")
+        ]
+
+    return [
+        entry(
+            key=active_key,
+            name=ability_name,
+            command=f"RACIAL {aliases[0].upper()}",
+        )
+    ]
+
+
 def _ability_snapshot(session) -> dict:
     character = session.character
     combatant = getattr(session, "combatant", None)
@@ -198,8 +271,10 @@ def _ability_snapshot(session) -> dict:
                 "ready": combatant.ability_ready(ability.key, now) if combatant is not None else True,
                 "target_mode": _ability_target_mode(ability),
                 "command": _ability_command(ability),
+                "source": "class",
             }
         )
+    result.extend(_racial_hotbar_entries(session, now))
     return {
         "class": character.character_class or "",
         "level": int(character.level),
@@ -486,7 +561,7 @@ def _mark_onboarding_command(session, command: str) -> None:
         session.database.grant_flag(session.character.id, _ONBOARDING_FLAGS["reference"])
     if normalized.startswith(("attack ", "kill ", "assist")):
         session.database.grant_flag(session.character.id, _ONBOARDING_FLAGS["combat"])
-    if normalized.startswith(("cast ", "taunt", "forage", "raise skeleton", "resurrect ")):
+    if normalized.startswith(("cast ", "taunt", "forage", "raise skeleton", "resurrect ", "racial ")):
         session.database.grant_flag(session.character.id, _ONBOARDING_FLAGS["ability"])
 
 
