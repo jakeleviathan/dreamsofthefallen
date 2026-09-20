@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
@@ -17,8 +17,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -29,16 +27,6 @@ jobs:
           sudo apt-get install -y lua5.1
       - name: Build official Mudlet package
         run: python mudlet/DreamsOfTheFallenHUD/build_package.py
-      - name: Commit rebuilt Mudlet package for this repair
-        if: github.event_name == 'pull_request' && github.head_ref == 'fix/mudlet-2.2.9-readable-quests-baseui'
-        run: |
-          if ! git diff --quiet -- ../DreamsOfTheFallenHUD.mpackage mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.xml; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add ../DreamsOfTheFallenHUD.mpackage mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.xml
-            git commit -m "Rebuild official Mudlet HUD 2.2.9"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
       - name: Run regression suite
         run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Verify modern Mudlet package
