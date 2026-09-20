@@ -777,9 +777,51 @@ _CRAFT_BAR_WIDTH = 20
 
 
 def _craft_bar(fraction: float) -> str:
+    """Terminal-safe fallback bar.
+
+    Do not use block/shade Unicode here. Mudlet profiles and raw Telnet clients
+    can render those glyphs inconsistently, while '='/'-' is predictable in
+    every monospaced terminal.
+    """
     fraction = max(0.0, min(1.0, fraction))
     filled = int(round(_CRAFT_BAR_WIDTH * fraction))
-    return "[" + ("█" * filled) + ("░" * (_CRAFT_BAR_WIDTH - filled)) + "]"
+    return "[" + ("=" * filled) + ("-" * (_CRAFT_BAR_WIDTH - filled)) + "]"
+
+
+def _crafting_gmcp_available(session) -> bool:
+    telnet = getattr(session, "telnet", None)
+    return bool(telnet is not None and getattr(telnet, "gmcp_enabled", False))
+
+
+async def _send_crafting_state(
+    session,
+    *,
+    active: bool,
+    output_name: str,
+    fraction: float,
+    duration: float,
+    remaining: float,
+    status: str,
+    reason: str = "",
+) -> None:
+    telnet = getattr(session, "telnet", None)
+    if telnet is None or not getattr(telnet, "gmcp_enabled", False):
+        return
+    fraction = max(0.0, min(1.0, float(fraction)))
+    await telnet.send_gmcp(
+        "Dreams.Crafting",
+        {
+            "active": bool(active),
+            "item": str(output_name),
+            "progress": round(fraction, 3),
+            "percent": int(round(fraction * 100)),
+            "duration": round(max(0.0, float(duration)), 2),
+            "remaining": round(max(0.0, float(remaining)), 2),
+            "status": str(status),
+            "reason": str(reason),
+            "interruptible": True,
+        },
+    )
 
 
 async def _interrupt_craft(session, reason: str = "interrupted") -> bool:
@@ -793,13 +835,26 @@ async def _interrupt_craft(session, reason: str = "interrupted") -> bool:
         task.cancel()
 
     output_name = str(state.get("output_name") or "the item")
+    duration = float(state.get("duration") or 0.0)
+    fraction = float(state.get("progress") or 0.0)
+    await _send_crafting_state(
+        session,
+        active=False,
+        output_name=output_name,
+        fraction=fraction,
+        duration=duration,
+        remaining=0.0,
+        status="interrupted",
+        reason=reason,
+    )
+
     if reason == "movement":
         message = f"You stop crafting {output_name} as you move."
     elif reason == "damage":
         message = f"Your work on {output_name} is interrupted by damage."
     else:
         message = f"Your work on {output_name} is interrupted."
-    await session.send("\r\x1b[2K" + message + " No materials are consumed.\r\n")
+    await session.send(message + " No materials are consumed.\r\n")
     return True
 
 
@@ -853,6 +908,9 @@ async def _craft(session, target: str) -> None:
         "output_name": output_name,
         "character_id": character.id,
         "room_key": character.current_room,
+        "duration": duration,
+        "progress": 0.0,
+        "last_text_bucket": 0,
         "task": None,
     }
     session._active_craft = craft_state
@@ -860,7 +918,17 @@ async def _craft(session, target: str) -> None:
         f"You begin crafting {output_name} ({duration:g}s, {success_pct}% success, "
         f"trivial {recipe.trivial_skill}). Movement or damage will interrupt you.\r\n"
     )
-    await session.send(f"\r\x1b[2KCrafting {_craft_bar(0.0)}   0%")
+    await _send_crafting_state(
+        session,
+        active=True,
+        output_name=output_name,
+        fraction=0.0,
+        duration=duration,
+        remaining=duration,
+        status="crafting",
+    )
+    if not _crafting_gmcp_available(session):
+        await session.send(f"Crafting: {_craft_bar(0.0)}   0%\r\n")
 
     async def finish_craft() -> None:
         started = monotonic()
@@ -891,10 +959,30 @@ async def _craft(session, target: str) -> None:
                     return
                 last_hp = current_hp
 
-                fraction = min(1.0, (monotonic() - started) / duration)
-                await session.send(
-                    f"\r\x1b[2KCrafting {_craft_bar(fraction)} {int(round(fraction * 100)):>3}%"
+                elapsed_now = monotonic() - started
+                fraction = min(1.0, elapsed_now / duration)
+                craft_state["progress"] = fraction
+                await _send_crafting_state(
+                    session,
+                    active=True,
+                    output_name=output_name,
+                    fraction=fraction,
+                    duration=duration,
+                    remaining=max(0.0, duration - elapsed_now),
+                    status="crafting",
                 )
+
+                # Raw Telnet fallback: use four readable milestones instead of
+                # trying to redraw a live line with carriage returns/ANSI erase.
+                # Mudlet gets the smooth bar through Dreams.Crafting GMCP.
+                if not _crafting_gmcp_available(session):
+                    bucket = min(3, int(fraction * 4))
+                    if bucket > int(craft_state.get("last_text_bucket") or 0):
+                        craft_state["last_text_bucket"] = bucket
+                        pct = bucket * 25
+                        await session.send(
+                            f"Crafting: {_craft_bar(pct / 100.0)} {pct:>3}%\r\n"
+                        )
 
             if getattr(session, "_active_craft", None) is not craft_state:
                 return
@@ -914,7 +1002,18 @@ async def _craft(session, target: str) -> None:
             if getattr(session, "_active_craft", None) is not craft_state:
                 return
             session._active_craft = None
-            await session.send(f"\r\x1b[2KCrafting {_craft_bar(1.0)} 100%\r\n")
+            craft_state["progress"] = 1.0
+            await _send_crafting_state(
+                session,
+                active=False,
+                output_name=output_name,
+                fraction=1.0,
+                duration=duration,
+                remaining=0.0,
+                status="complete" if result.completed and result.success else "failed",
+            )
+            if not _crafting_gmcp_available(session):
+                await session.send(f"Crafting: {_craft_bar(1.0)} 100%\r\n")
 
             if not result.completed:
                 await session.send(result.message + "\r\n")
