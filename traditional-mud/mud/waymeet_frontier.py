@@ -917,12 +917,8 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
             return
         if normalized in {"examine sealed door", "look sealed door", "examine door", "look door", "examine gloamworks"} and await _inspect_gloam(self):
             return
-        if normalized in {"browse", "shop", "wares", "list"}:
-            if await _browse_market(self, ""):
-                return
-        if normalized.startswith("browse "):
-            if await _browse_market(self, command.strip().split(maxsplit=1)[1]):
-                return
+        # SHOP/BROWSE/WARES are owned by the universal Sol merchant layer.
+        # Waymeet should not maintain a second renderer for the same merchants.
         if normalized.startswith("buy "):
             if await _buy_market(self, command.strip().split(maxsplit=1)[1]):
                 return
