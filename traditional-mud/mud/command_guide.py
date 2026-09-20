@@ -56,8 +56,8 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("character", "ACCESS", "Show major authored access flags and level gates."),
     CommandEntry("character", "BIND", "Use an available bind service where the room supports one."),
 
-    CommandEntry("combat", "TARGET <enemy>", "Select a visible enemy without starting combat; targeted hotbar abilities use this selection."),
-    CommandEntry("combat", "TARGET / CLEAR TARGET / UNTARGET", "Inspect or clear the current pre-combat enemy target."),
+    CommandEntry("combat", "TARGET <name>", "Select yourself, a player in the room, or an enemy. Ally/enemy hotbar abilities use compatible selections."),
+    CommandEntry("combat", "TARGET / CLEAR TARGET / UNTARGET", "Inspect or clear your current selected target. Combat opponents remain engaged until FLEE."),
     CommandEntry("combat", "ATTACK / KILL <enemy>", "Engage an available enemy or explicitly authored boss. ATTACK with no name engages your selected target."),
     CommandEntry("combat", "FLEE", "Attempt to leave active combat."),
     CommandEntry("combat", "USE / CAST <ability>", "Use a class ability by its known name or runtime command."),
