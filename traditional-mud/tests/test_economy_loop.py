@@ -122,6 +122,19 @@ class EconomyLoopTests(unittest.TestCase):
         self.assertNotIn("smelt_iron_ingot:", output)
         self.assertIn("RECIPE <name>", output)
 
+    def test_recipe_list_colors_owned_ingredients_magenta(self):
+        # Steel Ingot needs Iron Ingot + Coal. Owning even part/all of one
+        # ingredient should make that ingredient magenta while absent materials
+        # retain the normal yellow recipe-material color.
+        self.db.add_item(self.character.id, "iron_ingot", 1)
+        session = self._session_in("dwarf_workshop_tier", ["recipes blacksmithing"])
+
+        asyncio.run(session.playing_prompt())
+
+        output = "".join(session.outputs)
+        self.assertIn("\x1b[95m1x Iron Ingot\x1b[0m", output)
+        self.assertIn("\x1b[93m1x Coal\x1b[0m", output)
+
     def test_recipe_detail_shows_owned_requirements_and_station(self):
         self.db.add_item(self.character.id, "iron_ore", 1)
         session = self._session_in("dwarf_workshop_tier", ["recipe iron ingot"])
