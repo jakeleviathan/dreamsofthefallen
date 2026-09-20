@@ -160,7 +160,15 @@ class DiscordPresenceServiceTests(unittest.TestCase):
         status = session.discord_presence.build_status(session)
         self.assertEqual(status["state"], "Crafting Cotton Gloves")
         session.discord_presence.clear_activity()
-        self.assertIn("Exploring", session.discord_presence.build_status(session)["state"])
+        self.assertIn("Questing:", session.discord_presence.build_status(session)["state"])
+
+    def test_recovering_presence_temporarily_overrides_questing(self) -> None:
+        session = self._session()
+        session.discord_presence.set_activity("recovering", "Sewer Rat")
+        status = session.discord_presence.build_status(session)
+        self.assertEqual(status["state"], "Recovering after battle")
+        session.discord_presence.clear_activity()
+        self.assertIn("Questing:", session.discord_presence.build_status(session)["state"])
 
     def test_unchanged_full_status_is_deduplicated(self) -> None:
         session = self._session()
