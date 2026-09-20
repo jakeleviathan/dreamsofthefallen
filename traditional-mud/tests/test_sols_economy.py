@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 from mud.database import Database
 from mud.sols import (
+    _merchant_wares_lines,
     format_sols,
     humanoid_sol_drop,
     merchant_buyback_price,
@@ -79,6 +80,40 @@ class SolEconomyTests(unittest.TestCase):
         beast = SimpleNamespace(key="marsh_wolf", name="Marsh Wolf", description="a wild wolf", xp_reward=60)
         self.assertGreater(humanoid_sol_drop(humanoid), 0)
         self.assertEqual(humanoid_sol_drop(beast), 0)
+
+    def test_browse_can_filter_to_one_merchant_with_full_shop_format(self):
+        from mud.merchants import WAYMEET_SEVRA_MERCHANT, WAYMEET_VEKK_MERCHANT
+
+        merchants = (
+            ("Vekk Coil", WAYMEET_VEKK_MERCHANT),
+            ("Sevra Lent", WAYMEET_SEVRA_MERCHANT),
+        )
+        lines = _merchant_wares_lines(merchants, balance=22, target="vekk")
+        text = "\n".join(lines)
+
+        self.assertIn("--- Vekk Coil ---", text)
+        self.assertIn("Iron Ore — 4 sparks", text)
+        self.assertIn("Raw Cotton — 4 sparks", text)
+        self.assertIn("Greenleaf — 4 sparks", text)
+        self.assertIn("Coal — 4 sparks", text)
+        self.assertNotIn("Iron Ingot", text)
+        self.assertIn("Your Sols: 2 embers, 2 sparks", text)
+        self.assertIn("BUY [qty] <item> | SELL [qty] <item> | VALUE <item>", text)
+
+    def test_browse_merchant_matching_accepts_first_name_and_full_name(self):
+        from mud.merchants import WAYMEET_SEVRA_MERCHANT, WAYMEET_VEKK_MERCHANT
+
+        merchants = (
+            ("Vekk Coil", WAYMEET_VEKK_MERCHANT),
+            ("Sevra Lent", WAYMEET_SEVRA_MERCHANT),
+        )
+        short = "\n".join(_merchant_wares_lines(merchants, balance=0, target="vekk"))
+        full = "\n".join(_merchant_wares_lines(merchants, balance=0, target="Vekk Coil"))
+        sevra = "\n".join(_merchant_wares_lines(merchants, balance=0, target="sevra"))
+
+        self.assertIn("--- Vekk Coil ---", short)
+        self.assertIn("--- Vekk Coil ---", full)
+        self.assertIn("--- Sevra Lent ---", sevra)
 
     def test_authored_starter_markets_are_real_merchants(self):
         from mud.merchants import MERCHANTS_BY_NPC_KEY
