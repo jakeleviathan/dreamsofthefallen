@@ -1069,6 +1069,7 @@ class PlayerSession:
             await self._stop_combat(disengage_mobile_npc=False)
         else:
             await self._stop_combat()
+        self._discord_presence_service().set_activity("recovering", enemy_name)
         await self.send_client_state()
 
     async def _combat_loop(self, enemy: EnemyState) -> None:
