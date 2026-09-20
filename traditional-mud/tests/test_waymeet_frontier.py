@@ -30,6 +30,7 @@ from mud.waymeet_frontier import (
     WAYMEET_ROOM_KEYS,
     WAYMEET_ROOMS,
     WAYMEET_WEST_ROAD_KEY,
+    _browse_market,
     _buy_market,
     _ensure_intro,
     _inspect_collapse,
@@ -175,6 +176,24 @@ class WaymeetFrontierTests(unittest.TestCase):
             self.assertEqual(database.item_quantity(session.character.id, SLATEBACK_CLAW_KEY), 0)
             self.assertEqual(database.get_quest(session.character.id, WAYMEET_QUARRY_QUEST_KEY)["status"], "completed")
             self.assertEqual(database.get_sols(session.character.id), 20)
+        finally:
+            tempdir.cleanup()
+
+    def test_lantern_market_browse_commands_match_npc_dialogue(self):
+        tempdir, database, session = self._session()
+        try:
+            session.move_to(WAYMEET_LANTERN_MARKET_KEY)
+
+            self.assertTrue(asyncio.run(_browse_market(session, "vekk")))
+            self.assertIn("Vekk Coil - 4 sparks each", session.text())
+
+            session.sent.clear()
+            self.assertTrue(asyncio.run(_browse_market(session, "vekk coil")))
+            self.assertIn("BUY IRON", session.text())
+
+            session.sent.clear()
+            self.assertTrue(asyncio.run(_browse_market(session, "sevra")))
+            self.assertIn("Sevra Lent - 8 sparks each", session.text())
         finally:
             tempdir.cleanup()
 
