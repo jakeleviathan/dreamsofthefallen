@@ -307,6 +307,11 @@ class PlayerSession:
         self.selected_enemy: EnemyState | None = None
         self.selected_mobile_npc_key: str | None = None
         self.selected_enemy_room_key: str | None = None
+        # Unified TARGET may point at a player (including self) independently
+        # from the active combat opponent.
+        self.selected_player_character_id: int | None = None
+        self.selected_player_room_key: str | None = None
+        self.selected_target_kind: str | None = None
         self.active_mobile_npc_key: str | None = None
         self.combat_task: asyncio.Task | None = None
         self.ward_until: float = 0.0
@@ -356,7 +361,23 @@ class PlayerSession:
         if self.character is None or self.combatant is None or not self.telnet.gmcp_enabled:
             return
 
-        target = self.active_enemy or getattr(self, "selected_enemy", None)
+        # Char.Status keeps combat-opponent semantics for generic clients, while
+        # Dreams.Target represents the player's actual current selection. That
+        # selection may be self/another player even while an enemy remains the
+        # active combat opponent.
+        combat_target = self.active_enemy or getattr(self, "selected_enemy", None)
+        selected_player = None
+        player_resolver = getattr(self, "selected_player_target", None)
+        if callable(player_resolver):
+            try:
+                selected_player = player_resolver()
+            except Exception:
+                selected_player = None
+
+        selected_kind = getattr(self, "selected_target_kind", None)
+        display_player = selected_player if selected_kind == "player" else None
+        display_enemy = None if display_player is not None else combat_target
+
         vitals = {
             "hp": self.combatant.current_hp,
             "maxhp": self.combatant.max_hp,
@@ -365,12 +386,12 @@ class PlayerSession:
             "movement": self.combatant.current_movement,
             "maxmovement": self.combatant.max_movement,
         }
-        if target is not None:
+        if combat_target is not None:
             vitals.update({
-                "enemy_health": target.current_hp,
-                "enemy_max_health": target.definition.max_hp,
-                "opponent_health": target.current_hp,
-                "opponent_health_max": target.definition.max_hp,
+                "enemy_health": combat_target.current_hp,
+                "enemy_max_health": combat_target.definition.max_hp,
+                "opponent_health": combat_target.current_hp,
+                "opponent_health_max": combat_target.definition.max_hp,
             })
 
         status = {
@@ -378,12 +399,12 @@ class PlayerSession:
             "level": self.character.level,
             "race": self.character.race or "",
             "class": self.character.character_class or "",
-            "enemy_name": target.definition.name if target is not None else "",
-            "opponent_name": target.definition.name if target is not None else "",
-            "enemy_health": target.current_hp if target is not None else 0,
-            "enemy_max_health": target.definition.max_hp if target is not None else 0,
-            "opponent_health": target.current_hp if target is not None else 0,
-            "opponent_health_max": target.definition.max_hp if target is not None else 0,
+            "enemy_name": combat_target.definition.name if combat_target is not None else "",
+            "opponent_name": combat_target.definition.name if combat_target is not None else "",
+            "enemy_health": combat_target.current_hp if combat_target is not None else 0,
+            "enemy_max_health": combat_target.definition.max_hp if combat_target is not None else 0,
+            "opponent_health": combat_target.current_hp if combat_target is not None else 0,
+            "opponent_health_max": combat_target.definition.max_hp if combat_target is not None else 0,
         }
         await self.telnet.send_gmcp("Char.Maxstats", {
             "maxhp": self.combatant.max_hp,
@@ -400,13 +421,42 @@ class PlayerSession:
             "movement": self.combatant.current_movement,
             "max_movement": self.combatant.max_movement,
         })
-        await self.telnet.send_gmcp("Dreams.Target", {
-            "name": target.definition.name if target is not None else "",
-            "hp": target.current_hp if target is not None else 0,
-            "max_hp": target.definition.max_hp if target is not None else 0,
-            "active": target is not None,
-            "engaged": self.active_enemy is not None,
-        })
+        if display_player is not None:
+            target_character = display_player.character
+            target_combatant = getattr(display_player, "combatant", None)
+            target_payload = {
+                "name": target_character.name if target_character is not None else "",
+                "hp": int(getattr(target_combatant, "current_hp", 0) or 0),
+                "max_hp": int(getattr(target_combatant, "max_hp", 0) or 0),
+                "active": target_character is not None,
+                "engaged": False,
+                "kind": "player",
+                "self": display_player is self,
+                "character_id": int(target_character.id) if target_character is not None else 0,
+            }
+        elif display_enemy is not None:
+            target_payload = {
+                "name": display_enemy.definition.name,
+                "hp": display_enemy.current_hp,
+                "max_hp": display_enemy.definition.max_hp,
+                "active": True,
+                "engaged": self.active_enemy is display_enemy,
+                "kind": "enemy",
+                "self": False,
+                "character_id": 0,
+            }
+        else:
+            target_payload = {
+                "name": "",
+                "hp": 0,
+                "max_hp": 0,
+                "active": False,
+                "engaged": False,
+                "kind": "",
+                "self": False,
+                "character_id": 0,
+            }
+        await self.telnet.send_gmcp("Dreams.Target", target_payload)
 
     async def run(self) -> None:
         print(f"Connected: {self.peer}")
