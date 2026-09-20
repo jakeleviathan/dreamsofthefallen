@@ -132,7 +132,7 @@ class EconomyLoopTests(unittest.TestCase):
         asyncio.run(session.playing_prompt())
 
         output = "".join(session.outputs)
-        self.assertIn("\x1b[95m1x Iron Ingot\x1b[0m", output)
+        self.assertIn("\x1b[92m1x Iron Ingot\x1b[0m", output)
         self.assertIn("\x1b[93m1x Coal\x1b[0m", output)
 
     def test_recipe_detail_shows_owned_requirements_and_station(self):
