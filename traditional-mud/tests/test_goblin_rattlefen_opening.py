@@ -156,6 +156,24 @@ class RattlefenOpeningTests(unittest.TestCase):
         database2.start_quest(legacy.character.id, GOBLIN_SALVAGE_QUEST.key, "find_salvage")
         self.assertFalse(reconcile_rattlefen_opening(legacy))
         self.assertIsNone(database2.get_quest(legacy.character.id, THREE_BELLS.key))
+        self.assertNotIn(RATTLEFEN_OPENING_COMPLETE_FLAG, database2.list_flags(legacy.character.id))
+
+    def test_completed_legacy_goblin_is_grandfathered_into_waymeet_access(self):
+        temp, database, session = self._session("LegacyComplete")
+        self.addCleanup(temp.cleanup)
+        database.start_quest(session.character.id, GOBLIN_SALVAGE_QUEST.key, "complete")
+        database.complete_quest(session.character.id, GOBLIN_SALVAGE_QUEST.key)
+        database.grant_flag(session.character.id, GOBLIN_SALVAGE_COMPLETE_FLAG)
+        database.grant_flag(session.character.id, GOBLIN_SALVAGE_CREDIT_FLAG)
+
+        self.assertFalse(reconcile_rattlefen_opening(session))
+
+        flags = database.list_flags(session.character.id)
+        self.assertIn(RATTLEFEN_OPENING_COMPLETE_FLAG, flags)
+        self.assertIn(GOBLIN_SALVAGE_COMPLETE_FLAG, flags)
+        self.assertIn(GOBLIN_SALVAGE_CREDIT_FLAG, flags)
+        self.assertEqual(database.item_quantity(session.character.id, PERSONAL_STAMP_KEY), 1)
+        self.assertIsNone(database.get_quest(session.character.id, THREE_BELLS.key))
 
     def test_three_bells_forces_one_attention_based_claim(self):
         temp, database, session = self._session("Bell")
