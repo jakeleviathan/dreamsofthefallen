@@ -17,6 +17,7 @@ from mud.database import Database
 from mud.mechanics import CombatantState
 from mud.modern_client_experience import (
     MODERN_CLIENT_VERSION,
+    _ability_snapshot,
     _effects_snapshot,
     _mark_onboarding_command,
     _onboarding_snapshot,
@@ -112,6 +113,79 @@ class ModernClientExperienceTests(unittest.TestCase):
             _mark_onboarding_command(session, "cast heavy strike")
             self.assertFalse(_onboarding_snapshot(session, room)["active"])
 
+    def test_racial_active_abilities_are_assignable_hotbar_actions(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            database = Database(root / "racial_hotbar.db")
+            account = database.create_account("racial_hotbar", "x")
+            goblin = database.create_character(
+                account.id,
+                "ScroungeTester",
+                "goblin",
+                "priest",
+                CharacterStats(might=5, grace=7, love=8, mind=6, hp=5),
+            )
+            session = DummySession(database, goblin)
+
+            payload = _ability_snapshot(session)
+            by_key = {ability["key"]: ability for ability in payload["abilities"]}
+            self.assertIn("racial_scrounge", by_key)
+            scrounge = by_key["racial_scrounge"]
+            self.assertEqual(scrounge["name"], "Scrounge")
+            self.assertEqual(scrounge["command"], "RACIAL SCROUNGE")
+            self.assertEqual(scrounge["source"], "racial")
+            self.assertEqual(scrounge["race"], "goblin")
+            self.assertEqual(scrounge["mana"], 0)
+            self.assertEqual(scrounge["cooldown"], 8.0)
+            self.assertEqual(scrounge["target_mode"], "self")
+            self.assertTrue(scrounge["ready"])
+
+            session.combatant.start_cooldown("racial_scrounge", 8.0)
+            cooling = {
+                ability["key"]: ability
+                for ability in _ability_snapshot(session)["abilities"]
+            }["racial_scrounge"]
+            self.assertFalse(cooling["ready"])
+            self.assertGreater(cooling["cooldown_remaining"], 0.0)
+
+    def test_human_adapt_exposes_each_parameter_as_a_hotbar_choice(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session = self._session(Path(temp_dir))
+            racial = [
+                ability
+                for ability in _ability_snapshot(session)["abilities"]
+                if ability.get("source") == "racial"
+            ]
+            self.assertEqual(
+                {ability["key"] for ability in racial},
+                {
+                    "racial_adapt_might",
+                    "racial_adapt_grace",
+                    "racial_adapt_love",
+                    "racial_adapt_mind",
+                },
+            )
+            self.assertEqual(
+                {ability["command"] for ability in racial},
+                {
+                    "RACIAL ADAPT MIGHT",
+                    "RACIAL ADAPT GRACE",
+                    "RACIAL ADAPT LOVE",
+                    "RACIAL ADAPT MIND",
+                },
+            )
+
+    def test_racial_hotbar_use_counts_as_onboarding_ability_use(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session = self._session(Path(temp_dir))
+            room = _room_snapshot(session, self._world())
+            _mark_onboarding_command(session, "north")
+            _mark_onboarding_command(session, "quests")
+            _mark_onboarding_command(session, "attack sewer rat")
+            self.assertEqual(_onboarding_snapshot(session, room)["stage"], "ability")
+            _mark_onboarding_command(session, "racial adapt might")
+            self.assertFalse(_onboarding_snapshot(session, room)["active"])
+
     def test_effect_snapshot_reports_timed_player_effects(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             session = self._session(Path(temp_dir))
@@ -153,6 +227,12 @@ class ModernClientExperienceTests(unittest.TestCase):
             payloads = {package: payload for package, payload in session.telnet.messages}
             self.assertEqual(payloads["Room.Info"]["num"], stable_room_number("human_demon_gate"))
             self.assertTrue(payloads["Dreams.Abilities"]["abilities"])
+            self.assertTrue(
+                any(
+                    ability.get("source") == "racial"
+                    for ability in payloads["Dreams.Abilities"]["abilities"]
+                )
+            )
             self.assertEqual(payloads["Dreams.Effects"]["effects"], [])
             self.assertTrue(payloads["Dreams.Context"]["actions"])
             self.assertTrue(payloads["Dreams.Inventory"]["items"])
