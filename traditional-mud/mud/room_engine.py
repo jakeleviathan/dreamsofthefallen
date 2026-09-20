@@ -37,6 +37,7 @@ class ViewCondition:
     time_buckets: tuple[str, ...] = ()
     weather: tuple[str, ...] = ()
     min_level: int = 0
+    required_flags_for_races: tuple[str, ...] = ()
 
     def matches(self, context: "PlayerRoomContext") -> bool:
         if self.races and context.race_key not in self.races:
@@ -45,7 +46,15 @@ class ViewCondition:
             return False
         if self.classes and context.class_key not in self.classes:
             return False
-        if self.required_flags and not set(self.required_flags).issubset(context.character_flags):
+        flags_apply = (
+            not self.required_flags_for_races
+            or context.race_key in self.required_flags_for_races
+        )
+        if (
+            self.required_flags
+            and flags_apply
+            and not set(self.required_flags).issubset(context.character_flags)
+        ):
             return False
         if self.forbidden_flags and set(self.forbidden_flags).intersection(context.character_flags):
             return False
