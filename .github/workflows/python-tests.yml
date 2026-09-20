@@ -32,6 +32,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "${GITHUB_HEAD_REF}"
+          git checkout -B "${GITHUB_HEAD_REF}" "origin/${GITHUB_HEAD_REF}"
+          python mudlet/DreamsOfTheFallenHUD/build_package.py
           git add \
             ../DreamsOfTheFallenHUD.mpackage \
             mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage \
@@ -41,7 +44,7 @@ jobs:
             exit 0
           fi
           git commit -m "Rebuild official Mudlet HUD 2.2.10"
-          git push origin HEAD:${GITHUB_HEAD_REF}
+          git push origin "${GITHUB_HEAD_REF}"
       - name: Run regression suite
         run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Verify modern Mudlet package
