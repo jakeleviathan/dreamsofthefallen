@@ -439,6 +439,18 @@ def _legacy_started(session) -> bool:
     return session.database.get_quest(session.character.id, GOBLIN_SALVAGE_QUEST.key) is not None
 
 
+def _legacy_completed(session) -> bool:
+    """Whether this Goblin finished the pre-Rattlefen starter progression."""
+
+    if session.character is None:
+        return False
+    flags = _flags(session)
+    if GOBLIN_SALVAGE_COMPLETE_FLAG in flags or GOBLIN_SALVAGE_CREDIT_FLAG in flags:
+        return True
+    legacy = session.database.get_quest(session.character.id, GOBLIN_SALVAGE_QUEST.key)
+    return bool(legacy and legacy.get("status") == "completed")
+
+
 def _complete_and_start(session, completed: QuestDefinition, next_quest: QuestDefinition, next_step: str) -> None:
     assert session.character is not None
     session.database.complete_quest(session.character.id, completed.key)
@@ -472,6 +484,15 @@ def reconcile_rattlefen_opening(session) -> bool:
     first = _quest(session, THREE_BELLS)
     if first is None:
         if _legacy_started(session):
+            # Existing characters must never be forced through the replacement
+            # Rattlefen opening. Characters who already completed the older
+            # starter loop are grandfathered into equivalent city standing so
+            # the Waymeet Causeway is not permanently hidden from them.
+            if _legacy_completed(session):
+                session.database.grant_flag(character_id, RATTLEFEN_OPENING_COMPLETE_FLAG)
+                session.database.grant_flag(character_id, RATTLEFEN_PERSONAL_MARK_FLAG)
+                _ensure_one(session, PERSONAL_STAMP_KEY)
+                _ensure_legacy_credit(session)
             return False
         session.database.start_quest(character_id, THREE_BELLS.key, "inspect_wreck")
         _ensure_one(session, CLAIM_TAG_KEY)
