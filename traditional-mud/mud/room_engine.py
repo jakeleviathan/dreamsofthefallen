@@ -509,8 +509,70 @@ class WorldService:
                 )
         return tuple(problems)
 
+    def audit_reciprocal_exits(self) -> tuple[str, ...]:
+        """Report physical exits whose reverse direction does not lead back.
+
+        Cardinal/diagonal/vertical room movement is spatial grammar: if EAST
+        takes a player from A to B, WEST from B must return to A unless the
+        authored exit is explicitly marked one_way.  This audit runs against
+        fully canonicalized room scenes, so late runtime augmentations and
+        overrides are checked too.
+        """
+
+        opposites = {
+            "north": "south",
+            "south": "north",
+            "east": "west",
+            "west": "east",
+            "northeast": "southwest",
+            "southwest": "northeast",
+            "northwest": "southeast",
+            "southeast": "northwest",
+            "up": "down",
+            "down": "up",
+            "in": "out",
+            "out": "in",
+        }
+        problems: list[str] = []
+
+        for room_key in sorted(self.legacy_rooms):
+            scene = self.scene(room_key)
+            if scene is None:
+                continue
+            for exit_def in scene.exits:
+                direction = exit_def.direction.strip().lower()
+                reverse_direction = opposites.get(direction)
+                if reverse_direction is None or exit_def.one_way:
+                    continue
+
+                destination = self.scene(exit_def.destination_key)
+                if destination is None:
+                    continue
+
+                reverse = next(
+                    (
+                        candidate
+                        for candidate in destination.exits
+                        if candidate.direction.strip().lower() == reverse_direction
+                    ),
+                    None,
+                )
+                if reverse is None:
+                    problems.append(
+                        f"{room_key} {direction} -> {exit_def.destination_key}: "
+                        f"missing {reverse_direction} return exit"
+                    )
+                    continue
+                if reverse.destination_key != room_key:
+                    problems.append(
+                        f"{room_key} {direction} -> {exit_def.destination_key}: "
+                        f"{reverse_direction} returns to {reverse.destination_key}, not {room_key}"
+                    )
+
+        return tuple(problems)
+
     def validate_exit_integrity(self) -> None:
-        """Fail fast on ambiguous exits and verify every built scene is unique."""
+        """Fail fast on ambiguous, duplicate, or spatially inconsistent exits."""
 
         conflicts = [row for row in self.audit_exit_sources() if row.startswith("CONFLICT ")]
         if conflicts:
@@ -529,6 +591,12 @@ class WorldService:
                 seen.add(direction)
         if duplicates:
             raise RuntimeError("World scene exit uniqueness failed:\n- " + "\n- ".join(duplicates))
+
+        reciprocal = self.audit_reciprocal_exits()
+        if reciprocal:
+            raise RuntimeError(
+                "World reciprocal exit integrity failed:\n- " + "\n- ".join(reciprocal)
+            )
 
 
     def context_with_world(self, context: PlayerRoomContext, room_key: str) -> PlayerRoomContext:
