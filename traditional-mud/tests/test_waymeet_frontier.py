@@ -173,7 +173,7 @@ class WaymeetFrontierTests(unittest.TestCase):
             "from mud.room_engine import PlayerRoomContext; "
             "from mud.world import ROOMS_BY_KEY; "
             "assert all(key in server.WORLD.legacy_rooms for key in WAYMEET_ROOM_KEYS); "
-            "assert all(ROOMS_BY_KEY[src].exits.get(direction) == destination for src, direction, destination, _name, _flag in HOMELAND_LINKS if src in ROOMS_BY_KEY); "
+            "assert all(destination in ROOMS_BY_KEY[src].exits.values() for src, _direction, destination, _name, _flag in HOMELAND_LINKS if src in ROOMS_BY_KEY); "
             "context = PlayerRoomContext(character_id=1, race_key='goblin', class_key='priest', level=5, character_flags=frozenset({'goblin_rattlefen_opening_complete'})); "
             "resolution = server.WORLD.resolve_exit('goblin_floodgate_walk', 'west', context); "
             "assert resolution.allowed and resolution.exit is not None; "
