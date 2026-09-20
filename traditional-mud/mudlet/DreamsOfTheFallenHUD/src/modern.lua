@@ -197,10 +197,22 @@ end
 -- Client.GUI baseui=false handles newer Mudlet releases; this compatibility
 -- fallback covers current 5.x builds and persists the hidden state per profile.
 function H.suppressBaseUi()
-  if not expandAlias or not getMudletVersion then return end
+  if not expandAlias or not getMudletVersion or not getPackages then return end
   local ok, major = pcall(getMudletVersion, "major")
   major = ok and tonumber(major) or 0
   if major < 5 then return end
+
+  local packagesOk, packages = pcall(getPackages)
+  if not packagesOk or type(packages) ~= "table" then return end
+  local baseUiInstalled = false
+  for _, packageName in ipairs(packages) do
+    if packageName == "mudlet-base-ui" then
+      baseUiInstalled = true
+      break
+    end
+  end
+  if not baseUiInstalled then return end
+
   pcall(function() expandAlias("baseui hide", false) end)
 end
 
