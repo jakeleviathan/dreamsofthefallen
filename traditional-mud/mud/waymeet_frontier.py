@@ -441,7 +441,7 @@ HOMELAND_LINKS: tuple[tuple[str, str, str, str, str], ...] = (
     ("sporekin_memory_path", "east", WAYMEET_GREEN_APPROACH_KEY, "Surface Trade Path", "sporekin_first_call_answered"),
     ("moon_elf_wind_terrace", "south", WAYMEET_HIGH_ROAD_KEY, "Valley Road", "moon_elf_third_chair_complete"),
     ("troll_stonejaw_pass", "east", WAYMEET_HIGH_ROAD_KEY, "Lowland Cairn Road", "troll_first_cold_complete"),
-    ("goblin_floodgate_walk", "east", WAYMEET_MARSH_ROAD_KEY, "Waymeet Causeway", "goblin_rattlefen_opening_complete"),
+    ("goblin_floodgate_walk", "west", WAYMEET_MARSH_ROAD_KEY, "Waymeet Causeway", "goblin_rattlefen_opening_complete"),
     ("undead_sunscar_road", "north", WAYMEET_MARSH_ROAD_KEY, "North Trade Road", "undead_opening_complete"),
 )
 
