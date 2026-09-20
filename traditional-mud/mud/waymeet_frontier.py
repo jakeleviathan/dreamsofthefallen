@@ -790,27 +790,6 @@ PROCESSED_WARES = {
 }
 
 
-async def _browse_market(session, target: str) -> bool:
-    if session.character is None or session.character.current_room != WAYMEET_LANTERN_MARKET_KEY:
-        return False
-    normalized = _normalize(target)
-    if not normalized or normalized in {"market", "merchants", "merchant"}:
-        await session.send(
-            "Waymeet merchants:\r\n"
-            "- Vekk Coil: raw road supplies. BROWSE VEKK.\r\n"
-            "- Sevra Lent: processed starter materials. BROWSE SEVRA.\r\n"
-            "Sols are accepted here; local road work and repeatable contracts pay them.\r\n"
-        )
-        return True
-    if normalized in {"vekk", "vekk coil", "broker"}:
-        await session.send("Vekk Coil - 4 sparks each: BUY IRON, BUY COTTON, BUY HERBS, BUY COAL.\r\n")
-        return True
-    if normalized in {"sevra", "sevra lent", "provisioner"}:
-        await session.send("Sevra Lent - 8 sparks each: BUY INGOT, BUY THREAD.\r\n")
-        return True
-    return False
-
-
 async def _buy_market(session, target: str) -> bool:
     if session.character is None or session.character.current_room != WAYMEET_LANTERN_MARKET_KEY:
         return False
@@ -917,12 +896,8 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
             return
         if normalized in {"examine sealed door", "look sealed door", "examine door", "look door", "examine gloamworks"} and await _inspect_gloam(self):
             return
-        if normalized in {"browse", "shop", "wares", "list"}:
-            if await _browse_market(self, ""):
-                return
-        if normalized.startswith("browse "):
-            if await _browse_market(self, command.strip().split(maxsplit=1)[1]):
-                return
+        # SHOP/BROWSE/WARES are owned by the universal Sol merchant layer.
+        # Waymeet should not maintain a second renderer for the same merchants.
         if normalized.startswith("buy "):
             if await _buy_market(self, command.strip().split(maxsplit=1)[1]):
                 return

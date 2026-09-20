@@ -191,6 +191,84 @@ def _merchants_here(session) -> tuple[tuple[str, MerchantDefinition], ...]:
 
     return tuple(result)
 
+def _merchant_aliases(merchant_name: str, merchant: MerchantDefinition) -> frozenset[str]:
+    aliases = {
+        _normalize(merchant_name),
+        _normalize(merchant.npc_key),
+    }
+    words = _normalize(merchant_name).split()
+    aliases.update(words)
+
+    npc = legacy_world.NPCS_BY_KEY.get(merchant.npc_key)
+    if npc is not None:
+        aliases.add(_normalize(getattr(npc, "role", "")))
+        aliases.add(_normalize(getattr(npc, "short_description", "")))
+
+    return frozenset(alias for alias in aliases if alias)
+
+
+def _match_merchant(
+    merchants: tuple[tuple[str, MerchantDefinition], ...],
+    target: str,
+) -> tuple[tuple[str, MerchantDefinition] | None, str | None]:
+    wanted = _normalize(target)
+    if not wanted:
+        return None, "Name a merchant."
+
+    exact: list[tuple[str, MerchantDefinition]] = []
+    partial: list[tuple[str, MerchantDefinition]] = []
+    for row in merchants:
+        aliases = _merchant_aliases(*row)
+        if wanted in aliases:
+            exact.append(row)
+        elif any(wanted in alias for alias in aliases):
+            partial.append(row)
+
+    matches = exact or partial
+    if not matches:
+        return None, "No merchant here matches that name."
+    if len(matches) > 1:
+        return None, "Be more specific: " + ", ".join(name for name, _merchant in matches) + "."
+    return matches[0], None
+
+
+def _merchant_wares_lines(
+    merchants: tuple[tuple[str, MerchantDefinition], ...],
+    *,
+    balance: int,
+    target: str = "",
+) -> tuple[str, ...]:
+    selected = merchants
+    heading = "--- Merchant Wares ---"
+
+    if target:
+        matched, error = _match_merchant(merchants, target)
+        if matched is None:
+            return ((error or "No matching merchant was found."),)
+        selected = (matched,)
+        heading = f"--- {matched[0]} ---"
+
+    lines: list[str] = ["", heading]
+    for index, (merchant_name, merchant) in enumerate(selected):
+        if not target:
+            if index:
+                lines.append("")
+            lines.append(f"{merchant_name}:")
+        for stock in merchant.stock:
+            item = crafting.ITEMS_BY_KEY.get(stock.item_key)
+            name = item.name if item is not None else stock.item_key.replace("_", " ").title()
+            lines.append(f"  {name} — {format_sols(_stock_price(stock))}")
+
+    lines.extend(
+        (
+            "",
+            f"Your Sols: {format_sols(balance)}",
+            "BUY [qty] <item> | SELL [qty] <item> | VALUE <item>",
+        )
+    )
+    return tuple(lines)
+
+
 
 def _stock_price(stock: MerchantStockEntry) -> int:
     if stock.price_units is not None:
@@ -257,22 +335,17 @@ async def _show_sols(session) -> None:
     )
 
 
-async def _show_shop(session) -> bool:
+async def _show_shop(session, target: str = "") -> bool:
     merchants = _merchants_here(session)
     if not merchants:
         return False
 
-    await session.send("\r\n--- Merchant Wares ---\r\n")
-    for merchant_name, merchant in merchants:
-        await session.send(f"{merchant_name}:\r\n")
-        for stock in merchant.stock:
-            item = crafting.ITEMS_BY_KEY.get(stock.item_key)
-            name = item.name if item is not None else stock.item_key.replace("_", " ").title()
-            await session.send(f"  {name} — {format_sols(_stock_price(stock))}\r\n")
-    await session.send(
-        f"Your Sols: {format_sols(session.database.get_sols(session.character.id))}\r\n"
-        "BUY [qty] <item> | SELL [qty] <item> | VALUE <item>\r\n"
+    lines = _merchant_wares_lines(
+        merchants,
+        balance=session.database.get_sols(session.character.id),
+        target=target,
     )
+    await session.send("\r\n".join(lines) + "\r\n")
     return True
 
 
@@ -514,9 +587,13 @@ def install_sols_runtime(player_session_class, database_class) -> None:
             if normalized in {"sol", "sols", "money", "coins", "currency"}:
                 await _show_sols(self)
                 return
-            if normalized in {"shop", "wares", "list"}:
+            if normalized in {"shop", "browse", "wares", "list"}:
                 if await _show_shop(self):
                     return
+            for prefix in ("shop ", "browse ", "wares "):
+                if normalized.startswith(prefix):
+                    if await _show_shop(self, command.strip().split(maxsplit=1)[1]):
+                        return
             if normalized == "buy":
                 if _merchants_here(self):
                     await self.send("Buy what? Use SHOP to see the merchant's wares.\r\n")
