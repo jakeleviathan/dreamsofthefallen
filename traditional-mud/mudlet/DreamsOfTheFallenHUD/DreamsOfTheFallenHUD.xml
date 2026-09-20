@@ -3,7 +3,8 @@
 <MudletPackage version="1.001">
   <TriggerPackage>
     <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
-      <name>DreamsOfTheFallenHUD Bootstrap</name><script>-- Dreams of the Fallen HUD runtime-install bootstrap
+      <name>DreamsOfTheFallenHUD Bootstrap</name>
+      <script>-- Dreams of the Fallen HUD runtime-install bootstrap
 --
 -- Client.GUI can install or upgrade a package after the Mudlet profile has
 -- already finished its normal script-load pass. In that case the Script item is
@@ -58,11 +59,38 @@ local function startInstalledHud()
 end
 
 startInstalledHud()
-</script><triggerType>0</triggerType><conditonLineDelta>0</conditonLineDelta><mStayOpen>0</mStayOpen><mCommand></mCommand><packageName>DreamsOfTheFallenHUD</packageName><mFgColor>#ff0000</mFgColor><mBgColor>#ffff00</mBgColor><mSoundFile></mSoundFile><colorTriggerFgColor>#000000</colorTriggerFgColor><colorTriggerBgColor>#000000</colorTriggerBgColor><regexCodeList><string>^.*$</string></regexCodeList><regexCodePropertyList><integer>1</integer></regexCodePropertyList>
+</script>
+      <triggerType>0</triggerType>
+      <conditonLineDelta>0</conditonLineDelta>
+      <mStayOpen>0</mStayOpen>
+      <mCommand></mCommand>
+      <packageName>DreamsOfTheFallenHUD</packageName>
+      <mFgColor>#ff0000</mFgColor>
+      <mBgColor>#ffff00</mBgColor>
+      <mSoundFile></mSoundFile>
+      <colorTriggerFgColor>#000000</colorTriggerFgColor>
+      <colorTriggerBgColor>#000000</colorTriggerBgColor>
+      <regexCodeList>
+        <string>^.*$</string>
+      </regexCodeList>
+      <regexCodePropertyList>
+        <integer>1</integer>
+      </regexCodePropertyList>
     </Trigger>
   </TriggerPackage>
-  <TimerPackage /><AliasPackage /><ActionPackage />
-  <ScriptPackage><ScriptGroup isActive="yes" isFolder="yes"><name>DreamsOfTheFallenHUD</name><packageName>DreamsOfTheFallenHUD</packageName><script></script><eventHandlerList /><Script isActive="yes" isFolder="no"><name>Dreams of the Fallen Official HUD</name><packageName>DreamsOfTheFallenHUD</packageName><script>-- BEGIN hud.lua
+  <TimerPackage />
+  <AliasPackage />
+  <ActionPackage />
+  <ScriptPackage>
+    <ScriptGroup isActive="yes" isFolder="yes">
+      <name>DreamsOfTheFallenHUD</name>
+      <packageName>DreamsOfTheFallenHUD</packageName>
+      <script></script>
+      <eventHandlerList />
+      <Script isActive="yes" isFolder="no">
+        <name>Dreams of the Fallen Official HUD</name>
+        <packageName>DreamsOfTheFallenHUD</packageName>
+        <script>-- BEGIN hud.lua
 -- Dreams of the Fallen - Official Mudlet HUD
 -- Version 1.0.0
 --
@@ -465,7 +493,7 @@ H.init()
 
 -- BEGIN modern.lua
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.4
+-- Version 2.2.5
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -473,7 +501,7 @@ H.init()
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.4"
+H.version = "2.2.5"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -493,7 +521,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.4"
+local MODERN_UI_VERSION = "2.2.5"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -607,6 +635,42 @@ local GOLD_TEXT = [[
     font-weight: bold;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignVCenter';
+  }
+]]
+
+-- Quest copy gets its own larger, higher-contrast typography. The general
+-- SMALL_TEXT/MUTED_TEXT styles remain compact for denser panels like Party.
+local QUEST_TITLE_TEXT = [[
+  QLabel {
+    background-color: transparent;
+    border: 0px;
+    color: #f0d39d;
+    font-size: 13pt;
+    font-weight: bold;
+    qproperty-wordWrap: true;
+    qproperty-alignment: 'AlignLeft|AlignTop';
+  }
+]]
+
+local QUEST_OBJECTIVE_TEXT = [[
+  QLabel {
+    background-color: transparent;
+    border: 0px;
+    color: #f1e9dd;
+    font-size: 11pt;
+    qproperty-wordWrap: true;
+    qproperty-alignment: 'AlignLeft|AlignTop';
+  }
+]]
+
+local QUEST_MORE_TEXT = [[
+  QLabel {
+    background-color: transparent;
+    border: 0px;
+    color: #c7bac9;
+    font-size: 10pt;
+    qproperty-wordWrap: true;
+    qproperty-alignment: 'AlignLeft|AlignTop';
   }
 ]]
 
@@ -904,9 +968,9 @@ function H.buildModern()
   H.partyFooter = label(H.partyPane, "DreamsHUD.PartyFooter", 8, 260, -16, -8, MUTED_TEXT)
 
   H.questPane = Geyser.Container:new({ name = "DreamsHUD.QuestPane", x = 0, y = 0, width = "100%", height = "100%" }, H.contentFrame)
-  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 8, 8, -16, 30, GOLD_TEXT)
-  H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 42, -16, 120, SMALL_TEXT)
-  H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 166, -16, 70, MUTED_TEXT)
+  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 8, 10, -16, 38, QUEST_TITLE_TEXT)
+  H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 58, -16, 112, QUEST_OBJECTIVE_TEXT)
+  H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 180, -16, 58, QUEST_MORE_TEXT)
   H.questButton = label(H.questPane, "DreamsHUD.QuestButton", 8, -42, -16, 34, BUTTON_STYLE)
   H.questButton:echo("&lt;center&gt;OPEN QUEST LOG&lt;/center&gt;")
   H.questButton:setClickCallback("DreamsHUD.runAction", "QUESTS")
@@ -1165,7 +1229,7 @@ function H.renderQuestPanel()
     return
   end
   H.questTitle:echo(escape(quest.name))
-  H.questObjective:echo("&lt;b&gt;Current objective&lt;/b&gt;&lt;br/&gt;" .. escape(quest.objective or "Explore and learn what the situation requires."))
+  H.questObjective:echo("&lt;span style=\"color:#dfc18c\"&gt;&lt;b&gt;Current objective&lt;/b&gt;&lt;/span&gt;&lt;br/&gt;" .. escape(quest.objective or "Explore and learn what the situation requires."))
   local other = #active - 1
   H.questMore:echo(other &gt; 0 and (tostring(other) .. " other active quest" .. (other == 1 and "" or "s") .. ". Open the log to switch context.") or "This is your only active quest.")
 end
@@ -1641,6 +1705,11 @@ end
 
 H.updateMapper()
 -- END map.lua
-</script><eventHandlerList /></Script></ScriptGroup></ScriptPackage>
-  <KeyPackage /><VariablePackage><HiddenVariables /></VariablePackage>
+</script>
+        <eventHandlerList />
+      </Script>
+    </ScriptGroup>
+  </ScriptPackage>
+  <KeyPackage />
+  <VariablePackage><HiddenVariables /></VariablePackage>
 </MudletPackage>
