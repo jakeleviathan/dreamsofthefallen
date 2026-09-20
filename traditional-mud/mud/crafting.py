@@ -1133,6 +1133,15 @@ def trade_skill_value(database: "Database", character_id: int, trade_skill_key: 
     return database.get_trade_skill_progress(character_id, trade_skill_key)["skill_xp"]
 
 
+def item_display_name(item_key: str) -> str:
+    """Return the authored player-facing item name for an internal item key."""
+
+    item = ITEMS_BY_KEY.get(item_key)
+    if item is not None:
+        return item.name
+    return item_key.replace("_", " ").title()
+
+
 def craft_recipe(
     database: "Database",
     character_id: int,
@@ -1172,12 +1181,19 @@ def craft_recipe(
         )
 
     missing = [
-        requirement
+        (
+            requirement,
+            requirement.quantity
+            - database.item_quantity(character_id, requirement.item_key),
+        )
         for requirement in recipe.materials
         if database.item_quantity(character_id, requirement.item_key) < requirement.quantity
     ]
     if missing:
-        text = ", ".join(f"{req.quantity}x {req.item_key}" for req in missing)
+        text = ", ".join(
+            f"{shortfall}x {item_display_name(requirement.item_key)}"
+            for requirement, shortfall in missing
+        )
         return CraftAttemptResult(False, f"Missing materials: {text}.", trivial_skill=trivial)
 
     success_chance = craft_success_chance(skill_value, trivial)
@@ -1226,7 +1242,7 @@ def craft_recipe(
         )
 
     if crafted:
-        message = f"Crafted {recipe.output_quantity}x {recipe.output_item_key}." + learning
+        message = f"Crafted {recipe.output_quantity}x {item_display_name(recipe.output_item_key)}." + learning
     else:
         message = "The crafting attempt fails, consuming the materials." + learning
 
