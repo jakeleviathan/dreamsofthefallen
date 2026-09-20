@@ -179,7 +179,18 @@ class DiscordPresenceService:
         race_name = _clean_text(getattr(race_definition, "name", "") or _title_key(race_key) or "Adventurer")
 
         room_key = str(getattr(character, "current_room", "") or "")
-        room = ROOMS_BY_KEY.get(room_key)
+        room = None
+        # Production installs a large amount of authored content dynamically
+        # into the shared WorldService after mud.world is imported. Resolve the
+        # live scene first so Rich Presence covers the assembled game instead
+        # of only the legacy static room dictionary.
+        try:
+            from mud.room_runtime import WORLD as LIVE_WORLD
+            room = LIVE_WORLD.scene(room_key)
+        except Exception:
+            room = None
+        if room is None:
+            room = ROOMS_BY_KEY.get(room_key)
         sensitive = _room_is_sensitive(room)
         room_name = _clean_text(getattr(room, "name", "") or "Astralis")
         region = REGIONS_BY_KEY.get(str(getattr(room, "region_key", "") or "")) if room is not None else None
