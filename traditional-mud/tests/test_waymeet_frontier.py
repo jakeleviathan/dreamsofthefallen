@@ -168,9 +168,17 @@ class WaymeetFrontierTests(unittest.TestCase):
         project_root = Path(__file__).resolve().parents[1]
         script = (
             "import server; "
-            "from mud.waymeet_frontier import WAYMEET_ROOM_KEYS, WAYMEET_CRAFT_ROW_KEY, WAYMEET_QUARRY_KEY; "
+            "from mud.waymeet_frontier import HOMELAND_LINKS, WAYMEET_ROOM_KEYS, WAYMEET_CRAFT_ROW_KEY, WAYMEET_QUARRY_KEY, WAYMEET_MARSH_ROAD_KEY; "
             "from mud.economy_loop import ROOM_RESOURCE_NODE_KEYS, ROOM_STATIONS; "
+            "from mud.room_engine import PlayerRoomContext; "
+            "from mud.world import ROOMS_BY_KEY; "
             "assert all(key in server.WORLD.legacy_rooms for key in WAYMEET_ROOM_KEYS); "
+            "assert all(ROOMS_BY_KEY[src].exits.get(direction) == destination for src, direction, destination, _name, _flag in HOMELAND_LINKS if src in ROOMS_BY_KEY); "
+            "context = PlayerRoomContext(character_id=1, race_key='goblin', class_key='priest', level=5, character_flags=frozenset({'goblin_rattlefen_opening_complete'})); "
+            "resolution = server.WORLD.resolve_exit('goblin_floodgate_walk', 'east', context); "
+            "assert resolution.allowed and resolution.exit is not None; "
+            "assert resolution.exit.destination_key == WAYMEET_MARSH_ROAD_KEY; "
+            "assert ROOMS_BY_KEY['goblin_floodgate_walk'].exits['east'] == WAYMEET_MARSH_ROAD_KEY; "
             "assert 'iron_vein' in ROOM_RESOURCE_NODE_KEYS[WAYMEET_QUARRY_KEY]; "
             "assert 'forge' in ROOM_STATIONS[WAYMEET_CRAFT_ROW_KEY]; "
             "print('WAYMEET_OK')"
