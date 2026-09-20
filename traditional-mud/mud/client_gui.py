@@ -8,8 +8,8 @@ OFFICIAL_MUDLET_HUD_PACKAGE = "DreamsOfTheFallenHUD"
 # Keep the Client.GUI wire version aligned with the distributable HUD release.
 # Mudlet uses this value to decide whether a previously installed package needs
 # to be refreshed, so bug-fix releases must advance it as well.
-OFFICIAL_MUDLET_HUD_VERSION = "2.2.4"
-CURRENT_MUDLET_HUD_VERSION = "2.2.4"
+OFFICIAL_MUDLET_HUD_VERSION = "2.2.5"
+CURRENT_MUDLET_HUD_VERSION = "2.2.5"
 OFFICIAL_MUDLET_HUD_URL = "https://mud.lvthn.io/DreamsOfTheFallenHUD.mpackage"
 
 
