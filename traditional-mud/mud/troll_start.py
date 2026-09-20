@@ -119,7 +119,7 @@ TROLL_OUTSIDER_QUEST = QuestDefinition(
 YRSA_PROVISIONER = NpcDefinition(
     key="troll_provisioner_yrsa", name="Yrsa Flintjaw",
     short_description="a Troll provisioner packing trail goods into hide-wrapped bundles",
-    room_key=TROLL_TETHER_YARD_KEY, role="starter provisioner",
+    room_key=TROLL_START_ROOM_KEY, role="starter provisioner",
     dialogue=("Yrsa knots a bundle shut. 'Warm, dry, fed. Heroics come after those three.'",),
 )
 
