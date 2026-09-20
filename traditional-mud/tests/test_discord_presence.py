@@ -258,7 +258,7 @@ class DiscordGmcpProtocolTests(unittest.IsolatedAsyncioTestCase):
             await session._handle_client_gmcp("External.Discord.Get", None)
             raw = bytes(writer.buffer)
             self.assertIn(b'"game":"Dreams of the Fallen"', raw)
-            self.assertIn(b'"state":"Exploring Ashen Way', raw)
+            self.assertIn(b'"state":"Questing: A Summons to the Cathedral', raw)
             count = raw.count(b"External.Discord.Status")
 
             await session.send_client_state()
