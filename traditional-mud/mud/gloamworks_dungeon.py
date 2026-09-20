@@ -543,10 +543,21 @@ def install_gloamworks_content(world_service=None) -> None:
         _replace_room(room)
     _replace_npc(SURVEYOR)
 
+    # The surveyor's definition has always claimed Gloam Mouth, but older
+    # content only registered the NPC globally and forgot to put him into the
+    # room's visible npc_keys. Keep the registry and room graph in agreement so
+    # LOOK and TALK describe the same world.
+    mouth = legacy_world.ROOMS_BY_KEY.get(WAYMEET_GLOAM_MOUTH_KEY)
+    if mouth is not None and SURVEYOR.key not in mouth.npc_keys:
+        mouth = replace(mouth, npc_keys=(*mouth.npc_keys, SURVEYOR.key))
+        _replace_room(mouth)
+
     if world_service is None:
         return
     for room in GLOAMWORKS_ROOMS:
         world_service.legacy_rooms[room.key] = room
+    if mouth is not None:
+        world_service.legacy_rooms[WAYMEET_GLOAM_MOUTH_KEY] = mouth
     for room_key, augmentation in gloamworks_augmentations().items():
         world_service.augmentations[room_key] = _merge_augmentation(world_service.augmentations.get(room_key), augmentation)
     cache = getattr(world_service, "_scene_cache", None)
