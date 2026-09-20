@@ -19,7 +19,7 @@ CLASS_ASSET_NAMES = {
     "priest": "class-priest",
 }
 
-_SENSITIVE_TAG_FRAGMENTS = ("secret", "hidden", "spoiler")
+_SENSITIVE_TAG_FRAGMENTS = ("secret", "hidden", "spoiler", "puzzle", "undiscovered")
 _SENSITIVE_KEY_FRAGMENTS = ("secret", "hidden")
 _MAX_TEXT = 128
 
