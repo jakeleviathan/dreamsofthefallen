@@ -20,6 +20,16 @@ class FakeState:
     DISCONNECTED = "disconnected"
 
 
+class FakeCraftingTelnet:
+    def __init__(self):
+        self.gmcp_enabled = True
+        self.messages: list[tuple[str, dict]] = []
+
+    async def send_gmcp(self, package: str, payload: dict):
+        self.messages.append((package, payload))
+        return True
+
+
 class BaseSession:
     def __init__(self, database, character, commands=None):
         self.database = database
@@ -177,13 +187,47 @@ class EconomyLoopTests(unittest.TestCase):
         self.assertEqual(self.db.item_quantity(self.character.id, "iron_ingot"), 1)
         # Iron Ingot is trivial at 0: guaranteed success, but no free skill point.
         self.assertEqual(self.db.get_trade_skill_progress(self.character.id, "blacksmithing")["skill_xp"], 0)
-        self.assertIn("Crafting [", "".join(session.outputs))
-        self.assertIn("100%", "".join(session.outputs))
+        output = "".join(session.outputs)
+        self.assertIn("Crafting: [", output)
+        self.assertIn("[====================] 100%", output)
+        self.assertNotIn("█", output)
+        self.assertNotIn("░", output)
+        self.assertNotIn("\x1b[2K", output)
         self.assertIn(
             "No Blacksmithing skill increase. Current skill: 0. "
             "This recipe is trivial for you and can no longer raise it.",
             "".join(session.outputs),
         )
+
+    def test_gmcp_clients_get_structured_crafting_progress_without_terminal_redraw_spam(self):
+        session = self._session_in("dwarf_workshop_tier", ["craft smelt iron ingot"])
+        session.telnet = FakeCraftingTelnet()
+        self.db.add_item(self.character.id, "iron_ore", 2)
+
+        async def finish_craft():
+            await session.playing_prompt()
+            task = session._active_craft["task"]
+            await task
+
+        with patch.object(crafting, "craft_time_seconds", return_value=0.03):
+            asyncio.run(finish_craft())
+
+        crafting_messages = [
+            payload for package, payload in session.telnet.messages
+            if package == "Dreams.Crafting"
+        ]
+        self.assertGreaterEqual(len(crafting_messages), 2)
+        self.assertTrue(crafting_messages[0]["active"])
+        self.assertEqual(crafting_messages[0]["percent"], 0)
+        self.assertFalse(crafting_messages[-1]["active"])
+        self.assertEqual(crafting_messages[-1]["status"], "complete")
+        self.assertEqual(crafting_messages[-1]["percent"], 100)
+
+        output = "".join(session.outputs)
+        self.assertNotIn("Crafting: [", output)
+        self.assertNotIn("\x1b[2K", output)
+        self.assertIn("You begin crafting Iron Ingot", output)
+        self.assertIn("You finish crafting 1x Iron Ingot", output)
 
     def test_enemy_defeat_awards_hunter_material(self):
         session = self._session_in("human_vermin_pens")
