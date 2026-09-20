@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Awaitable, Callable, Iterable
 
+import mud.combat as combat
 from mud.world import (
     FOREST_ELF_BRIARSHADOW_THICKET_KEY,
     FOREST_ELF_LISTENING_POOL_KEY,
@@ -21,6 +22,54 @@ from mud.world import (
 
 
 NPC_TICK_SECONDS = 5.0
+
+# Regional populations complement authored one-off room enemies. The manager
+# keeps a modest shared population alive across a habitat, increases it gently
+# when more players are hunting there, and refills kills out of sight instead of
+# popping a replacement into the room where a creature just died.
+REGIONAL_BASE_POPULATION = 3
+REGIONAL_MAX_POPULATION = 8
+REGIONAL_REFILL_TICKS = 6  # 30 real seconds at the default five-second NPC tick.
+REGIONAL_HABITAT_DEPTH = 3
+REGIONAL_RARE_ROLL_PER_TICK = 0.0025
+REGIONAL_RARE_TTL_TICKS = 72  # Six minutes before an unseen rare moves on.
+REGIONAL_MAX_DYNAMIC_PER_ROOM = 2
+
+_REGIONAL_BLOCKED_TAG_TOKENS = (
+    "tutorial",
+    "safe",
+    "peaceful",
+    "market",
+    "merchant",
+    "shop",
+    "mentor",
+    "sanctuary",
+    "social",
+    "workshop",
+    "station",
+    "shelter",
+    "training",
+    "home",
+    "start",
+)
+_REGIONAL_WILD_TAG_TOKENS = (
+    "wilderness",
+    "danger",
+    "combat",
+    "swamp",
+    "mire",
+    "marsh",
+    "forest",
+    "wild",
+    "hunt",
+    "road",
+    "route",
+    "frontier",
+    "field",
+    "ruin",
+    "dungeon",
+    "reach",
+)
 
 REVERSE_DIRECTIONS = {
     "north": "south",
@@ -73,11 +122,29 @@ class MobileNpcDefinition:
     auto_attack_damage: int = 0
     auto_attack_interval: float = 3.0
     xp_reward: int = 0
+    # "Aggressive" controls automatic same-room aggro. "Attackable" lets a
+    # peaceful-roaming creature be hunted without making every passing animal
+    # initiate combat. Regional creatures use combat_enemy_key so their unique
+    # instance key does not break loot/quest tables keyed to the authored enemy.
+    attackable: bool = False
+    combat_enemy_key: str | None = None
+    rare: bool = False
 
     @property
     def movement_pattern(self) -> str:
         """Compatibility alias for older code/tests that used movement_pattern."""
         return "random" if self.behavior == BEHAVIOR_WANDER else self.behavior
+
+
+@dataclass(frozen=True, slots=True)
+class RegionalSpawnDefinition:
+    key: str
+    region_key: str
+    enemy_key: str
+    room_keys: tuple[str, ...]
+    source_room_keys: tuple[str, ...]
+    base_population: int = REGIONAL_BASE_POPULATION
+    max_population: int = REGIONAL_MAX_POPULATION
 
 
 @dataclass(slots=True)
@@ -269,11 +336,23 @@ class MobileNpcManager:
     def __init__(self, definitions: tuple[MobileNpcDefinition, ...] = MOBILE_NPC_DEFINITIONS) -> None:
         self.definitions = definitions
         self.states: dict[str, MobileNpcState] = {}
+        self.regional_pools: dict[str, RegionalSpawnDefinition] = {}
+        self._regional_instance_to_pool: dict[str, str] = {}
+        self._regional_next_spawn_tick: dict[str, int] = {}
+        self._rare_expiry_tick: dict[str, int] = {}
+        self._regional_serial = 0
+        self._tick_index = 0
         self.reset()
         self.validate_definitions()
+        self.regional_pools = self._build_regional_spawn_definitions()
+        self._regional_next_spawn_tick = {key: 0 for key in self.regional_pools}
+        self._seed_regional_population()
 
     def reset(self) -> None:
         self.states = {}
+        self._regional_instance_to_pool.clear()
+        self._rare_expiry_tick.clear()
+        self._tick_index = 0
         for definition in self.definitions:
             patrol_index = 0
             if definition.patrol_route:
@@ -286,6 +365,9 @@ class MobileNpcManager:
                 current_room_key=definition.spawn_room_key,
                 patrol_index=patrol_index,
             )
+        if self.regional_pools:
+            self._regional_next_spawn_tick = {key: 0 for key in self.regional_pools}
+            self._seed_regional_population()
 
     def validate_definitions(self) -> None:
         for definition in self.definitions:
@@ -339,6 +421,412 @@ class MobileNpcManager:
                     if self._shortest_path(definition.spawn_room_key, stop.room_key, allowed) is None:
                         raise ValueError(f"Routine stop is unreachable for {definition.key}: {stop.room_key}")
 
+    @staticmethod
+    def _room_allows_regional_spawns(room) -> bool:
+        tags = tuple(str(tag).lower() for tag in getattr(room, "tags", ()))
+        if any(
+            blocked in tag
+            for tag in tags
+            for blocked in _REGIONAL_BLOCKED_TAG_TOKENS
+        ):
+            return False
+        return True
+
+    @staticmethod
+    def _room_looks_like_hunting_ground(room) -> bool:
+        tags = tuple(str(tag).lower() for tag in getattr(room, "tags", ()))
+        return any(
+            token in tag
+            for tag in tags
+            for token in _REGIONAL_WILD_TAG_TOKENS
+        )
+
+    def _regional_source_is_eligible(self, room, enemy) -> bool:
+        if bool(getattr(enemy, "tutorial", False)):
+            return False
+        if not bool(getattr(enemy, "retaliates", True)):
+            return False
+        xp = int(getattr(enemy, "xp_reward", 0) or 0)
+        # Elite/boss encounters stay authored and predictable. The regional
+        # layer is for ordinary huntable wildlife and field threats.
+        if xp <= 0 or xp >= 100:
+            return False
+        if not self._room_allows_regional_spawns(room):
+            return False
+        return self._room_looks_like_hunting_ground(room)
+
+    def _regional_habitat(
+        self,
+        region_key: str,
+        source_room_keys: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        queue: deque[tuple[str, int]] = deque()
+        visited: set[str] = set()
+        for source_key in source_room_keys:
+            room = ROOMS_BY_KEY.get(source_key)
+            if (
+                room is None
+                or room.region_key != region_key
+                or not self._room_allows_regional_spawns(room)
+            ):
+                continue
+            visited.add(source_key)
+            queue.append((source_key, 0))
+
+        while queue:
+            room_key, depth = queue.popleft()
+            if depth >= REGIONAL_HABITAT_DEPTH:
+                continue
+            room = ROOMS_BY_KEY.get(room_key)
+            if room is None:
+                continue
+            for destination in room.exits.values():
+                if destination in visited:
+                    continue
+                next_room = ROOMS_BY_KEY.get(destination)
+                if (
+                    next_room is None
+                    or next_room.region_key != region_key
+                    or not self._room_allows_regional_spawns(next_room)
+                ):
+                    continue
+                visited.add(destination)
+                queue.append((destination, depth + 1))
+        return tuple(sorted(visited))
+
+    def _build_regional_spawn_definitions(self) -> dict[str, RegionalSpawnDefinition]:
+        sources: dict[tuple[str, str], set[str]] = {}
+        for room in ROOMS_BY_KEY.values():
+            for enemy_key in getattr(room, "enemy_keys", ()):
+                enemy = combat.ENEMIES_BY_KEY.get(enemy_key)
+                if enemy is None or not self._regional_source_is_eligible(room, enemy):
+                    continue
+                sources.setdefault((room.region_key, enemy_key), set()).add(room.key)
+
+        pools: dict[str, RegionalSpawnDefinition] = {}
+        for (region_key, enemy_key), source_keys in sorted(sources.items()):
+            source_tuple = tuple(sorted(source_keys))
+            habitat = self._regional_habitat(region_key, source_tuple)
+            # A one-room encounter stays static. Regional populations only exist
+            # when the creature has somewhere real to roam.
+            if len(habitat) < 2:
+                continue
+            pool_key = f"{region_key}:{enemy_key}"
+            pools[pool_key] = RegionalSpawnDefinition(
+                key=pool_key,
+                region_key=region_key,
+                enemy_key=enemy_key,
+                room_keys=habitat,
+                source_room_keys=source_tuple,
+            )
+        return pools
+
+    def _regional_states(
+        self,
+        pool_key: str,
+        *,
+        include_rare: bool = True,
+    ) -> list[MobileNpcState]:
+        result: list[MobileNpcState] = []
+        for instance_key, mapped_pool in tuple(self._regional_instance_to_pool.items()):
+            if mapped_pool != pool_key:
+                continue
+            state = self.states.get(instance_key)
+            if state is None or not state.active:
+                continue
+            if not include_rare and bool(getattr(state.definition, "rare", False)):
+                continue
+            result.append(state)
+        return result
+
+    def _region_dynamic_cap(self, region_key: str) -> int:
+        habitat_rooms = {
+            room_key
+            for pool in self.regional_pools.values()
+            if pool.region_key == region_key
+            for room_key in pool.room_keys
+        }
+        # Roughly two mobile threats per useful habitat room, with hard global
+        # bounds so dense authored regions never turn into a CPU or combat flood.
+        return max(6, min(24, len(habitat_rooms) * 2))
+
+    def target_population(
+        self,
+        pool: RegionalSpawnDefinition,
+        player_room_keys: Iterable[str] = (),
+    ) -> int:
+        player_count = 0
+        for room_key in player_room_keys:
+            room = ROOMS_BY_KEY.get(room_key)
+            if room is not None and room.region_key == pool.region_key:
+                player_count += 1
+        return min(pool.max_population, pool.base_population + player_count)
+
+    def _regional_definition(
+        self,
+        pool: RegionalSpawnDefinition,
+        instance_key: str,
+        spawn_room_key: str,
+        *,
+        rare: bool,
+        rng: random.Random,
+    ) -> MobileNpcDefinition | None:
+        base = combat.ENEMIES_BY_KEY.get(pool.enemy_key)
+        if base is None:
+            return None
+
+        if rare:
+            name = f"Ravenous {base.name}"
+            aliases = tuple(
+                dict.fromkeys(
+                    (
+                        f"ravenous {base.name.lower()}",
+                        *(f"ravenous {alias}" for alias in base.aliases),
+                    )
+                )
+            )
+            return MobileNpcDefinition(
+                key=instance_key,
+                name=name,
+                short_description=(
+                    f"an unusually large and dangerous {base.description}, driven into a reckless hunger"
+                ),
+                spawn_room_key=spawn_room_key,
+                allowed_room_keys=pool.room_keys,
+                behavior=BEHAVIOR_HUNTER,
+                move_chance_per_tick=0.18,
+                aliases=aliases,
+                aggressive=True,
+                pursuit_chance_after_flee=0.75,
+                max_hp=max(base.max_hp + 1, int(base.max_hp * 1.75)),
+                armor_class=base.armor_class + 2,
+                auto_attack_damage=base.auto_attack_damage + max(1, base.auto_attack_damage // 2),
+                auto_attack_interval=max(1.0, base.auto_attack_interval * 0.9),
+                xp_reward=max(base.xp_reward + 1, base.xp_reward * 2),
+                attackable=True,
+                combat_enemy_key=base.key,
+                rare=True,
+            )
+
+        return MobileNpcDefinition(
+            key=instance_key,
+            name=base.name,
+            short_description=base.description,
+            spawn_room_key=spawn_room_key,
+            allowed_room_keys=pool.room_keys,
+            behavior=BEHAVIOR_WANDER,
+            # Five-second ticks put ordinary movement in roughly the requested
+            # 30-90 second cadence without every creature moving in lockstep.
+            move_chance_per_tick=rng.uniform(0.06, 0.16),
+            aliases=tuple(base.aliases),
+            aggressive=False,
+            pursuit_chance_after_flee=0.30,
+            max_hp=base.max_hp,
+            armor_class=base.armor_class,
+            auto_attack_damage=base.auto_attack_damage,
+            auto_attack_interval=base.auto_attack_interval,
+            xp_reward=base.xp_reward,
+            attackable=True,
+            combat_enemy_key=base.key,
+            rare=False,
+        )
+
+    def _choose_regional_spawn_room(
+        self,
+        pool: RegionalSpawnDefinition,
+        player_room_keys: Iterable[str],
+        rng: random.Random,
+    ) -> str | None:
+        player_rooms = set(player_room_keys)
+        hidden = [room_key for room_key in pool.room_keys if room_key not in player_rooms]
+        if not hidden:
+            return None
+
+        counts: dict[str, int] = {room_key: 0 for room_key in hidden}
+        for state in self._regional_states(pool.key):
+            if state.current_room_key in counts:
+                counts[state.current_room_key] += 1
+
+        below_soft_cap = [
+            room_key
+            for room_key in hidden
+            if counts[room_key] < REGIONAL_MAX_DYNAMIC_PER_ROOM
+        ]
+        candidates = below_soft_cap or hidden
+        lowest = min(counts[room_key] for room_key in candidates)
+        least_crowded = [room_key for room_key in candidates if counts[room_key] == lowest]
+        return rng.choice(least_crowded)
+
+    def _spawn_regional_instance(
+        self,
+        pool: RegionalSpawnDefinition,
+        *,
+        player_room_keys: Iterable[str],
+        rng: random.Random,
+        rare: bool = False,
+    ) -> MobileNpcState | None:
+        spawn_room = self._choose_regional_spawn_room(pool, player_room_keys, rng)
+        if spawn_room is None:
+            return None
+        self._regional_serial += 1
+        suffix = "rare" if rare else "common"
+        instance_key = f"regional::{pool.region_key}::{pool.enemy_key}::{suffix}::{self._regional_serial}"
+        definition = self._regional_definition(
+            pool,
+            instance_key,
+            spawn_room,
+            rare=rare,
+            rng=rng,
+        )
+        if definition is None:
+            return None
+        state = MobileNpcState(definition=definition, current_room_key=spawn_room)
+        self.states[instance_key] = state
+        self._regional_instance_to_pool[instance_key] = pool.key
+        if rare:
+            self._rare_expiry_tick[instance_key] = self._tick_index + REGIONAL_RARE_TTL_TICKS
+        return state
+
+    def _seed_regional_population(self) -> None:
+        if not self.regional_pools:
+            return
+        rng = random.Random(0xA57A115)
+        by_region: dict[str, list[RegionalSpawnDefinition]] = {}
+        for pool in self.regional_pools.values():
+            by_region.setdefault(pool.region_key, []).append(pool)
+
+        for region_key, pools in sorted(by_region.items()):
+            cap = self._region_dynamic_cap(region_key)
+            created = 0
+            # Round-robin seeding prevents the first species alphabetically from
+            # consuming an entire small-region cap.
+            for _round in range(REGIONAL_BASE_POPULATION):
+                for pool in sorted(pools, key=lambda value: value.key):
+                    if created >= cap:
+                        break
+                    if self._spawn_regional_instance(
+                        pool,
+                        player_room_keys=(),
+                        rng=rng,
+                    ) is not None:
+                        created += 1
+                if created >= cap:
+                    break
+
+    def _despawn_regional_instance(self, instance_key: str) -> None:
+        self.states.pop(instance_key, None)
+        self._regional_instance_to_pool.pop(instance_key, None)
+        self._rare_expiry_tick.pop(instance_key, None)
+
+    def _reconcile_regional_populations(
+        self,
+        player_room_keys: Iterable[str],
+        rng: random.Random,
+    ) -> None:
+        player_rooms = tuple(player_room_keys)
+        occupied = set(player_rooms)
+
+        # Rares leave after a while, but never vanish while someone is fighting
+        # or visibly standing beside them.
+        for instance_key, expiry_tick in tuple(self._rare_expiry_tick.items()):
+            if self._tick_index < expiry_tick:
+                continue
+            state = self.states.get(instance_key)
+            if state is None:
+                self._despawn_regional_instance(instance_key)
+                continue
+            if state.engaged_character_id is not None or state.current_room_key in occupied:
+                self._rare_expiry_tick[instance_key] = self._tick_index + 12
+                continue
+            self._despawn_regional_instance(instance_key)
+
+        player_counts: dict[str, int] = {}
+        for room_key in player_rooms:
+            room = ROOMS_BY_KEY.get(room_key)
+            if room is not None:
+                player_counts[room.region_key] = player_counts.get(room.region_key, 0) + 1
+
+        for pool in sorted(self.regional_pools.values(), key=lambda value: value.key):
+            common_states = self._regional_states(pool.key, include_rare=False)
+            target = min(
+                pool.max_population,
+                pool.base_population + player_counts.get(pool.region_key, 0),
+            )
+
+            if len(common_states) > target:
+                removable = [
+                    state
+                    for state in common_states
+                    if state.engaged_character_id is None
+                    and state.current_room_key not in occupied
+                ]
+                if removable:
+                    self._despawn_regional_instance(removable[-1].definition.key)
+                continue
+
+            if len(common_states) >= target:
+                continue
+            if self._tick_index < self._regional_next_spawn_tick.get(pool.key, 0):
+                continue
+
+            region_states = [
+                state
+                for instance_key, mapped_pool in self._regional_instance_to_pool.items()
+                if instance_key in self.states
+                and self.regional_pools.get(mapped_pool) is not None
+                and self.regional_pools[mapped_pool].region_key == pool.region_key
+                and self.states[instance_key].active
+            ]
+            if len(region_states) >= self._region_dynamic_cap(pool.region_key):
+                continue
+
+            if self._spawn_regional_instance(
+                pool,
+                player_room_keys=player_rooms,
+                rng=rng,
+            ) is not None:
+                self._regional_next_spawn_tick[pool.key] = self._tick_index + REGIONAL_REFILL_TICKS
+
+        # Occasional tougher visitors are generated only in regions that contain
+        # active players, capped at one rare at a time per region.
+        for region_key, player_count in sorted(player_counts.items()):
+            if player_count <= 0:
+                continue
+            if any(
+                state.definition.rare
+                and self.regional_pools.get(self._regional_instance_to_pool.get(state.definition.key, ""))
+                and self.regional_pools[self._regional_instance_to_pool[state.definition.key]].region_key == region_key
+                for state in self.states.values()
+                if state.active
+            ):
+                continue
+            if rng.random() > REGIONAL_RARE_ROLL_PER_TICK:
+                continue
+            region_pools = [
+                pool for pool in self.regional_pools.values()
+                if pool.region_key == region_key
+            ]
+            if not region_pools:
+                continue
+            current_region_population = sum(
+                1
+                for state in self.states.values()
+                if state.active
+                and (
+                    pool_key := self._regional_instance_to_pool.get(state.definition.key)
+                ) is not None
+                and self.regional_pools.get(pool_key) is not None
+                and self.regional_pools[pool_key].region_key == region_key
+            )
+            if current_region_population >= self._region_dynamic_cap(region_key):
+                continue
+            self._spawn_regional_instance(
+                rng.choice(region_pools),
+                player_room_keys=player_rooms,
+                rng=rng,
+                rare=True,
+            )
+
     def npcs_in_room(self, room_key: str) -> tuple[MobileNpcState, ...]:
         return tuple(
             state for state in self.states.values()
@@ -373,13 +861,31 @@ class MobileNpcManager:
         if character_id is not None and state.engaged_character_id not in {None, character_id}:
             return
         state.engaged_character_id = None
-        state.returning_to_duty = state.active and state.current_room_key != state.definition.spawn_room_key
+        if npc_key in self._regional_instance_to_pool:
+            # Regional wildlife resumes wandering from wherever the encounter
+            # ended instead of pathing back to an arbitrary "home" room.
+            state.returning_to_duty = False
+        else:
+            state.returning_to_duty = state.active and state.current_room_key != state.definition.spawn_room_key
 
     def defeat(self, npc_key: str, respawn_ticks: int = 6) -> None:
-        """Temporarily remove a defeated mobile NPC, then respawn it at home."""
+        """Remove a regional kill from its shared pool or respawn authored mobiles."""
         state = self.states.get(npc_key)
         if state is None:
             return
+
+        pool_key = self._regional_instance_to_pool.get(npc_key)
+        if pool_key is not None:
+            # The population manager, not this instance, owns replacement. This
+            # makes a kill reduce the real regional count and guarantees refill
+            # observes its cooldown and out-of-sight placement rules.
+            self._despawn_regional_instance(npc_key)
+            self._regional_next_spawn_tick[pool_key] = max(
+                self._regional_next_spawn_tick.get(pool_key, 0),
+                self._tick_index + REGIONAL_REFILL_TICKS,
+            )
+            return
+
         state.engaged_character_id = None
         state.returning_to_duty = False
         state.inactive_ticks = max(1, respawn_ticks)
@@ -430,11 +936,29 @@ class MobileNpcManager:
     def _legal_moves(self, state: MobileNpcState) -> list[tuple[str, str]]:
         room = ROOMS_BY_KEY[state.current_room_key]
         allowed = set(state.definition.allowed_room_keys)
-        return [
+        legal = [
             (direction, destination)
             for direction, destination in room.exits.items()
             if destination in allowed
         ]
+        if state.definition.key not in self._regional_instance_to_pool:
+            return legal
+
+        canonical_key = state.definition.combat_enemy_key
+        if canonical_key is None:
+            return legal
+        occupied_by_same_species = {
+            other.current_room_key
+            for other in self.states.values()
+            if other is not state
+            and other.active
+            and other.definition.combat_enemy_key == canonical_key
+        }
+        uncrowded = [
+            move for move in legal
+            if move[1] not in occupied_by_same_species
+        ]
+        return uncrowded or legal
 
     @staticmethod
     def _shortest_path(origin: str, destination: str, allowed: set[str]) -> list[str] | None:
@@ -545,8 +1069,10 @@ class MobileNpcManager:
         player_rooms = tuple(player_room_keys)
         current_hour = datetime.now().hour if hour is None else hour % 24
         movements: list[NpcMovement] = []
+        self._tick_index += 1
+        self._reconcile_regional_populations(player_rooms, rng)
 
-        for state in self.states.values():
+        for state in tuple(self.states.values()):
             definition = state.definition
 
             if state.inactive_ticks > 0:
