@@ -45,11 +45,16 @@ jobs:
               config = zf.read("config.lua").decode("utf-8")
           for marker in ("Dreams.Room", "Dreams.Map", "Dreams.Party", "Dreams.Quests", "Dreams.Inventory", "Dreams.Abilities", "Dreams.Effects", "Dreams.Context", "Dreams.Onboarding", "DreamsHUD.EffectsPane"):
               assert marker in xml, marker
-          assert 'version = "2.2.4"' in config
+          assert 'version = "2.2.5"' in config
 
           root = ET.fromstring(xml)
           embedded_lua = root.findtext(".//Script/script")
           assert embedded_lua and "Core.Supports.Add" in embedded_lua
+          assert "QUEST_TITLE_TEXT" in embedded_lua
+          assert "QUEST_OBJECTIVE_TEXT" in embedded_lua
+          assert "QUEST_MORE_TEXT" in embedded_lua
+          assert "font-size: 13pt" in embedded_lua
+          assert "font-size: 11pt" in embedded_lua
           bootstrap_lua = root.findtext(".//TriggerPackage/Trigger/script")
           assert bootstrap_lua and "loadstring(source)" in bootstrap_lua
           bootstrap_trigger = root.find(".//TriggerPackage/Trigger")
