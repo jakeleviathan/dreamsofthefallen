@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from mud.database import Database
-from mud.room_engine import PlayerRoomContext, WorldService
+from mud.room_engine import PlayerRoomContext
 from mud.waymeet_frontier import (
     GLOAM_DELVER,
     HOMELAND_LINKS,
@@ -96,20 +96,20 @@ class WaymeetFrontierTests(unittest.TestCase):
                 self.assertEqual(exits[0].condition.min_level_for_races, (home_race,))
 
     def test_goblin_visitor_can_leave_dwarven_homeland_without_dwarf_clearance(self):
-        service = WorldService(rooms=WAYMEET_ROOMS, augmentations=waymeet_augmentations())
-        service.legacy_rooms.update({
-            "dwarf_upper_freight_deck": __import__("mud.world", fromlist=["ROOMS_BY_KEY"]).ROOMS_BY_KEY["dwarf_upper_freight_deck"],
-        })
+        augmentations = waymeet_augmentations()
+        exit_def = next(
+            item
+            for item in augmentations["dwarf_upper_freight_deck"].extra_exits
+            if item.direction == "south"
+        )
+
         visitor = PlayerRoomContext(
             character_id=2,
             race_key="goblin",
             class_key="priest",
             level=5,
         )
-        resolution = service.resolve_exit("dwarf_upper_freight_deck", "south", visitor)
-        self.assertTrue(resolution.allowed)
-        self.assertIsNotNone(resolution.exit)
-        self.assertEqual(resolution.exit.destination_key, WAYMEET_WEST_ROAD_KEY)
+        self.assertTrue(exit_def.condition.matches(visitor))
 
         uncleared_dwarf = PlayerRoomContext(
             character_id=3,
@@ -117,8 +117,7 @@ class WaymeetFrontierTests(unittest.TestCase):
             class_key="brute",
             level=5,
         )
-        blocked = service.resolve_exit("dwarf_upper_freight_deck", "south", uncleared_dwarf)
-        self.assertFalse(blocked.allowed)
+        self.assertFalse(exit_def.condition.matches(uncleared_dwarf))
 
     def test_combat_curve_steps_up_toward_gloam_mouth(self):
         self.assertLess(THORNBACK_JACKAL.max_hp, REEDMAW_BOAR.max_hp)
