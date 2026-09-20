@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from mud.combat import ENEMIES_BY_KEY, EnemyState
@@ -81,29 +82,21 @@ class DiscordPresenceServiceTests(unittest.TestCase):
         db = Database(Path(tmp.name) / "mud.db")
         account = db.create_account("presence_test", "not-a-real-hash")
         character = db.create_character(account.id, "Lantern", race, character_class)
-        reader = asyncio.StreamReader()
-        writer = _FakeWriter()
-        session = PlayerSession(reader, writer, db)
-        session.character = replace(character, level=5, current_room="human_ashen_way")
-        session.state = SessionState.PLAYING
-        session.combatant = CombatantState(
-            character_id=character.id,
-            race_key=race,
-            current_hp=35,
-            max_hp=35,
-            current_mana=30,
-            max_mana=30,
-            auto_attack_interval=2.5,
-            stats=character.stats,
-        )
-        session.discord_presence = DiscordPresenceService(
+        character = replace(character, level=5, current_room="human_ashen_way")
+        service = DiscordPresenceService(
             DiscordPresenceConfig(application_id="123456789012345678"),
             started_at=1_700_000_000,
         )
-        return session, writer
+        session = SimpleNamespace(
+            database=db,
+            character=character,
+            active_enemy=None,
+            discord_presence=service,
+        )
+        return session
 
     def test_presence_uses_character_class_location_and_session_timer(self) -> None:
-        session, _ = self._session()
+        session = self._session()
         status = session.discord_presence.build_status(session)
         self.assertIn("Level 5", status["details"])
         self.assertIn("Priest", status["details"])
@@ -113,14 +106,14 @@ class DiscordPresenceServiceTests(unittest.TestCase):
         self.assertEqual(status["game"], "Dreams of the Fallen")
 
     def test_combat_takes_priority_over_exploration(self) -> None:
-        session, _ = self._session()
+        session = self._session()
         session.active_enemy = EnemyState(ENEMIES_BY_KEY["sewer_rat"])
         status = session.discord_presence.build_status(session)
         self.assertIn("Battling Sewer Rat", status["state"])
         self.assertIn("Ashen Way", status["state"])
 
     def test_secret_room_and_enemy_information_are_not_leaked(self) -> None:
-        session, _ = self._session(race="sporekin", character_class="druid")
+        session = self._session(race="sporekin", character_class="druid")
         session.character = replace(session.character, current_room=SPOREKIN_SURFACEWARD_ROOM_KEY)
         session.active_enemy = EnemyState(ENEMIES_BY_KEY["sewer_rat"])
         status = session.discord_presence.build_status(session)
@@ -129,8 +122,15 @@ class DiscordPresenceServiceTests(unittest.TestCase):
         self.assertNotIn("Veiled Grotto", status["state"])
         self.assertNotIn("Sewer Rat", status["state"])
 
+    def test_puzzle_rooms_are_spoiler_safe_even_without_hidden_in_the_key(self) -> None:
+        session = self._session(race="sporekin", character_class="druid")
+        session.character = replace(session.character, current_room="sporekin_forgotten_grove")
+        status = session.discord_presence.build_status(session)
+        self.assertIn("somewhere forgotten", status["state"].lower())
+        self.assertNotIn("Forgotten Grove", status["state"])
+
     def test_transient_crafting_presence_is_centralized(self) -> None:
-        session, _ = self._session()
+        session = self._session()
         session.discord_presence.set_activity("crafting", "Cotton Gloves")
         status = session.discord_presence.build_status(session)
         self.assertEqual(status["state"], "Crafting Cotton Gloves")
@@ -138,7 +138,7 @@ class DiscordPresenceServiceTests(unittest.TestCase):
         self.assertIn("Exploring", session.discord_presence.build_status(session)["state"])
 
     def test_unchanged_full_status_is_deduplicated(self) -> None:
-        session, _ = self._session()
+        session = self._session()
         first = session.discord_presence.status_if_changed(session)
         second = session.discord_presence.status_if_changed(session)
         forced = session.discord_presence.status_if_changed(session, force=True)
