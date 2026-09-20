@@ -29,7 +29,28 @@ MUD_LOG_LEVEL=INFO
 MUD_LOG_MAX_BYTES=5242880
 MUD_LOG_FILES=5
 MUD_OWNER_ACCOUNT=<owner account name>
+DREAMS_DISCORD_APPLICATION_ID=<Discord application snowflake>
+DREAMS_DISCORD_INVITE_URL=https://discord.gg/<invite-code>
 ```
+
+## Discord Rich Presence
+
+Dreams implements Mudlet's `External.Discord` GMCP protocol directly on the server. Presence is dynamic and spoiler-conscious: it reports level/race/class, public room and region, combat state, crafting activity, party size, and session elapsed time, while hidden/secret room tags collapse to deliberately vague wording.
+
+Create one Discord application for **Dreams of the Fallen**, put its numeric application ID in `DREAMS_DISCORD_APPLICATION_ID`, and optionally put the official community invite in `DREAMS_DISCORD_INVITE_URL`.
+
+For the best branded presence, configure these lowercase Rich Presence assets in that Discord application:
+
+- `server-icon` — Dreams of the Fallen logo; this is the universal fallback.
+- `class-brute`
+- `class-wizard`
+- `class-necromancer`
+- `class-druid`
+- `class-priest`
+
+The server replies to `External.Discord.Hello` with `External.Discord.Info` and a complete `External.Discord.Status`, then refreshes status only when meaningful presence changes. Discord usernames from the Hello packet are never retained or used for a directory.
+
+Mudlet keeps Discord Rich Presence **player opt-in for privacy**. The game must not try to force-enable that client preference. Once a player enables Discord for the profile, the server-side integration requires no scripts or manual status configuration.
 
 Do **not** set `MUD_ALLOW_CORRUPT_DB=1` during ordinary operation. That switch exists only as an emergency recovery escape hatch when an operator has already copied the broken database and understands the risk.
 
