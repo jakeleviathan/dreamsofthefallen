@@ -1,5 +1,5 @@
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.8
+-- Version 2.2.9
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -7,7 +7,7 @@
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.8"
+H.version = "2.2.9"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -27,7 +27,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.8"
+local MODERN_UI_VERSION = "2.2.9"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -151,7 +151,7 @@ local QUEST_TITLE_TEXT = [[
     background-color: transparent;
     border: 0px;
     color: #f0d39d;
-    font-size: 16pt;
+    font-size: 20pt;
     font-weight: bold;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignTop';
@@ -163,7 +163,7 @@ local QUEST_OBJECTIVE_TEXT = [[
     background-color: transparent;
     border: 0px;
     color: #f1e9dd;
-    font-size: 14pt;
+    font-size: 17pt;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignTop';
   }
@@ -174,7 +174,7 @@ local QUEST_MORE_TEXT = [[
     background-color: transparent;
     border: 0px;
     color: #ddd2e0;
-    font-size: 12pt;
+    font-size: 14pt;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignTop';
   }
@@ -190,6 +190,18 @@ end
 
 local function setTooltip(widget, text)
   if widget and widget.setToolTip then pcall(function() widget:setToolTip(text or "") end) end
+end
+
+-- Mudlet 5.x installs a generic starter dock ("Mudlet UI") into new profiles.
+-- Dreams provides its own complete HUD, so keep that starter UI out of the way.
+-- Client.GUI baseui=false handles newer Mudlet releases; this compatibility
+-- fallback covers current 5.x builds and persists the hidden state per profile.
+function H.suppressBaseUi()
+  if not expandAlias or not getMudletVersion then return end
+  local ok, major = pcall(getMudletVersion, "major")
+  major = ok and tonumber(major) or 0
+  if major < 5 then return end
+  pcall(function() expandAlias("baseui hide", false) end)
 end
 
 local function hotbarStoragePath()
@@ -474,9 +486,9 @@ function H.buildModern()
   H.partyFooter = label(H.partyPane, "DreamsHUD.PartyFooter", 8, 260, -16, -8, MUTED_TEXT)
 
   H.questPane = Geyser.Container:new({ name = "DreamsHUD.QuestPane", x = 0, y = 0, width = "100%", height = "100%" }, H.contentFrame)
-  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 8, 10, -16, 46, QUEST_TITLE_TEXT)
-  H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 66, -16, 112, QUEST_OBJECTIVE_TEXT)
-  H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 136, -16, 52, QUEST_MORE_TEXT)
+  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 8, 10, -16, 58, QUEST_TITLE_TEXT)
+  H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 82, -16, 152, QUEST_OBJECTIVE_TEXT)
+  H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 246, -16, 60, QUEST_MORE_TEXT)
   H.questButton = label(H.questPane, "DreamsHUD.QuestButton", 8, -42, -16, 34, BUTTON_STYLE)
   H.questButton:echo("<center>OPEN QUEST LOG</center>")
   H.questButton:setClickCallback("DreamsHUD.runAction", "QUESTS")
@@ -984,12 +996,14 @@ function H.registerModernHandlers()
   end
   if H.modernHandlers.load then pcall(killAnonymousEventHandler, H.modernHandlers.load) end
   H.modernHandlers.load = registerAnonymousEventHandler("sysLoadEvent", function()
+    H.suppressBaseUi()
     H.buildModern()
     H.renderModernAll()
   end)
 end
 
 function H.initModern()
+  H.suppressBaseUi()
   H.buildModern()
   H.registerModernHandlers()
   H.registerTextEmphasis()
