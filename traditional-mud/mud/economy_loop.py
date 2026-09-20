@@ -930,6 +930,36 @@ async def _craft(session, target: str) -> None:
                 await session.send(
                     f"{recipe.trade_skill_key.title()} improves to {result.new_skill_value}!\r\n"
                 )
+            else:
+                current_skill = (
+                    int(result.new_skill_value)
+                    if result.new_skill_value is not None
+                    else crafting.trade_skill_value(
+                        session.database,
+                        current_character.id,
+                        recipe.trade_skill_key,
+                    )
+                )
+                if current_skill >= recipe.trivial_skill:
+                    await session.send(
+                        f"No {recipe.trade_skill_key.title()} skill increase. "
+                        f"Current skill: {current_skill}. This recipe is trivial for you and can no longer raise it.\r\n"
+                    )
+                else:
+                    chance = int(
+                        round(
+                            crafting.craft_skillup_chance(
+                                current_skill,
+                                recipe.trivial_skill,
+                            )
+                            * 100
+                        )
+                    )
+                    await session.send(
+                        f"No {recipe.trade_skill_key.title()} skill increase this attempt. "
+                        f"Current skill: {current_skill}. This recipe can still train you "
+                        f"({chance}% chance per completed craft at this skill).\r\n"
+                    )
         except asyncio.CancelledError:
             return
         finally:
