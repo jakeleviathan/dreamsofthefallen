@@ -95,6 +95,7 @@ from mud.quest_npc_audit import validate_quest_talk_references
 import mud.npcs as mobile_npcs
 from mud.casting import install_casting_runtime
 from mud.enemy_targeting import install_enemy_targeting_runtime
+from mud.health_regeneration import install_health_regeneration_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
 from mud.character_options import RACES_BY_KEY
@@ -287,6 +288,10 @@ install_corpse_loot_runtime(PlayerSession)
 # HELP HERE and ordinary actions can be measured without revealing hidden content.
 install_command_guide_runtime(PlayerSession, WORLD)
 install_alpha_ux_runtime(PlayerSession)
+# Health recovery is an always-on session system like movement and mana recovery:
+# 1 HP/6s out of combat, 2 while resting, 3 while resting somewhere restful,
+# with Troll/Sporekin racial regeneration layered on top.
+install_health_regeneration_runtime(PlayerSession, WORLD)
 install_modern_client_runtime(PlayerSession, WORLD)
 install_production_hardening_runtime(PlayerSession)
 install_production_operator_runtime(PlayerSession)
