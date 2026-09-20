@@ -34,28 +34,30 @@ with tempfile.TemporaryDirectory() as tmp:
     )
 
     recipe = crafting.RECIPES_BY_KEY["refine_greenward_catalyst"]
-    assert recipe.trivial_skill == 25
+    # Greenward Catalyst is the deliberately trivial skill-0 starter component:
+    # it teaches the crafting flow and feeds later recipes, but it is already
+    # mastered at Alchemy 0 and therefore cannot itself grant a skill point.
+    assert recipe.trivial_skill == 0
     db.add_item(character.id, "greenleaf", 2)
     db.add_item(character.id, "spring_water", 1)
 
-    # Force a successful craft but a failed skill-up roll. At skill 0 versus
-    # trivial 25, skill-up chance is exactly 25%.
     result = crafting.craft_recipe(
         db,
         character.id,
         recipe.key,
         station_key=recipe.station_key,
         success_roll=0.0,
-        skillup_roll=1.0,
+        skillup_roll=0.0,
     )
 
     assert result.success
     assert result.completed
     assert not result.skill_increased
     assert result.new_skill_value == 0
-    assert "No Alchemy skill increase this attempt" in result.message, result.message
+    assert "No Alchemy skill increase" in result.message, result.message
     assert "current skill is 0" in result.message, result.message
-    assert "25% chance per completed craft" in result.message, result.message
+    assert "trivial for you" in result.message, result.message
+    assert "can no longer raise the skill" in result.message, result.message
     assert "improves through use" not in result.message.lower(), result.message
 
 print("CRAFTING_FEEDBACK_OK")
