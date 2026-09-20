@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -37,6 +38,7 @@ class TelnetConnection:
     gmcp_packages: set[str] = field(default_factory=set)
     client_gui_offer_sent: bool = False
     gmcp_send_allowed: Callable[[str, object], bool] | None = None
+    gmcp_message_handler: Callable[[str, object], object] | None = None
 
     async def begin_negotiation(self) -> None:
         # Advertise server-side GMCP support. A supporting client replies DO GMCP.
@@ -50,6 +52,10 @@ class TelnetConnection:
     def set_gmcp_send_policy(self, callback: Callable[[str, object], bool] | None) -> None:
         """Install the supported per-connection GMCP send policy callback."""
         self.gmcp_send_allowed = callback
+
+    def set_gmcp_message_handler(self, callback: Callable[[str, object], object] | None) -> None:
+        """Install the application-level handler for client-originated GMCP."""
+        self.gmcp_message_handler = callback
 
     async def send_gmcp(self, package: str, payload: dict | list | str | int | float | bool | None = None) -> bool:
         if not self.gmcp_enabled:
@@ -100,6 +106,7 @@ class TelnetConnection:
             {
                 "version": offer.version,
                 "url": offer.url,
+                "baseui": False,
             },
         )
 
@@ -170,7 +177,7 @@ class TelnetConnection:
                 # that as confirmation that GMCP is active and make the same
                 # one-time GUI offer if DO GMCP was not observed first.
                 await self._enable_gmcp()
-                self._handle_gmcp_from_client(payload)
+                await self._handle_gmcp_from_client(payload)
             return
 
     async def _read_subnegotiation_payload(self) -> bytes:
@@ -193,27 +200,35 @@ class TelnetConnection:
             # Ignore unexpected command sequences inside subnegotiation.
         return bytes(data)
 
-    def _handle_gmcp_from_client(self, payload: bytes) -> None:
+    async def _handle_gmcp_from_client(self, payload: bytes) -> None:
         text = payload.decode("utf-8", errors="ignore").strip()
         if not text:
             return
+
         package, _, json_text = text.partition(" ")
-        if package == "Core.Hello" and json_text:
+        parsed: object = None
+        if json_text:
             try:
-                hello = json.loads(json_text)
+                parsed = json.loads(json_text)
             except json.JSONDecodeError:
+                # Malformed GMCP is ignored rather than leaking protocol bytes
+                # into gameplay or invoking application handlers with bad data.
                 return
-            if isinstance(hello, dict):
-                client = hello.get("client")
-                version = hello.get("version")
-                self.client_name = str(client) if client is not None else None
-                self.client_version = str(version) if version is not None else None
-        elif package in {"Core.Supports.Set", "Core.Supports.Add"} and json_text:
-            try:
-                supported = json.loads(json_text)
-            except json.JSONDecodeError:
-                return
-            if isinstance(supported, list):
-                if package == "Core.Supports.Set":
-                    self.gmcp_packages.clear()
-                self.gmcp_packages.update(str(value) for value in supported)
+
+        normalized = package.lower()
+        if normalized == "core.hello" and isinstance(parsed, dict):
+            client = parsed.get("client")
+            version = parsed.get("version")
+            self.client_name = str(client) if client is not None else None
+            self.client_version = str(version) if version is not None else None
+        elif normalized in {"core.supports.set", "core.supports.add"} and isinstance(parsed, list):
+            if normalized == "core.supports.set":
+                self.gmcp_packages.clear()
+            self.gmcp_packages.update(str(value) for value in parsed)
+
+        handler = self.gmcp_message_handler
+        if handler is None:
+            return
+        result = handler(package, parsed)
+        if inspect.isawaitable(result):
+            await result
