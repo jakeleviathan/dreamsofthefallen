@@ -167,7 +167,11 @@ def visible_target_candidates(session, world_service, *, kind: str) -> tuple[Tar
     if mobile_npcs is not None:
         for state in mobile_npcs.npcs_in_room(room_key):
             definition = state.definition
-            if kind == "npc":
+            is_enemy = (
+                bool(getattr(definition, "aggressive", False))
+                or bool(getattr(definition, "attackable", False))
+            )
+            if kind == "npc" and not is_enemy:
                 candidates.append(
                     TargetCandidate(
                         definition.key,
@@ -176,7 +180,7 @@ def visible_target_candidates(session, world_service, *, kind: str) -> tuple[Tar
                         tuple(getattr(definition, "aliases", ())),
                     )
                 )
-            elif kind == "enemy" and bool(getattr(definition, "aggressive", False)):
+            elif kind == "enemy" and is_enemy:
                 candidates.append(
                     TargetCandidate(
                         definition.key,
