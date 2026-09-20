@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from mud.database import Database
+from mud.room_engine import PlayerRoomContext, WorldService
 from mud.waymeet_frontier import (
     GLOAM_DELVER,
     HOMELAND_LINKS,
@@ -28,6 +29,7 @@ from mud.waymeet_frontier import (
     WAYMEET_QUARRY_QUEST_KEY,
     WAYMEET_ROOM_KEYS,
     WAYMEET_ROOMS,
+    WAYMEET_WEST_ROAD_KEY,
     _buy_market,
     _ensure_intro,
     _inspect_collapse,
@@ -81,15 +83,42 @@ class WaymeetFrontierTests(unittest.TestCase):
         self.assertEqual(len(HOMELAND_LINKS), 8)
         self.assertEqual(len({link[0] for link in HOMELAND_LINKS}), 8)
 
-    def test_homeland_links_are_completion_and_level_gated(self):
+    def test_homeland_links_gate_only_native_starter_progression(self):
         augmentations = waymeet_augmentations()
-        for room_key, direction, destination, _name, completion_flag in HOMELAND_LINKS:
+        for room_key, direction, destination, _name, completion_flag, home_race in HOMELAND_LINKS:
             with self.subTest(room=room_key):
                 exits = [item for item in augmentations[room_key].extra_exits if item.direction == direction]
                 self.assertEqual(len(exits), 1)
                 self.assertEqual(exits[0].destination_key, destination)
                 self.assertIn(completion_flag, exits[0].condition.required_flags)
                 self.assertEqual(exits[0].condition.min_level, 2)
+                self.assertEqual(exits[0].condition.required_flags_for_races, (home_race,))
+                self.assertEqual(exits[0].condition.min_level_for_races, (home_race,))
+
+    def test_goblin_visitor_can_leave_dwarven_homeland_without_dwarf_clearance(self):
+        service = WorldService(rooms=WAYMEET_ROOMS, augmentations=waymeet_augmentations())
+        service.legacy_rooms.update({
+            "dwarf_upper_freight_deck": __import__("mud.world", fromlist=["ROOMS_BY_KEY"]).ROOMS_BY_KEY["dwarf_upper_freight_deck"],
+        })
+        visitor = PlayerRoomContext(
+            character_id=2,
+            race_key="goblin",
+            class_key="priest",
+            level=5,
+        )
+        resolution = service.resolve_exit("dwarf_upper_freight_deck", "south", visitor)
+        self.assertTrue(resolution.allowed)
+        self.assertIsNotNone(resolution.exit)
+        self.assertEqual(resolution.exit.destination_key, WAYMEET_WEST_ROAD_KEY)
+
+        uncleared_dwarf = PlayerRoomContext(
+            character_id=3,
+            race_key="dwarf",
+            class_key="brute",
+            level=5,
+        )
+        blocked = service.resolve_exit("dwarf_upper_freight_deck", "south", uncleared_dwarf)
+        self.assertFalse(blocked.allowed)
 
     def test_combat_curve_steps_up_toward_gloam_mouth(self):
         self.assertLess(THORNBACK_JACKAL.max_hp, REEDMAW_BOAR.max_hp)
@@ -173,7 +202,7 @@ class WaymeetFrontierTests(unittest.TestCase):
             "from mud.room_engine import PlayerRoomContext; "
             "from mud.world import ROOMS_BY_KEY; "
             "assert all(key in server.WORLD.legacy_rooms for key in WAYMEET_ROOM_KEYS); "
-            "assert all(any(exit_def.destination_key == destination for exit_def in server.WORLD.scene(src).exits) for src, _direction, destination, _name, _flag in HOMELAND_LINKS if src in ROOMS_BY_KEY); "
+            "assert all(any(exit_def.destination_key == destination for exit_def in server.WORLD.scene(src).exits) for src, _direction, destination, _name, _flag, _home_race in HOMELAND_LINKS if src in ROOMS_BY_KEY); "
             "context = PlayerRoomContext(character_id=1, race_key='goblin', class_key='priest', level=5, character_flags=frozenset({'goblin_rattlefen_opening_complete'})); "
             "resolution = server.WORLD.resolve_exit('goblin_floodgate_walk', 'west', context); "
             "assert resolution.allowed and resolution.exit is not None; "
