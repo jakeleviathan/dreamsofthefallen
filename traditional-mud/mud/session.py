@@ -345,6 +345,8 @@ class PlayerSession:
             {
                 "version": self.mudlet_gui_offer.version,
                 "url": self.mudlet_gui_offer.url,
+                # Dreams ships its own HUD; suppress Mudlet 5.x\'s generic Base UI.
+                "baseui": False,
             },
         )
         if sent:
