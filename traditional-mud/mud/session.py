@@ -1106,7 +1106,10 @@ class PlayerSession:
             return
 
         mobile_state = self._mobile_npc_in_current_room(target_text)
-        if mobile_state is not None and mobile_state.definition.aggressive:
+        if mobile_state is not None and (
+            mobile_state.definition.aggressive
+            or bool(getattr(mobile_state.definition, "attackable", False))
+        ):
             if await self.start_mobile_npc_combat(mobile_state.definition.key):
                 return
         await self.send("You do not see an attackable target by that name here.\r\n")
@@ -1115,19 +1118,28 @@ class PlayerSession:
         if self.character is None or self.mobile_npcs is None:
             return None
         normalized = target_text.strip().lower()
+        matches = []
         for state in self.mobile_npcs.npcs_in_room(self.character.current_room or ""):
             definition = state.definition
             names = {definition.name.lower(), *(alias.lower() for alias in definition.aliases)}
             if normalized in names:
-                return state
-        return None
+                matches.append(state)
+        if not matches:
+            return None
+        # Multiple regional animals of the same species may share a room. Prefer
+        # an unclaimed individual so two players can hunt side by side instead
+        # of the first engaged instance blocking the whole species name.
+        return next(
+            (state for state in matches if state.engaged_character_id is None),
+            matches[0],
+        )
 
     @staticmethod
     def _enemy_from_mobile_npc(state) -> EnemyState:
         definition = state.definition
         return EnemyState(
             EnemyDefinition(
-                key=definition.key,
+                key=definition.combat_enemy_key or definition.key,
                 name=definition.name,
                 aliases=definition.aliases,
                 description=definition.short_description,
@@ -1136,7 +1148,10 @@ class PlayerSession:
                 auto_attack_damage=definition.auto_attack_damage,
                 auto_attack_interval=definition.auto_attack_interval,
                 xp_reward=definition.xp_reward,
-                retaliates=definition.aggressive,
+                retaliates=(
+                    definition.aggressive
+                    or bool(getattr(definition, "attackable", False))
+                ),
                 tutorial=False,
             )
         )
