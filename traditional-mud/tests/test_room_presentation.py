@@ -23,8 +23,10 @@ from mud.goblin_swamp import GOBLIN_MUDGLASS_CROSSING_KEY, MIRE_TICK_SWARM
 from mud.room_presentation import (
     BUSINESS,
     CORPSE,
+    CREATURE,
     ENEMY,
     EXIT,
+    HOSTILE,
     FEATURE,
     NPC,
     REGION,
@@ -85,7 +87,9 @@ with tempfile.TemporaryDirectory() as temp:
 
     before = "\r\n".join(render_room_lines(respawn_session, server.WORLD))
     assert "Mire Tick Swarm" in before, before
-    assert "[ Danger ]" in before, before
+    assert f"{CREATURE}[ Creatures ]" in before, before
+    assert "[ Danger ]" not in before, before
+    assert "[ Hostile ]" not in before, before
     assert "[ Corpses ]" not in before, before
 
     mark_static_enemy_defeated(
@@ -103,6 +107,7 @@ with tempfile.TemporaryDirectory() as temp:
         death_key="room-presentation:mire-tick",
     )
     during = "\r\n".join(render_room_lines(respawn_session, server.WORLD))
+    assert "[ Creatures ]" not in during, during
     assert "[ Danger ]" not in during, during
     assert f"{CORPSE}[ Corpses ]" in during, during
     assert f"{CORPSE}Corpse of Mire Tick Swarm (fresh)" in during, during
@@ -115,8 +120,51 @@ with tempfile.TemporaryDirectory() as temp:
     )
     after = "\r\n".join(render_room_lines(respawn_session, server.WORLD))
     assert "Mire Tick Swarm" in after, after
-    assert "[ Danger ]" in after, after
+    assert "[ Creatures ]" in after, after
+    assert "[ Danger ]" not in after, after
     assert "[ Corpses ]" in after, after
+
+# Attackable-but-passive mobiles are creatures; only explicit auto-aggro
+# definitions are labeled Hostile.
+class FakeMobiles:
+    def __init__(self, aggressive):
+        self.aggressive = aggressive
+
+    def npcs_in_room(self, _room_key):
+        definition = SimpleNamespace(
+            name="Test Hunter" if self.aggressive else "Test Grazer",
+            short_description=(
+                "a predator already watching you"
+                if self.aggressive
+                else "a wary animal that keeps its distance"
+            ),
+            aggressive=self.aggressive,
+            attackable=True,
+        )
+        return (SimpleNamespace(definition=definition),)
+
+classification_session = SimpleNamespace(
+    character=SimpleNamespace(
+        id=1,
+        race="goblin",
+        character_class="priest",
+        level=1,
+        current_room="goblin_clattergate",
+    ),
+    database=DB(),
+    mobile_npcs=FakeMobiles(False),
+)
+passive = "\r\n".join(render_room_lines(classification_session, server.WORLD))
+assert f"{CREATURE}[ Creatures ]" in passive, passive
+assert "Test Grazer" in passive, passive
+assert "[ Hostile ]" not in passive, passive
+
+classification_session.mobile_npcs = FakeMobiles(True)
+hostile = "\r\n".join(render_room_lines(classification_session, server.WORLD))
+assert f"{HOSTILE}[ Hostile ]" in hostile, hostile
+assert "Test Hunter" in hostile, hostile
+assert "[ Creatures ]" not in hostile, hostile
+assert "[ Danger ]" not in hostile, hostile
 
 print("ROOM_PRESENTATION_OK")
 '''
@@ -132,10 +180,32 @@ print("ROOM_PRESENTATION_OK")
         self.assertIn("ROOM_PRESENTATION_OK", result.stdout)
 
     def test_palette_uses_distinct_semantic_colors(self):
-        from mud.room_presentation import BUSINESS, CORPSE, ENEMY, EXIT, FEATURE, NPC, REGION, TITLE
+        from mud.room_presentation import (
+            BUSINESS,
+            CORPSE,
+            CREATURE,
+            ENEMY,
+            EXIT,
+            FEATURE,
+            HOSTILE,
+            NPC,
+            REGION,
+            TITLE,
+        )
 
-        semantic_colors = {TITLE, REGION, FEATURE, NPC, ENEMY, CORPSE, EXIT, BUSINESS}
-        self.assertEqual(len(semantic_colors), 8)
+        semantic_colors = {
+            TITLE,
+            REGION,
+            FEATURE,
+            NPC,
+            CREATURE,
+            HOSTILE,
+            CORPSE,
+            EXIT,
+            BUSINESS,
+        }
+        self.assertEqual(len(semantic_colors), 9)
+        self.assertEqual(ENEMY, HOSTILE)
         for color in semantic_colors:
             self.assertTrue(color.startswith("\x1b["))
             self.assertTrue(color.endswith("m"))
