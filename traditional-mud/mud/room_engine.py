@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Mapping
 
+import mud.world as legacy_world
 from mud.world import (
     HUMAN_START_ROOM_KEY,
     ROOMS_BY_KEY,
@@ -384,6 +385,9 @@ class WorldService:
         self.state = state or RoomStateStore()
         self.augmentations = dict(augmentations or default_room_augmentations())
         self._scene_cache: dict[str, RoomSceneDefinition] = {}
+        # Final production assembly can normalize physical directions without
+        # throwing away richer authored exit metadata (gates, conditions, text).
+        self._topology_exits: dict[str, tuple[ExitDefinition, ...]] = {}
 
     def scene(self, room_key: str) -> RoomSceneDefinition | None:
         cached = self._scene_cache.get(room_key)
@@ -454,6 +458,10 @@ class WorldService:
                 prefer_new=exit_def.direction not in override_by_direction,
             )
 
+        topology_exits = self._topology_exits.get(room_key)
+        if topology_exits is not None:
+            exits = list(topology_exits)
+
         scene = RoomSceneDefinition(
             key=legacy.key,
             name=legacy.name,
@@ -509,8 +517,337 @@ class WorldService:
                 )
         return tuple(problems)
 
+    def normalize_reciprocal_topology(self) -> int:
+        """Make every ordinary physical connection use a true opposite return.
+
+        Older content was authored in many independent passes, so several rooms
+        accumulated locally sensible direction labels that did not agree with
+        the room on the far side.  Rather than special-casing one region, build
+        one final physical graph after all content installers run.
+
+        Already-correct reciprocal links are kept exactly as authored.  Only
+        inconsistent links are reoriented, preferring an existing direction
+        whenever its opposite slot is actually free.  If a busy junction has no
+        cardinal slot left, diagonals are preferred before vertical or IN/OUT.
+        Explicit one-way exits and non-spatial command exits are never touched.
+        """
+
+        opposites = {
+            "north": "south",
+            "south": "north",
+            "east": "west",
+            "west": "east",
+            "northeast": "southwest",
+            "southwest": "northeast",
+            "northwest": "southeast",
+            "southeast": "northwest",
+            "up": "down",
+            "down": "up",
+            "in": "out",
+            "out": "in",
+        }
+        preference = (
+            "north", "south", "east", "west",
+            "northeast", "northwest", "southeast", "southwest",
+            "up", "down", "in", "out",
+        )
+
+        # Always audit the authored/augmented graph, never a previous normalized
+        # snapshot. This keeps repeated production imports deterministic.
+        self._topology_exits.clear()
+        self._scene_cache.clear()
+        raw_scenes = {
+            room_key: scene
+            for room_key in sorted(self.legacy_rooms)
+            if (scene := self.scene(room_key)) is not None
+        }
+
+        # Pair physical exits into undirected edges. A side may be absent, which
+        # is exactly the missing-return case this pass repairs.
+        edges: dict[tuple[str, str], dict[str, ExitDefinition]] = {}
+        fixed_by_room: dict[str, list[ExitDefinition]] = {
+            room_key: [] for room_key in raw_scenes
+        }
+        used: dict[str, set[str]] = {room_key: set() for room_key in raw_scenes}
+
+        for room_key, scene in raw_scenes.items():
+            for exit_def in scene.exits:
+                direction = exit_def.direction.strip().lower()
+                if (
+                    direction not in opposites
+                    or exit_def.one_way
+                    or exit_def.destination_key not in raw_scenes
+                ):
+                    fixed_by_room[room_key].append(exit_def)
+                    used[room_key].add(direction)
+                    continue
+                pair = tuple(sorted((room_key, exit_def.destination_key)))
+                edges.setdefault(pair, {})[room_key] = exit_def
+
+        assignments: dict[tuple[str, str], tuple[str, str]] = {}
+        pending: list[tuple[str, str]] = []
+
+        # Keep links that are already genuinely reciprocal. They form the stable
+        # backbone of the authored geography; inconsistent additions route around
+        # them instead of silently moving established roads.
+        for pair, sides in sorted(edges.items()):
+            a, b = pair
+            a_exit = sides.get(a)
+            b_exit = sides.get(b)
+            if a_exit is not None and b_exit is not None:
+                a_dir = a_exit.direction.strip().lower()
+                b_dir = b_exit.direction.strip().lower()
+                if opposites.get(a_dir) == b_dir:
+                    assignments[pair] = (a_dir, b_dir)
+                    used[a].add(a_dir)
+                    used[b].add(b_dir)
+                    continue
+            pending.append(pair)
+
+        def candidates(pair: tuple[str, str]) -> list[tuple[int, str, str]]:
+            a, b = pair
+            sides = edges[pair]
+            a_existing = sides.get(a)
+            b_existing = sides.get(b)
+            a_old = a_existing.direction.strip().lower() if a_existing else None
+            b_old = b_existing.direction.strip().lower() if b_existing else None
+            rows: list[tuple[int, str, str]] = []
+            for rank, a_dir in enumerate(preference):
+                b_dir = opposites[a_dir]
+                if a_dir in used[a] or b_dir in used[b]:
+                    continue
+                changes = int(a_old is not None and a_old != a_dir)
+                changes += int(b_old is not None and b_old != b_dir)
+                # Preserve authored directions first. Within equal-change
+                # options, prefer cardinal, then diagonal, then vertical/IN-OUT.
+                score = changes * 100 + rank
+                rows.append((score, a_dir, b_dir))
+            rows.sort()
+            return rows
+
+        # Constraint search with minimum-remaining-values selection. In practice
+        # Astralis rooms have low degree, but backtracking prevents an early busy
+        # junction from consuming the only sensible slot of a later edge.
+        def solve(remaining: list[tuple[str, str]]) -> bool:
+            if not remaining:
+                return True
+            choices = [(len(candidates(pair)), pair) for pair in remaining]
+            count, pair = min(choices, key=lambda row: (row[0], row[1]))
+            if count == 0:
+                return False
+            next_remaining = [value for value in remaining if value != pair]
+            a, b = pair
+            for _score, a_dir, b_dir in candidates(pair):
+                assignments[pair] = (a_dir, b_dir)
+                used[a].add(a_dir)
+                used[b].add(b_dir)
+                if solve(next_remaining):
+                    return True
+                used[a].discard(a_dir)
+                used[b].discard(b_dir)
+                assignments.pop(pair, None)
+            return False
+
+        if not solve(pending):
+            unresolved = ", ".join(f"{a}<->{b}" for a, b in pending)
+            raise RuntimeError(
+                "Unable to assign reciprocal directions to the assembled world: "
+                + unresolved
+            )
+
+        rebuilt: dict[str, list[ExitDefinition]] = {
+            room_key: list(fixed_by_room[room_key]) for room_key in raw_scenes
+        }
+        original_pairs_by_room: dict[str, set[tuple[str, str]]] = {
+            room_key: set() for room_key in raw_scenes
+        }
+
+        # Reuse each side's authored ExitDefinition so conditions, door keys,
+        # aliases, failure text, and travel prose survive a direction repair.
+        for pair, (a_dir, b_dir) in sorted(assignments.items()):
+            a, b = pair
+            sides = edges[pair]
+            a_proto = sides.get(a)
+            b_proto = sides.get(b)
+            if a_proto is None:
+                source = b_proto
+                a_proto = ExitDefinition(
+                    direction=a_dir,
+                    destination_key=b,
+                    name=raw_scenes[b].name,
+                    failure_text=source.failure_text if source else "You cannot go that way.",
+                    condition=source.condition if source else ViewCondition(),
+                    hidden_when_unavailable=source.hidden_when_unavailable if source else True,
+                    door_key=source.door_key if source else None,
+                )
+            else:
+                original_pairs_by_room[a].add(pair)
+            if b_proto is None:
+                source = a_proto
+                b_proto = ExitDefinition(
+                    direction=b_dir,
+                    destination_key=a,
+                    name=raw_scenes[a].name,
+                    failure_text=source.failure_text if source else "You cannot go that way.",
+                    condition=source.condition if source else ViewCondition(),
+                    hidden_when_unavailable=source.hidden_when_unavailable if source else True,
+                    door_key=source.door_key if source else None,
+                )
+            else:
+                original_pairs_by_room[b].add(pair)
+
+            rebuilt[a].append(replace(a_proto, direction=a_dir, destination_key=b))
+            rebuilt[b].append(replace(b_proto, direction=b_dir, destination_key=a))
+
+        self._topology_exits = {
+            room_key: tuple(
+                sorted(
+                    exits,
+                    key=lambda value: (
+                        preference.index(value.direction.strip().lower())
+                        if value.direction.strip().lower() in preference
+                        else len(preference),
+                        value.direction,
+                        value.destination_key,
+                    ),
+                )
+            )
+            for room_key, exits in rebuilt.items()
+        }
+
+        # The advanced WorldService is the presentation/condition authority, but
+        # the oldest movement layer still performs the final transition through
+        # mud.world.ROOMS_BY_KEY. Keep that legacy graph synchronized with the
+        # normalized directions so LOOK/EXITS and the actual movement command can
+        # never disagree.
+        normalized_rooms: dict[str, LegacyRoomDefinition] = {}
+        for room_key, exits in self._topology_exits.items():
+            legacy = self.legacy_rooms[room_key]
+            normalized = replace(
+                legacy,
+                exits={
+                    exit_def.direction.strip().lower(): exit_def.destination_key
+                    for exit_def in exits
+                },
+            )
+            normalized_rooms[room_key] = normalized
+            self.legacy_rooms[room_key] = normalized
+            if room_key in legacy_world.ROOMS_BY_KEY:
+                legacy_world.ROOMS_BY_KEY[room_key] = normalized
+
+        if normalized_rooms:
+            legacy_world.ROOMS = tuple(
+                normalized_rooms.get(room.key, room) for room in legacy_world.ROOMS
+            )
+
+        # Raw augmentation audits should describe the same topology too. Preserve
+        # all gating/travel metadata and change only the spatial command label.
+        for room_key, augmentation in tuple(self.augmentations.items()):
+            def normalized_augmented(exit_def: ExitDefinition) -> ExitDefinition:
+                direction = exit_def.direction.strip().lower()
+                if (
+                    direction not in opposites
+                    or exit_def.one_way
+                    or exit_def.destination_key not in raw_scenes
+                ):
+                    return exit_def
+                pair = tuple(sorted((room_key, exit_def.destination_key)))
+                assigned = assignments.get(pair)
+                if assigned is None:
+                    return exit_def
+                new_direction = assigned[0] if room_key == pair[0] else assigned[1]
+                return replace(exit_def, direction=new_direction)
+
+            self.augmentations[room_key] = replace(
+                augmentation,
+                exit_overrides=tuple(
+                    normalized_augmented(exit_def)
+                    for exit_def in augmentation.exit_overrides
+                ),
+                extra_exits=tuple(
+                    normalized_augmented(exit_def)
+                    for exit_def in augmentation.extra_exits
+                ),
+            )
+
+        self._scene_cache.clear()
+
+        changed = 0
+        for pair, sides in edges.items():
+            a, b = pair
+            assigned_a, assigned_b = assignments[pair]
+            old_a = sides.get(a)
+            old_b = sides.get(b)
+            if old_a is None or old_a.direction.strip().lower() != assigned_a:
+                changed += 1
+            if old_b is None or old_b.direction.strip().lower() != assigned_b:
+                changed += 1
+        return changed
+
+    def audit_reciprocal_exits(self) -> tuple[str, ...]:
+        """Report physical exits whose reverse direction does not lead back.
+
+        Cardinal/diagonal/vertical room movement is spatial grammar: if EAST
+        takes a player from A to B, WEST from B must return to A unless the
+        authored exit is explicitly marked one_way.  This audit runs against
+        fully canonicalized room scenes, so late runtime augmentations and
+        overrides are checked too.
+        """
+
+        opposites = {
+            "north": "south",
+            "south": "north",
+            "east": "west",
+            "west": "east",
+            "northeast": "southwest",
+            "southwest": "northeast",
+            "northwest": "southeast",
+            "southeast": "northwest",
+            "up": "down",
+            "down": "up",
+            "in": "out",
+            "out": "in",
+        }
+        problems: list[str] = []
+
+        for room_key in sorted(self.legacy_rooms):
+            scene = self.scene(room_key)
+            if scene is None:
+                continue
+            for exit_def in scene.exits:
+                direction = exit_def.direction.strip().lower()
+                reverse_direction = opposites.get(direction)
+                if reverse_direction is None or exit_def.one_way:
+                    continue
+
+                destination = self.scene(exit_def.destination_key)
+                if destination is None:
+                    continue
+
+                reverse = next(
+                    (
+                        candidate
+                        for candidate in destination.exits
+                        if candidate.direction.strip().lower() == reverse_direction
+                    ),
+                    None,
+                )
+                if reverse is None:
+                    problems.append(
+                        f"{room_key} {direction} -> {exit_def.destination_key}: "
+                        f"missing {reverse_direction} return exit"
+                    )
+                    continue
+                if reverse.destination_key != room_key:
+                    problems.append(
+                        f"{room_key} {direction} -> {exit_def.destination_key}: "
+                        f"{reverse_direction} returns to {reverse.destination_key}, not {room_key}"
+                    )
+
+        return tuple(problems)
+
     def validate_exit_integrity(self) -> None:
-        """Fail fast on ambiguous exits and verify every built scene is unique."""
+        """Fail fast on ambiguous, duplicate, or spatially inconsistent exits."""
 
         conflicts = [row for row in self.audit_exit_sources() if row.startswith("CONFLICT ")]
         if conflicts:
@@ -529,6 +866,12 @@ class WorldService:
                 seen.add(direction)
         if duplicates:
             raise RuntimeError("World scene exit uniqueness failed:\n- " + "\n- ".join(duplicates))
+
+        reciprocal = self.audit_reciprocal_exits()
+        if reciprocal:
+            raise RuntimeError(
+                "World reciprocal exit integrity failed:\n- " + "\n- ".join(reciprocal)
+            )
 
 
     def context_with_world(self, context: PlayerRoomContext, room_key: str) -> PlayerRoomContext:

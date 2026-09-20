@@ -51,7 +51,20 @@ assert len([direction for direction, _destination in circle if direction == "wes
 
 # Production startup calls this same validator after all content installers.
 world.validate_exit_integrity()
+assert not world.audit_reciprocal_exits(), world.audit_reciprocal_exits()
 
+# Regression for the route that exposed the bug in live play. Waymeet Crossroads
+# remains west of Marsh Causeway, and Junk City's Floodgate Walk is east of it.
+marsh = world.scene("waymeet_marsh_road")
+floodgate = world.scene("goblin_floodgate_walk")
+assert marsh is not None and floodgate is not None
+marsh_exits = {row.direction: row.destination_key for row in marsh.exits}
+floodgate_exits = {row.direction: row.destination_key for row in floodgate.exits}
+assert marsh_exits["west"] == "waymeet_crossroads", marsh_exits
+assert marsh_exits["east"] == "goblin_floodgate_walk", marsh_exits
+assert floodgate_exits["west"] == "waymeet_marsh_road", floodgate_exits
+
+print("RECIPROCAL_EXIT_REPAIRS", server._RECIPROCAL_EXIT_REPAIRS)
 print("RAW_REDUNDANT_EXIT_SOURCES", len(redundant))
 for row in redundant:
     print(row)
