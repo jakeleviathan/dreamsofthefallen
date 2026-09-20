@@ -166,6 +166,11 @@ class EconomyLoopTests(unittest.TestCase):
         self.assertEqual(self.db.get_trade_skill_progress(self.character.id, "blacksmithing")["skill_xp"], 0)
         self.assertIn("Crafting [", "".join(session.outputs))
         self.assertIn("100%", "".join(session.outputs))
+        self.assertIn(
+            "No Blacksmithing skill increase. Current skill: 0. "
+            "This recipe is trivial for you and can no longer raise it.",
+            "".join(session.outputs),
+        )
 
     def test_enemy_defeat_awards_hunter_material(self):
         session = self._session_in("human_vermin_pens")
