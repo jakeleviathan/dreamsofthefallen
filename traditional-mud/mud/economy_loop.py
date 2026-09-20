@@ -660,7 +660,7 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
     await session.send(
         f"\r\n{_recipe_paint(_RECIPE_HEADER, '=== RECIPE BOOK ===')}\r\n"
         f"Stations here: {station_text}\r\n"
-        "Use RECIPE <name> for full details. Internal recipe keys are hidden because you do not need them.\r\n"
+        "Use RECIPE <name> for full details.\r\n"
     )
 
     if mode == "overview":
