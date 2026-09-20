@@ -130,6 +130,7 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         lines.extend(["", _section_header("Notable", FEATURE), *notable])
 
     people: list[str] = []
+    mobile_threats: list[tuple[str, str]] = []
     for npc_key in scene.npc_keys:
         npc = NPCS_BY_KEY.get(npc_key)
         if npc is not None:
@@ -139,15 +140,22 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     if mobile_npcs is not None:
         static_names = {NPCS_BY_KEY[key].name for key in scene.npc_keys if key in NPCS_BY_KEY}
         for state in mobile_npcs.npcs_in_room(view.key):
-            if state.definition.name not in static_names:
+            definition = state.definition
+            is_enemy = (
+                bool(getattr(definition, "aggressive", False))
+                or bool(getattr(definition, "attackable", False))
+            )
+            if is_enemy:
+                mobile_threats.append((definition.name, definition.short_description))
+            elif definition.name not in static_names:
                 people.append(
-                    f"  {_paint(NPC, state.definition.name)} - {state.definition.short_description}"
+                    f"  {_paint(NPC, definition.name)} - {definition.short_description}"
                 )
 
     if people:
         lines.extend(["", _section_header("People", NPC), *people])
 
-    threats: list[str] = []
+    threat_records: list[tuple[str, str]] = []
     for enemy_key in scene.enemy_keys:
         enemy = ENEMIES_BY_KEY.get(enemy_key)
         if enemy is not None and static_enemy_available(
@@ -155,8 +163,26 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             enemy_key,
             database=getattr(session, "database", None),
         ):
-            threats.append(f"  {_paint(ENEMY, enemy.name)} - {enemy.description}")
-    if threats:
+            threat_records.append((enemy.name, enemy.description))
+    threat_records.extend(mobile_threats)
+
+    if threat_records:
+        counts: dict[str, int] = {}
+        descriptions: dict[str, str] = {}
+        order: list[str] = []
+        for name, description in threat_records:
+            if name not in counts:
+                order.append(name)
+                descriptions[name] = description
+                counts[name] = 0
+            counts[name] += 1
+        threats = [
+            (
+                f"  {_paint(ENEMY, name + (f' x{counts[name]}' if counts[name] > 1 else ''))}"
+                f" - {descriptions[name]}"
+            )
+            for name in order
+        ]
         lines.extend(["", _section_header("Danger", ENEMY), *threats])
 
     database = getattr(session, "database", None)

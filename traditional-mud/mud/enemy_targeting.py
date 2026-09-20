@@ -235,7 +235,10 @@ async def _select_enemy(session, target_text: str) -> bool:
     mobile_key = None
     if enemy is None:
         mobile_state = session._mobile_npc_in_current_room(target_text)
-        if mobile_state is not None and bool(getattr(mobile_state.definition, "aggressive", False)):
+        if mobile_state is not None and (
+            bool(getattr(mobile_state.definition, "aggressive", False))
+            or bool(getattr(mobile_state.definition, "attackable", False))
+        ):
             enemy = session._enemy_from_mobile_npc(mobile_state)
             current_hp = getattr(mobile_state, "current_hp", None)
             if current_hp is not None:
