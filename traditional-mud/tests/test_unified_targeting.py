@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from mud.enemy_targeting import (
     _player_candidates_here,
@@ -107,7 +108,13 @@ class UnifiedTargetRuntimeTests(unittest.IsolatedAsyncioTestCase):
         prime.selected_player_character_id = prime.character.id
         prime.selected_target_kind = "player"
 
-        await prime.use_ability("Mend Ally")
+        ability = SimpleNamespace(
+            key="mend_ally",
+            name="Mend Ally",
+            category="healing",
+        )
+        with patch("mud.enemy_targeting.class_abilities_for_level", return_value=(ability,)):
+            await prime.use_ability("Mend Ally")
         self.assertEqual(prime.forwarded_ability, "Mend Ally Prime")
 
     async def test_selected_player_does_not_become_attack_target(self):
@@ -136,7 +143,13 @@ class UnifiedTargetRuntimeTests(unittest.IsolatedAsyncioTestCase):
         prime.selected_target_kind = "player"
 
         # Hostile spells do not reinterpret a player selection as an enemy.
-        await prime.use_ability("Sacred Spark")
+        ability = SimpleNamespace(
+            key="sacred_spark",
+            name="Sacred Spark",
+            category="divine_damage",
+        )
+        with patch("mud.enemy_targeting.class_abilities_for_level", return_value=(ability,)):
+            await prime.use_ability("Sacred Spark")
         self.assertEqual(prime.forwarded_ability, "Sacred Spark")
         self.assertIsNone(prime.active_enemy)
 
