@@ -1210,11 +1210,21 @@ def craft_recipe(
         )
 
     new_skill = skill_value + (1 if skill_increased else 0)
-    learning = (
-        f" {recipe.trade_skill_key.title()} improves to {new_skill}."
-        if skill_increased
-        else ""
-    )
+    profession_name = recipe.trade_skill_key.title()
+    if skill_increased:
+        learning = f" {profession_name} improves to {new_skill}."
+    elif new_skill >= trivial:
+        learning = (
+            f" No {profession_name} skill increase; current skill is {new_skill}. "
+            "This recipe is trivial for you and can no longer raise the skill."
+        )
+    else:
+        skillup_pct = int(round(skillup_chance * 100))
+        learning = (
+            f" No {profession_name} skill increase this attempt; current skill is {new_skill}. "
+            f"This recipe can still train you ({skillup_pct}% chance per completed craft at this skill)."
+        )
+
     if crafted:
         message = f"Crafted {recipe.output_quantity}x {recipe.output_item_key}." + learning
     else:
