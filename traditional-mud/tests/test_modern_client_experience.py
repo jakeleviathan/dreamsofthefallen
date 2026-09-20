@@ -240,7 +240,7 @@ class ModernClientExperienceTests(unittest.TestCase):
 
     def test_official_client_sources_include_discovery_mapper_and_release_version(self):
         self.assertEqual(MODERN_CLIENT_VERSION, "2.0.0")
-        self.assertEqual(CURRENT_MUDLET_HUD_VERSION, "2.2.6")
+        self.assertEqual(CURRENT_MUDLET_HUD_VERSION, "2.2.7")
         self.assertEqual(configured_mudlet_gui_offer().version, OFFICIAL_MUDLET_HUD_VERSION)
 
         root = Path(__file__).resolve().parents[1]
@@ -286,7 +286,7 @@ assert server.PlayerSession._modern_client_runtime_installed
 assert server.PlayerSession._exploration_map_runtime_installed
 assert server.PlayerSession._exploration_map_gmcp_runtime_installed
 assert MODERN_CLIENT_VERSION == "2.0.0"
-assert CURRENT_MUDLET_HUD_VERSION == "2.2.6"
+assert CURRENT_MUDLET_HUD_VERSION == "2.2.7"
 assert configured_mudlet_gui_offer().enabled
 print("MODERN_CLIENT_OK")
 '''
