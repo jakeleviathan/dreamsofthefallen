@@ -51,24 +51,42 @@ _REGIONAL_BLOCKED_TAG_TOKENS = (
     "training",
     "home",
     "start",
+    "quest",
+    "story",
+    "boss",
+    "elite",
+    "unique",
+    "event",
+    "capstone",
+    "scripted",
+    "instance",
+    "arena",
+    "ritual",
+    "finale",
+    "setpiece",
 )
 _REGIONAL_WILD_TAG_TOKENS = (
     "wilderness",
-    "danger",
-    "combat",
     "swamp",
     "mire",
     "marsh",
+    "bog",
+    "fen",
     "forest",
     "wild",
     "hunt",
-    "road",
-    "route",
     "frontier",
     "field",
-    "ruin",
-    "dungeon",
     "reach",
+    "desert",
+    "tundra",
+    "cave",
+    "cavern",
+    "mountain",
+    "coast",
+    "shore",
+    "plains",
+    "grassland",
 )
 
 REVERSE_DIRECTIONS = {
@@ -589,7 +607,7 @@ class MobileNpcManager:
                 key=instance_key,
                 name=name,
                 short_description=(
-                    f"an unusually large and dangerous {base.description}, driven into a reckless hunger"
+                    f"{base.description}, visibly larger and more dangerous than the ordinary kind"
                 ),
                 spawn_room_key=spawn_room_key,
                 allowed_room_keys=pool.room_keys,
@@ -770,7 +788,7 @@ class MobileNpcManager:
                 continue
 
             region_states = [
-                state
+                self.states[instance_key]
                 for instance_key, mapped_pool in self._regional_instance_to_pool.items()
                 if instance_key in self.states
                 and self.regional_pools.get(mapped_pool) is not None
