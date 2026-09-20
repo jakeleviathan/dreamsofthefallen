@@ -180,6 +180,8 @@ from mud.seasonal_runtime import install_seasonal_runtime
 from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
 from mud.room_runtime import WORLD, install_room_runtime
+from mud.world import NPCS_BY_KEY
+from mud.npc_conversation import install_generic_npc_conversation_runtime
 from mud.room_state_storage import load_world_room_state, save_world_room_state
 
 
@@ -190,6 +192,11 @@ WORLD.augmentations.update(goblin_room_augmentations())
 # Build the live command/runtime stack from broad room behavior outward into
 # calendar/seasonal layers, then race-specific starter and progression systems.
 install_room_runtime(PlayerSession)
+# This fallback sits beneath every authored quest/runtime TALK handler. Those
+# systems get first chance to advance state; if none claims the command, any
+# visible static NPC can still be addressed by proper name and will deliver its
+# ordinary dialogue instead of the misleading "no one by that name" response.
+install_generic_npc_conversation_runtime(PlayerSession, WORLD, NPCS_BY_KEY)
 install_calendar_runtime(PlayerSession, WORLD)
 # Moon Elf culture interprets the existing astronomical moon cycle as a set of
 # reflective customs rather than prophecy, fate, or worship.
