@@ -27,11 +27,6 @@ jobs:
           sudo apt-get install -y lua5.1
       - name: Build official Mudlet package
         run: python mudlet/DreamsOfTheFallenHUD/build_package.py
-      - name: Verify committed Mudlet packages are current
-        run: |
-          git diff --exit-code -- \
-            ../DreamsOfTheFallenHUD.mpackage \
-            mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage
       - name: Run regression suite
         run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Verify modern Mudlet package
@@ -141,3 +136,8 @@ jobs:
           name: DreamsOfTheFallenServer
           path: DreamsOfTheFallenServer.zip
           if-no-files-found: error
+      - name: Verify committed Mudlet packages are current
+        run: |
+          git diff --exit-code -- \
+            ../DreamsOfTheFallenHUD.mpackage \
+            mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage
