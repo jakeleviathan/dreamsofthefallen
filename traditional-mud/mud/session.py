@@ -86,6 +86,7 @@ from mud.combat import ENEMIES_BY_KEY, EnemyDefinition, EnemyState, FLEE_RULES
 from mud.npcs import MobileNpcManager, NpcMovement
 from mud.telnet import TelnetConnection
 from mud.client_gui import MudletGuiOffer, configured_mudlet_gui_offer
+from mud.discord_presence import DiscordPresenceService
 from mud.merchants import MERCHANTS_BY_NPC_KEY
 from mud.welcome_banner import WELCOME_BANNER
 
@@ -319,6 +320,8 @@ class PlayerSession:
         self.telnet = TelnetConnection(reader, writer)
         self.mudlet_gui_offer = mudlet_gui_offer or configured_mudlet_gui_offer()
         self.mudlet_gui_offer_sent = False
+        self.discord_presence = DiscordPresenceService()
+        self.telnet.set_gmcp_message_handler(self._handle_client_gmcp)
 
     async def send(self, text: str) -> None:
         await self.telnet.send_text(text)
@@ -352,6 +355,31 @@ class PlayerSession:
         if sent:
             self.mudlet_gui_offer_sent = True
         return sent
+
+    async def _handle_client_gmcp(self, package: str, payload: object) -> None:
+        """Handle supported client-originated GMCP extensions.
+
+        Discord usernames are intentionally ignored. Rich presence is a
+        one-way presentation feature; Dreams does not build a player directory
+        from External.Discord.Hello, including when the client marks itself
+        private.
+        """
+        normalized = package.lower()
+        if normalized == "external.discord.hello":
+            self.discord_presence.ready = True
+            await self.telnet.send_gmcp("External.Discord.Info", self.discord_presence.info_payload())
+            await self.send_discord_presence(force=True)
+        elif normalized == "external.discord.get":
+            self.discord_presence.ready = True
+            await self.send_discord_presence(force=True)
+
+    async def send_discord_presence(self, *, force: bool = False) -> bool:
+        if not self.telnet.gmcp_enabled or not self.discord_presence.ready:
+            return False
+        payload = self.discord_presence.status_if_changed(self, force=force)
+        if payload is None:
+            return False
+        return await self.telnet.send_gmcp("External.Discord.Status", payload)
 
     async def send_client_state(self) -> None:
         """Push live out-of-band vitals to GMCP-capable clients such as Mudlet.
@@ -464,6 +492,10 @@ class PlayerSession:
                 "character_id": 0,
             }
         await self.telnet.send_gmcp("Dreams.Target", target_payload)
+        # Rich Presence intentionally excludes rapidly changing HP/mana values.
+        # The service de-duplicates unchanged full-state payloads, so calling it
+        # alongside normal GMCP state is cheap even during combat ticks.
+        await self.send_discord_presence()
 
     async def run(self) -> None:
         print(f"Connected: {self.peer}")
@@ -1454,6 +1486,11 @@ class PlayerSession:
             self.state = SessionState.DISCONNECTED
             return
 
+        # Transient presence such as "Crafting ..." lasts until the player
+        # actually begins their next command, then normal exploration/combat
+        # state takes over again.
+        self.discord_presence.clear_activity()
+
         verb = command.strip().lower()
         if verb in {"help", "?"}:
             await self.send(
@@ -1955,6 +1992,11 @@ class PlayerSession:
             # deliberately no invisible forge available everywhere.
             result = craft_recipe(self.database, self.character.id, recipe_key, station_key=None)
             await self.send(result.message + "\r\n")
+            if result.completed:
+                output = ITEMS_BY_KEY.get(result.output_item_key or "")
+                label = output.name if output is not None else recipe_key.replace("_", " ").title()
+                self.discord_presence.set_activity("crafting", label)
+                await self.send_discord_presence(force=True)
             return
 
         if verb in {"mine", "mining"}:
@@ -1983,6 +2025,8 @@ class PlayerSession:
             self.character = None
             self.combatant = None
             self.state = SessionState.CHARACTER_MENU
+            self.discord_presence.clear_activity()
+            await self.send_discord_presence(force=True)
             return
 
         if verb in {"quit", "q"}:
