@@ -41,7 +41,7 @@ class TelnetGuiNegotiationTests(unittest.IsolatedAsyncioTestCase):
         expected_body = (
             'Client.GUI '
             f'{{"version":"{OFFICIAL_MUDLET_HUD_VERSION}",'
-            f'"url":"{OFFICIAL_MUDLET_HUD_URL}"}}'
+            f'"url":"{OFFICIAL_MUDLET_HUD_URL}","baseui":false}}'
         ).encode("utf-8")
         expected_frame = bytes((IAC, SB, GMCP)) + expected_body + bytes((IAC, SE))
 
