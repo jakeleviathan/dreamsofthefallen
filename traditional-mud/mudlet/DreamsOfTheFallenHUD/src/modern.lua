@@ -1,5 +1,5 @@
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.6
+-- Version 2.2.7
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -7,7 +7,7 @@
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.6"
+H.version = "2.2.7"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -27,7 +27,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.6"
+local MODERN_UI_VERSION = "2.2.7"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -151,7 +151,7 @@ local QUEST_TITLE_TEXT = [[
     background-color: transparent;
     border: 0px;
     color: #f0d39d;
-    font-size: 13pt;
+    font-size: 16pt;
     font-weight: bold;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignTop';
@@ -163,7 +163,7 @@ local QUEST_OBJECTIVE_TEXT = [[
     background-color: transparent;
     border: 0px;
     color: #f1e9dd;
-    font-size: 11pt;
+    font-size: 14pt;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignTop';
   }
@@ -173,8 +173,8 @@ local QUEST_MORE_TEXT = [[
   QLabel {
     background-color: transparent;
     border: 0px;
-    color: #c7bac9;
-    font-size: 10pt;
+    color: #ddd2e0;
+    font-size: 12pt;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignTop';
   }
@@ -474,9 +474,9 @@ function H.buildModern()
   H.partyFooter = label(H.partyPane, "DreamsHUD.PartyFooter", 8, 260, -16, -8, MUTED_TEXT)
 
   H.questPane = Geyser.Container:new({ name = "DreamsHUD.QuestPane", x = 0, y = 0, width = "100%", height = "100%" }, H.contentFrame)
-  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 8, 10, -16, 38, QUEST_TITLE_TEXT)
-  H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 58, -16, 112, QUEST_OBJECTIVE_TEXT)
-  H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 180, -16, 58, QUEST_MORE_TEXT)
+  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 8, 10, -16, 46, QUEST_TITLE_TEXT)
+  H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 66, -16, 112, QUEST_OBJECTIVE_TEXT)
+  H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 136, -16, 52, QUEST_MORE_TEXT)
   H.questButton = label(H.questPane, "DreamsHUD.QuestButton", 8, -42, -16, 34, BUTTON_STYLE)
   H.questButton:echo("<center>OPEN QUEST LOG</center>")
   H.questButton:setClickCallback("DreamsHUD.runAction", "QUESTS")
