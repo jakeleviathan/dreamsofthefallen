@@ -493,7 +493,7 @@ H.init()
 
 -- BEGIN modern.lua
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.9
+-- Version 2.2.10
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -501,7 +501,7 @@ H.init()
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.9"
+H.version = "2.2.10"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -512,6 +512,7 @@ H.state.abilities = H.state.abilities or { abilities = {} }
 H.state.effects = H.state.effects or { effects = {} }
 H.state.context = H.state.context or { actions = {} }
 H.state.onboarding = H.state.onboarding or { active = false }
+H.state.crafting = H.state.crafting or { active = false }
 H.state.selected_ally = H.state.selected_ally or ""
 H.activePanel = (H.activePanel == nil or H.activePanel == "map") and "effects" or H.activePanel
 H.modernHandlers = H.modernHandlers or {}
@@ -521,7 +522,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.9"
+local MODERN_UI_VERSION = "2.2.10"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -1377,8 +1378,36 @@ function H.renderContext()
   -- but the bottom deck is reserved exclusively for hotbar configuration.
 end
 
+local function craftingBar(percent)
+  local width = 20
+  local value = math.max(0, math.min(100, tonumber(percent) or 0))
+  local filled = math.floor((value / 100) * width + 0.5)
+  return "[" .. string.rep("=", filled) .. string.rep("-", width - filled) .. "]"
+end
+
+function H.renderCrafting()
+  if not H.modernBuilt or not H.onboarding then return false end
+  local craft = H.state.crafting or { active = false }
+  if not craft.active then return false end
+
+  local item = escape(truncate(craft.item or "something", 30))
+  local percent = math.max(0, math.min(100, tonumber(craft.percent) or 0))
+  local remaining = math.max(0, tonumber(craft.remaining) or 0)
+  local bar = craftingBar(percent)
+  H.onboarding:echo(
+    "&lt;span style='color:#dfc18c'&gt;&lt;b&gt;CRAFTING&lt;/b&gt;&lt;/span&gt;  " ..
+    item ..
+    "  &lt;span style='color:#b69772'&gt;&lt;b&gt;" .. bar .. "&lt;/b&gt;&lt;/span&gt;  " ..
+    tostring(math.floor(percent + 0.5)) .. "%  •  " ..
+    string.format("%.1fs", remaining)
+  )
+  setTooltip(H.onboarding, "Movement or damage interrupts this craft without consuming materials.")
+  return true
+end
+
 function H.renderOnboarding()
   if not H.modernBuilt then return end
+  if H.renderCrafting() then return end
   local o = H.state.onboarding or { active = false }
   if not o.active then
     H.onboarding:echo("Top row: use abilities. Bottom row: click SET to cycle each hotkey through learned abilities. Assignments are saved per character.")
@@ -1457,6 +1486,46 @@ function H.onOnboardingModern()
   H.renderOnboarding()
 end
 
+function H.onCraftingModern()
+  local data = gmcp and gmcp.Dreams and gmcp.Dreams.Crafting
+  if not data then return end
+  H.state.crafting = data
+  H.craftingNoticeSerial = (tonumber(H.craftingNoticeSerial) or 0) + 1
+  local serial = H.craftingNoticeSerial
+
+  if data.active then
+    H.renderOnboarding()
+    return
+  end
+
+  if not H.modernBuilt or not H.onboarding then return end
+  local status = tostring(data.status or "")
+  local item = escape(truncate(data.item or "craft", 30))
+  local message = nil
+  if status == "complete" then
+    message = "&lt;span style='color:#a9d39f'&gt;&lt;b&gt;CRAFT COMPLETE&lt;/b&gt;&lt;/span&gt;  " .. item
+  elseif status == "failed" then
+    message = "&lt;span style='color:#d7a17a'&gt;&lt;b&gt;CRAFT FAILED&lt;/b&gt;&lt;/span&gt;  " .. item
+  elseif status == "interrupted" then
+    message = "&lt;span style='color:#cf8e98'&gt;&lt;b&gt;CRAFT INTERRUPTED&lt;/b&gt;&lt;/span&gt;  " .. item
+  end
+
+  if not message then
+    H.renderOnboarding()
+    return
+  end
+
+  H.onboarding:echo(message)
+  setTooltip(H.onboarding, "")
+  if tempTimer then
+    tempTimer(1.2, function()
+      if H.craftingNoticeSerial == serial and not ((H.state.crafting or {}).active) then
+        H.renderOnboarding()
+      end
+    end)
+  end
+end
+
 function H.onEventModern()
   local data = gmcp and gmcp.Dreams and gmcp.Dreams.Event
   if not data then return end
@@ -1494,6 +1563,7 @@ function H.registerModernHandlers()
     effects = {"gmcp.Dreams.Effects", H.onEffectsModern},
     context = {"gmcp.Dreams.Context", H.onContextModern},
     onboarding = {"gmcp.Dreams.Onboarding", H.onOnboardingModern},
+    crafting = {"gmcp.Dreams.Crafting", H.onCraftingModern},
     event = {"gmcp.Dreams.Event", H.onEventModern},
   }
   for key, spec in pairs(names) do
