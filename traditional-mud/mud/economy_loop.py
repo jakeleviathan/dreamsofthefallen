@@ -73,6 +73,7 @@ _RECIPE_READY = "\x1b[1;92m"
 _RECIPE_AVAILABLE = "\x1b[92m"
 _RECIPE_LOCKED = "\x1b[90m"
 _RECIPE_MATERIAL = "\x1b[93m"
+_RECIPE_OWNED_MATERIAL = "\x1b[95m"
 _RECIPE_WARNING = "\x1b[91m"
 
 
@@ -558,10 +559,13 @@ def _recipe_line(session, recipe: CraftingRecipe, *, include_materials: bool = T
     )
     if include_materials:
         materials = ", ".join(
-            f"{need}x {_material_name(requirement.item_key)}"
-            for requirement, need in ((req, req.quantity) for req in recipe.materials)
+            _recipe_paint(
+                _RECIPE_OWNED_MATERIAL if owned > 0 else _RECIPE_MATERIAL,
+                f"{needed}x {name}",
+            )
+            for owned, needed, name in state["materials"]
         )
-        line += f"       {_recipe_paint(_RECIPE_MATERIAL, materials)}\r\n"
+        line += f"       {materials}\r\n"
     return line
 
 async def _show_recipe_help(session) -> None:
