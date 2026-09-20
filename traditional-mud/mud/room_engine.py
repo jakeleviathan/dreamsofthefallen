@@ -38,6 +38,7 @@ class ViewCondition:
     weather: tuple[str, ...] = ()
     min_level: int = 0
     required_flags_for_races: tuple[str, ...] = ()
+    min_level_for_races: tuple[str, ...] = ()
 
     def matches(self, context: "PlayerRoomContext") -> bool:
         if self.races and context.race_key not in self.races:
@@ -62,7 +63,11 @@ class ViewCondition:
             return False
         if self.weather and context.weather not in self.weather:
             return False
-        if context.level < self.min_level:
+        min_level_applies = (
+            not self.min_level_for_races
+            or context.race_key in self.min_level_for_races
+        )
+        if min_level_applies and context.level < self.min_level:
             return False
         return True
 
