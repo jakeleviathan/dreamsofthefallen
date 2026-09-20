@@ -4,6 +4,7 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Mapping
 
+import mud.world as legacy_world
 from mud.world import (
     HUMAN_START_ROOM_KEY,
     ROOMS_BY_KEY,
@@ -669,18 +670,28 @@ class WorldService:
             a_proto = sides.get(a)
             b_proto = sides.get(b)
             if a_proto is None:
+                source = b_proto
                 a_proto = ExitDefinition(
                     direction=a_dir,
                     destination_key=b,
                     name=raw_scenes[b].name,
+                    failure_text=source.failure_text if source else "You cannot go that way.",
+                    condition=source.condition if source else ViewCondition(),
+                    hidden_when_unavailable=source.hidden_when_unavailable if source else True,
+                    door_key=source.door_key if source else None,
                 )
             else:
                 original_pairs_by_room[a].add(pair)
             if b_proto is None:
+                source = a_proto
                 b_proto = ExitDefinition(
                     direction=b_dir,
                     destination_key=a,
                     name=raw_scenes[a].name,
+                    failure_text=source.failure_text if source else "You cannot go that way.",
+                    condition=source.condition if source else ViewCondition(),
+                    hidden_when_unavailable=source.hidden_when_unavailable if source else True,
+                    door_key=source.door_key if source else None,
                 )
             else:
                 original_pairs_by_room[b].add(pair)
@@ -703,6 +714,62 @@ class WorldService:
             )
             for room_key, exits in rebuilt.items()
         }
+
+        # The advanced WorldService is the presentation/condition authority, but
+        # the oldest movement layer still performs the final transition through
+        # mud.world.ROOMS_BY_KEY. Keep that legacy graph synchronized with the
+        # normalized directions so LOOK/EXITS and the actual movement command can
+        # never disagree.
+        normalized_rooms: dict[str, LegacyRoomDefinition] = {}
+        for room_key, exits in self._topology_exits.items():
+            legacy = self.legacy_rooms[room_key]
+            normalized = replace(
+                legacy,
+                exits={
+                    exit_def.direction.strip().lower(): exit_def.destination_key
+                    for exit_def in exits
+                },
+            )
+            normalized_rooms[room_key] = normalized
+            self.legacy_rooms[room_key] = normalized
+            if room_key in legacy_world.ROOMS_BY_KEY:
+                legacy_world.ROOMS_BY_KEY[room_key] = normalized
+
+        if normalized_rooms:
+            legacy_world.ROOMS = tuple(
+                normalized_rooms.get(room.key, room) for room in legacy_world.ROOMS
+            )
+
+        # Raw augmentation audits should describe the same topology too. Preserve
+        # all gating/travel metadata and change only the spatial command label.
+        for room_key, augmentation in tuple(self.augmentations.items()):
+            def normalized_augmented(exit_def: ExitDefinition) -> ExitDefinition:
+                direction = exit_def.direction.strip().lower()
+                if (
+                    direction not in opposites
+                    or exit_def.one_way
+                    or exit_def.destination_key not in raw_scenes
+                ):
+                    return exit_def
+                pair = tuple(sorted((room_key, exit_def.destination_key)))
+                assigned = assignments.get(pair)
+                if assigned is None:
+                    return exit_def
+                new_direction = assigned[0] if room_key == pair[0] else assigned[1]
+                return replace(exit_def, direction=new_direction)
+
+            self.augmentations[room_key] = replace(
+                augmentation,
+                exit_overrides=tuple(
+                    normalized_augmented(exit_def)
+                    for exit_def in augmentation.exit_overrides
+                ),
+                extra_exits=tuple(
+                    normalized_augmented(exit_def)
+                    for exit_def in augmentation.extra_exits
+                ),
+            )
+
         self._scene_cache.clear()
 
         changed = 0
