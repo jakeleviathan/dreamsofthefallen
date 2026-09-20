@@ -23,5 +23,5 @@ Every button sends an ordinary MUD command. Players using a raw Telnet client re
 The HUD is designed to be offered automatically by the Dreams of the Fallen server through Mudlet's `Client.GUI` GMCP extension.
 ]]
 version = "2.2.9"
-created = "2026-09-18T17:45:00-04:00"
+created = "2026-09-20T16:55:00-04:00"
 dependencies = ""
