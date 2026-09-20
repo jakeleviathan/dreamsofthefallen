@@ -38,7 +38,11 @@ REGION = "\x1b[90m"
 BODY = "\x1b[37m"
 FEATURE = "\x1b[96m"
 NPC = "\x1b[92m"
-ENEMY = "\x1b[1;91m"
+CREATURE = "\x1b[93m"
+HOSTILE = "\x1b[1;91m"
+# Compatibility alias for older imports. New room presentation uses CREATURE
+# for attackable-but-passive beings and HOSTILE only for on-sight aggressors.
+ENEMY = HOSTILE
 CORPSE = "\x1b[33m"
 EXIT = "\x1b[94m"
 BUSINESS = "\x1b[95m"
@@ -130,7 +134,8 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         lines.extend(["", _section_header("Notable", FEATURE), *notable])
 
     people: list[str] = []
-    mobile_threats: list[tuple[str, str]] = []
+    creature_records: list[tuple[str, str]] = []
+    hostile_records: list[tuple[str, str]] = []
     for npc_key in scene.npc_keys:
         npc = NPCS_BY_KEY.get(npc_key)
         if npc is not None:
@@ -141,12 +146,12 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         static_names = {NPCS_BY_KEY[key].name for key in scene.npc_keys if key in NPCS_BY_KEY}
         for state in mobile_npcs.npcs_in_room(view.key):
             definition = state.definition
-            is_enemy = (
-                bool(getattr(definition, "aggressive", False))
-                or bool(getattr(definition, "attackable", False))
-            )
-            if is_enemy:
-                mobile_threats.append((definition.name, definition.short_description))
+            aggressive = bool(getattr(definition, "aggressive", False))
+            attackable = bool(getattr(definition, "attackable", False))
+            if aggressive:
+                hostile_records.append((definition.name, definition.short_description))
+            elif attackable:
+                creature_records.append((definition.name, definition.short_description))
             elif definition.name not in static_names:
                 people.append(
                     f"  {_paint(NPC, definition.name)} - {definition.short_description}"
@@ -155,7 +160,9 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     if people:
         lines.extend(["", _section_header("People", NPC), *people])
 
-    threat_records: list[tuple[str, str]] = []
+    # Authored room enemies do not auto-aggro merely because they can fight.
+    # They therefore belong under Creatures. Only mobile definitions explicitly
+    # marked aggressive appear under Hostile.
     for enemy_key in scene.enemy_keys:
         enemy = ENEMIES_BY_KEY.get(enemy_key)
         if enemy is not None and static_enemy_available(
@@ -163,27 +170,31 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             enemy_key,
             database=getattr(session, "database", None),
         ):
-            threat_records.append((enemy.name, enemy.description))
-    threat_records.extend(mobile_threats)
+            creature_records.append((enemy.name, enemy.description))
 
-    if threat_records:
+    def append_actor_section(label: str, color: str, records: list[tuple[str, str]]) -> None:
+        if not records:
+            return
         counts: dict[str, int] = {}
         descriptions: dict[str, str] = {}
         order: list[str] = []
-        for name, description in threat_records:
+        for name, description in records:
             if name not in counts:
                 order.append(name)
                 descriptions[name] = description
                 counts[name] = 0
             counts[name] += 1
-        threats = [
+        rendered = [
             (
-                f"  {_paint(ENEMY, name + (f' x{counts[name]}' if counts[name] > 1 else ''))}"
+                f"  {_paint(color, name + (f' x{counts[name]}' if counts[name] > 1 else ''))}"
                 f" - {descriptions[name]}"
             )
             for name in order
         ]
-        lines.extend(["", _section_header("Danger", ENEMY), *threats])
+        lines.extend(["", _section_header(label, color), *rendered])
+
+    append_actor_section("Creatures", CREATURE, creature_records)
+    append_actor_section("Hostile", HOSTILE, hostile_records)
 
     database = getattr(session, "database", None)
     current = time()
