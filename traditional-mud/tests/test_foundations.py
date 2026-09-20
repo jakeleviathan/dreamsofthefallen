@@ -1144,7 +1144,7 @@ class MudletProtocolTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(offer.url, OFFICIAL_MUDLET_HUD_URL)
             self.assertEqual(
                 offer.url,
-                "https://mud.lvthn.io/DreamsOfTheFallenHUD.mpackage",
+                "https://raw.githubusercontent.com/jakeleviathan/dreamsofthefallen/main/DreamsOfTheFallenHUD.mpackage?v=2.2.6",
             )
             self.assertEqual(offer.version, OFFICIAL_MUDLET_HUD_VERSION)
         finally:
