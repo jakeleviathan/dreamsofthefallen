@@ -105,6 +105,20 @@ class DiscordPresenceServiceTests(unittest.TestCase):
         self.assertEqual(status["starttime"], "1700000000")
         self.assertEqual(status["game"], "Dreams of the Fallen")
 
+    def test_presence_prefers_live_production_world_scene_over_legacy_rooms(self) -> None:
+        session = self._session()
+        session.character = replace(session.character, current_room="dynamic_live_room")
+        dynamic_scene = SimpleNamespace(
+            key="dynamic_live_room",
+            name="The Clockwork Causeway",
+            region_key="veyra",
+            tags=("city", "road"),
+        )
+        fake_world = SimpleNamespace(scene=lambda room_key: dynamic_scene if room_key == "dynamic_live_room" else None)
+        with patch("mud.room_runtime.WORLD", fake_world):
+            status = session.discord_presence.build_status(session)
+        self.assertIn("The Clockwork Causeway", status["state"])
+
     def test_combat_takes_priority_over_exploration(self) -> None:
         session = self._session()
         session.active_enemy = EnemyState(ENEMIES_BY_KEY["sewer_rat"])
