@@ -493,7 +493,7 @@ H.init()
 
 -- BEGIN modern.lua
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.5
+-- Version 2.2.6
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -501,7 +501,7 @@ H.init()
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.5"
+H.version = "2.2.6"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -521,7 +521,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.5"
+local MODERN_UI_VERSION = "2.2.6"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
