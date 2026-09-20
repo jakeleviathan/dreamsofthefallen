@@ -80,9 +80,16 @@ def build() -> Path:
     lua = combined_lua()
     bootstrap = BOOTSTRAP_PATH.read_text(encoding="utf-8")
     XML_PATH.write_text(build_xml(lua, bootstrap), encoding="utf-8")
+    # Build byte-for-byte reproducible packages. ZipFile.write() preserves
+    # filesystem mtimes, which made the committed .mpackage look stale on every
+    # CI run even when its contents were identical.
+    fixed_timestamp = (2026, 1, 1, 0, 0, 0)
     with zipfile.ZipFile(PACKAGE_PATH, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.write(XML_PATH, XML_PATH.name)
-        zf.write(CONFIG_PATH, CONFIG_PATH.name)
+        for path in (XML_PATH, CONFIG_PATH):
+            info = zipfile.ZipInfo(path.name, date_time=fixed_timestamp)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            zf.writestr(info, path.read_bytes())
     shutil.copyfile(PACKAGE_PATH, DISTRIBUTION_PATH)
     return PACKAGE_PATH
 

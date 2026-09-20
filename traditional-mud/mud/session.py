@@ -363,6 +363,11 @@ class PlayerSession:
         if self.character is None or self.combatant is None or not self.telnet.gmcp_enabled:
             return
 
+        # Offer/decline GUI handling before the first Char.Vitals packet. Mudlet
+        # builds its generic Base UI as soon as it sees recognizable game state,
+        # so Client.GUI must win that race for brand-new profiles.
+        await self.offer_official_mudlet_hud()
+
         # Char.Status keeps combat-opponent semantics for generic clients, while
         # Dreams.Target represents the player's actual current selection. That
         # selection may be self/another player even while an enemy remains the

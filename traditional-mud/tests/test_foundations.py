@@ -1207,6 +1207,9 @@ class MudletProtocolTests(unittest.IsolatedAsyncioTestCase):
             await session.send_client_state()
 
             raw = bytes(writer.buffer)
+            self.assertIn(b'Client.GUI', raw)
+            self.assertIn(b'"baseui":false', raw)
+            self.assertLess(raw.index(b'Client.GUI'), raw.index(b'Char.Vitals'))
             self.assertIn(b'Char.Vitals', raw)
             self.assertIn(b'"hp":31', raw)
             self.assertIn(b'"mana":14', raw)

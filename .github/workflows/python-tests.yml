@@ -45,7 +45,7 @@ jobs:
               config = zf.read("config.lua").decode("utf-8")
           for marker in ("Dreams.Room", "Dreams.Map", "Dreams.Party", "Dreams.Quests", "Dreams.Inventory", "Dreams.Abilities", "Dreams.Effects", "Dreams.Context", "Dreams.Onboarding", "DreamsHUD.EffectsPane"):
               assert marker in xml, marker
-          assert 'version = "2.2.8"' in config
+          assert 'version = "2.2.9"' in config
 
           root = ET.fromstring(xml)
           embedded_lua = root.findtext(".//Script/script")
@@ -53,8 +53,9 @@ jobs:
           assert "QUEST_TITLE_TEXT" in embedded_lua
           assert "QUEST_OBJECTIVE_TEXT" in embedded_lua
           assert "QUEST_MORE_TEXT" in embedded_lua
-          assert "font-size: 16pt" in embedded_lua
-          assert "font-size: 14pt" in embedded_lua
+          assert "expandAlias(\"baseui hide\", false)" in embedded_lua
+          assert "font-size: 20pt" in embedded_lua
+          assert "font-size: 17pt" in embedded_lua
           bootstrap_lua = root.findtext(".//TriggerPackage/Trigger/script")
           assert bootstrap_lua and "loadstring(source)" in bootstrap_lua
           bootstrap_trigger = root.find(".//TriggerPackage/Trigger")
@@ -135,3 +136,8 @@ jobs:
           name: DreamsOfTheFallenServer
           path: DreamsOfTheFallenServer.zip
           if-no-files-found: error
+      - name: Verify committed Mudlet packages are current
+        run: |
+          git diff --exit-code -- \
+            ../DreamsOfTheFallenHUD.mpackage \
+            mudlet/DreamsOfTheFallenHUD/DreamsOfTheFallenHUD.mpackage
