@@ -119,6 +119,17 @@ class DiscordPresenceServiceTests(unittest.TestCase):
             status = session.discord_presence.build_status(session)
         self.assertIn("The Clockwork Causeway", status["state"])
 
+    def test_active_structured_quest_is_named_in_presence(self) -> None:
+        session = self._session()
+        session.database.start_quest(
+            session.character.id,
+            "human_cathedral_summons",
+            "read_note",
+        )
+        status = session.discord_presence.build_status(session)
+        self.assertIn("Questing: A Summons to the Cathedral", status["state"])
+        self.assertIn("A Summons to the Cathedral", status["details"])
+
     def test_combat_takes_priority_over_exploration(self) -> None:
         session = self._session()
         session.active_enemy = EnemyState(ENEMIES_BY_KEY["sewer_rat"])
