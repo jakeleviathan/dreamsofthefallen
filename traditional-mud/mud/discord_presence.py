@@ -218,6 +218,10 @@ class DiscordPresenceService:
             state = _clean_text(f"Gathering {self.activity_label}" if self.activity_label else "Gathering in Astralis")
         elif self.activity_kind == "questing" and self.activity_label and not sensitive:
             state = _clean_text(f"Questing: {self.activity_label}")
+        elif quest is not None and quest[1].lower() != "discovery" and quest[0] and not sensitive:
+            state = _clean_text(
+                f"Questing: {quest[0]} • {room_name}" if room is not None else f"Questing: {quest[0]}"
+            )
         elif sensitive:
             state = "Exploring somewhere forgotten in Astralis"
         elif room is not None:
