@@ -9,7 +9,7 @@ The official game title is **Dreams of the Fallen**, set on the world of **Astra
 ## Current runnable milestone
 
 - Async TCP/Telnet-compatible Python server on port 4000
-- Server-driven **Discord Rich Presence over GMCP** for Mudlet, with dynamic exploration/combat/crafting/party state, class icon fallbacks, session timing, and spoiler-safe handling of hidden areas
+- Server-driven **Discord Rich Presence over GMCP** for Mudlet, with dynamic exploration/quest/combat/recovery/crafting/party state, class icon fallbacks, session timing, and spoiler-safe handling of hidden areas
 - Independent session per connected player
 - SQLite persistence with in-place development migrations
 - Secure password hashing using Python's built-in scrypt
