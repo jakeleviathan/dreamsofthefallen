@@ -495,7 +495,7 @@ def install_movement_runtime(player_session_class, world_service) -> None:
                 if is_restful_place(world_service, self.character.current_room or "")
                 else ""
             )
-            await self.send("You settle down and rest. Movement will recover much faster." + place_text + "\r\n")
+            await self.send("You settle down and rest. Movement will recover much faster, and health will recover faster too." + place_text + "\r\n")
             await self.send_client_state()
             return
         if normalized in {"stand", "stand up", "rise"}:
@@ -524,7 +524,7 @@ def install_movement_runtime(player_session_class, world_service) -> None:
 
         if normalized in {"help", "?"}:
             await self.send(
-                "Travel: MOVEMENT shows fatigue; REST accelerates recovery; STAND ends resting. "
+                "Travel: MOVEMENT shows fatigue; REST accelerates movement and health recovery; STAND ends resting. "
                 "Ordinary travel costs little, difficult terrain costs more, and FLEE consumes movement.\r\n"
             )
 
