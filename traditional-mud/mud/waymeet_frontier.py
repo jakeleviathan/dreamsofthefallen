@@ -802,7 +802,7 @@ async def _browse_market(session, target: str) -> bool:
             "Sols are accepted here; local road work and repeatable contracts pay them.\r\n"
         )
         return True
-    if normalized in {"nix", "nix coil", "broker"}:
+    if normalized in {"vekk", "vekk coil", "broker"}:
         await session.send("Vekk Coil - 4 sparks each: BUY IRON, BUY COTTON, BUY HERBS, BUY COAL.\r\n")
         return True
     if normalized in {"sevra", "sevra lent", "provisioner"}:
