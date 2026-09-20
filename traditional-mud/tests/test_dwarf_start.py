@@ -125,11 +125,24 @@ class DwarfStartTests(unittest.TestCase):
             level=1,
             character_flags=frozenset({DWARF_CIVIC_CLEARANCE_FLAG}),
         )
+        visitor = PlayerRoomContext(
+            character_id=2,
+            race_key="goblin",
+            class_key="priest",
+            level=5,
+        )
         hidden = service.resolve_exit(DWARF_LIFT_PLATFORM_KEY, "up", unready)
         opened = service.resolve_exit(DWARF_LIFT_PLATFORM_KEY, "up", ready)
+        visitor_opened = service.resolve_exit(DWARF_LIFT_PLATFORM_KEY, "up", visitor)
         self.assertFalse(hidden.allowed)
         self.assertTrue(opened.allowed)
+        self.assertTrue(visitor_opened.allowed)
         self.assertEqual(opened.exit.destination_key, "dwarf_upper_freight_deck")
+        self.assertEqual(visitor_opened.exit.destination_key, "dwarf_upper_freight_deck")
+
+        visitor_view = service.build_view(DWARF_LIFT_PLATFORM_KEY, visitor)
+        self.assertIsNotNone(visitor_view)
+        self.assertIn("up", {exit_view.direction for exit_view in visitor_view.exits})
 
     def test_new_dwarf_is_upgraded_into_authored_start_with_persistent_work_order(self):
         temp, database, session = self._database_session()
