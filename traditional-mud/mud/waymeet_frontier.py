@@ -531,6 +531,37 @@ def _replace_npc(npc: NpcDefinition) -> None:
     legacy_world.NPCS_BY_KEY[npc.key] = npc
 
 
+def _install_homeland_legacy_links() -> tuple[str, ...]:
+    """Mirror Waymeet's gated extra exits into legacy movement data.
+
+    The advanced room layer owns visibility, gating, names, and travel text, but
+    PlayerSession's core movement still performs the final room transition from
+    the legacy RoomDefinition. Keeping both layers pointed at the same
+    destination prevents a visible/allowed route from printing travel text and
+    then failing with "You cannot go that way."
+    """
+
+    patched: list[str] = []
+    for room_key, direction, destination, _name, _flag in HOMELAND_LINKS:
+        room = legacy_world.ROOMS_BY_KEY.get(room_key)
+        if room is None:
+            continue
+        existing = room.exits.get(direction)
+        if existing is not None and existing != destination:
+            raise RuntimeError(
+                "Waymeet homeland link conflicts with an existing legacy exit: "
+                f"{room_key} {direction} -> {existing}, expected {destination}"
+            )
+        if existing == destination:
+            patched.append(room_key)
+            continue
+        exits = dict(room.exits)
+        exits[direction] = destination
+        _replace_room(replace(room, exits=exits))
+        patched.append(room_key)
+    return tuple(patched)
+
+
 def install_waymeet_content(world_service=None) -> None:
     for quest in WAYMEET_QUESTS:
         if quest.key not in quests.QUESTS_BY_KEY:
@@ -552,6 +583,7 @@ def install_waymeet_content(world_service=None) -> None:
         _replace_npc(npc)
     for room in WAYMEET_ROOMS:
         _replace_room(room)
+    homeland_rooms = _install_homeland_legacy_links()
 
     economy.ROOM_RESOURCE_NODE_KEYS[WAYMEET_BRIARCUT_KEY] = ("cotton_patch", "greenleaf_patch")
     economy.ROOM_RESOURCE_NODE_KEYS[WAYMEET_QUARRY_KEY] = ("iron_vein", "coal_seam")
@@ -561,7 +593,9 @@ def install_waymeet_content(world_service=None) -> None:
     if world_service is None:
         return
     for room in WAYMEET_ROOMS:
-        world_service.legacy_rooms[room.key] = room
+        world_service.legacy_rooms[room.key] = legacy_world.ROOMS_BY_KEY[room.key]
+    for room_key in homeland_rooms:
+        world_service.legacy_rooms[room_key] = legacy_world.ROOMS_BY_KEY[room_key]
     for room_key, augmentation in waymeet_augmentations().items():
         world_service.augmentations[room_key] = _merge_augmentation(world_service.augmentations.get(room_key), augmentation)
     cache = getattr(world_service, "_scene_cache", None)
