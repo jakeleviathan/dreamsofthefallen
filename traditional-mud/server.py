@@ -92,6 +92,7 @@ from mud.production_operator import install_production_operator_runtime
 from mud.room_presentation import install_room_presentation_runtime
 from mud.npc_name_audit import validate_unique_npc_names
 from mud.quest_npc_audit import validate_quest_talk_references
+from mud.npc_conversation import validate_static_npc_talkability
 import mud.npcs as mobile_npcs
 from mud.casting import install_casting_runtime
 from mud.enemy_targeting import install_enemy_targeting_runtime
@@ -262,6 +263,10 @@ install_planar_realms_runtime(PlayerSession, WORLD)
 # production startup and CI instead of reaching players.
 _NPC_NAME_RECORD_COUNT = validate_unique_npc_names(legacy_world, mobile_npcs)
 _QUEST_TALK_REFERENCE_COUNT = validate_quest_talk_references(QUESTS_BY_KEY, legacy_world.NPCS_BY_KEY)
+# Every static person shown in a room's [ People ] section must be addressable
+# by full name and, when applicable, unique given name. This closes the gap
+# where content existed visually but TALK fell through to the base error.
+_NPC_TALKABILITY_COUNT = validate_static_npc_talkability(WORLD, legacy_world.NPCS_BY_KEY)
 
 # Replace any surviving development-era item labels only after every item-producing
 # content installer has run. Stable item keys remain untouched, so old characters,
