@@ -434,15 +434,15 @@ def _merge_augmentation(existing: RoomAugmentation | None, extra: RoomAugmentati
     return RoomAugmentation(tuple(overrides.values()), tuple(extras.values()), tuple(features.values()), tuple(layers.values()))
 
 
-HOMELAND_LINKS: tuple[tuple[str, str, str, str, str], ...] = (
-    ("human_outer_caravan_road", "east", WAYMEET_WEST_ROAD_KEY, "Waymeet Road", "human_blackwall_opening_complete"),
-    ("dwarf_upper_freight_deck", "south", WAYMEET_WEST_ROAD_KEY, "Common Freight Road", "dwarf_first_obligation_completed"),
-    ("forest_elf_briarshadow_thicket", "east", WAYMEET_GREEN_APPROACH_KEY, "Old Boundary Road", "forest_elf_first_walk_completed"),
-    ("sporekin_memory_path", "east", WAYMEET_GREEN_APPROACH_KEY, "Surface Trade Path", "sporekin_first_call_answered"),
-    ("moon_elf_wind_terrace", "south", WAYMEET_HIGH_ROAD_KEY, "Valley Road", "moon_elf_third_chair_complete"),
-    ("troll_stonejaw_pass", "east", WAYMEET_HIGH_ROAD_KEY, "Lowland Cairn Road", "troll_first_cold_complete"),
-    ("goblin_floodgate_walk", "west", WAYMEET_MARSH_ROAD_KEY, "Waymeet Causeway", "goblin_rattlefen_opening_complete"),
-    ("undead_sunscar_road", "north", WAYMEET_MARSH_ROAD_KEY, "North Trade Road", "undead_opening_complete"),
+HOMELAND_LINKS: tuple[tuple[str, str, str, str, str, str], ...] = (
+    ("human_outer_caravan_road", "east", WAYMEET_WEST_ROAD_KEY, "Waymeet Road", "human_blackwall_opening_complete", "human"),
+    ("dwarf_upper_freight_deck", "south", WAYMEET_WEST_ROAD_KEY, "Common Freight Road", "dwarf_first_obligation_completed", "dwarf"),
+    ("forest_elf_briarshadow_thicket", "east", WAYMEET_GREEN_APPROACH_KEY, "Old Boundary Road", "forest_elf_first_walk_completed", "forest_elf"),
+    ("sporekin_memory_path", "east", WAYMEET_GREEN_APPROACH_KEY, "Surface Trade Path", "sporekin_first_call_answered", "sporekin"),
+    ("moon_elf_wind_terrace", "south", WAYMEET_HIGH_ROAD_KEY, "Valley Road", "moon_elf_third_chair_complete", "moon_elf"),
+    ("troll_stonejaw_pass", "east", WAYMEET_HIGH_ROAD_KEY, "Lowland Cairn Road", "troll_first_cold_complete", "troll"),
+    ("goblin_floodgate_walk", "west", WAYMEET_MARSH_ROAD_KEY, "Waymeet Causeway", "goblin_rattlefen_opening_complete", "goblin"),
+    ("undead_sunscar_road", "north", WAYMEET_MARSH_ROAD_KEY, "North Trade Road", "undead_opening_complete", "undead"),
 )
 
 
@@ -498,7 +498,7 @@ def waymeet_augmentations() -> dict[str, RoomAugmentation]:
         ),
     }
 
-    for room_key, direction, destination, name, flag in HOMELAND_LINKS:
+    for room_key, direction, destination, name, flag, home_race in HOMELAND_LINKS:
         addition = RoomAugmentation(
             extra_exits=(
                 ExitDefinition(
@@ -506,7 +506,12 @@ def waymeet_augmentations() -> dict[str, RoomAugmentation]:
                     destination_key=destination,
                     name=name,
                     travel_text=f"You take the established road toward Waymeet and the first country shared by travelers from several homelands.",
-                    condition=ViewCondition(required_flags=(flag,), min_level=2),
+                    condition=ViewCondition(
+                        required_flags=(flag,),
+                        min_level=2,
+                        required_flags_for_races=(home_race,),
+                        min_level_for_races=(home_race,),
+                    ),
                     hidden_when_unavailable=True,
                 ),
             ),
@@ -542,7 +547,7 @@ def _install_homeland_legacy_links() -> tuple[str, ...]:
     """
 
     patched: list[str] = []
-    for room_key, direction, destination, _name, _flag in HOMELAND_LINKS:
+    for room_key, direction, destination, _name, _flag, _home_race in HOMELAND_LINKS:
         room = legacy_world.ROOMS_BY_KEY.get(room_key)
         if room is None:
             continue
