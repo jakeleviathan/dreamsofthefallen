@@ -349,13 +349,21 @@ def style_atelier_available(world_service, room_key: str) -> bool:
         return False
     if room_key in _ATELIER_FIXED_ROOMS:
         return True
-    scene = world_service.scene(room_key) if world_service is not None else None
-    if scene is None:
+    if world_service is None:
         return False
-    tags = {str(tag).strip().lower() for tag in getattr(scene, "tags", ())}
+
+    scene_getter = getattr(world_service, "scene", None)
+    if callable(scene_getter):
+        room = scene_getter(room_key)
+    else:
+        room = getattr(world_service, "legacy_rooms", {}).get(room_key)
+    if room is None:
+        return False
+
+    tags = {str(tag).strip().lower() for tag in getattr(room, "tags", ())}
     if tags & _ATELIER_TAGS:
         return True
-    name = str(getattr(scene, "name", "") or "").lower()
+    name = str(getattr(room, "name", "") or "").lower()
     return any(marker in name for marker in _ATELIER_NAME_MARKERS)
 
 
