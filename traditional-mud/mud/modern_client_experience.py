@@ -123,9 +123,14 @@ def _inventory_snapshot(session) -> dict:
             }
         )
     items.sort(key=lambda value: (not value["equipped"], value["category"], value["name"].lower()))
+    from mud.inventory_capacity import inventory_capacity_status
+    slots_used, slots_capacity = inventory_capacity_status(session.database, character.id)
     return {
         "count": sum(int(item["quantity"]) for item in items),
         "unique": len(items),
+        "slots_used": slots_used,
+        "slots_capacity": slots_capacity,
+        "over_capacity": slots_used > slots_capacity,
         "items": items,
         "equipment": equipment,
     }
