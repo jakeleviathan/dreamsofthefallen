@@ -1499,6 +1499,16 @@ def install_style_collectibles_runtime(player_session_class, world_service=None)
 
         if normalized in {"style", "wardrobe", "outfit", "fashion"}:
             await _show_wardrobe(self); return
+        if normalized in {"atelier", "style service", "style services", "style atelier"}:
+            await _show_atelier(self, world_service); return
+        if normalized in {"style slots", "fashion slots"}:
+            await self.send(
+                "Style slots: " + ", ".join(STYLE_SLOT_LABELS[slot] for slot in STYLE_SLOTS) + ".\r\n"
+                "Copied looks and dedicated fashion may be placed in any of these visual slots. "
+                "They never alter the real equipment underneath.\r\n"
+            ); return
+        if normalized.startswith("style copy "):
+            await _copy_style_from_equipment(self, stripped[len("style copy "):], world_service); return
         if normalized.startswith("style wear "):
             await _wear_style(self, stripped[len("style wear "):]); return
         if normalized.startswith("style remove "):
@@ -1533,6 +1543,16 @@ def install_style_collectibles_runtime(player_session_class, world_service=None)
             await _show_seasonal(self); return
         if normalized.startswith("provenance "):
             await _show_provenance(self, stripped[len("provenance "):]); return
+        if normalized.startswith("talk to ") and _is_pavo_target(stripped[len("talk to "):]):
+            await _talk_pavo(self, world_service); return
+        if normalized.startswith("talk ") and _is_pavo_target(stripped[len("talk "):]):
+            await _talk_pavo(self, world_service); return
+        if normalized.startswith("look at ") and _is_pavo_target(stripped[len("look at "):]):
+            await _show_pavo(self, world_service); return
+        if normalized.startswith("look ") and _is_pavo_target(stripped[len("look "):]):
+            await _show_pavo(self, world_service); return
+        if normalized.startswith("examine ") and _is_pavo_target(stripped[len("examine "):]):
+            await _show_pavo(self, world_service); return
         if normalized.startswith("look "):
             if await _look_player(self, stripped[len("look "):]): return
         if normalized.startswith("item ") or normalized.startswith("inspect item "):
