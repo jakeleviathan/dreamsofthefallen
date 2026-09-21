@@ -3,7 +3,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from mud.appearance import appearance_description
+from mud.appearance_storage import get_appearance
 from mud.astralis_human_district import HUMAN_DISTRICT
+from mud.character_options import CLASSES_BY_KEY, RACES_BY_KEY
 from mud.combat import ENEMIES_BY_KEY
 from mud.player_preferences import (
     hint_level,
@@ -115,6 +118,50 @@ def _player_lines(session) -> list[str]:
     except Exception:
         return []
     return [str(player.name) for player in players if getattr(player, "name", None)]
+
+
+def _find_room_player(session, target: str):
+    character = getattr(session, "character", None)
+    if character is None or not character.current_room:
+        return None
+    needle = " ".join(target.strip().lower().split())
+    if not needle:
+        return None
+    if needle in {"self", "me", "myself", str(character.name).lower()}:
+        return character
+
+    callback = getattr(session, "room_players_callback", None)
+    if callback is None:
+        return None
+    try:
+        players = callback(character.current_room, character.id)
+    except Exception:
+        return None
+    for player in players:
+        if str(getattr(player, "name", "")).lower() == needle:
+            return player
+    return None
+
+
+async def _show_player_appearance(session, player) -> None:
+    race_key = str(getattr(player, "race", "") or "human")
+    class_key = str(getattr(player, "character_class", "") or "")
+    race = RACES_BY_KEY.get(race_key)
+    character_class = CLASSES_BY_KEY.get(class_key)
+    race_name = race.name if race is not None else race_key.replace("_", " ").title()
+    class_name = (
+        character_class.name
+        if character_class is not None
+        else class_key.replace("_", " ").title()
+    )
+    level = int(getattr(player, "level", 1) or 1)
+    stored = get_appearance(session.database, int(player.id))
+    await session.send(
+        f"\r\n{player.name} - Level {level} {race_name}"
+        + (f" {class_name}" if class_name else "")
+        + "\r\n"
+    )
+    await session.send(appearance_description(str(player.name), race_key, stored) + "\r\n")
 
 
 def _enemy_lines(scene) -> list[str]:
@@ -333,6 +380,24 @@ def install_room_prompt_experience_runtime(player_session_class, world_service=N
             return
 
         normalized = " ".join(command.strip().lower().split())
+
+        appearance_target = ""
+        if normalized.startswith("look at "):
+            appearance_target = command.strip()[8:].strip()
+        elif normalized.startswith("look "):
+            appearance_target = command.strip()[5:].strip()
+        elif normalized.startswith("examine "):
+            appearance_target = command.strip()[8:].strip()
+        if appearance_target:
+            player = _find_room_player(self, appearance_target)
+            if player is not None:
+                await _show_player_appearance(self, player)
+                return
+
+        if normalized == "appearance" and not getattr(self, "_reflection_editor_room", None):
+            await _show_player_appearance(self, self.character)
+            return
+
         if normalized in {"prompt", "prompt status", "prompt help"}:
             await _show_prompt_setting(self)
             return
