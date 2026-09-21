@@ -178,19 +178,38 @@ def profile_for_biome(biome: str) -> WeatherProfile:
     return TEMPERATE
 
 
+_WEATHER_TRANSITIONS: dict[str, tuple[str, ...]] = {
+    "clear": ("cloudy", "windy", "humid", "damp"),
+    "cloudy": ("clear", "mist", "rain", "snow", "windy"),
+    "mist": ("clear", "cloudy", "rain", "humid", "damp", "snow"),
+    "rain": ("cloudy", "mist", "storm", "humid", "clear"),
+    "storm": ("rain", "cloudy", "snow", "windy"),
+    "thunderstorm": ("rain", "cloudy", "storm"),
+    "snow": ("cloudy", "mist", "storm", "clear"),
+    "windy": ("clear", "cloudy", "duststorm"),
+    "duststorm": ("windy", "cloudy", "clear"),
+    "humid": ("mist", "cloudy", "rain", "clear"),
+    "damp": ("mist", "rain", "clear"),
+}
+
+
 def _transition_candidates(profile: WeatherProfile, current: str) -> tuple[str, ...]:
-    states = list(profile.states)
-    if current not in states:
-        return tuple(states)
-    index = states.index(current)
-    adjacent = {current}
-    if index > 0:
-        adjacent.add(states[index - 1])
-    if index + 1 < len(states):
-        adjacent.add(states[index + 1])
-    severe = {"storm", "duststorm", "snow", "rain"}
-    adjacent.update(state for state in states if state in severe)
-    return tuple(state for state in states if state in adjacent)
+    """Return physically plausible next states available in this biome.
+
+    Severe weather now builds through an intermediate front instead of allowing
+    a clear sky to jump directly to a storm, blizzard, or dust wall.
+    """
+
+    if current not in profile.states:
+        return tuple(profile.states)
+    allowed = set(_WEATHER_TRANSITIONS.get(current, ()))
+    candidates = tuple(state for state in profile.states if state in allowed)
+    if candidates:
+        return candidates
+
+    # A custom future profile cannot dead-end just because its state names are
+    # not in the shared graph.
+    return tuple(state for state in profile.states if state != current)
 
 
 def _seasonally_weighted_candidates(candidates: tuple[str, ...], season: str) -> tuple[str, ...]:
