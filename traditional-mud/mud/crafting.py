@@ -1153,6 +1153,31 @@ def item_display_name(item_key: str) -> str:
     return item_key.replace("_", " ").title()
 
 
+def crafting_skill_feedback(
+    recipe: CraftingRecipe,
+    *,
+    new_skill_value: int,
+    skill_increased: bool,
+) -> str:
+    """Describe the actual result of a completed craft's skill-up roll."""
+
+    profession_name = recipe.trade_skill_key.title()
+    trivial = recipe.trivial_skill
+    if skill_increased:
+        return f"{profession_name} improves to {new_skill_value}."
+    if new_skill_value >= trivial:
+        return (
+            f"No {profession_name} skill increase; current skill is {new_skill_value}. "
+            "This recipe is trivial for you and can no longer raise the skill."
+        )
+
+    skillup_pct = int(round(craft_skillup_chance(new_skill_value, trivial) * 100))
+    return (
+        f"No {profession_name} skill increase this attempt; current skill is {new_skill_value}. "
+        f"This recipe can still train you ({skillup_pct}% chance per completed craft at this skill)."
+    )
+
+
 def craft_recipe(
     database: "Database",
     character_id: int,
@@ -1237,20 +1262,11 @@ def craft_recipe(
         )
 
     new_skill = skill_value + (1 if skill_increased else 0)
-    profession_name = recipe.trade_skill_key.title()
-    if skill_increased:
-        learning = f" {profession_name} improves to {new_skill}."
-    elif new_skill >= trivial:
-        learning = (
-            f" No {profession_name} skill increase; current skill is {new_skill}. "
-            "This recipe is trivial for you and can no longer raise the skill."
-        )
-    else:
-        skillup_pct = int(round(skillup_chance * 100))
-        learning = (
-            f" No {profession_name} skill increase this attempt; current skill is {new_skill}. "
-            f"This recipe can still train you ({skillup_pct}% chance per completed craft at this skill)."
-        )
+    learning = " " + crafting_skill_feedback(
+        recipe,
+        new_skill_value=new_skill,
+        skill_increased=skill_increased,
+    )
 
     if crafted:
         message = f"Crafted {recipe.output_quantity}x {item_display_name(recipe.output_item_key)}." + learning
