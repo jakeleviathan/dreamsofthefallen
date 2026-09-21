@@ -132,6 +132,10 @@ class EnemyState:
     definition: EnemyDefinition
     current_hp: int | None = None
     hate: EnemyHateList = field(default_factory=EnemyHateList)
+    # Static rooms may contain more than one copy of the same enemy definition.
+    # spawn_key identifies the concrete room spawn being fought while preserving
+    # definition.key for loot, quests, and authored content.
+    spawn_key: str | None = None
 
     def __post_init__(self) -> None:
         if self.current_hp is None:

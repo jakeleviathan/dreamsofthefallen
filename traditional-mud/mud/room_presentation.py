@@ -12,7 +12,7 @@ from mud.contextual_command_routing import install_contextual_command_routing_gu
 from mud.corpse_decay import corpse_decay_label
 from mud.corpse_loot import list_corpses
 from mud.database import Database
-from mud.enemy_lifecycle import static_enemy_available
+from mud.enemy_lifecycle import iter_static_enemy_spawns, static_enemy_available
 from mud.exploration_map import install_exploration_map_runtime
 from mud.exploration_map_gmcp import install_exploration_map_gmcp_runtime
 from mud.fantasy_drugs import install_perception_runtime
@@ -163,11 +163,11 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     # Authored room enemies do not auto-aggro merely because they can fight.
     # They therefore belong under Creatures. Only mobile definitions explicitly
     # marked aggressive appear under Hostile.
-    for enemy_key in scene.enemy_keys:
+    for enemy_key, spawn_key in iter_static_enemy_spawns(scene.enemy_keys):
         enemy = ENEMIES_BY_KEY.get(enemy_key)
         if enemy is not None and static_enemy_available(
             view.key,
-            enemy_key,
+            spawn_key,
             database=getattr(session, "database", None),
         ):
             creature_records.append((enemy.name, enemy.description))
@@ -175,21 +175,12 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     def append_actor_section(label: str, color: str, records: list[tuple[str, str]]) -> None:
         if not records:
             return
-        counts: dict[str, int] = {}
-        descriptions: dict[str, str] = {}
-        order: list[str] = []
-        for name, description in records:
-            if name not in counts:
-                order.append(name)
-                descriptions[name] = description
-                counts[name] = 0
-            counts[name] += 1
+        # One rendered line represents one actual creature/NPC instance. Do not
+        # collapse duplicates into x2/x3 shorthand because each can have its own
+        # combat and lifecycle state.
         rendered = [
-            (
-                f"  {_paint(color, name + (f' x{counts[name]}' if counts[name] > 1 else ''))}"
-                f" - {descriptions[name]}"
-            )
-            for name in order
+            f"  {_paint(color, name)} - {description}"
+            for name, description in records
         ]
         lines.extend(["", _section_header(label, color), *rendered])
 
