@@ -170,8 +170,16 @@ def appearance_description(character_name: str, race_key: str, stored: dict[str,
 
 
 def creation_preview_text(race_key: str, stored: dict[str, str]) -> str:
+    appearance = normalized_appearance(race_key, stored)
     race_name = RACE_NAMES.get(race_key, race_key.replace("_", " ").title())
-    return appearance_description(f"This {race_name}", race_key, stored)
+    details = _detail_phrases(race_key, appearance)
+    if not details:
+        return f"Your {race_name} will have an unadorned appearance."
+    if len(details) == 1:
+        joined = details[0]
+    else:
+        joined = ", ".join(details[:-1]) + f", and {details[-1]}"
+    return f"Your {race_name} will have {joined}."
 
 
 def reflection_text(character_name: str, race_key: str, stored: dict[str, str]) -> str:
