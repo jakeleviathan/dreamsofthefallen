@@ -1,7 +1,7 @@
 import random
 import unittest
 
-from mud.astralis_time import AstralisWeatherService
+from mud.astralis_time import AstralisWeatherService, TEMPERATE, _transition_candidates
 from mud.npcs import BLACKWALL_GUARD, MobileNpcManager
 from mud.room_engine import RoomStateStore
 from mud.stats import EquipmentItem
@@ -82,6 +82,12 @@ class WeatherGameplayTests(unittest.TestCase):
         self.assertTrue(effects.severe)
         self.assertEqual(effects.ranged_attack_penalty, 4)
         self.assertGreater(effects.fire_disruption_chance, 0)
+
+    def test_clear_weather_cannot_jump_directly_to_a_severe_front(self):
+        candidates = _transition_candidates(TEMPERATE, "clear")
+        self.assertIn("cloudy", candidates)
+        self.assertNotIn("storm", candidates)
+        self.assertNotIn("rain", candidates)
 
 
 class WeatherWorldEventTests(unittest.TestCase):
