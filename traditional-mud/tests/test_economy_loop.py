@@ -169,7 +169,7 @@ class EconomyLoopTests(unittest.TestCase):
         output = "".join(session.outputs)
         self.assertIn("Iron Ingot", output)
         self.assertNotIn("Iron Dagger", output)
-        self.assertIn("CRAFT NOW", output)
+        self.assertNotIn("CRAFT NOW", output)
 
     def test_real_room_station_allows_existing_crafting_recipe(self):
         session = self._session_in("dwarf_workshop_tier", ["craft smelt iron ingot"])
