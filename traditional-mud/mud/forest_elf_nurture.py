@@ -115,7 +115,7 @@ def forest_elf_nurture_augmentations() -> dict[str, RoomAugmentation]:
                     "the heartseed resting in a newly loosened bed of damp Silvermoss",
                     (
                         "Silvermoss now cups the exposed root crown without covering the stem. The leaves have not opened yet. "
-                        "Nothing dramatic is happening—which, Maelis would probably say, is not the same as nothing happening."
+                        "Nothing dramatic is happening-which, Maelis would probably say, is not the same as nothing happening."
                     ),
                     aliases=("heartseed", "cutting", "sapling", "plant", "heartseed cutting"),
                     touch="The soil is evenly cool now. The stem is best left alone.",
@@ -394,7 +394,7 @@ async def _tend_heartseed(session) -> bool:
     session.database.advance_quest(session.character.id, FOREST_ELF_HEARTSEED_QUEST.key, "wait_for_growth")
     await session.send(
         "\r\nYou loosen the dry crust around the root crown instead of digging into it, tuck the Silvermoss against the exposed soil, and press just enough damp earth around the runners to hold them in place.\r\n"
-        "You let a little of the Circle's quiet nature magic follow the work—not a command to grow, only a gentle invitation for root and moss to settle together.\r\n"
+        "You let a little of the Circle's quiet nature magic follow the work-not a command to grow, only a gentle invitation for root and moss to settle together.\r\n"
         "The leaves do not spring open. Maelis says nothing. The lesson is clearly not finished. WAIT beside the Heartseed.\r\n"
     )
     return True

@@ -247,7 +247,7 @@ STORY_SCENES: dict[tuple[str, str], StoryScene] = {
     ("forest_elf", "wider_world"): _scene(
         ("Sael gives you a bundle of trail marks. 'These make perfect sense to anyone raised here.'", "Ilye says, 'That sentence is doing too much work.'"),
         ("At Waymeet, three travelers describe trying to obey the forest signs and reaching three different conclusions. None were careless.",),
-        ("You recast the markers around actions—safe water, fragile ground, permitted crossing—instead of inherited symbols alone.",),
+        ("You recast the markers around actions-safe water, fragile ground, permitted crossing-instead of inherited symbols alone.",),
         ("Sael keeps both systems side by side. Ilye watches an outsider choose the correct trail without asking for help and finally smiles." ,),
         "The old trail symbols now look beautiful but incomplete to you; you can see the unstated childhood knowledge packed into each one.",
         "New companion marks explain what a traveler should do rather than assuming they already understand why.",

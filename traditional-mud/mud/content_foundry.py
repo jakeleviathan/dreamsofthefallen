@@ -236,7 +236,7 @@ GLASS_ROOMS = (
     _room(GLASS_GLASSHOUSE, "Broken Glasshouse", GLASS_REGION, "Most panes are gone, but the surviving roof feeds one impossible clear-fruited tree. Silk-Tenders have webbed broken frames into usable architecture.", {"south": GLASS_PEAR_ROWS, "east": GLASS_ROOT_CELLAR}, (SILK_TENDER,), ("level_5_7", "side_room")),
     _room(GLASS_COCOON, "Cocoon Arcade", GLASS_REGION, "Tree arches form a low tunnel wrapped in old cocoons. Some contain tools. Some contain animal bones. One contains an intact pruning ladder, which somehow makes the rest worse.", {"west": GLASS_TRENCH, "east": GLASS_NAVE}, (SILK_TENDER,), ("level_5_7",)),
     _room(GLASS_ROOT_CELLAR, "Root Cellar", GLASS_REGION, "The cellar is full of grafting knives, clay labels, and one ledger whose final pages simply repeat: fruit rang again tonight.", {"west": GLASS_GLASSHOUSE, "south": GLASS_NAVE}, (ORCHARD_HUSK,), ("level_5_7", "side_room")),
-    _room(GLASS_NAVE, "Widow's Nave", GLASS_REGION, "Old pear trees curve overhead like ribs. Three enormous fruits—red, blue, and clear—hang in silk above a central nest. The web tightens every time the fruit moves.", {"west": GLASS_COCOON, "north": GLASS_ROOT_CELLAR, "east": GLASS_LOFT}, (), ("level_5_7", "boss")),
+    _room(GLASS_NAVE, "Widow's Nave", GLASS_REGION, "Old pear trees curve overhead like ribs. Three enormous fruits-red, blue, and clear-hang in silk above a central nest. The web tightens every time the fruit moves.", {"west": GLASS_COCOON, "north": GLASS_ROOT_CELLAR, "east": GLASS_LOFT}, (), ("level_5_7", "boss")),
     _room(GLASS_LOFT, "Pruning Loft", GLASS_REGION, "A narrow maintenance loft overlooks the orchard canopy. The ordinary Greywake road is visible through roof slats, almost offensively normal.", {"west": GLASS_NAVE}, (), ("level_5_7", "reward_room")),
 )
 ASH_ROOMS = (
@@ -250,14 +250,14 @@ ASH_ROOMS = (
     _room(ASH_TURNTABLE, "Driver's Turntable", ASH_REGION, "A circular coach turntable fills the chamber. Ash lies in perfect wheel tracks around its edge. At the center waits a driver's stool and an open brass fare box.", {"west": ASH_PLATFORM}, (), ("level_7_9", "boss")),
 )
 VAPOR_ROOMS = (
-    _room(VAPOR_ENTRY, "Scent Cellar", VAPOR_REGION, "A narrow stair beneath Brassmarket ends in a cellar lined with dead scent pipes. The old House of Nine Vapors mark—nine silver leaves around an empty center—survives above the door.", {"up": VEYRA_BRASSMARKET_KEY, "south": VAPOR_GREEN}, (SCENTBOUND_ATTENDANT,), ("level_8_10", "entry")),
+    _room(VAPOR_ENTRY, "Scent Cellar", VAPOR_REGION, "A narrow stair beneath Brassmarket ends in a cellar lined with dead scent pipes. The old House of Nine Vapors mark-nine silver leaves around an empty center-survives above the door.", {"up": VEYRA_BRASSMARKET_KEY, "south": VAPOR_GREEN}, (SCENTBOUND_ATTENDANT,), ("level_8_10", "entry")),
     _room(VAPOR_GREEN, "Green Room", VAPOR_REGION, "Green ceramic tiles cover the walls. Crushed stems, mint resin, and bitter leaves cling to drying racks. A wall vent is labeled GREEN SERVICE.", {"north": VAPOR_ENTRY, "east": VAPOR_AMBER}, (VAPOR_SLIME,), ("level_8_10",)),
     _room(VAPOR_AMBER, "Amber Room", VAPOR_REGION, "Amber glass jars fill floor-to-ceiling cabinets. Even sealed, they smell warm, resinous, and slightly medicinal.", {"west": VAPOR_GREEN, "east": VAPOR_SILVER, "south": VAPOR_HALL}, (SCENTBOUND_ATTENDANT,), ("level_8_10",)),
     _room(VAPOR_SILVER, "Silver Room", VAPOR_REGION, "A cold preparation room holds silver salts, pale powders, and metal scent fans. The third service vent is polished almost mirror-bright.", {"west": VAPOR_AMBER, "south": VAPOR_VAULT}, (GLASS_WASP,), ("level_8_10",)),
     _room(VAPOR_HALL, "Distillation Hall", VAPOR_REGION, "Copper coils cross overhead like organ pipes. Broken condensers drip clean water into bowls that remain strangely free of dust.", {"north": VAPOR_AMBER, "east": VAPOR_GALLERY}, (VAPOR_SLIME, GLASS_WASP), ("level_8_10",)),
     _room(VAPOR_VAULT, "Bottle Vault", VAPOR_REGION, "Thousands of bottle-shaped slots honeycomb the walls. A few still hold labels for scents whose houses, flowers, and customers have all vanished.", {"north": VAPOR_SILVER, "west": VAPOR_GALLERY}, (SCENTBOUND_ATTENDANT,), ("level_8_10", "side_room")),
     _room(VAPOR_GALLERY, "Mask Gallery", VAPOR_REGION, "Porcelain work masks hang in two rows, each with different filter holes. Every mask faces the final door.", {"west": VAPOR_HALL, "east": VAPOR_VAULT, "south": VAPOR_CHAMBER}, (GLASS_WASP,), ("level_8_10",)),
-    _room(VAPOR_CHAMBER, "Ninth-Vapor Chamber", VAPOR_REGION, "Nine pipes descend around a circular brass floor. Three controls—GREEN, AMBER, SILVER—feed the chamber. The air here should be read before anything is opened.", {"north": VAPOR_GALLERY}, (), ("level_8_10", "boss")),
+    _room(VAPOR_CHAMBER, "Ninth-Vapor Chamber", VAPOR_REGION, "Nine pipes descend around a circular brass floor. Three controls-GREEN, AMBER, SILVER-feed the chamber. The air here should be read before anything is opened.", {"north": VAPOR_GALLERY}, (), ("level_8_10", "boss")),
 )
 ROOMS = GLASS_ROOMS + ASH_ROOMS + VAPOR_ROOMS
 
@@ -587,7 +587,7 @@ def install_content_foundry_runtime(player_session_class, world_service):
         if verb in {"content", "delves", "dungeons nearby"}:
             await self.send("\r\n--- New Delves ---\r\n")
             for dungeon in DUNGEONS:
-                await self.send(f"{dungeon.name} (levels {dungeon.level_band[0]}-{dungeon.level_band[1]}) — {dungeon.hook}\r\n")
+                await self.send(f"{dungeon.name} (levels {dungeon.level_band[0]}-{dungeon.level_band[1]}) - {dungeon.hook}\r\n")
             await self.send("These are places, not a daily checklist. Their entrances are in the existing Greywake/Veyra world.\r\n")
             return
 

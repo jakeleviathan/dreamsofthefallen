@@ -358,7 +358,7 @@ async def _show_interval(session, drug: PerceptionDrug) -> None:
     room_key = session.character.current_room
     title, description = interval_view(drug.key, room_key)
     await session.send("\r\n" + _paint(drug, title) + "\r\n")
-    await session.send(_paint(drug, "The Veiled Interval — perception is supplying part of the geography.") + "\r\n")
+    await session.send(_paint(drug, "The Veiled Interval - perception is supplying part of the geography.") + "\r\n")
     await session.send("-" * 64 + "\r\n")
     await session.send(_paint(drug, description) + "\r\n")
     await session.send(
