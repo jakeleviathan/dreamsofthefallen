@@ -27,18 +27,19 @@ from mud.waymeet_frontier import WAYMEET_LANTERN_MARKET_KEY
 
 STYLE_VERSION = "2.0.0"
 RARITY_ORDER = ("common", "uncommon", "rare", "epic", "legendary")
+# Style is a visual layer independent of combat equipment. Pavo's copied looks
+# can use every traditional fashion slot plus the two visible hand slots, so a
+# favorite weapon or shield silhouette can remain visible over stronger gear.
 STYLE_SLOTS = (
     "head", "face", "neck", "shoulders", "chest", "hands",
     "waist", "legs", "feet", "back", "jewelry", "accessory",
+    "main_hand", "off_hand",
 )
-STYLE_SLOT_LABELS = {slot: slot.replace("_", " ").title() for slot in STYLE_SLOTS}
-STYLE_SLOT_LABELS.update({"main_hand": "Main Hand", "off_hand": "Off Hand"})
-
-# Pavo's copied looks can override weapons as well as clothing. The original
-# collectible-fashion slots remain intact, while these two visual slots let a
-# player keep a favorite weapon or shield silhouette over stronger equipment.
-STYLE_SLOTS = STYLE_SLOTS + ("main_hand", "off_hand")
-STYLE_SLOT_LABELS = {slot: STYLE_SLOT_LABELS.get(slot, slot.replace("_", " ").title()) for slot in STYLE_SLOTS}
+STYLE_SLOT_LABELS = {
+    **{slot: slot.replace("_", " ").title() for slot in STYLE_SLOTS},
+    "main_hand": "Main Hand",
+    "off_hand": "Off Hand",
+}
 
 PAVO_NAME = "Pavo Vellum"
 PAVO_TITLE = "Master of Appearances"
@@ -869,7 +870,7 @@ async def _wear_style_key(session, style_key: str, slot: str) -> None:
     source_note = "copied equipment look" if entry["source_kind"] == "copied" else "fashion piece"
     await session.send(
         f"You style {entry['name']} in your {STYLE_SLOT_LABELS[slot]} slot as a {source_note}. "
-        "Your practical equipment and combat stats do not change.\r\n"
+        "It changes appearance, not combat stats; your practical equipment remains equipped underneath.\r\n"
     )
     await _send_style_gmcp(session)
 
