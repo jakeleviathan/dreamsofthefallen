@@ -25,11 +25,11 @@ from mud.starter_race_loops import STARTER_RACE_LOOPS
 from mud.waymeet_frontier import WAYMEET_LANTERN_MARKET_KEY
 
 
-STYLE_VERSION = "2.0.0"
+STYLE_VERSION = "2.0.1"
 RARITY_ORDER = ("common", "uncommon", "rare", "epic", "legendary")
-# Style is a visual layer independent of combat equipment. Pavo's copied looks
-# can use every traditional fashion slot plus the two visible hand slots, so a
-# favorite weapon or shield silhouette can remain visible over stronger gear.
+# Style is a visual layer independent of combat equipment, but silhouettes still
+# belong to sensible body/equipment slots. A hood is Head, boots are Feet, a
+# sword is Main Hand, and a shield is Off Hand. Style never changes real stats.
 STYLE_SLOTS = (
     "head", "face", "neck", "shoulders", "chest", "hands",
     "waist", "legs", "feet", "back", "jewelry", "accessory",
@@ -530,7 +530,13 @@ def _worn_style(database, character_id: int) -> dict[str, str]:
             valid = database.item_quantity(character_id, style_key) > 0
         elif _copy_id(style_key) is not None:
             valid = _copied_style_row(database, character_id, style_key) is not None
-        if slot not in STYLE_SLOTS or not valid:
+
+        entry = _style_entry(database, character_id, style_key) if valid else None
+        expected_slot = str(entry["default_slot"]) if entry is not None else None
+        if slot not in STYLE_SLOTS or not valid or slot != expected_slot:
+            # Sanitize any incompatible rows created by older style rules. This
+            # never deletes the copied look or fashion item, only the invalid
+            # visual assignment.
             with database.connect() as db:
                 db.execute(
                     "DELETE FROM character_style_slots WHERE character_id = ? AND slot_key = ?",
@@ -783,7 +789,7 @@ async def _show_pavo(session, world_service) -> None:
         "He can preserve the visible design of any ordinary piece of equipment as a permanent copied look. "
         "The original item stays in your inventory, keeps all of its real stats, and can later be sold, traded, "
         "replaced, or lost without removing the copied look from your wardrobe.\r\n"
-        "Commands: ATELIER | STYLE COPY <equipment> [AS <slot>] | STYLE WEAR <look> [AS <slot>]\r\n"
+        "Commands: ATELIER | STYLE COPY <equipment> | STYLE WEAR <look>\r\n"
     )
 
 
@@ -797,8 +803,8 @@ async def _talk_pavo(session, world_service) -> None:
     await session.send(f"\r\n{PAVO_NAME} smiles as if your arrival completed a composition.\r\n")
     await session.send(PAVO_DIALOGUE[index] + "\r\n")
     await session.send(
-        "Pavo taps a brass plaque: STYLE COPY <equipment> [AS <slot>]. "
-        "ATELIER lists what you are carrying and what each copy costs.\r\n"
+        "Pavo taps a brass plaque: STYLE COPY <equipment>. "
+        "ATELIER lists what you are carrying, its style slot, and what each copy costs.\r\n"
     )
 
 
@@ -839,14 +845,14 @@ async def _show_atelier(session, world_service) -> None:
             copied = " [ALREADY COPIED]" if definition.key in copies else ""
             slot = _style_slot_from_equipment_slot(definition.equipment.slot)
             await session.send(
-                f"  {definition.name} - default {STYLE_SLOT_LABELS[slot]} - "
+                f"  {definition.name} - {STYLE_SLOT_LABELS[slot]} - "
                 f"{format_sols(_style_copy_cost(definition))}{copied}\r\n"
             )
 
     await session.send(
         "\r\nSTYLE COPY <equipment> preserves only the look. The source item is not consumed and its stats are never copied.\r\n"
-        "Add AS <slot> to copy and immediately style it there. Any copied look can later override any fashion slot, "
-        "including Main Hand and Off Hand, with STYLE WEAR <look> AS <slot>.\r\n"
+        "Copied looks keep the source item's natural slot: hoods stay Head, boots stay Feet, weapons stay Main Hand, "
+        "and shields stay Off Hand. STYLE WEAR <look> applies it to that slot automatically.\r\n"
     )
 
 
@@ -858,10 +864,16 @@ async def _wear_style_key(session, style_key: str, slot: str) -> None:
         await session.send("That style appearance is no longer available.\r\n")
         return
 
+    expected_slot = str(entry["default_slot"])
+    if slot != expected_slot:
+        await session.send(
+            f"{entry['name']} is a {STYLE_SLOT_LABELS[expected_slot]} appearance and cannot be styled as "
+            f"{STYLE_SLOT_LABELS[slot]}. Style copies keep the physical slot of the item they came from.\r\n"
+        )
+        return
+
     ensure_style_schema(session.database)
     with session.database.connect() as db:
-        # One appearance occupies one style slot at a time, but the player may
-        # place it in any visual slot regardless of the source gear's real slot.
         db.execute(
             "DELETE FROM character_style_slots WHERE character_id = ? AND item_key = ?",
             (session.character.id, style_key),
@@ -870,14 +882,14 @@ async def _wear_style_key(session, style_key: str, slot: str) -> None:
             "INSERT INTO character_style_slots (character_id, slot_key, item_key) VALUES (?, ?, ?) "
             "ON CONFLICT(character_id, slot_key) DO UPDATE SET "
             "item_key = excluded.item_key, worn_at = CURRENT_TIMESTAMP",
-            (session.character.id, slot, style_key),
+            (session.character.id, expected_slot, style_key),
         )
 
     if style_key in STYLE_META_BY_KEY:
         _mark_discovered(session.database, session.character.id, style_key)
     source_note = "copied equipment look" if entry["source_kind"] == "copied" else "fashion piece"
     await session.send(
-        f"You style {entry['name']} in your {STYLE_SLOT_LABELS[slot]} slot as a {source_note}. "
+        f"You style {entry['name']} in your {STYLE_SLOT_LABELS[expected_slot]} slot as a {source_note}. "
         "It changes appearance, not combat stats; your practical equipment remains equipped underneath.\r\n"
     )
     await _send_style_gmcp(session)
@@ -908,6 +920,14 @@ async def _copy_style_from_equipment(session, target: str, world_service) -> Non
 
     definition = matches[0]
     assert definition.equipment is not None
+    natural_slot = _style_slot_from_equipment_slot(definition.equipment.slot)
+    if requested_slot is not None and requested_slot != natural_slot:
+        await session.send(
+            f"Pavo refuses the placement with offended precision. {definition.name} is a "
+            f"{STYLE_SLOT_LABELS[natural_slot]} appearance, not {STYLE_SLOT_LABELS[requested_slot]}. "
+            "The copied look must use the same kind of slot as the original equipment.\r\n"
+        )
+        return
     ensure_style_schema(session.database)
 
     with session.database.connect() as db:
@@ -923,7 +943,10 @@ async def _copy_style_from_equipment(session, target: str, world_service) -> Non
         if requested_slot is not None:
             await _wear_style_key(session, style_key, requested_slot)
         else:
-            await session.send("Use STYLE WEAR " + definition.name.upper() + " AS <slot> whenever you want that look.\r\n")
+            await session.send(
+                "Use STYLE WEAR " + definition.name.upper() + " whenever you want that look. "
+                f"It always occupies {STYLE_SLOT_LABELS[natural_slot]}.\r\n"
+            )
         return
 
     price = _style_copy_cost(definition)
@@ -971,10 +994,9 @@ async def _copy_style_from_equipment(session, target: str, world_service) -> Non
     if requested_slot is not None:
         await _wear_style_key(session, style_key, requested_slot)
     else:
-        default_slot = _style_slot_from_equipment_slot(definition.equipment.slot)
         await session.send(
-            f"Default visual slot: {STYLE_SLOT_LABELS[default_slot]}. "
-            f"Use STYLE WEAR {definition.name.upper()} or STYLE WEAR {definition.name.upper()} AS <slot>.\r\n"
+            f"Style slot: {STYLE_SLOT_LABELS[natural_slot]}. "
+            f"Use STYLE WEAR {definition.name.upper()} whenever you want that look.\r\n"
         )
     await _send_style_gmcp(session)
 
@@ -1034,7 +1056,7 @@ async def _show_wardrobe(session) -> None:
             )
 
     await session.send(
-        "STYLE WEAR <look> [AS <slot>] | STYLE REMOVE <slot or look> | ATELIER | "
+        "STYLE WEAR <look> | STYLE REMOVE <slot or look> | ATELIER | "
         "LOOK <player> | COLLECTION | PROVENANCE <item>\r\n"
     )
 
@@ -1055,8 +1077,14 @@ async def _wear_style(session, target: str) -> None:
     if entry is None:
         await session.send("That style appearance is no longer available.\r\n")
         return
-    slot = requested_slot or str(entry["default_slot"])
-    await _wear_style_key(session, key, slot)
+    natural_slot = str(entry["default_slot"])
+    if requested_slot is not None and requested_slot != natural_slot:
+        await session.send(
+            f"{entry['name']} belongs in the {STYLE_SLOT_LABELS[natural_slot]} style slot, "
+            f"not {STYLE_SLOT_LABELS[requested_slot]}.\r\n"
+        )
+        return
+    await _wear_style_key(session, key, natural_slot)
 
 
 async def _remove_style(session, target: str) -> None:
@@ -1514,8 +1542,9 @@ def install_style_collectibles_runtime(player_session_class, world_service=None)
         if normalized in {"style slots", "fashion slots"}:
             await self.send(
                 "Style slots: " + ", ".join(STYLE_SLOT_LABELS[slot] for slot in STYLE_SLOTS) + ".\r\n"
-                "Copied looks and dedicated fashion may be placed in any of these visual slots. "
-                "They never alter the real equipment underneath.\r\n"
+                "Each appearance keeps a compatible slot based on what it is: Head, Chest, Feet, Main Hand, "
+                "Off Hand, and so on. A hood cannot be styled as a weapon or shield. "
+                "Style never alters the real equipment underneath.\r\n"
             ); return
         if normalized.startswith("style copy "):
             await _copy_style_from_equipment(self, stripped[len("style copy "):], world_service); return

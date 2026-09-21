@@ -184,9 +184,9 @@ COMMANDS: tuple[CommandEntry, ...] = (
 
     CommandEntry("style", "STYLE / WARDROBE / OUTFIT / FASHION", "Show dedicated fashion, permanent copied looks, and the visual overrides you are currently wearing."),
     CommandEntry("style", "ATELIER / STYLE SERVICE", "Open Pavo Vellum's style-copy service when one of his inexplicably numerous ateliers is present."),
-    CommandEntry("style", "STYLE COPY <equipment> [AS <slot>]", "Pay Pavo to preserve the look of ordinary equipment permanently. The source item is not consumed, its stats are not copied, and the saved look remains after the gear leaves your inventory."),
-    CommandEntry("style", "STYLE WEAR <look> [AS <slot>]", "Wear dedicated fashion or a copied equipment look in any visual style slot without changing combat gear."),
-    CommandEntry("style", "STYLE SLOTS", "List all visual override slots, including Main Hand and Off Hand."),
+    CommandEntry("style", "STYLE COPY <equipment>", "Pay Pavo to preserve the look of ordinary equipment permanently. The source item is not consumed, its stats are not copied, and the saved look keeps the source equipment's natural slot."),
+    CommandEntry("style", "STYLE WEAR <look>", "Wear dedicated fashion or a copied equipment look in its compatible visual slot without changing combat gear."),
+    CommandEntry("style", "STYLE SLOTS", "List visual override slots and explain that each appearance is restricted to the slot appropriate for the item."),
     CommandEntry("style", "STYLE REMOVE <slot or item>", "Remove one cosmetic override from the styled outfit."),
     CommandEntry("style", "BOUTIQUE", "Browse fashion and fragrance stock at Veyra Brassmarket or the smaller Waymeet traveling trunk."),
     CommandEntry("style", "BUY STYLE <item>", "Buy a normal designer fashion piece with Sols."),
