@@ -243,7 +243,7 @@ async def _show_mail(session) -> None:
         if kind not in {"PLAYER", "WORLD", "SYSTEM"}:
             kind = "SYSTEM"
         await session.send(
-            f"{marker} [{kind}] {row['id']}) {row['subject']} — {row['sender']} "
+            f"{marker} [{kind}] {row['id']}) {row['subject']} - {row['sender']} "
             f"[Day {row['astralis_day']}]\r\n"
         )
     await session.send(

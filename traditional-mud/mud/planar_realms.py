@@ -38,7 +38,7 @@ def _room(key: str, name: str, region: str, description: str, exits: dict[str, s
     )
 
 
-# The Pale — a bleached echo where discarded possibilities remain after people leave.
+# The Pale - a bleached echo where discarded possibilities remain after people leave.
 PALE = "plane_pale"
 PALE_SHORE = "pale_colorless_shore"
 PALE_STREET = "pale_uninhabited_street"
@@ -46,7 +46,7 @@ PALE_HOUSE = "pale_house_of_left_things"
 PALE_BELL = "pale_bell_without_tower"
 PALE_ROOMS = (PALE_SHORE, PALE_STREET, PALE_HOUSE, PALE_BELL)
 
-# Brass Heaven — not divine: a dead city-sized machine whose builders are absent.
+# Brass Heaven - not divine: a dead city-sized machine whose builders are absent.
 BRASS = "plane_brass_heaven"
 BRASS_GATE = "brass_heaven_gate"
 BRASS_AVENUE = "brass_heaven_processional"
@@ -54,7 +54,7 @@ BRASS_ORRERY = "brass_heaven_orchard_of_gears"
 BRASS_THRONE = "brass_heaven_empty_throne"
 BRASS_ROOMS = (BRASS_GATE, BRASS_AVENUE, BRASS_ORRERY, BRASS_THRONE)
 
-# The Root Below — fungal wilderness that makes Sporekin antiquity look young.
+# The Root Below - fungal wilderness that makes Sporekin antiquity look young.
 ROOT = "plane_root_below"
 ROOT_MOUTH = "root_below_mouth"
 ROOT_FOREST = "root_below_lantern_forest"
@@ -62,7 +62,7 @@ ROOT_MEMORY = "root_below_memory_loam"
 ROOT_HEART = "root_below_sleeping_heart"
 ROOT_ROOMS = (ROOT_MOUTH, ROOT_FOREST, ROOT_MEMORY, ROOT_HEART)
 
-# The Red Country — resembles fragments of Earth, but every familiar thing is wrong.
+# The Red Country - resembles fragments of Earth, but every familiar thing is wrong.
 RED = "plane_red_country"
 RED_ROAD = "red_country_road"
 RED_STATION = "red_country_station"
@@ -70,7 +70,7 @@ RED_HOUSES = "red_country_identical_houses"
 RED_TOWER = "red_country_water_tower"
 RED_ROOMS = (RED_ROAD, RED_STATION, RED_HOUSES, RED_TOWER)
 
-# The Sea Above — an ocean overhead with islands hanging downward from its surface.
+# The Sea Above - an ocean overhead with islands hanging downward from its surface.
 SEA = "plane_sea_above"
 SEA_BEACH = "sea_above_dry_beach"
 SEA_PIER = "sea_above_upward_pier"
@@ -78,7 +78,7 @@ SEA_WRECK = "sea_above_hanging_wreck"
 SEA_LIGHT = "sea_above_inverted_lighthouse"
 SEA_ROOMS = (SEA_BEACH, SEA_PIER, SEA_WRECK, SEA_LIGHT)
 
-# The Country Behind the Door — linked to the Red Door key but intentionally unexplained.
+# The Country Behind the Door - linked to the Red Door key but intentionally unexplained.
 DOOR = "plane_country_behind_door"
 DOOR_FIELD = "behind_door_white_field"
 DOOR_VILLAGE = "behind_door_closed_village"
@@ -86,7 +86,7 @@ DOOR_HALL = "behind_door_long_hall"
 DOOR_RED = "behind_door_other_red_door"
 DOOR_ROOMS = (DOOR_FIELD, DOOR_VILLAGE, DOOR_HALL, DOOR_RED)
 
-# The Unspoken — not advertised, not publicly chronicled, and perhaps not a place.
+# The Unspoken - not advertised, not publicly chronicled, and perhaps not a place.
 UNSPOKEN = "plane_unspoken"
 UNSPOKEN_EDGE = "unspoken_edge"
 UNSPOKEN_DISTANCE = "unspoken_distance"

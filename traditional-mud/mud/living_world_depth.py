@@ -801,7 +801,7 @@ async def _show_depth_dispatch(session) -> None:
     if state is not None:
         arc, stage, index, _cycle = state
         await session.send(
-            f"\r\nONGOING: {arc.title} — {stage.label} ({index + 1}/{len(arc.stages)})\r\n"
+            f"\r\nONGOING: {arc.title} - {stage.label} ({index + 1}/{len(arc.stages)})\r\n"
             f"{stage.dispatch}\r\n"
             f"People following it are gathering around {stage.room_name}.\r\n"
         )
@@ -852,7 +852,7 @@ async def _show_locals(session) -> None:
         await session.send("None of the recurring road faces are here right now. They keep their own routes.\r\n")
         return
     for visitor in present:
-        await session.send(f"{visitor.name} — {visitor.role}. TALK {visitor.name.split()[0].upper()} to speak.\r\n")
+        await session.send(f"{visitor.name} - {visitor.role}. TALK {visitor.name.split()[0].upper()} to speak.\r\n")
 
 
 async def _push_depth_gmcp(session) -> None:

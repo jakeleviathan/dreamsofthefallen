@@ -741,7 +741,7 @@ def _create_return_letter(session, from_day: int, to_day: int) -> bool:
     recent = latest_chronicle(session.database, 1)
     chronicle_note = f" The public board also carries this line: {recent[0]['entry_text']}" if recent else ""
     sender = "Pikka Ninepins, Veyra Exchange" if int(character.level) >= 8 else "Waymeet Road Post"
-    subject = f"While you were away — Day {to_day}"
+    subject = f"While you were away - Day {to_day}"
     body = (
         f"You were away for {to_day - from_day} Astralis day{'s' if to_day - from_day != 1 else ''}. "
         f"The roads did not wait for you. {pulse.headline} {pulse.summary}{chronicle_note} "
@@ -810,7 +810,7 @@ async def _show_mail(session) -> None:
         return
     for row in rows:
         marker = " " if int(row["is_read"]) else "*"
-        await session.send(f"{marker} {row['id']}) {row['subject']} — {row['sender']} [Day {row['astralis_day']}]\r\n")
+        await session.send(f"{marker} {row['id']}) {row['subject']} - {row['sender']} [Day {row['astralis_day']}]\r\n")
     await session.send("READ MAIL <number> opens a letter. * means unread.\r\n")
 
 
