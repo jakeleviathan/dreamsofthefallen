@@ -1253,6 +1253,13 @@ def craft_recipe(
         resolved_skillup_roll = random.random() if skillup_roll is None else float(skillup_roll)
         skill_increased = resolved_skillup_roll < skillup_chance
 
+    high_quality = crafted and recipe.produces_high_quality_result(skill_value)
+    heritage_recipe_revision = None
+    if crafted:
+        from mud.item_heritage import recipe_revision
+
+        heritage_recipe_revision = recipe_revision(recipe)
+
     committed = database.complete_crafting_transaction(
         character_id,
         trade_skill_key=recipe.trade_skill_key,
@@ -1261,6 +1268,9 @@ def craft_recipe(
         output_quantity=recipe.output_quantity,
         skill_xp_gain=1 if skill_increased else 0,
         craft_succeeded=crafted,
+        heritage_recipe_key=recipe.key if crafted else None,
+        heritage_recipe_revision=heritage_recipe_revision,
+        heritage_high_quality=high_quality,
     )
     if not committed:
         return CraftAttemptResult(
@@ -1286,7 +1296,7 @@ def craft_recipe(
         message,
         output_item_key=recipe.output_item_key if crafted else None,
         output_quantity=recipe.output_quantity if crafted else 0,
-        high_quality=crafted and recipe.produces_high_quality_result(skill_value),
+        high_quality=high_quality,
         completed=True,
         skill_increased=skill_increased,
         new_skill_value=new_skill,
