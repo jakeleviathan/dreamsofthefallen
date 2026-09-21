@@ -510,6 +510,18 @@ class Database:
         """Atomically exchange Sols for merchant stock."""
         if quantity <= 0 or total_price < 0:
             raise ValueError("Invalid merchant purchase.")
+
+        from mud.item_heritage import (
+            chronicle_first_discoveries,
+            ensure_item_heritage_schema,
+            is_special_item,
+            record_special_acquisition_in_connection,
+        )
+
+        track_special = is_special_item(item_key)
+        if track_special:
+            ensure_item_heritage_schema(self)
+        created = []
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -531,6 +543,16 @@ class Database:
                 """,
                 (character_id, item_key, quantity),
             )
+            if track_special:
+                created = record_special_acquisition_in_connection(
+                    db,
+                    character_id=character_id,
+                    item_key=item_key,
+                    quantity=quantity,
+                    origin_text="Purchased from an Astralis merchant.",
+                )
+        if created:
+            chronicle_first_discoveries(self, created)
         return True
 
     def complete_merchant_sale(
@@ -544,6 +566,17 @@ class Database:
         """Atomically exchange carried items for Sols."""
         if quantity <= 0 or proceeds < 0:
             raise ValueError("Invalid merchant sale.")
+
+        from mud.item_heritage import (
+            ensure_item_heritage_schema,
+            ensure_special_inventory_item,
+            is_special_item,
+            retire_owned_instances_in_connection,
+        )
+
+        ensure_item_heritage_schema(self)
+        if is_special_item(item_key):
+            ensure_special_inventory_item(self, character_id, item_key)
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -567,11 +600,31 @@ class Database:
                 "UPDATE characters SET sols = sols + ? WHERE id = ?",
                 (proceeds, character_id),
             )
+            retire_owned_instances_in_connection(
+                db,
+                character_id=character_id,
+                item_key=item_key,
+                quantity=quantity,
+                event_type="merchant_sale",
+                note="Sold to an ordinary merchant.",
+            )
         return True
 
     def add_item(self, character_id: int, item_key: str, quantity: int = 1) -> None:
         if quantity <= 0:
             raise ValueError("Item quantity added must be positive.")
+
+        from mud.item_heritage import (
+            chronicle_first_discoveries,
+            ensure_item_heritage_schema,
+            is_special_item,
+            record_special_acquisition_in_connection,
+        )
+
+        track_special = is_special_item(item_key)
+        if track_special:
+            ensure_item_heritage_schema(self)
+        created = []
         with self.connect() as db:
             db.execute(
                 """
@@ -582,6 +635,16 @@ class Database:
                 """,
                 (character_id, item_key, quantity),
             )
+            if track_special:
+                created = record_special_acquisition_in_connection(
+                    db,
+                    character_id=character_id,
+                    item_key=item_key,
+                    quantity=quantity,
+                    origin_text="Awarded or discovered through authored game content.",
+                )
+        if created:
+            chronicle_first_discoveries(self, created)
 
     def item_quantity(self, character_id: int, item_key: str) -> int:
         with self.connect() as db:
@@ -617,6 +680,9 @@ class Database:
         output_quantity: int = 1,
         skill_xp_gain: int = 1,
         craft_succeeded: bool = True,
+        heritage_recipe_key: str | None = None,
+        heritage_recipe_revision: str | None = None,
+        heritage_high_quality: bool = False,
     ) -> bool:
         """Atomically resolve a completed craft attempt.
 
@@ -629,6 +695,16 @@ class Database:
         if skill_xp_gain < 0:
             raise ValueError("Trade skill XP gain cannot be negative.")
 
+        from mud.item_heritage import (
+            chronicle_first_discoveries,
+            ensure_item_heritage_schema,
+            record_crafted_gear_in_connection,
+        )
+
+        track_heritage = bool(craft_succeeded and heritage_recipe_key)
+        if track_heritage:
+            ensure_item_heritage_schema(self)
+        created_heritage = []
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             for requirement in materials:
@@ -666,6 +742,17 @@ class Database:
                     """,
                     (character_id, output_item_key, output_quantity),
                 )
+                if track_heritage:
+                    created_heritage = record_crafted_gear_in_connection(
+                        db,
+                        character_id=character_id,
+                        item_key=output_item_key,
+                        quantity=output_quantity,
+                        recipe_key=str(heritage_recipe_key),
+                        profession_key=trade_skill_key,
+                        recipe_revision_value=str(heritage_recipe_revision or "unknown"),
+                        high_quality=heritage_high_quality,
+                    )
             db.execute(
                 """
                 INSERT INTO character_trade_skills (character_id, trade_skill_key, uses, skill_xp)
@@ -676,11 +763,24 @@ class Database:
                 """,
                 (character_id, trade_skill_key, skill_xp_gain),
             )
+        if created_heritage:
+            chronicle_first_discoveries(self, created_heritage)
         return True
 
     def consume_item(self, character_id: int, item_key: str, quantity: int = 1) -> bool:
         if quantity <= 0:
             raise ValueError("Item quantity consumed must be positive.")
+
+        from mud.item_heritage import (
+            ensure_item_heritage_schema,
+            ensure_special_inventory_item,
+            is_special_item,
+            retire_owned_instances_in_connection,
+        )
+
+        ensure_item_heritage_schema(self)
+        if is_special_item(item_key):
+            ensure_special_inventory_item(self, character_id, item_key)
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -700,6 +800,14 @@ class Database:
                     "UPDATE character_items SET quantity = ? WHERE character_id = ? AND item_key = ?",
                     (new_quantity, character_id, item_key),
                 )
+            retire_owned_instances_in_connection(
+                db,
+                character_id=character_id,
+                item_key=item_key,
+                quantity=quantity,
+                event_type="consumed",
+                note="Consumed or expended by its owner.",
+            )
         return True
 
     def summon_pet_with_catalyst(
