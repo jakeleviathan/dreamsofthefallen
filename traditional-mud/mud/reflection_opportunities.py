@@ -209,7 +209,7 @@ def _regional_fixture(region_key: str) -> ReflectionOpportunity:
             "A practical burnished brass mirror hangs beside the wash fixtures, its center polished by constant use.",
             "The brass surface returns your reflection in warm metal tones.",
         )
-    if "goblin" in key or "rattle" in key:
+    if "goblin" in key or "rattle" in key or "junk_city" in key or "swamp" in key:
         return ReflectionOpportunity(
             "public_salvage_mirror",
             "Salvaged Glass Mirror",
