@@ -1,5 +1,5 @@
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.10
+-- Version 2.2.11
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -7,7 +7,7 @@
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.10"
+H.version = "2.2.11"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -28,7 +28,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.10"
+local MODERN_UI_VERSION = "2.2.11"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -76,7 +76,7 @@ local BUTTON_STYLE = [[
     border: 1px solid #6d5a72;
     border-radius: 5px;
     color: #e8dfd1;
-    font-size: 9pt;
+    font-size: 12pt;
     qproperty-alignment: 'AlignCenter';
   }
   QLabel:hover {
@@ -92,7 +92,7 @@ local BUTTON_ACTIVE_STYLE = [[
     border: 1px solid #d0ad75;
     border-radius: 5px;
     color: #fff4df;
-    font-size: 9pt;
+    font-size: 12pt;
     font-weight: bold;
     qproperty-alignment: 'AlignCenter';
   }
@@ -104,7 +104,7 @@ local BUTTON_DANGER_STYLE = [[
     border: 1px solid #c45161;
     border-radius: 5px;
     color: #fff0ec;
-    font-size: 9pt;
+    font-size: 12pt;
     font-weight: bold;
     qproperty-alignment: 'AlignCenter';
   }
@@ -116,7 +116,7 @@ local SMALL_TEXT = [[
     background-color: transparent;
     border: 0px;
     color: #cfc4d2;
-    font-size: 9pt;
+    font-size: 12pt;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignVCenter';
   }
@@ -127,7 +127,7 @@ local MUTED_TEXT = [[
     background-color: transparent;
     border: 0px;
     color: #94889a;
-    font-size: 8pt;
+    font-size: 12pt;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignVCenter';
   }
@@ -138,15 +138,16 @@ local GOLD_TEXT = [[
     background-color: transparent;
     border: 0px;
     color: #dfc18c;
-    font-size: 10pt;
+    font-size: 12pt;
     font-weight: bold;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignVCenter';
   }
 ]]
 
--- Quest copy gets its own larger, higher-contrast typography. The general
--- SMALL_TEXT/MUTED_TEXT styles remain compact for denser panels like Party.
+-- Readability rule: no informational HUD copy is intentionally smaller than
+-- the normal game text. Hierarchy comes from weight, color, and spacing rather
+-- than tiny type. Quest copy remains larger than this global 12pt floor.
 local QUEST_TITLE_TEXT = [[
   QLabel {
     background-color: transparent;

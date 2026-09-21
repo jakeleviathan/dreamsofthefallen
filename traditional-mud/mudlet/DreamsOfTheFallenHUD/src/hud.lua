@@ -76,7 +76,7 @@ local SUBTITLE_STYLE = [[
   QLabel {
     background-color: transparent;
     color: #a99cad;
-    font-size: 9pt;
+    font-size: 12pt;
     qproperty-alignment: 'AlignCenter';
   }
 ]]
@@ -94,7 +94,7 @@ local GAUGE_TEXT_STYLE = [[
   QLabel {
     background-color: transparent;
     color: #fff9ef;
-    font-size: 9pt;
+    font-size: 12pt;
     font-weight: bold;
     qproperty-alignment: 'AlignCenter';
   }

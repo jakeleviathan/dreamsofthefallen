@@ -45,7 +45,7 @@ jobs:
               config = zf.read("config.lua").decode("utf-8")
           for marker in ("Dreams.Room", "Dreams.Map", "Dreams.Party", "Dreams.Quests", "Dreams.Inventory", "Dreams.Abilities", "Dreams.Effects", "Dreams.Context", "Dreams.Onboarding", "Dreams.Crafting", "DreamsHUD.EffectsPane"):
               assert marker in xml, marker
-          assert 'version = "2.2.10"' in config
+          assert 'version = "2.2.11"' in config
 
           root = ET.fromstring(xml)
           embedded_lua = root.findtext(".//Script/script")
@@ -56,6 +56,9 @@ jobs:
           assert "expandAlias(\"baseui hide\", false)" in embedded_lua
           assert "font-size: 20pt" in embedded_lua
           assert "font-size: 17pt" in embedded_lua
+          assert "font-size: 12pt" in embedded_lua
+          assert "font-size: 9pt" not in embedded_lua
+          assert "font-size: 8pt" not in embedded_lua
           assert "function H.renderCrafting()" in embedded_lua
           assert "Crafting: " not in embedded_lua
           bootstrap_lua = root.findtext(".//TriggerPackage/Trigger/script")

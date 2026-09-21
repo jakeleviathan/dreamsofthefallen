@@ -2,7 +2,7 @@ mpackage = "DreamsOfTheFallenHUD"
 author = "Dreams of the Fallen"
 title = "Dreams of the Fallen Official HUD"
 description = [[
-# Dreams of the Fallen Official HUD 2.2.10
+# Dreams of the Fallen Official HUD 2.2.11
 
 A modern gothic-fantasy Mudlet interface for **Dreams of the Fallen** that keeps the normal Telnet command line authoritative.
 
@@ -23,6 +23,6 @@ Every button sends an ordinary MUD command. Players using a raw Telnet client re
 
 The HUD is designed to be offered automatically by the Dreams of the Fallen server through Mudlet's `Client.GUI` GMCP extension.
 ]]
-version = "2.2.10"
-created = "2026-09-20T16:55:00-04:00"
+version = "2.2.11"
+created = "2026-09-20T21:47:00-04:00"
 dependencies = ""
