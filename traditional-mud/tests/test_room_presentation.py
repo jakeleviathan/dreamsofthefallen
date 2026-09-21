@@ -138,7 +138,7 @@ with tempfile.TemporaryDirectory() as temp:
     )
     duplicate_before = "\r\n".join(render_room_lines(duplicate_session, server.WORLD))
     assert "Cellar Rat x2" not in duplicate_before, duplicate_before
-    assert duplicate_before.count("Cellar Rat - ") == 2, duplicate_before
+    assert duplicate_before.count(f"{CREATURE}Cellar Rat") == 2, duplicate_before
 
     mark_static_enemy_defeated(
         database,
@@ -148,7 +148,7 @@ with tempfile.TemporaryDirectory() as temp:
     )
     duplicate_after_one = "\r\n".join(render_room_lines(duplicate_session, server.WORLD))
     assert "Cellar Rat x2" not in duplicate_after_one, duplicate_after_one
-    assert duplicate_after_one.count("Cellar Rat - ") == 1, duplicate_after_one
+    assert duplicate_after_one.count(f"{CREATURE}Cellar Rat") == 1, duplicate_after_one
 
 # Attackable-but-passive mobiles are creatures; only explicit auto-aggro
 # definitions are labeled Hostile.
