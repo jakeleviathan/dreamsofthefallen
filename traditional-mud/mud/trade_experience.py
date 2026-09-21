@@ -350,6 +350,17 @@ async def _give(session, target_name: str, quantity: int, item_text: str) -> Non
         await session.send(error + "\r\n")
         return
 
+    checker = getattr(target_session, "can_receive_item", None)
+    if callable(checker) and not checker(item_key, quantity):
+        await session.send(
+            f"{target.name} has no free inventory slot for that item type. Nothing was moved.\r\n"
+        )
+        await _safe_send(
+            target_session,
+            f"{sender.name} tried to give you an item, but your inventory is full.\r\n",
+        )
+        return
+
     try:
         moved = exchange_items(session.database, sender.id, {item_key: quantity}, target.id, {})
     except Exception:
@@ -536,14 +547,36 @@ async def _confirm_trade(session) -> None:
                 await session.send(f"Trade cannot be confirmed: {error}\r\n")
                 return
 
+    from mud.inventory_capacity import projected_trade_fits
+    first_offer = dict(trade.offers[trade.first_character_id])
+    second_offer = dict(trade.offers[trade.second_character_id])
+    if not projected_trade_fits(
+        session.database,
+        trade.first_character_id,
+        incoming=second_offer,
+        outgoing=first_offer,
+    ):
+        trade.confirmed.clear()
+        await _safe_send(session, "Trade cannot be confirmed: the first player's inventory would exceed capacity.\r\n")
+        await _safe_send(partner_session, "Trade cannot be confirmed: the first player's inventory would exceed capacity.\r\n")
+        return
+    if not projected_trade_fits(
+        session.database,
+        trade.second_character_id,
+        incoming=first_offer,
+        outgoing=second_offer,
+    ):
+        trade.confirmed.clear()
+        await _safe_send(session, "Trade cannot be confirmed: the second player's inventory would exceed capacity.\r\n")
+        await _safe_send(partner_session, "Trade cannot be confirmed: the second player's inventory would exceed capacity.\r\n")
+        return
+
     trade.confirmed.add(character.id)
     await session.send("Trade confirmed. Waiting for the other player.\r\n")
     await _safe_send(partner_session, f"{character.name} confirms the current trade offer.\r\n")
     if len(trade.confirmed) < 2:
         return
 
-    first_offer = dict(trade.offers[trade.first_character_id])
-    second_offer = dict(trade.offers[trade.second_character_id])
     try:
         success = exchange_items(
             session.database,
