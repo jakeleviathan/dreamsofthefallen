@@ -1063,10 +1063,19 @@ async def _handle_alchemy(session, command: str) -> bool:
     if result.success and result.output_item_key:
         output = crafting.ITEMS_BY_KEY.get(result.output_item_key)
         output_name = output.name if output else result.output_item_key
-        new_skill = trade_skill_value(session.database, session.character.id, "alchemy")
+        new_skill = int(
+            result.new_skill_value
+            if result.new_skill_value is not None
+            else trade_skill_value(session.database, session.character.id, "alchemy")
+        )
+        feedback = crafting.crafting_skill_feedback(
+            recipe,
+            new_skill_value=new_skill,
+            skill_increased=result.skill_increased,
+        )
         await session.send(
             f"\r\nYou work through the measured steps at the field bench and produce {result.output_quantity}x {output_name}. "
-            f"Alchemy improves through use (skill {new_skill}).\r\n"
+            f"{feedback}\r\n"
         )
     else:
         await session.send("\r\n" + result.message + "\r\n")
