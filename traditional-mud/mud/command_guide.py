@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from mud.local_interactions import contextual_action_hints, hidden_feature_verbs, normalize_local_interaction
-from mud.style_collectibles import BOUTIQUE_ROOMS
+from mud.style_collectibles import BOUTIQUE_ROOMS, style_atelier_available
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,9 +182,12 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("pastimes", "WATCH SHOW / HECKLE / APPLAUD", "Interact with the Crooked Lantern Company when the troupe is performing."),
     CommandEntry("pastimes", "KEEPSAKES / TROPHIES", "Review statless social keepsakes and bragging-rights objects."),
 
-    CommandEntry("style", "STYLE / WARDROBE / OUTFIT / FASHION", "Show your worn fashion and fashion pieces currently carried."),
-    CommandEntry("style", "STYLE WEAR <item>", "Wear a cosmetic piece in its independent fashion slot without changing combat gear."),
-    CommandEntry("style", "STYLE REMOVE <slot or item>", "Remove one cosmetic piece from the styled outfit."),
+    CommandEntry("style", "STYLE / WARDROBE / OUTFIT / FASHION", "Show dedicated fashion, permanent copied looks, and the visual overrides you are currently wearing."),
+    CommandEntry("style", "ATELIER / STYLE SERVICE", "Open Pavo Vellum's style-copy service when one of his inexplicably numerous ateliers is present."),
+    CommandEntry("style", "STYLE COPY <equipment> [AS <slot>]", "Pay Pavo to preserve the look of ordinary equipment permanently. The source item is not consumed, its stats are not copied, and the saved look remains after the gear leaves your inventory."),
+    CommandEntry("style", "STYLE WEAR <look> [AS <slot>]", "Wear dedicated fashion or a copied equipment look in any visual style slot without changing combat gear."),
+    CommandEntry("style", "STYLE SLOTS", "List all visual override slots, including Main Hand and Off Hand."),
+    CommandEntry("style", "STYLE REMOVE <slot or item>", "Remove one cosmetic override from the styled outfit."),
     CommandEntry("style", "BOUTIQUE", "Browse fashion and fragrance stock at Veyra Brassmarket or the smaller Waymeet traveling trunk."),
     CommandEntry("style", "BUY STYLE <item>", "Buy a normal designer fashion piece with Sols."),
     CommandEntry("style", "FRAGRANCES / PERFUMES", "List fragrance bottles you currently carry, including notes and effect length."),
@@ -276,8 +279,15 @@ async def _show_help_here(session, world_service) -> None:
         suggestions.append((f"{verb} <named feature>", "this room contains authored text that points at this interaction"))
     suggestions.extend(contextual_action_hints(room_key))
 
+    if style_atelier_available(world_service, room_key):
+        suggestions.extend(
+            (
+                ("ATELIER", "talk to Pavo Vellum and copy ordinary equipment into permanent fashion"),
+                ("WARDROBE", "review dedicated fashion and copied looks"),
+            )
+        )
     if room_key in BOUTIQUE_ROOMS:
-        suggestions.extend((("BOUTIQUE", "browse fashion and fragrance"), ("WARDROBE", "review your current style")))
+        suggestions.append(("BOUTIQUE", "browse fashion and fragrance"))
     if "waymeet" in region or room_key.startswith("waymeet_"):
         suggestions.extend((("EXPLORE", "see spoiler-light outer-road adventure progress"), ("ECONOMY ROUTE", "review the shared hunt/gather/craft loop"), ("PASTIMES", "see local social games")))
     if "veyra" in region or room_key.startswith("veyra_"):
