@@ -289,6 +289,7 @@ class PlayerSession:
         database: Database,
         mobile_npcs: MobileNpcManager | None = None,
         mobile_npc_movement_callback=None,
+        room_players_callback=None,
         mudlet_gui_offer: MudletGuiOffer | None = None,
     ) -> None:
         self.reader = reader
@@ -296,6 +297,7 @@ class PlayerSession:
         self.database = database
         self.mobile_npcs = mobile_npcs
         self.mobile_npc_movement_callback = mobile_npc_movement_callback
+        self.room_players_callback = room_players_callback
         self.state = SessionState.ACCOUNT_NAME
         self.peer = writer.get_extra_info("peername")
         self.account: AccountRecord | None = None
