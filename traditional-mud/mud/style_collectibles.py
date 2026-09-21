@@ -247,6 +247,22 @@ def ensure_style_schema(database) -> None:
                 FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS character_style_copies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                character_id INTEGER NOT NULL,
+                source_item_key TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                source_description TEXT NOT NULL,
+                source_equipment_slot TEXT NOT NULL,
+                copied_by TEXT NOT NULL DEFAULT 'Pavo Vellum',
+                copied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(character_id, source_item_key),
+                FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_character_style_copies_character
+            ON character_style_copies(character_id);
+
             CREATE TABLE IF NOT EXISTS character_fragrance_effects (
                 character_id INTEGER PRIMARY KEY,
                 fragrance_key TEXT NOT NULL,
