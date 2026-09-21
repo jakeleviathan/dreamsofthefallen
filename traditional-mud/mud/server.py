@@ -343,12 +343,24 @@ class MudServer:
             database=self.database,
             mobile_npcs=self.mobile_npcs,
             mobile_npc_movement_callback=self.broadcast_npc_movement,
+            room_players_callback=self.players_in_room,
         )
         self.sessions.add(session)
         try:
             await session.run()
         finally:
             self.sessions.discard(session)
+
+    def players_in_room(self, room_key: str, exclude_character_id: int | None = None) -> tuple[object, ...]:
+        """Return online characters sharing a room, optionally excluding the viewer."""
+        return tuple(
+            session.character
+            for session in self.sessions
+            if session.state is SessionState.PLAYING
+            and session.character is not None
+            and session.character.current_room == room_key
+            and session.character.id != exclude_character_id
+        )
 
     def player_room_keys(self) -> tuple[str, ...]:
         return tuple(
