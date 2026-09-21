@@ -1,4 +1,5 @@
 from pathlib import Path
+import unittest
 import zipfile
 
 
@@ -48,7 +49,15 @@ def _find_forbidden_in_mudlet_packages():
     return matches
 
 
-def test_game_text_contains_no_em_dash():
-    matches = _find_forbidden_in_text_files()
-    matches.extend(_find_forbidden_in_mudlet_packages())
-    assert not matches, "Forbidden U+2014 found in: " + ", ".join(sorted(matches))
+class NoEmDashTests(unittest.TestCase):
+    def test_game_text_contains_no_em_dash(self):
+        matches = _find_forbidden_in_text_files()
+        matches.extend(_find_forbidden_in_mudlet_packages())
+        self.assertFalse(
+            matches,
+            "Forbidden U+2014 found in: " + ", ".join(sorted(matches)),
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
