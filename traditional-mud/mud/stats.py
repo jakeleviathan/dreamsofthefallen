@@ -156,10 +156,10 @@ class EquipmentItem:
     slot: str
     armor_class: int = 0
     stat_bonuses: CharacterStats = CharacterStats()
-    inventory_slots: int = 0
     scripted_effects: tuple[str, ...] = ()
     allowed_races: frozenset[str] = frozenset()
     allowed_classes: frozenset[str] = frozenset()
+    inventory_slots: int = 0
 
     @property
     def is_special(self) -> bool:
