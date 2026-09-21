@@ -302,8 +302,7 @@ class AstralisWeatherService:
             new_weather=weather,
             text=(
                 f"A white fork of lightning tears down over {region_name}. "
-                "The thunder that follows is close enough to shake the ground, "
-                "and something wild answers from beyond the settled paths."
+                "The thunder that follows is close enough to shake the ground."
             ),
             category="weather_phenomenon",
             phenomenon_key="stormwake",
