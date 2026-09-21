@@ -211,8 +211,8 @@ class EconomyLoopTests(unittest.TestCase):
         asyncio.run(search_session.playing_prompt())
         search_output = "".join(search_session.outputs)
         self.assertIn("SEARCH: gloves", search_output)
-        self.assertIn("Cotton Gloves", search_output)
-        self.assertNotIn("Cotton Hood", search_output)
+        self.assertIn("Trailguard Gloves", search_output)
+        self.assertNotIn("Cotton Thread", search_output)
 
     def test_difficult_filter_separates_out_of_range_recipes(self):
         session = self._session_in(
