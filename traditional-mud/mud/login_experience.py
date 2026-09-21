@@ -258,7 +258,7 @@ def install_login_experience(player_session_class) -> None:
         )
         if recent_character is not None:
             await self.send(f"Last played: {recent_character.name}\r\n")
-        await self.send("Commands: ENTER <slot or name>    PLAY LAST    CREATE    QUIT\r\n")
+        await self.send("Commands: ENTER <slot or name>    PLAY LAST    CREATE    DELETE <slot or name>    QUIT\r\n")
 
         choice = await self.prompt("Roster: ")
         if choice is None:
@@ -272,6 +272,7 @@ def install_login_experience(player_session_class) -> None:
                 "\r\nENTER <slot or name> - play an existing character.\r\n"
                 "PLAY LAST - immediately enter the character you played most recently.\r\n"
                 "CREATE - begin making a new character in an empty slot.\r\n"
+                "DELETE <slot or name> - permanently delete a character after name confirmation.\r\n"
                 "QUIT - disconnect.\r\n"
             )
             return
@@ -293,6 +294,41 @@ def install_login_experience(player_session_class) -> None:
                 return
             await self.character_creation_flow()
             return
+        if lowered == "delete":
+            await self.send("\r\nUse DELETE <slot or character name>.\r\n")
+            return
+        if lowered.startswith("delete "):
+            target = normalized.split(maxsplit=1)[1].strip()
+            character = _find_roster_character(characters, target)
+            if character is None:
+                await self.send("\r\nThat character slot is empty or no character by that name exists.\r\n")
+                return
+            await self.send(
+                f"\r\nWARNING: Deleting {character.name} is permanent. "
+                "All of that character's progress and items will be lost.\r\n"
+            )
+            confirmation = await self.prompt(
+                f"Type {character.name} to permanently delete this character, or CANCEL: "
+            )
+            if confirmation is None:
+                self.state = session_module.SessionState.DISCONNECTED
+                return
+            if confirmation.strip().casefold() != character.name.casefold():
+                await self.send("\r\nDeletion cancelled. The character was not changed.\r\n")
+                return
+            current = next(
+                (candidate for candidate in self.database.list_characters(self.account.id) if candidate.id == character.id),
+                None,
+            )
+            if current is None:
+                await self.send("\r\nThat character is no longer on this account.\r\n")
+                return
+            if self.database.delete_character(self.account.id, current.id):
+                await self.send(f"\r\n{current.name} has been permanently deleted.\r\n")
+            else:
+                await self.send("\r\nCharacter deletion failed safely; nothing was deleted.\r\n")
+            return
+
         if lowered in {"play last", "last", "resume", "continue"}:
             if recent_character is None:
                 await self.send(
