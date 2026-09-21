@@ -137,7 +137,7 @@ class EconomyLoopTests(unittest.TestCase):
         # ingredient should make that ingredient magenta while absent materials
         # retain the normal yellow recipe-material color.
         self.db.add_item(self.character.id, "iron_ingot", 1)
-        session = self._session_in("dwarf_workshop_tier", ["recipes blacksmithing"])
+        session = self._session_in("dwarf_workshop_tier", ["recipes blacksmithing all"])
 
         asyncio.run(session.playing_prompt())
 
@@ -170,6 +170,59 @@ class EconomyLoopTests(unittest.TestCase):
         self.assertIn("Iron Ingot", output)
         self.assertNotIn("Iron Dagger", output)
         self.assertNotIn("CRAFT NOW", output)
+
+    def test_profession_recipe_view_defaults_to_craftable_and_teaches_filters(self):
+        self.db.add_item(self.character.id, "raw_cotton", 2)
+        session = self._session_in("forest_elf_hearthwalk", ["recipes tailoring"])
+
+        asyncio.run(session.playing_prompt())
+
+        output = "".join(session.outputs)
+        self.assertIn("TAILORING RECIPES", output)
+        self.assertIn("Showing: CRAFTABLE", output)
+        self.assertIn("Cotton Thread", output)
+        self.assertNotIn("Cotton Gloves", output)
+        self.assertIn("Filters: ALL | CRAFTABLE | ARMOR | CLOTHING | MATERIALS | DIFFICULT", output)
+        self.assertIn("RECIPES TAILORING SEARCH <text>", output)
+
+    def test_profession_all_lists_attemptable_recipes_not_too_difficult(self):
+        session = self._session_in("forest_elf_hearthwalk", ["recipes tailoring all"])
+
+        asyncio.run(session.playing_prompt())
+
+        output = "".join(session.outputs)
+        self.assertIn("Showing: ALL ATTEMPTABLE", output)
+        self.assertIn("Cotton Thread", output)
+        self.assertNotIn("Showing: DIFFICULT", output)
+
+    def test_profession_material_and_search_filters_are_semantic(self):
+        material_session = self._session_in(
+            "forest_elf_hearthwalk", ["recipes tailoring materials"]
+        )
+        asyncio.run(material_session.playing_prompt())
+        material_output = "".join(material_session.outputs)
+        self.assertIn("Showing: MATERIALS", material_output)
+        self.assertIn("Cotton Thread", material_output)
+        self.assertNotIn("Cotton Gloves", material_output)
+
+        search_session = self._session_in(
+            "forest_elf_hearthwalk", ["recipes tailoring search gloves"]
+        )
+        asyncio.run(search_session.playing_prompt())
+        search_output = "".join(search_session.outputs)
+        self.assertIn("SEARCH: gloves", search_output)
+        self.assertIn("Trailguard Gloves", search_output)
+        self.assertNotIn("Cotton Gloves", search_output)
+
+    def test_difficult_filter_separates_out_of_range_recipes(self):
+        session = self._session_in(
+            "forest_elf_hearthwalk", ["recipes tailoring difficult"]
+        )
+        asyncio.run(session.playing_prompt())
+
+        output = "".join(session.outputs)
+        self.assertIn("Showing: DIFFICULT", output)
+        self.assertIn("too difficult", output)
 
     def test_real_room_station_allows_existing_crafting_recipe(self):
         session = self._session_in("dwarf_workshop_tier", ["craft smelt iron ingot"])
