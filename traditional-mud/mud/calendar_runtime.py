@@ -48,7 +48,7 @@ def install_calendar_runtime(player_session_class, world_service) -> None:
                     f" - {season.name}: days {season.start_day}-{season.end_day} ({season.length_days} days)\r\n"
                 )
             await self.send(
-                f"Moon cycle: {MOON_CYCLE_DAYS} days — New Moon -> Waxing Moon -> Full Moon -> Waning Moon.\r\n"
+                f"Moon cycle: {MOON_CYCLE_DAYS} days - New Moon -> Waxing Moon -> Full Moon -> Waning Moon.\r\n"
             )
             await self.send(
                 "Month names have intentionally not been authored yet; the calendar currently tracks year, day, season, and moon phase.\r\n"

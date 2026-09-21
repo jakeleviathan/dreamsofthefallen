@@ -65,8 +65,8 @@ class AstralisCalendarDate:
     @property
     def display(self) -> str:
         return (
-            f"Year {self.year}, Day {self.day_of_year} of {ASTRALIS_DAYS_PER_YEAR} — "
-            f"{self.season_name}, day {self.season_day} — {self.moon_phase_name}"
+            f"Year {self.year}, Day {self.day_of_year} of {ASTRALIS_DAYS_PER_YEAR} - "
+            f"{self.season_name}, day {self.season_day} - {self.moon_phase_name}"
         )
 
 

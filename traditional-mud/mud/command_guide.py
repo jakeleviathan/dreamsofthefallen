@@ -220,7 +220,7 @@ async def _show_category(session, category: str) -> None:
         return
     await session.send(f"\r\n--- Commands: {wanted.title()} ---\r\n")
     for entry in rows:
-        await session.send(f"{entry.syntax} — {entry.description}\r\n")
+        await session.send(f"{entry.syntax} - {entry.description}\r\n")
 
 
 async def _search_commands(session, query: str) -> None:
@@ -234,7 +234,7 @@ async def _search_commands(session, query: str) -> None:
         await session.send("No cataloged command family matched. Try a broader word or HELP HERE.\r\n")
         return
     for entry in rows[:30]:
-        await session.send(f"[{entry.category}] {entry.syntax} — {entry.description}\r\n")
+        await session.send(f"[{entry.category}] {entry.syntax} - {entry.description}\r\n")
     if len(rows) > 30:
         await session.send(f"...and {len(rows) - 30} more matches; narrow the search term.\r\n")
 
@@ -305,7 +305,7 @@ async def _show_help_here(session, world_service) -> None:
     if room is not None:
         await session.send(f"{room.name} [{region}]\r\n")
     for command, reason in unique[:12]:
-        await session.send(f"{command} — {reason}.\r\n")
+        await session.send(f"{command} - {reason}.\r\n")
     await session.send("This is a suggestion list, not a checklist. COMMANDS searches the complete guide.\r\n")
 
 
@@ -373,7 +373,7 @@ def install_command_guide_runtime(player_session_class, world_service) -> None:
             if rows:
                 await self.send(f"\r\n--- Help: {query} ---\r\n")
                 for entry in rows[:12]:
-                    await self.send(f"[{entry.category}] {entry.syntax} — {entry.description}\r\n")
+                    await self.send(f"[{entry.category}] {entry.syntax} - {entry.description}\r\n")
                 return
 
         await _delegate(self, previous_prompt, command)

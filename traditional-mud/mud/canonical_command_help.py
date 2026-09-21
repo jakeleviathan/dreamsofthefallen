@@ -83,7 +83,7 @@ async def _show_quick_help(session) -> None:
     await session.send("\r\n--- Help ---\r\n")
     await session.send("The same command catalog powers HELP and COMMANDS. Start with these:\r\n")
     for entry in rows:
-        await session.send(f"{entry.syntax} — {entry.description}\r\n")
+        await session.send(f"{entry.syntax} - {entry.description}\r\n")
     await session.send(
         "COMMANDS shows categories. COMMANDS ALL or HELP ALL prints the full catalog; "
         "HELP <word> or COMMAND SEARCH <word> searches it.\r\n"
