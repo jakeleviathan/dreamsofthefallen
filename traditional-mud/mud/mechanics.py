@@ -86,6 +86,7 @@ class AbilityDefinition:
     cooldown_seconds: float | None = None
     description: str = ""
     category: str = "active"
+    element: str | None = None
     catalyst_item_key: str | None = None
     catalyst_quantity: int = 0
     skill_improves_effectiveness: bool = True
@@ -127,6 +128,7 @@ FIXED_CLASS_ABILITIES: dict[str, tuple[AbilityDefinition, ...]] = {
             unlock_level=1,
             description="A simple burst of cold fire that deals direct spell damage.",
             category="spell_damage",
+            element="fire",
         ),
         AbilityDefinition(
             key="minor_barrier",
