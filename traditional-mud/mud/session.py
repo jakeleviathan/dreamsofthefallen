@@ -52,6 +52,11 @@ from mud.mechanics import (
     class_abilities_for_level,
 )
 from mud.world_data import REGIONS_BY_KEY
+from mud.weather_gameplay import (
+    adjusted_attack_roll,
+    fire_spell_disrupted,
+    flee_success_chance,
+)
 from mud.quests import (
     HUMAN_CATHEDRAL_SUMMONS,
     HUMAN_COMBAT_TRAINING,
@@ -98,6 +103,29 @@ _ABILITY_UI_BAND = "\x1b[1;93m"
 _ABILITY_UI_PROGRESS = "\x1b[92m"
 _ABILITY_UI_DIM = "\x1b[90m"
 _ABILITY_UI_UNLOCKED = "\x1b[92m"
+
+
+def _session_weather(session) -> tuple[str, bool]:
+    weather_getter = getattr(session, "current_weather", None)
+    exposure_getter = getattr(session, "current_weather_exposed", None)
+    weather = weather_getter() if callable(weather_getter) else "clear"
+    exposed = exposure_getter() if callable(exposure_getter) else False
+    return str(weather or "clear"), bool(exposed)
+
+
+def _main_hand_is_ranged(session) -> bool:
+    character = getattr(session, "character", None)
+    database = getattr(session, "database", None)
+    if character is None or database is None:
+        return False
+    try:
+        from mud.equipment_system import equipped_definitions
+
+        weapon = equipped_definitions(database, character.id).get("main_hand")
+    except Exception:
+        return False
+    equipment = getattr(weapon, "equipment", None)
+    return bool(equipment is not None and getattr(equipment, "is_ranged", False))
 
 
 def _ability_ui(style: str, text: str) -> str:
@@ -1141,7 +1169,15 @@ class PlayerSession:
                 now = loop.time()
                 if self.combatant.auto_attack_ready(now):
                     self.combatant.consume_auto_attack(now)
-                    attack_roll = random.randint(1, 20)
+                    raw_attack_roll = random.randint(1, 20)
+                    weather, exposed = _session_weather(self)
+                    ranged_attack = _main_hand_is_ranged(self)
+                    attack_roll = adjusted_attack_roll(
+                        raw_attack_roll,
+                        weather,
+                        ranged=ranged_attack,
+                        exposed=exposed,
+                    )
                     if attack_roll >= enemy.definition.armor_class:
                         damage = self.combatant.auto_attack_damage(2)
                         dealt = enemy.take_damage(damage)
@@ -1154,7 +1190,13 @@ class PlayerSession:
                             await self._finish_enemy_defeat(enemy)
                             return
                     else:
-                        await self.send(f"\r\nYour attack misses {enemy.definition.name}.\r\n")
+                        if ranged_attack and attack_roll < raw_attack_roll:
+                            await self.send(
+                                f"\r\nThe {weather} conditions throw your ranged attack off, "
+                                f"and you miss {enemy.definition.name}.\r\n"
+                            )
+                        else:
+                            await self.send(f"\r\nYour attack misses {enemy.definition.name}.\r\n")
 
                 if enemy.definition.retaliates and now >= next_enemy_attack and enemy.alive:
                     damage = enemy.definition.auto_attack_damage
@@ -1346,7 +1388,13 @@ class PlayerSession:
             return
 
         enemy_name = self.active_enemy.definition.name
-        if not FLEE_RULES.succeeds(random.random()):
+        weather, exposed = _session_weather(self)
+        success_chance = flee_success_chance(
+            FLEE_RULES.base_success_chance,
+            weather,
+            exposed=exposed,
+        )
+        if random.random() > success_chance:
             await self.send(f"You try to break away, but {enemy_name} cuts off your escape!\r\n")
             return
 
@@ -1440,6 +1488,22 @@ class PlayerSession:
 
         used = False
         ability_mastery.begin_use(self, ability)
+
+        weather, exposed = _session_weather(self)
+        if fire_spell_disrupted(
+            weather,
+            random.random(),
+            element=getattr(ability, "element", None),
+            exposed=exposed,
+        ):
+            await self.send(
+                f"{ability.name} gutters apart in the {weather} before it can take hold.\r\n"
+            )
+            self.combatant.start_cooldown(ability.key, cooldown)
+            await ability_mastery.commit_use(self)
+            await self.send_client_state()
+            return
+
         if ability.key == "taunt":
             if self.active_enemy is None:
                 await self.send("You need an enemy to taunt.\r\n")
