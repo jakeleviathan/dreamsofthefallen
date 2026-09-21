@@ -665,9 +665,10 @@ def _recipe_line(session, recipe: CraftingRecipe, *, include_materials: bool = T
     # READY / CRAFT NOW labels added noise without adding useful information;
     # material colors and the surrounding recipe section already communicate
     # availability.
+    station_style = _RECIPE_READY if state["station_ready"] else _RECIPE_LOCKED
     line = (
         f"  {name}\r\n"
-        f"       {_recipe_paint(_RECIPE_LOCKED, station)}"
+        f"       {_recipe_paint(station_style, station)}"
         f"  |  Trivial {recipe.trivial_skill}  |  {success_pct}% success\r\n"
     )
     if include_materials:
@@ -884,6 +885,8 @@ async def _show_recipe_detail(session, target: str) -> None:
     profession = _profession_name(recipe.trade_skill_key)
     station = STATION_LABELS.get(recipe.station_key, recipe.station_key or "No station")
     station_state = "HERE" if state["station_ready"] else "NOT HERE"
+    station_style = _RECIPE_READY if state["station_ready"] else _RECIPE_LOCKED
+    station_display = _recipe_paint(station_style, f"{station}  ({station_state})")
     success_pct = int(round(float(state["success_chance"]) * 100))
     skillup_pct = int(round(float(state["skillup_chance"]) * 100))
     if state["mastered"]:
@@ -906,7 +909,7 @@ async def _show_recipe_detail(session, target: str) -> None:
         f"Success    : {success_pct}%\r\n"
         f"Training   : {skill_state}\r\n"
         f"Craft time : {crafting.craft_time_seconds(recipe):g}s\r\n"
-        f"Station    : {station}  ({station_state})\r\n"
+        f"Station    : {station_display}\r\n"
         f"Output     : {recipe.output_quantity}x {output_name}\r\n"
         f"Ingredients:\r\n"
     )
