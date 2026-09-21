@@ -1,4 +1,4 @@
-# Dreams of the Fallen — Production Runbook
+# Dreams of the Fallen - Production Runbook
 
 This is the minimum operator checklist for moving the Telnet MUD from development into a closed alpha and then a wider public service.
 
@@ -41,7 +41,7 @@ Create one Discord application for **Dreams of the Fallen**, put its numeric app
 
 For the best branded presence, configure these lowercase Rich Presence assets in that Discord application:
 
-- `server-icon` — Dreams of the Fallen logo; this is the universal fallback.
+- `server-icon` - Dreams of the Fallen logo; this is the universal fallback.
 - `class-brute`
 - `class-wizard`
 - `class-necromancer`
@@ -70,12 +70,12 @@ The gate intentionally happens after password verification. It is an invitation 
 
 An ADMIN or OWNER must first use `STAFF ON`.
 
-- `STAFF HEALTH` — database integrity, item audit, backup status, active sessions, alpha status, and a 24-hour combat sample.
-- `STAFF BACKUP` — take and validate a backup immediately while the server remains online.
-- `STAFF ITEM AUDIT` — detailed read-only inventory/provenance invariant scan.
-- `STAFF COMBAT [hours]` — completed-fight count, victory/death counts, average duration, and average character level.
-- `STAFF SESSIONS` — currently authenticated account/character sessions.
-- `STAFF ALPHA` — whether the invitation gate is enabled and how many account names are configured.
+- `STAFF HEALTH` - database integrity, item audit, backup status, active sessions, alpha status, and a 24-hour combat sample.
+- `STAFF BACKUP` - take and validate a backup immediately while the server remains online.
+- `STAFF ITEM AUDIT` - detailed read-only inventory/provenance invariant scan.
+- `STAFF COMBAT [hours]` - completed-fight count, victory/death counts, average duration, and average character level.
+- `STAFF SESSIONS` - currently authenticated account/character sessions.
+- `STAFF ALPHA` - whether the invitation gate is enabled and how many account names are configured.
 
 Existing staff actions remain separately audited and confirmation-gated where disruptive.
 
