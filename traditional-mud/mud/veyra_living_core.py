@@ -313,7 +313,7 @@ async def _show_market_day(session) -> bool:
     if session.character is None or session.character.current_room not in {veyra.VEYRA_BRASSMARKET_KEY, veyra.VEYRA_NOTICE_HALL_KEY}:
         return False
     day = market_day()
-    lines = [f"VEYRA MARKET DAY — {day.name}", day.description]
+    lines = [f"VEYRA MARKET DAY - {day.name}", day.description]
     for demand in day.demands:
         lines.append(f" - {_item_name(demand.item_key)}: {demand.bundle_size} for {format_sols(demand.sparks_per_bundle)}")
     lines.append("At Brassmarket use SELL DEMAND <qty> <item>. Partial bundles stay in your inventory.")
@@ -369,7 +369,7 @@ async def _show_weekly_contract(session) -> bool:
     row = _contract_row(session, week_id)
     state = "not accepted" if row is None else str(row["status"])
     await session.send(
-        f"VEYRA WEEKLY CONTRACT {week_id} — {contract.name}\r\n"
+        f"VEYRA WEEKLY CONTRACT {week_id} - {contract.name}\r\n"
         f"{contract.description}\r\n"
         f"Deliver {contract.quantity} x {_item_name(contract.item_key)}. Reward: {contract.xp_reward} XP, {format_sols(contract.sol_reward_sparks)} in Sols, and 1 faction service point if you hold a ranked Veyra faction seal.\r\n"
         f"Status: {state}. Use ACCEPT CONTRACT, then TURN IN CONTRACT here.\r\n"
@@ -434,7 +434,7 @@ async def _faction_status(session) -> bool:
     faction, points, rank = standing
     next_text = "maximum authored rank" if rank >= 3 else f"Rank {rank + 1} requires {RANK_THRESHOLDS[rank + 1]} service points"
     await session.send(
-        f"{FACTION_NAMES[faction]} — Rank {rank}, {points} service point(s); {next_text}.\r\n"
+        f"{FACTION_NAMES[faction]} - Rank {rank}, {points} service point(s); {next_text}.\r\n"
         f"{_rank_perk_text(faction, rank)}\r\n"
         "Public weekly contracts and one faction duty per weekly rotation build service. Promotion is explicit at your faction office.\r\n"
     )

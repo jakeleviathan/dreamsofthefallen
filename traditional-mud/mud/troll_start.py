@@ -601,7 +601,7 @@ async def _talk_brannik(session) -> bool:
     if step == "meet_outsider":
         session.database.advance_quest(session.character.id, TROLL_OUTSIDER_QUEST.key, "inspect_problem")
         await session.send(
-            "\r\nBrannik gives you an appraising look that stops at your shoulders. 'Good. I was hoping they'd send one of the strong ones. If you can just drag the rear of this thing out of the drift—'\r\n"
+            "\r\nBrannik gives you an appraising look that stops at your shoulders. 'Good. I was hoping they'd send one of the strong ones. If you can just drag the rear of this thing out of the drift-'\r\n"
             "The pack ram flinches as the crooked sledge tugs its harness. Brannik notices your attention shift to the animal. 'What? The ram's stubborn. Always has been.'\r\n"
             "Before pulling anything, EXAMINE PACK RAM.\r\n"
         )
@@ -659,7 +659,7 @@ async def _handle_cold_quest(session, normalized: str) -> bool:
         session.database.grant_flag(session.character.id, TROLL_WINDBREAK_FLAG)
         session.database.advance_quest(session.character.id, TROLL_COLD_QUEST.key, "lay_fire")
         await session.send(
-            "\r\nYou angle the deadfall low across the lee side and lash only enough crosspieces to keep it from spreading. The wind climbs over the barrier instead of catching beneath it. No grand shelter—just a dry, quiet pocket that works.\r\n"
+            "\r\nYou angle the deadfall low across the lee side and lash only enough crosspieces to keep it from spreading. The wind climbs over the barrier instead of catching beneath it. No grand shelter-just a dry, quiet pocket that works.\r\n"
             "Return through camp to Ember Hollow and LAY FIRE.\r\n"
         )
         return True

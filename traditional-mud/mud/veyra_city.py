@@ -936,9 +936,9 @@ async def _show_vault(session) -> bool:
     used = _vault_total(session.database, session.character.id)
     capacity = _vault_capacity(session)
     if not rows:
-        await session.send(f"Veyra Vault — {used}/{capacity} item-units used. Empty.\r\n")
+        await session.send(f"Veyra Vault - {used}/{capacity} item-units used. Empty.\r\n")
         return True
-    lines = [f"Veyra Vault — {used}/{capacity} item-units used:"]
+    lines = [f"Veyra Vault - {used}/{capacity} item-units used:"]
     lines.extend(f" - {entry['quantity']} x {_item_name(str(entry['item_key']))}" for entry in rows)
     await session.send("\r\n".join(lines) + "\r\n")
     return True
@@ -951,7 +951,7 @@ async def _show_market(session) -> bool:
     if not rows:
         await session.send("Veyra Exchange: no active player listings. Use LIST <qty> <item> FOR <qty> <item>.\r\n")
         return True
-    lines = ["Veyra Exchange — active player barter listings:"]
+    lines = ["Veyra Exchange - active player barter listings:"]
     for row in rows:
         lines.append(
             f" #{row['id']} {row['seller_name']}: {row['offered_quantity']} x {_item_name(str(row['offered_item_key']))} FOR {row['wanted_quantity']} x {_item_name(str(row['wanted_item_key']))}"
@@ -966,7 +966,7 @@ async def _train(session) -> bool:
         return False
     class_key = session.character.character_class or ""
     available = class_abilities_for_level(class_key, session.character.level, session.character.deity_key)
-    lines = [f"Five Ways training review — Level {session.character.level} {class_key.replace('_', ' ').title()}:"]
+    lines = [f"Five Ways training review - Level {session.character.level} {class_key.replace('_', ' ').title()}:"]
     if available:
         lines.extend(
             f" - {ability.name} (level {ability.unlock_level or 1}): {ability.description}"
@@ -996,7 +996,7 @@ async def _read_board(session) -> bool:
     ensure_veyra_service_tables(session.database)
     active_listings = len(list_market(session.database))
     faction = _supported_faction(session) or "unaffiliated"
-    surge = f"ACTIVE — {SURGE_STATE.remaining} instability remains" if SURGE_STATE.active else "quiet"
+    surge = f"ACTIVE - {SURGE_STATE.remaining} instability remains" if SURGE_STATE.active else "quiet"
     await session.send(
         "VEYRA PUBLIC BOARD\r\n"
         f" - Greywake: {surge}.\r\n"

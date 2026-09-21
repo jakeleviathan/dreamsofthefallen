@@ -302,7 +302,7 @@ UNDEAD_START_ROOMS: tuple[RoomDefinition, ...] = (
         region_key=UNDEAD_REGION_KEY,
         description=(
             "A broad underground avenue opens beneath tiered stone galleries. Undead citizens cross between archive halls, workshops, courts, shrines, residences, and lift shafts descending deeper into the city. "
-            "The architecture remains unmistakably funerary—sarcophagus-shaped doorways, memorial inscriptions, black stone—but the traffic is civic rather than mournful. "
+            "The architecture remains unmistakably funerary-sarcophagus-shaped doorways, memorial inscriptions, black stone-but the traffic is civic rather than mournful. "
             "West lies the Former Lives Archive. East, tool noise and bargaining carry from Chisel Market. A guarded stair descends to an old command vault."
         ),
         exits={
@@ -775,7 +775,7 @@ async def handle_undead_start_command(session, command: str) -> bool:
             session.database.grant_flag(session.character.id, UNDEAD_MASTER_SILENCE_HEARD_FLAG)
             session.database.advance_quest(session.character.id, UNDEAD_NO_VOICE_QUEST.key, "talk_reclaimer")
             await session.send(
-                "\r\nYou wait for the pressure behind thought: march, guard, kneel, carry, kill—whatever word once arrived already shaped like obedience.\r\n"
+                "\r\nYou wait for the pressure behind thought: march, guard, kneel, carry, kill-whatever word once arrived already shaped like obedience.\r\n"
                 "Nothing comes.\r\n"
                 "You hear the click of Reclaimer Sevra's finger bones against a slate, distant wheels in the corridor, and your own joints settling on the basalt. The silence inside you remains yours.\r\n"
                 "TALK RECLAIMER.\r\n"
@@ -947,7 +947,7 @@ async def handle_undead_start_command(session, command: str) -> bool:
         session.database.grant_flag(session.character.id, UNDEAD_REQUEST_HELP_FLAG)
         session.database.advance_quest(session.character.id, UNDEAD_CHOSEN_REQUEST_QUEST.key, "deliver_lamp")
         await session.send(
-            "\r\n'I will help,' you say—or the equivalent your jaw and voice make now.\r\n"
+            "\r\n'I will help,' you say-or the equivalent your jaw and voice make now.\r\n"
             "Tal hands you the wrapped glass. Nothing closes around the decision afterward. No magical hook, no compulsion, no punishment clause. You can feel the weight because you chose to pick it up.\r\n"
             "Go SOUTH to the Upper Desert Gate and DELIVER LAMP.\r\n"
         )
@@ -1063,7 +1063,7 @@ def _movement_block_message(session, direction: str) -> str | None:
         if direction == "south" and no_voice_step is not None:
             return "The civic lamps lead south, but Reclaimer Sevra stops you with an open palm. 'Free first. City second. Finish the severance check.'\r\n"
         if direction == "east" and no_voice_step in {"listen_silence", "talk_reclaimer"}:
-            return "The severance hall is ready, but you have not yet established what—if anything—is still speaking inside you. LISTEN, then TALK RECLAIMER.\r\n"
+            return "The severance hall is ready, but you have not yet established what-if anything-is still speaking inside you. LISTEN, then TALK RECLAIMER.\r\n"
     if room == UNDEAD_CONCOURSE_KEY:
         if direction in {"east", "down"} and memory_active:
             return "The wider Necropolis is not forbidden to you, but your recovery effects are waiting WEST in the Former Lives Archive. Finish that choice before taking on new work.\r\n"
