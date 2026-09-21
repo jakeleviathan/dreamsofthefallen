@@ -644,6 +644,12 @@ class PlayerSession:
         else:
             await self.send("Character slots full. Maximum: 8.\r\n")
 
+        delete_number: int | None = None
+        if characters:
+            delete_number = next_number
+            next_number += 1
+            await self.send(f"{delete_number}) Delete a character\r\n")
+
         quit_number = next_number
         await self.send(f"{quit_number}) Quit\r\n")
 
@@ -665,6 +671,10 @@ class PlayerSession:
             await self.character_creation_flow()
             return
 
+        if delete_number is not None and choice == str(delete_number):
+            await self.character_delete_flow(characters)
+            return
+
         if choice == str(quit_number) or choice.lower() in {"q", "quit"}:
             await self.send("\r\nGoodbye.\r\n")
             self.state = SessionState.DISCONNECTED
@@ -676,6 +686,54 @@ class PlayerSession:
             return
 
         await self.send("\r\nInvalid selection.\r\n")
+
+    async def character_delete_flow(self, characters: list[CharacterRecord]) -> None:
+        """Delete a roster character only after an explicit name confirmation."""
+        assert self.account is not None
+
+        await self.send("\r\n--- Delete Character ---\r\n")
+        for index, character in enumerate(characters, start=1):
+            await self.send(f"{index}) {character.name} (Level {character.level})\r\n")
+        await self.send("0) Cancel\r\n")
+
+        choice = await self.prompt("\r\nCharacter to delete: ")
+        if choice is None:
+            self.state = SessionState.DISCONNECTED
+            return
+        if choice.strip().lower() in {"0", "c", "cancel"}:
+            await self.send("\r\nDeletion cancelled.\r\n")
+            return
+        if not choice.isdigit() or not 1 <= int(choice) <= len(characters):
+            await self.send("\r\nInvalid selection. No character was deleted.\r\n")
+            return
+
+        character = characters[int(choice) - 1]
+        await self.send(
+            f"\r\nWARNING: Deleting {character.name} is permanent. "
+            "All of that character's progress and items will be lost.\r\n"
+        )
+        confirmation = await self.prompt(
+            f"Type {character.name} to permanently delete this character, or CANCEL: "
+        )
+        if confirmation is None:
+            self.state = SessionState.DISCONNECTED
+            return
+        if confirmation.strip().casefold() != character.name.casefold():
+            await self.send("\r\nDeletion cancelled. The character was not changed.\r\n")
+            return
+
+        current = next(
+            (candidate for candidate in self.database.list_characters(self.account.id) if candidate.id == character.id),
+            None,
+        )
+        if current is None:
+            await self.send("\r\nThat character is no longer on this account.\r\n")
+            return
+
+        if self.database.delete_character(self.account.id, current.id):
+            await self.send(f"\r\n{current.name} has been permanently deleted.\r\n")
+        else:
+            await self.send("\r\nCharacter deletion failed safely; nothing was deleted.\r\n")
 
 
     async def enter_character(self) -> None:
