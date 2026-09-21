@@ -877,7 +877,7 @@ def install_broken_reach_runtime(player_session_class, world_service) -> None:
             self.database.complete_quest(self.character.id, HOUSE_QUEST_KEY)
             self.database.grant_flag(self.character.id, HOUSE_COMPLETE_FLAG)
             gained = _award(self, 1700, BENT_HOST_KEY)
-            await self.send("The Guest does not die. It collapses inward, shedding borrowed voices until the empty chair at the center of the ring is empty again. The damaged ring holds—for now.\r\nQuest complete: The House Beneath the Hill. Reward: 1700 XP and Bent Host Key.\r\n")
+            await self.send("The Guest does not die. It collapses inward, shedding borrowed voices until the empty chair at the center of the ring is empty again. The damaged ring holds-for now.\r\nQuest complete: The House Beneath the Hill. Reward: 1700 XP and Bent Host Key.\r\n")
             if gained:
                 await self.send(f"You gained {gained} level.\r\n")
             follow = _ensure_story(self)

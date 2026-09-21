@@ -429,7 +429,7 @@ async def _show_food(session) -> None:
         await session.send("You are not carrying prepared food. Cook at a Cookfire to make some.\r\n")
         return
     for item, quantity in foods:
-        await session.send(f"  {quantity}x {_paint(_NAME, item.name)} — {item.description}\r\n")
+        await session.send(f"  {quantity}x {_paint(_NAME, item.name)} - {item.description}\r\n")
     await session.send("\r\nUse EAT <food>.\r\n")
 
 
@@ -636,7 +636,7 @@ async def _show_workshop(session, profession_key: str) -> None:
         f"Skill: {skill}   {_paint(_PROGRESS, bar)}  {fraction}\r\n"
         f"Current tier: {current}\r\n"
         + (f"Next milestone: {next_name} at {next_threshold}\r\n" if next_name else "")
-        + f"Station: {station_name} — "
+        + f"Station: {station_name} - "
         + (_paint(_PROGRESS, "HERE") if station_here else _paint(_BAD, "NOT HERE"))
         + "\r\n"
     )
@@ -667,7 +667,7 @@ async def _show_workshop(session, profession_key: str) -> None:
             chance_text = f"{success_pct}% success" if state["skill_ready"] else "beyond attempt range"
             await session.send(
                 f"  [{label}] {_paint(_NAME, economy._recipe_output_name(recipe))} "
-                f"— Trivial {recipe.trivial_skill} | {chance_text}\r\n"
+                f"- Trivial {recipe.trivial_skill} | {chance_text}\r\n"
             )
 
     verb = {
@@ -819,7 +819,7 @@ async def _show_all_gathering(session) -> None:
         current, _floor, next_name, next_threshold = _milestone_state(definition.key, skill)
         next_text = f"next {next_name} at {next_threshold}" if next_name else "top authored milestone"
         await session.send(
-            f"  {_paint(_NAME, definition.name):<24} Skill {skill:<4} {current} — {next_text}\r\n"
+            f"  {_paint(_NAME, definition.name):<24} Skill {skill:<4} {current} - {next_text}\r\n"
         )
     await session.send("\r\nType MINING, HARVESTING, or HERBALISM for the detailed local view.\r\n")
 

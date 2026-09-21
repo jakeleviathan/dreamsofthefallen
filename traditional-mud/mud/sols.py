@@ -257,7 +257,7 @@ def _merchant_wares_lines(
         for stock in merchant.stock:
             item = crafting.ITEMS_BY_KEY.get(stock.item_key)
             name = item.name if item is not None else stock.item_key.replace("_", " ").title()
-            lines.append(f"  {name} — {format_sols(_stock_price(stock))}")
+            lines.append(f"  {name} - {format_sols(_stock_price(stock))}")
 
     lines.extend(
         (
@@ -535,7 +535,7 @@ async def _flush_quest_events(session) -> None:
     pending = list(events.pop(int(character.id), []))
     for quest_name, reward in pending:
         await session.send(
-            f"Quest Sol reward — {quest_name}: {format_sols(int(reward))}.\r\n"
+            f"Quest Sol reward - {quest_name}: {format_sols(int(reward))}.\r\n"
         )
 
 

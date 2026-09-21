@@ -45,11 +45,11 @@ Current final class unlocks are:
 
 | Class | Last authored unlock |
 | --- | --- |
-| Brute | Level 20 — **Unbroken Stance**, a major threat/survival stance that seizes attention, restores health, and hardens the front line |
-| Wizard | Level 20 — **Starbreaker**, a high-impact single-target arcane strike |
-| Druid | Level 20 — **Deep Roots**, a party-wide recovery and protection pulse |
-| Priest | Level 20 — **Last Light**, a stronger party recovery and sanctuary effect available across all Priest paths |
-| Necromancer | Level 20 — **Raise Grave Knight**, upgrading the persistent undead-servant identity beyond the early Skeleton |
+| Brute | Level 20 - **Unbroken Stance**, a major threat/survival stance that seizes attention, restores health, and hardens the front line |
+| Wizard | Level 20 - **Starbreaker**, a high-impact single-target arcane strike |
+| Druid | Level 20 - **Deep Roots**, a party-wide recovery and protection pulse |
+| Priest | Level 20 - **Last Light**, a stronger party recovery and sanctuary effect available across all Priest paths |
+| Necromancer | Level 20 - **Raise Grave Knight**, upgrading the persistent undead-servant identity beyond the early Skeleton |
 
 Existing abilities still improve through the use-based ability progression system. Level 20 is intentionally a noticeable class milestone rather than simply another numerical level.
 
@@ -79,14 +79,14 @@ The original three regional stories remain intact and are joined by five equally
 
 | Cultural road | Regional identity | Independent Meridian evidence |
 | --- | --- | --- |
-| **Thornwake — Troll** | Hunting corridors, strongholds, priests, political disagreement, harsh deep forest | Roots growing for decades around a perfectly straight absence |
-| **Deepwheel — Dwarf** | Freight rails, pressure systems, registries, steam lifts, industrial depth | Instruments independently registering a location below mapped zero depth |
-| **Counterstar — Moon Elf** | High-altitude observation road, contradictory charts, changing perspective | Observation plates turning a missing star into a line pointing down through the range |
-| **Blackglass March — Human** | A practical relay road through remnants of Human history without treating Earth ancestry as mysticism | An archival blackglass bearing lens whose final sight line points below the frontier |
-| **Alderwake — Forest Elf** | Managed woodland, road stewardship, Druidic civic maintenance rather than untouched wilderness | Decades of healthy tree rings bending around the same ruler-straight absence |
-| **Rattlechain Run — Goblin** | Salvage claims, repurposed infrastructure, commerce, repair culture, rival crews | Unrelated scraps from different sites forming a perfect frame around the same missing straight edge |
-| **Pale Pilgrim Road — Undead** | Funerary records, testimony discipline, memory treated as evidence rather than automatic revelation | Unrelated Undead witnesses remembering the same downward corridor none of them walked while alive |
-| **Rainroot Threadway — Sporekin** | Hidden underways, guide culture, living mycelial routes, shared consciousness without loss of individual judgment | Healthy mycelium and shared thought both refusing to cross one perfectly straight silent seam |
+| **Thornwake - Troll** | Hunting corridors, strongholds, priests, political disagreement, harsh deep forest | Roots growing for decades around a perfectly straight absence |
+| **Deepwheel - Dwarf** | Freight rails, pressure systems, registries, steam lifts, industrial depth | Instruments independently registering a location below mapped zero depth |
+| **Counterstar - Moon Elf** | High-altitude observation road, contradictory charts, changing perspective | Observation plates turning a missing star into a line pointing down through the range |
+| **Blackglass March - Human** | A practical relay road through remnants of Human history without treating Earth ancestry as mysticism | An archival blackglass bearing lens whose final sight line points below the frontier |
+| **Alderwake - Forest Elf** | Managed woodland, road stewardship, Druidic civic maintenance rather than untouched wilderness | Decades of healthy tree rings bending around the same ruler-straight absence |
+| **Rattlechain Run - Goblin** | Salvage claims, repurposed infrastructure, commerce, repair culture, rival crews | Unrelated scraps from different sites forming a perfect frame around the same missing straight edge |
+| **Pale Pilgrim Road - Undead** | Funerary records, testimony discipline, memory treated as evidence rather than automatic revelation | Unrelated Undead witnesses remembering the same downward corridor none of them walked while alive |
+| **Rainroot Threadway - Sporekin** | Hidden underways, guide culture, living mycelial routes, shared consciousness without loss of individual judgment | Healthy mycelium and shared thought both refusing to cross one perfectly straight silent seam |
 
 The new routes deliberately do **not** say that a Human must take the Human road, a Goblin must take the Goblin road, and so on. A player's race changes context and recognition, but Astralis is a shared world. A Goblin can investigate Alderwake; a Forest Elf can walk the Pale Road; a Human can take Rainroot. The cultures own their histories, not the player's permission to travel.
 
@@ -104,7 +104,7 @@ The level 12-20 game has four distinct phases rather than one guided corridor.
 
 This structure creates two useful player behaviors at once: there is a clear minimum route to progress, but the other five witness stories remain real optional regional content rather than becoming obsolete because the player already unlocked Meridian.
 
-There are also level-agnostic systems—crafting, economy, social play, collectibles, hidden planes, living-world events, secrets, repeatables and exploration—that continue to add breadth around the progression ladder. They complement the 1-20 path rather than replacing future 21-60 authored progression.
+There are also level-agnostic systems-crafting, economy, social play, collectibles, hidden planes, living-world events, secrets, repeatables and exploration-that continue to add breadth around the progression ladder. They complement the 1-20 path rather than replacing future 21-60 authored progression.
 
 ## Production guardrail
 

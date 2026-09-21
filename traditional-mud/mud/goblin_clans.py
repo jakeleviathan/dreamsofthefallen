@@ -327,7 +327,7 @@ async def _talk_jex(session) -> bool:
         await session.send(
             "\r\nJex Mirehook pushes two claim tags across a crate: one old iron, one bright copper.\r\n"
             "'Spring water moved Sourreed Terrace again. Mirehook found that bed years ago. Coppercap says maintaining the herbs matters more than who hammered the first stake.'\r\n"
-            "He shrugs. 'Go look. Not listen—look. EXAMINE CLAIM STAKES at Sourreed Terrace, then tell one of us what you think counts.'\r\n"
+            "He shrugs. 'Go look. Not listen-look. EXAMINE CLAIM STAKES at Sourreed Terrace, then tell one of us what you think counts.'\r\n"
             "\r\nNew quest: Fresh Claims.\r\n"
         )
         return True

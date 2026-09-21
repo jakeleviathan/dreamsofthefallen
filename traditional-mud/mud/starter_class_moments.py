@@ -132,7 +132,7 @@ CLASS_PRACTICE: dict[str, tuple[str, str]] = {
         "Wizards are not defined only by how much power they can release, but by whether they can place that power exactly where it belongs.",
     ),
     "druid": (
-        "You find a small living rhythm nearby—your own pulse if nothing else is suitable—and match your breathing to it until a thread of restorative magic answers. Minor Heal begins with attention before it becomes healing.",
+        "You find a small living rhythm nearby-your own pulse if nothing else is suitable-and match your breathing to it until a thread of restorative magic answers. Minor Heal begins with attention before it becomes healing.",
         "Druids support life by noticing what is strained, what is still healthy, and how little intervention may be enough.",
     ),
     "priest": (

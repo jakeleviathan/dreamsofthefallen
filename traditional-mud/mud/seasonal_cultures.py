@@ -182,7 +182,7 @@ SEASONAL_CULTURE_ANCHORS: tuple[SeasonalCultureAnchor, ...] = (
             "Autumn brings the Quieting to the Necropolis. Small funerary lamps appear in thresholds and alcoves, not to mourn the dead as absent, but to acknowledge the lives they remember having before reanimation."
         ),
         examine_text=(
-            "The lamps are intentionally small: bone, blackened bronze, stone, or old household metal depending on the family. Many bear two names—the name carried in life and the name used after reanimation."
+            "The lamps are intentionally small: bone, blackened bronze, stone, or old household metal depending on the family. Many bear two names-the name carried in life and the name used after reanimation."
         ),
         touch_text="The lamp gives off little heat. Its metal casing has been polished smooth by hands that return to it year after year.",
         listen_text="The Quieting is quieter than ordinary Necropolis life; conversations lower around the lamps, leaving soft footfalls and the faint movement of flame.",

@@ -249,7 +249,7 @@ async def _save_report(session, report_type: str, text: str) -> None:
             (_character_id(session), report_type, _room_key(session), text),
         )
     _record_event(session, "player_report", details={"type": report_type})
-    await session.send("Saved. Thank you — the report includes your current room automatically.\r\n")
+    await session.send("Saved. Thank you - the report includes your current room automatically.\r\n")
     if report_type == "stuck":
         await session.send("Try HELP HERE for contextual actions, QUESTS for your current objective, or JOURNEY for the spoiler-light route forward.\r\n")
 

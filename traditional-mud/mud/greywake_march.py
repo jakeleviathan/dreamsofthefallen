@@ -533,7 +533,7 @@ async def _talk_captain(session) -> bool:
     if q1 and q1["status"] == "active":
         if q1["current_step"] == "reach_camp":
             session.database.advance_quest(session.character.id, AFTER_GLOAM_QUEST_KEY, "inspect_heath")
-            await session.send("Oryn spreads Pell's copied map beside three new surface reports. 'Good. Check the heath crust, the orchard roots, and Riftfield. Same cause or three different problems—we need to know.'\r\n")
+            await session.send("Oryn spreads Pell's copied map beside three new surface reports. 'Good. Check the heath crust, the orchard roots, and Riftfield. Same cause or three different problems-we need to know.'\r\n")
             return True
         if q1["current_step"] == "return_camp":
             session.database.complete_quest(session.character.id, AFTER_GLOAM_QUEST_KEY)
@@ -715,7 +715,7 @@ def install_greywake_runtime(player_session_class, world_service) -> None:
     async def show_current_room(self) -> None:
         await previous_show(self)
         if self.character is not None and SURGE_STATE.active and self.character.current_room in SURGE_EVENT_ROOMS:
-            await self.send(f"\r\nWORLD EVENT — Gloam Surge: the ground gives off the tower bell's buried second note. Instability remaining: {SURGE_STATE.remaining}.\r\n")
+            await self.send(f"\r\nWORLD EVENT - Gloam Surge: the ground gives off the tower bell's buried second note. Instability remaining: {SURGE_STATE.remaining}.\r\n")
 
     def enemy_in_room(self, target_text: str):
         if self.character is not None and SURGE_STATE.active and self.character.current_room in SURGE_EVENT_ROOMS and RIFTLING.matches(target_text):

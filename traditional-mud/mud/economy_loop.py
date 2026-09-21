@@ -726,7 +726,7 @@ async def _show_recipe_group(
     craftable = [recipe for recipe in attemptable if _recipe_state(session, recipe)["craftable"]]
 
     title = (
-        f"{_profession_name(profession_key)} — skill {skill} — "
+        f"{_profession_name(profession_key)} - skill {skill} - "
         f"{len(attemptable)} attemptable, {len(craftable)} craftable now, {len(too_hard)} too difficult"
     )
     await session.send(f"\r\n{_recipe_paint(_RECIPE_PROFESSION, title)}\r\n")
@@ -898,12 +898,12 @@ async def _show_recipe_detail(session, target: str) -> None:
     success_pct = int(round(float(state["success_chance"]) * 100))
     skillup_pct = int(round(float(state["skillup_chance"]) * 100))
     if state["mastered"]:
-        skill_state = "MASTERED — 100% success; this recipe no longer raises skill"
+        skill_state = "MASTERED - 100% success; this recipe no longer raises skill"
     elif state["skill_ready"]:
-        skill_state = f"ATTEMPTABLE — {success_pct}% success; {skillup_pct}% skill-up chance"
+        skill_state = f"ATTEMPTABLE - {success_pct}% success; {skillup_pct}% skill-up chance"
     else:
         skill_state = (
-            f"TOO DIFFICULT — recipes more than {crafting.MAX_CRAFT_DIFFICULTY_GAP} "
+            f"TOO DIFFICULT - recipes more than {crafting.MAX_CRAFT_DIFFICULTY_GAP} "
             "skill above you cannot be attempted"
         )
 

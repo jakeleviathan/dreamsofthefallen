@@ -103,7 +103,7 @@ FIRST_PILING_ROOM = RoomDefinition(
     region_key=GOBLIN_REGION_KEY,
     description=(
         "The raised route narrows almost immediately beyond Junk City's painted checkpoint and ends at a broad timber piling sunk deep into black swamp mud. "
-        "A small work platform has been bolted around it from mismatched planks and old bridge grating. The city remains plainly visible to the south—close enough to hear distant hammering—but the reeds on every other side are taller than a Goblin. "
+        "A small work platform has been bolted around it from mismatched planks and old bridge grating. The city remains plainly visible to the south-close enough to hear distant hammering-but the reeds on every other side are taller than a Goblin. "
         "A brass-faced route cache is chained to the piling above the flood line. Fresh claw marks score the boards around it."
     ),
     exits={"south": GOBLIN_FLOODGATE_WALK_KEY},

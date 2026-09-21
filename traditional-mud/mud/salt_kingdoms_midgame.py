@@ -805,7 +805,7 @@ async def _inspect_tideglass(session) -> bool:
     session.database.complete_quest(session.character.id, GLASS_KEEL_QUEST_KEY)
     session.database.grant_flag(session.character.id, GLASS_KEEL_COMPLETE_FLAG)
     gained = _award(session, 3400, TIDEGLASS_SLIVER_KEY)
-    await session.send("The blue-white column rises and falls against pressure from below the keel. A dead ship is still measuring a living tide—only the tide is underground now. You chip one loose sliver from the cracked instrument housing without breaking the tube.\r\nQuest complete: The Ship That Still Measures Tide. Reward: 3400 XP and Living Tideglass Sliver.\r\n")
+    await session.send("The blue-white column rises and falls against pressure from below the keel. A dead ship is still measuring a living tide-only the tide is underground now. You chip one loose sliver from the cracked instrument housing without breaking the tube.\r\nQuest complete: The Ship That Still Measures Tide. Reward: 3400 XP and Living Tideglass Sliver.\r\n")
     if gained:
         await session.send(f"You gained {gained} level.\r\n")
     follow = _ensure_story(session)
@@ -1129,7 +1129,7 @@ def install_salt_kingdoms_runtime(player_session_class, world_service) -> None:
             await _discover_oddity(self, ODDITY_SHADOW_FLAG, "At noon, the old depth markers cast dry black shadows. One marker's shadow looks wet at the edges and reflects a sky that is not visible anywhere else.")
             return
         if self.character.current_room == KEELSPIRE_ARCHIVE_KEY and normalized in {"search maps", "search archive", "examine old map"}:
-            await _discover_oddity(self, ODDITY_MAP_FLAG, "Behind a royal survey you find a much older basin map depicting open water but no shoreline at all—the blue simply continues beyond every edge of the page.")
+            await _discover_oddity(self, ODDITY_MAP_FLAG, "Behind a royal survey you find a much older basin map depicting open water but no shoreline at all-the blue simply continues beyond every edge of the page.")
             return
         if self.character.current_room == UNDERTIDE_RELEASE_KEY and normalized in {"wait", "watch cup", "examine cup"}:
             await _discover_oddity(self, ODDITY_CUP_FLAG, "A forgotten measuring cup sits dry beside the release gate. While you watch, one clear drop appears in it from nowhere. Then another. The cup stops at exactly one-third full.")

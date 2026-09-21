@@ -33,7 +33,7 @@ TROLL_RAID_QUEST = QuestDefinition(
         "Frostroot has just survived a violent raid. A new Troll wakes wounded inside the "
         "half-burned palisade and has to survive the minutes after the fighting: listen to "
         "Raska, take a usable weapon, put down a scavenger at the breach, and notice what "
-        "Troll regeneration can—and cannot—do for an injured body."
+        "Troll regeneration can-and cannot-do for an injured body."
     ),
     objective_steps=(
         ("talk_raska", "TALK RASKA. He is wounded, but he is the one giving orders."),
@@ -157,7 +157,7 @@ def _raid_start_room():
             "palisade is blackened to charcoal; the rest leans outward where something hit "
             "it hard enough to shear the lashings. Smoke crawls beneath collapsed hide roofs, "
             "and sleet hisses in embers that no one has had time to bury. Blood has gone dark "
-            "in the ruts between overturned sledges. Trolls move without ceremony—hauling "
+            "in the ruts between overturned sledges. Trolls move without ceremony-hauling "
             "water, binding wounds, and counting who is missing. Beyond the broken stakes the "
             "spruce stand close and lightless. The shouting has stopped. That is not the same "
             "thing as being safe."

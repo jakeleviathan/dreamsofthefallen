@@ -541,7 +541,7 @@ def goblin_swamp_augmentations() -> dict[str, RoomAugmentation]:
                 ),
             ),
             description_layers=(
-                _day("The crossing is bright enough to see the muddy water moving beneath every glass panel—and to see exactly where the maintained routes stop."),
+                _day("The crossing is bright enough to see the muddy water moving beneath every glass panel-and to see exactly where the maintained routes stop."),
                 _night("Lanterns mounted below the glass make the platform glow from underneath, illuminating ripples and small moving shadows in the water."),
                 _rain("Rain makes the glass dangerously glossy, and yellow grit has been scattered across the main walking lines for traction."),
             ),

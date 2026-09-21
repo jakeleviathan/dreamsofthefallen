@@ -451,7 +451,7 @@ def sablewater_augmentations() -> dict[str, RoomAugmentation]:
         ),
         DROWNED_COIN_VAULT_KEY: RoomAugmentation(
             features=(
-                _feature("drowned_coin_cages", "Coin Cages", "empty accounting cages behind territorial river crabs", "One cage contains no money at all—only a customs officer's emergency seal kit. SEARCH COIN VAULT after dealing with the room's hazards.", ("cages", "coin vault", "vault")),
+                _feature("drowned_coin_cages", "Coin Cages", "empty accounting cages behind territorial river crabs", "One cage contains no money at all-only a customs officer's emergency seal kit. SEARCH COIN VAULT after dealing with the room's hazards.", ("cages", "coin vault", "vault")),
             ),
         ),
         DROWNED_MAGISTRATE_ROOM_KEY: RoomAugmentation(

@@ -605,7 +605,7 @@ def install_content_density_runtime(player_session_class, world_service) -> None
                 await self.send("Nobody here currently has a small errand worth formalizing. That is normal.\r\n"); return
             await self.send("Small local errands, if you feel like being useful:\r\n")
             for q in local:
-                await self.send(f"- {q.name} — TAKE ODDJOB {q.name}\r\n")
+                await self.send(f"- {q.name} - TAKE ODDJOB {q.name}\r\n")
             return
         if norm.startswith("take oddjob "):
             wanted = norm[len("take oddjob "):]

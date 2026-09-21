@@ -632,7 +632,7 @@ def install_reading_forest_runtime(player_session_class, world_service) -> None:
                 await self.send(
                     "\r\nA pale antler flashes between the blackthorns. The whitewood stag you freed stands on a narrow rise, weight still slightly off one foreleg. It stamps once, then slips along a line of stone you would not have chosen.\r\n"
                     "You follow just far enough to see why. Two Hollowbacks are feeding in the lower hollow, bark-ridged backs dusted with pale fungus, agitated by something farther upstream. The stag's route carries you around them without a fight.\r\n"
-                    "By the time you look back, it is gone. The forest has not repaid a debt. An animal simply remembered where it could move safely—and you were paying attention this time.\r\n"
+                    "By the time you look back, it is gone. The forest has not repaid a debt. An animal simply remembered where it could move safely-and you were paying attention this time.\r\n"
                 )
             elif HOLLOWBACK_ENCOUNTERED_FLAG not in flags:
                 self.database.grant_flag(self.character.id, HOLLOWBACK_ENCOUNTERED_FLAG)

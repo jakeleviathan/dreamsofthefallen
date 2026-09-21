@@ -627,7 +627,7 @@ async def _handle_dwarf_tutorial(session, normalized: str) -> bool:
         session.database.advance_quest(session.character.id, DWARF_FIRST_WORK_ORDER.key, "operate_lift")
         await session.send(
             "\r\nYou turn the black-handled bleed valve slowly. Steam passes into the muffled condenser with a deep hiss, and the gauge needle settles neatly into the green band.\r\n"
-            "A mechanical witness tab punches the pressure check onto your countersigned order. No drama, no danger—just a system behaving correctly because you followed the procedure.\r\n"
+            "A mechanical witness tab punches the pressure check onto your countersigned order. No drama, no danger-just a system behaving correctly because you followed the procedure.\r\n"
             "Quest updated: take the marked order to the Grand Lift Platform and OPERATE LIFT.\r\n"
         )
         return True

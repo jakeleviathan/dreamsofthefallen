@@ -1120,7 +1120,7 @@ async def _handle_deep_alchemy(session, command: str) -> bool:
         for recipe in DEEP_MIRE_ALCHEMY_RECIPES:
             output = crafting.ITEMS_BY_KEY[recipe.output_item_key]
             materials = ", ".join(f"{req.quantity}x {req.item_key}" for req in recipe.materials)
-            await session.send(f"  {output.name} — skill {recipe.minimum_skill}; {materials}; station {recipe.station_key}.\r\n")
+            await session.send(f"  {output.name} - skill {recipe.minimum_skill}; {materials}; station {recipe.station_key}.\r\n")
         await session.send("The Glassroot Conservatory provides an old alchemy table once you reach it; the beginner Apothecary Blind remains the safest general field bench.\r\n")
         return True
 

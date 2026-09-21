@@ -413,7 +413,7 @@ function H.renderTarget()
   if not s.target_active or not s.target_name or s.target_name == "" then
     H.targetName:echo("&lt;center&gt;NO TARGET&lt;/center&gt;")
     H.targetGauge:setValue(0, 1)
-    H.targetGauge.text:echo("&lt;center&gt;—&lt;/center&gt;")
+    H.targetGauge.text:echo("&lt;center&gt;-&lt;/center&gt;")
     H.targetDetail:echo("&lt;center&gt;The dark is watching.&lt;/center&gt;")
     H.targetSigil:echo("&lt;center&gt;◇&lt;br/&gt;†&lt;br/&gt;◇&lt;/center&gt;")
     return
@@ -1197,7 +1197,7 @@ function H.renderPartyPanel()
   local party = H.state.party or { active = false, members = {} }
   if not party.active then
     local nearby = party.nearby or {}
-    H.partyHeader:echo("PARTY — SOLO")
+    H.partyHeader:echo("PARTY - SOLO")
     for i = 1, 5 do
       local row = H.partyMembers[i]
       local candidate = nearby[i]
@@ -1206,7 +1206,7 @@ function H.renderPartyPanel()
         row:setClickCallback("DreamsHUD.runAction", "PARTY INVITE " .. candidate.name)
         row:show()
       elseif i == 1 then
-        row:echo("&lt;center&gt;PARTY NEARBY — find adventurers here&lt;/center&gt;")
+        row:echo("&lt;center&gt;PARTY NEARBY - find adventurers here&lt;/center&gt;")
         row:setClickCallback("DreamsHUD.runAction", "PARTY NEARBY")
         row:show()
       else
@@ -1344,7 +1344,7 @@ function H.renderHotbar()
     local button = H.hotbar[i]
     local ability = H.hotbarAbilityForSlot(i)
     if not ability then
-      button:echo("&lt;center&gt;—&lt;/center&gt;")
+      button:echo("&lt;center&gt;-&lt;/center&gt;")
       button:setStyleSheet(PANEL_STYLE)
       setTooltip(button, "")
     else
@@ -1414,7 +1414,7 @@ function H.renderOnboarding()
     H.onboarding:echo("Top row: use abilities. Bottom row: click SET to cycle each hotkey through learned abilities. Assignments are saved per character.")
     return
   end
-  H.onboarding:echo("&lt;span style='color:#dfc18c'&gt;&lt;b&gt;" .. escape(o.title or "") .. "&lt;/b&gt;&lt;/span&gt;  —  " .. escape(o.text or ""))
+  H.onboarding:echo("&lt;span style='color:#dfc18c'&gt;&lt;b&gt;" .. escape(o.title or "") .. "&lt;/b&gt;&lt;/span&gt;  -  " .. escape(o.text or ""))
   setTooltip(H.onboarding, o.command and ("Suggested command: " .. o.command) or "")
   if o.command and o.command ~= "" then H.onboarding:setClickCallback("DreamsHUD.runAction", o.command) end
 end

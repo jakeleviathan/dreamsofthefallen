@@ -260,7 +260,7 @@ GLOAMWORKS_ROOMS: tuple[RoomDefinition, ...] = (
     _room(
         GLOAM_SORTING_FLOOR_KEY,
         "Ore Sorting Floor",
-        "Tilted tables divide old stone by grade. Ordinary iron, coal, and slate still sit in labeled bins. A fourth bin was added later and has no material name—only the warning NOT STONE repeated in several hands.",
+        "Tilted tables divide old stone by grade. Ordinary iron, coal, and slate still sit in labeled bins. A fourth bin was added later and has no material name-only the warning NOT STONE repeated in several hands.",
         {"north": GLOAM_CHAIN_GALLERY_KEY, "east": GLOAM_PUMP_HALL_KEY},
         enemies=(CHAINMOTE_KEY,), tags=("level_4", "evidence"),
     ),
@@ -281,7 +281,7 @@ GLOAMWORKS_ROOMS: tuple[RoomDefinition, ...] = (
     _room(
         GLOAM_RESONANCE_SHAFT_KEY,
         "Resonance Shaft",
-        "A circular shaft drops through levels the original survey maps never contained. Every sound returns once as an echo and once as something almost—but not exactly—the same sound reconstructed from memory.",
+        "A circular shaft drops through levels the original survey maps never contained. Every sound returns once as an echo and once as something almost-but not exactly-the same sound reconstructed from memory.",
         {"west": GLOAM_GLASS_FAULT_KEY, "south": GLOAM_BRAKE_CHAPEL_KEY, "down": GLOAM_SUSPENDED_BRIDGE_KEY},
         enemies=(ECHO_HUSK_KEY,), tags=("level_5", "perception_split", "alien"),
     ),
@@ -389,14 +389,14 @@ def _merge_augmentation(existing: RoomAugmentation | None, extra: RoomAugmentati
 
 
 RACE_FAULT_TEXT = {
-    "human": "The black plane reminds you uncomfortably of the seamless dead-glass Earth relics in Human archives—not because it looks identical, but because both seem manufactured without showing how.",
+    "human": "The black plane reminds you uncomfortably of the seamless dead-glass Earth relics in Human archives-not because it looks identical, but because both seem manufactured without showing how.",
     "forest_elf": "What troubles you is not that the material is unnatural. It is that root, fungus, water, and lichen all approach it and then redirect before touching it, as though the living forest above has been avoiding this line for generations.",
     "moon_elf": "Your eyes agree on the fault until you shift your head. The near edge moves less than the far edge should, producing a parallax result that cannot belong to a flat plane occupying this distance.",
     "dwarf": "The fault carries roof load without compression, cracking, or any visible transfer into the surrounding stone. Whatever it is doing structurally, it is not behaving like a material under weight.",
     "goblin": "You look automatically for seams, fasteners, weak points, useful scrap, or some ugly way to take the thing apart. For once, the world offers you no obvious handle at all.",
     "troll": "Cold comes off the plane without a draft. Your skin reads it like weather, but there is no direction to the cold and no warmer side to stand on.",
     "undead": "A slow cadence seems to sit behind the fault: not a voice, not a heartbeat, but close enough to an old command rhythm that your dead muscles briefly prepare to obey something that never speaks.",
-    "sporekin": "The shared sense that normally makes living ground feel crowded becomes abruptly blank at the fault. Not silent—absent, like a place where connection has no concept to attach to.",
+    "sporekin": "The shared sense that normally makes living ground feel crowded becomes abruptly blank at the fault. Not silent-absent, like a place where connection has no concept to attach to.",
 }
 
 CLASS_RESONANCE_TEXT = {
@@ -683,7 +683,7 @@ async def _attempt_seal_hold(session, side: str, peers: Iterable | None = None) 
         if q and q["status"] == "active" and q["current_step"] == "sync_seals":
             explorer.database.advance_quest(explorer.character.id, GLOAMWORKS_QUEST_KEY, "defeat_regent")
         await explorer.send(
-            "Both handplates sink at once. Two independent locks answer with the same deep click, and the circular door begins to roll aside. No class, creed, or race was required—only another person willing to hold the other side.\r\n"
+            "Both handplates sink at once. Two independent locks answer with the same deep click, and the circular door begins to roll aside. No class, creed, or race was required-only another person willing to hold the other side.\r\n"
         )
     return True
 

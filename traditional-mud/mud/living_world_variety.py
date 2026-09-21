@@ -72,9 +72,9 @@ CLOSERS = (
     "If you pass that way, you can decide for yourself how much of the rumor was true.",
 )
 SUBJECTS = (
-    "Road note — Day {day}", "Dispatch from {region} — Day {day}", "Something changed near {room} — Day {day}",
-    "Today's useful rumor — Day {day}", "A note from {region} — Day {day}", "Field post: {room} — Day {day}",
-    "What changed while you were out — Day {day}", "One thing worth knowing — Day {day}",
+    "Road note - Day {day}", "Dispatch from {region} - Day {day}", "Something changed near {room} - Day {day}",
+    "Today's useful rumor - Day {day}", "A note from {region} - Day {day}", "Field post: {room} - Day {day}",
+    "What changed while you were out - Day {day}", "One thing worth knowing - Day {day}",
 )
 MERCHANT_NAMES = ("Nell Brasscup", "Orvo Six-Pegs", "Miri Vale", "Hask Threadbare", "Pella Cindercart", "Senn Underbridge", "Toma Reedhook", "Ilyr Quickchalk", "Bessa Turnwheel", "Corin Smallchange", "Vella Ashcart", "Dorrin Two-Ledgers")
 MERCHANT_MOTIFS = (
@@ -261,7 +261,7 @@ def apply_living_world_event_variety(player_session_class) -> None:
             if pulse.kind == "merchant" and meta.actor_name and normalized.startswith(("look ", "look at ", "examine ", "talk ", "talk to ")):
                 target = normalized.split(" ", 1)[1]
                 if target in {"wanderer", "peddler", "trader", meta.actor_name.lower(), meta.actor_name.split()[0].lower()}:
-                    await self.send(f"\r\n{meta.actor_name} — {meta.actor_description}.\r\n{pulse.summary}\r\nUse BROWSE WANDERER to see today's stock.\r\n"); return
+                    await self.send(f"\r\n{meta.actor_name} - {meta.actor_description}.\r\n{pulse.summary}\r\nUse BROWSE WANDERER to see today's stock.\r\n"); return
             if pulse.kind in {"resource", "threat"} and normalized in {"look event", "examine event", "look disturbance", "examine disturbance"}: await _show_event(self, pulse); return
         had_prompt = "prompt" in self.__dict__; old_prompt = self.__dict__.get("prompt")
         async def replay(_text: str): return command

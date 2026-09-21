@@ -1347,7 +1347,7 @@ async def _show_potions(session) -> None:
         await session.send("You are not carrying any drinkable crafted preparations.\r\n")
         return
     for item, quantity in rows:
-        await session.send(f"  {quantity}x {item.name} — {item.description}\r\n")
+        await session.send(f"  {quantity}x {item.name} - {item.description}\r\n")
     await session.send("\r\nUse DRINK <name>.\r\n")
 
 
@@ -1361,10 +1361,10 @@ async def _show_perfumery(session) -> None:
     ]
     recipes.sort(key=lambda recipe: (recipe.trivial_skill, economy._recipe_output_name(recipe).lower()))
 
-    await session.send("\r\n=== PERFUMERY — ALCHEMY SPECIALIZATION ===\r\n")
+    await session.send("\r\n=== PERFUMERY - ALCHEMY SPECIALIZATION ===\r\n")
     await session.send(
         "Perfumes are wearable XP consumables: one scent can be active at a time, "
-        "a new application replaces the old one, and bonuses affect character XP only — never tradeskill XP.\r\n"
+        "a new application replaces the old one, and bonuses affect character XP only - never tradeskill XP.\r\n"
     )
 
     current_tier = None
@@ -1375,7 +1375,7 @@ async def _show_perfumery(session) -> None:
             current_tier = tier
             bonus, seconds = PERFUME_TIER_EFFECTS[tier]
             await session.send(
-                f"\r\nTier {tier} — +{bonus}% character XP for {seconds // 60} real minutes\r\n"
+                f"\r\nTier {tier} - +{bonus}% character XP for {seconds // 60} real minutes\r\n"
             )
         await session.send(economy._recipe_line(session, recipe))
 

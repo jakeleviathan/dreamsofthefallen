@@ -307,7 +307,7 @@ def capacity_message(database, character_id: int) -> str:
     used, capacity = inventory_capacity_status(database, character_id)
     if used > capacity:
         return (
-            f"Inventory: {used}/{capacity} slots — OVERFULL. "
+            f"Inventory: {used}/{capacity} slots - OVERFULL. "
             "You can keep what you already carry, but cannot add a new item type until you free space or equip a larger bag."
         )
     return f"Inventory: {used}/{capacity} slots."

@@ -284,7 +284,7 @@ def underclock_augmentations() -> dict[str, RoomAugmentation]:
                     "underclock_service_hatch",
                     "Underclock Service Hatch",
                     "an old iron maintenance stair descending below the public water channels",
-                    "A warning plate lists four words in large stamped letters: INTAKE — PRESSURE — VENT — RESET. Fresh chalk underneath reads: GOVERNOR OUT OF TOLERANCE. EXPERIENCED HANDS ONLY.",
+                    "A warning plate lists four words in large stamped letters: INTAKE - PRESSURE - VENT - RESET. Fresh chalk underneath reads: GOVERNOR OUT OF TOLERANCE. EXPERIENCED HANDS ONLY.",
                     ("hatch", "service hatch", "underclock", "stair"),
                 ),
             ),
@@ -409,7 +409,7 @@ async def _show_clock(session) -> bool:
     if session.character is None or session.character.current_room not in UNDERCLOCK_ROOM_KEYS:
         return False
     state = clock_state()
-    await session.send(f"UNDERCLOCK — {state.phase.upper()} phase, about {state.seconds_remaining}s until the next beat. Sequence: INTAKE → PRESSURE → VENT → RESET.\r\n")
+    await session.send(f"UNDERCLOCK - {state.phase.upper()} phase, about {state.seconds_remaining}s until the next beat. Sequence: INTAKE → PRESSURE → VENT → RESET.\r\n")
     return True
 
 
@@ -519,7 +519,7 @@ async def _engage_governor(session) -> bool:
         await session.send("The Governor is exposed, but your combat state is not ready to engage it yet.\r\n")
         return True
     await session.send(
-        "You throw the engagement lever. The intake stays pinned, the flywheel cannot surge, and the bleed steals the Governor's reserve pressure. Its four legs unlock from the rail anyway. The fight begins—but now it is a machine with limits instead of the whole room trying to kill you.\r\n"
+        "You throw the engagement lever. The intake stays pinned, the flywheel cannot surge, and the bleed steals the Governor's reserve pressure. Its four legs unlock from the rail anyway. The fight begins-but now it is a machine with limits instead of the whole room trying to kill you.\r\n"
     )
     return True
 

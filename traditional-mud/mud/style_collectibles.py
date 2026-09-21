@@ -486,10 +486,10 @@ async def _show_boutique(session) -> None:
     for key in keys:
         if key in STYLE_META_BY_KEY:
             meta = STYLE_META_BY_KEY[key]
-            await session.send(f"[{meta.rarity.upper()}] {_item_name(key)} — {format_sols(meta.price_sparks)} — {STYLE_SLOT_LABELS[meta.style_slot]} — {', '.join(meta.style_tags)}\r\n")
+            await session.send(f"[{meta.rarity.upper()}] {_item_name(key)} - {format_sols(meta.price_sparks)} - {STYLE_SLOT_LABELS[meta.style_slot]} - {', '.join(meta.style_tags)}\r\n")
         else:
             scent = FRAGRANCE_BY_KEY[key]
-            await session.send(f"[{scent.rarity.upper()}] {scent.house} — {_item_name(key)} — {format_sols(scent.price_sparks)} — +{scent.xp_bonus_percent}% XP for {scent.duration_seconds // 60} min\r\n")
+            await session.send(f"[{scent.rarity.upper()}] {scent.house} - {_item_name(key)} - {format_sols(scent.price_sparks)} - +{scent.xp_bonus_percent}% XP for {scent.duration_seconds // 60} min\r\n")
     await session.send("BUY STYLE <item> or BUY FRAGRANCE <name>. Fashion has no combat stats; fragrance is the only progression effect here.\r\n")
 
 
@@ -526,7 +526,7 @@ async def _show_wardrobe(session) -> None:
             key = worn.get(slot)
             if key:
                 meta = STYLE_META_BY_KEY[key]
-                await session.send(f"{STYLE_SLOT_LABELS[slot]:<10}: {_item_name(key)} [{meta.rarity.upper()}] — {meta.house}\r\n")
+                await session.send(f"{STYLE_SLOT_LABELS[slot]:<10}: {_item_name(key)} [{meta.rarity.upper()}] - {meta.house}\r\n")
     await session.send("\r\n--- Wardrobe You Carry ---\r\n")
     found = False
     for row in session.database.list_items(session.character.id):
@@ -537,7 +537,7 @@ async def _show_wardrobe(session) -> None:
         found = True
         marker = " [WORN]" if key in worn.values() else ""
         limited = " LIMITED" if meta.limited else ""
-        await session.send(f"{int(row['quantity'])}x {_item_name(key)} [{meta.rarity.upper()}{limited}] — {STYLE_SLOT_LABELS[meta.style_slot]}{marker}\r\n")
+        await session.send(f"{int(row['quantity'])}x {_item_name(key)} [{meta.rarity.upper()}{limited}] - {STYLE_SLOT_LABELS[meta.style_slot]}{marker}\r\n")
     if not found:
         await session.send("No fashion pieces yet. BOUTIQUE shows ordinary designer pieces; dungeon and seasonal heritage pieces come from play.\r\n")
     await session.send("STYLE WEAR <item> | STYLE REMOVE <slot> | LOOK <player> | COLLECTION | PROVENANCE <item>\r\n")
@@ -594,7 +594,7 @@ async def _show_fragrances(session) -> None:
         await session.send("No bottles currently carried. Boutiques in Veyra and Waymeet sell select fragrances, and Alchemists can craft perfumes.\r\n")
     for key, quantity in owned:
         scent = FRAGRANCE_BY_KEY[key]
-        await session.send(f"{quantity}x {scent.house} — {_item_name(key)} [{scent.rarity.upper()}] — {', '.join(scent.notes)} — +{scent.xp_bonus_percent}% XP / {scent.duration_seconds // 60} min\r\n")
+        await session.send(f"{quantity}x {scent.house} - {_item_name(key)} [{scent.rarity.upper()}] - {', '.join(scent.notes)} - +{scent.xp_bonus_percent}% XP / {scent.duration_seconds // 60} min\r\n")
     await session.send("APPLY FRAGRANCE <name>, APPLY PERFUME <name>, or SPRAY <name> consumes one bottle and starts its real-time XP effect. SCENT shows the current fragrance.\r\n")
 
 
@@ -636,7 +636,7 @@ async def _show_scent(session) -> None:
     remaining = max(0, int(row["expires_at_epoch"]) - int(time.time()))
     minutes, seconds = divmod(remaining, 60)
     await session.send(
-        f"Current fragrance: {scent.house} — {_item_name(scent.item_key)} [{scent.rarity.upper()}]\r\n"
+        f"Current fragrance: {scent.house} - {_item_name(scent.item_key)} [{scent.rarity.upper()}]\r\n"
         f"Notes: {', '.join(scent.notes)}.\r\n"
         f"Effect: +{scent.xp_bonus_percent}% character XP; {minutes}m {seconds}s remaining. Bonus XP earned from this application: {int(row['bonus_xp_earned'])}.\r\n"
     )
@@ -665,7 +665,7 @@ async def _show_seasonal(session) -> None:
     key = SEASONAL_STYLE[moment.season]
     meta = STYLE_META_BY_KEY[key]
     await session.send(
-        f"Current Astralis seasonal edition — Year {moment.year}, {moment.season_name}: {_item_name(key)} [{meta.rarity.upper()} LIMITED].\r\n"
+        f"Current Astralis seasonal edition - Year {moment.year}, {moment.season_name}: {_item_name(key)} [{meta.rarity.upper()} LIMITED].\r\n"
         "Earn it on your first tracked major-boss victory this Astralis season. It has no combat stats, and its provenance records the season, year, boss, and ownership chain.\r\n"
     )
 
@@ -675,7 +675,7 @@ async def _show_style_detail(session, key: str) -> None:
         item = crafting.ITEMS_BY_KEY[key]
         meta = STYLE_META_BY_KEY[key]
         await session.send(
-            f"\r\n{item.name} [{meta.rarity.upper()}{' — LIMITED' if meta.limited else ''}]\r\n"
+            f"\r\n{item.name} [{meta.rarity.upper()}{' - LIMITED' if meta.limited else ''}]\r\n"
             f"{item.description}\r\nStyle slot: {STYLE_SLOT_LABELS[meta.style_slot]}\r\n"
             f"House / maker: {meta.house}\r\nCollection: {meta.collection}\r\nStyle tags: {', '.join(meta.style_tags)}\r\nSource: {meta.acquisition_hint}\r\n"
             f"Combat effect: none. Provenance: {'tracked' if meta.provenance_track else 'ordinary item history only'}.\r\n"
@@ -684,7 +684,7 @@ async def _show_style_detail(session, key: str) -> None:
     scent = FRAGRANCE_BY_KEY[key]
     item = crafting.ITEMS_BY_KEY[key]
     await session.send(
-        f"\r\n{scent.house} — {item.name} [{scent.rarity.upper()}]\r\n{item.description}\r\n"
+        f"\r\n{scent.house} - {item.name} [{scent.rarity.upper()}]\r\n{item.description}\r\n"
         f"Notes: {', '.join(scent.notes)}. Bottle: {scent.bottle}.\r\n"
         f"Effect when applied: +{scent.xp_bonus_percent}% character XP for {scent.duration_seconds // 60} real minutes.\r\n"
         "Applying consumes one bottle; the scent itself is visible when another player LOOKs at you.\r\n"
@@ -708,7 +708,7 @@ async def _show_provenance(session, target: str) -> None:
     await session.send(f"\r\n--- Provenance: {_item_name(key)} ---\r\n")
     with session.database.connect() as db:
         for instance in instances:
-            await session.send(f"Serial {instance['serial']} — origin Day {instance['created_day']}: {instance['origin_text']}\r\n")
+            await session.send(f"Serial {instance['serial']} - origin Day {instance['created_day']}: {instance['origin_text']}\r\n")
             history = db.execute(
                 """
                 SELECT h.astralis_day, h.action, h.note,
@@ -771,7 +771,7 @@ async def _look_player(session, target_name: str) -> bool:
     scent_row = _active_fragrance(target_session.database, target.id)
     if scent_row is not None:
         scent = FRAGRANCE_BY_KEY[str(scent_row["fragrance_key"])]
-        await session.send(f"Scent: {scent.house}'s {_item_name(scent.item_key)} — {', '.join(scent.notes)}.\r\n")
+        await session.send(f"Scent: {scent.house}'s {_item_name(scent.item_key)} - {', '.join(scent.notes)}.\r\n")
     return True
 
 

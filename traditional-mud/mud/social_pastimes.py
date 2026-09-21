@@ -234,7 +234,7 @@ async def _show_keepsakes(session) -> None:
         await session.send("You have not collected any social keepsakes yet. They carry no stats and prove almost nothing.\r\n")
         return
     for row in rows:
-        await session.send(f"- {row['keepsake_name']} [Day {row['earned_day']}] — {row['source']}\r\n")
+        await session.send(f"- {row['keepsake_name']} [Day {row['earned_day']}] - {row['source']}\r\n")
 
 
 def _available_pastimes(room_key: str) -> tuple[PastimeDefinition, ...]:
@@ -499,7 +499,7 @@ async def _show_scores(session) -> None:
         await session.send("No scores yet today. A very confident chalk number 30 waits at the top.\r\n")
         return
     for index, row in enumerate(rows, start=1):
-        await session.send(f"{index}. {row['name']} — {row['best_score']}/30\r\n")
+        await session.send(f"{index}. {row['name']} - {row['best_score']}/30\r\n")
 
 
 async def _watch_show(session) -> None:

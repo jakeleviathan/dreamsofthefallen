@@ -106,7 +106,7 @@ def complete_room_augmentations() -> dict[str, RoomAugmentation]:
                     "gate_watch", "Gate Watch",
                     aliases=("guards", "watch", "guardhouse", "watchtower", "watchtowers"),
                     summary="the black-uniformed gate watch and iron watchtowers",
-                    examine="The gate watch wears dark practical uniforms beneath ceremonial horn-shaped badges. Their attention is on arrivals, wagons, and the road—not on posing for visitors.",
+                    examine="The gate watch wears dark practical uniforms beneath ceremonial horn-shaped badges. Their attention is on arrivals, wagons, and the road-not on posing for visitors.",
                 ),
             ),
             description_layers=(
@@ -342,7 +342,7 @@ def complete_room_augmentations() -> dict[str, RoomAugmentation]:
                 X("north", FOREST_ELF_OUTER_GROVE_KEY, "The Outer Grove", "You follow the narrowing trail north as the tended woodland begins to fall away."),
             ),
             features=(
-                F("listening_pool", "Listening Pool", aliases=("pool", "water", "still water"), summary="a glassy widening of the river beneath willows", examine="The pool is not perfectly still; tiny currents bend reflections in slow patterns that are difficult to notice until you stop moving.", touch="The surface breaks around your fingers, sending rings outward beneath the willow reflections.", listen="Beneath birdsong and the faint slide of water is a second rhythm—subtle enough to be current, root, insect, or magic."),
+                F("listening_pool", "Listening Pool", aliases=("pool", "water", "still water"), summary="a glassy widening of the river beneath willows", examine="The pool is not perfectly still; tiny currents bend reflections in slow patterns that are difficult to notice until you stop moving.", touch="The surface breaks around your fingers, sending rings outward beneath the willow reflections.", listen="Beneath birdsong and the faint slide of water is a second rhythm-subtle enough to be current, root, insect, or magic."),
                 F("low_stone_shelf", "Low Stone Shelf", aliases=("shelf", "stone", "rock ledge"), summary="a dark shelf of stone just beneath the waterline", examine="Water sheets across the stone so evenly that it barely splashes. Pale mineral lines show where the river sits in drier seasons."),
                 F("dragonflies", "Dragonflies", aliases=("flies", "insects"), summary="bright dragonflies hovering above the pool", examine="They repeatedly return to the same invisible positions over the water, as if each owns a tiny piece of air."),
             ),
@@ -423,7 +423,7 @@ def complete_room_augmentations() -> dict[str, RoomAugmentation]:
                 F("surface_air", "Cool Surface Air", aliases=("air", "breeze", "draft"), summary="a faint cool draft descending from above", examine="The moving air carries scents absent below: wet leaves, open water, and something sharp and green.", listen="Far above, irregular droplets strike roots and stone with the loose rhythm of rainfall."),
             ),
             description_layers=(
-                L("sporekin_upward_pull", "Through the shared network comes a faint directional pressure—not command exactly, but collective attention leaning upward with you.", priority=30, condition=ViewCondition(races=("sporekin",))),
+                L("sporekin_upward_pull", "Through the shared network comes a faint directional pressure-not command exactly, but collective attention leaning upward with you.", priority=30, condition=ViewCondition(races=("sporekin",))),
             ),
         ),
         SPOREKIN_SURFACEWARD_ROOM_KEY: RoomAugmentation(
@@ -449,7 +449,7 @@ def complete_room_augmentations() -> dict[str, RoomAugmentation]:
             features=(
                 F("hidden_underway_entrance", "Hidden Underway Entrance", aliases=("entrance", "root entrance", "underways", "mossy opening"), summary="the nearly invisible entrance back beneath the roots", examine="Viewed from the surface, the route is astonishingly easy to miss. Moss, stone, root, and shadow align to make an opening disappear in plain sight.", search="Once you know where to look, polished root surfaces and faint disturbed soil reveal regular passage."),
                 F("bent_old_tree", "Bent Old Tree", aliases=("tree", "bent tree", "old tree"), summary="an ancient tree leaning east over the wet ground", examine="The trunk bent long ago and kept growing. Several roots rise above the soil like ribs, pointing roughly toward the distant fungal pulse."),
-                F("surface_rain", "Surface Rain", aliases=("rain", "mist", "water"), summary="rain and mist moving through the open forest", examine="Without a cavern ceiling, water comes from everywhere at once: leaf tips, bark, mist, sky, and shaken branches.", listen="The surface is almost overwhelmingly loud after the Underways—rain, insects, distant birds, moving leaves, and water striking water."),
+                F("surface_rain", "Surface Rain", aliases=("rain", "mist", "water"), summary="rain and mist moving through the open forest", examine="Without a cavern ceiling, water comes from everywhere at once: leaf tips, bark, mist, sky, and shaken branches.", listen="The surface is almost overwhelmingly loud after the Underways-rain, insects, distant birds, moving leaves, and water striking water."),
             ),
             description_layers=(
                 L("sporekin_surface_senses", "The open sky feels less like empty space than an absence of shelter. The shared consciousness is still present, but thinner here, stretched beneath unfamiliar noise.", priority=30, condition=ViewCondition(races=("sporekin",))),

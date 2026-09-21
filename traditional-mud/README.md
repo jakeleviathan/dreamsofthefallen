@@ -1,4 +1,4 @@
-# Dreams of the Fallen — Astralis
+# Dreams of the Fallen - Astralis
 
 A traditional Telnet MUD being built collaboratively from account creation through endgame content.
 
@@ -68,11 +68,11 @@ The other five racial starting areas, most enemies beyond the Human tutorial, la
 
 Astralis uses custom names for familiar RPG functions:
 
-- **Might** — adds directly to normal auto-attack damage.
-- **Grace** — increases auto-attack speed. The current engine uses a provisional +1% attack-speed effect per Grace point so the relationship is executable; this tuning value is centralized and not balance-locked.
-- **Love** — adds directly to healing done and contributes to maximum mana.
-- **Mind** — adds directly to spell damage and contributes to maximum mana.
-- **HP** — adds raw hit points directly to maximum HP.
+- **Might** - adds directly to normal auto-attack damage.
+- **Grace** - increases auto-attack speed. The current engine uses a provisional +1% attack-speed effect per Grace point so the relationship is executable; this tuning value is centralized and not balance-locked.
+- **Love** - adds directly to healing done and contributes to maximum mana.
+- **Mind** - adds directly to spell damage and contributes to maximum mana.
+- **HP** - adds raw hit points directly to maximum HP.
 - **Armor Class (AC)** is **not** a core character stat. AC comes from equipped items and governs how difficult the character is to hit; higher AC requires a higher attack roll.
 
 Love and Mind both contribute additively to the mana pool. Starting stats now use the agreed hybrid structure: a baseline is influenced by both race and class, then the player allocates discretionary points during character creation. The current numerical modifiers and five-point allocation pool are **provisional development tuning**, not final balance. Existing characters remain compatible through database migrations.
@@ -94,8 +94,8 @@ After the first Cathedral quest, the High Acolyte writes new instructions on the
 
 The Training Yard branches into:
 
-- **Practice Ring** — contains a Training Dummy. `ATTACK DUMMY` begins real-time auto-attacks; the dummy does not retaliate.
-- **Vermin Pens** — contains a Sewer Rat and Small Imp. Both are low-risk live enemies and strike back. Defeating either completes the tutorial.
+- **Practice Ring** - contains a Training Dummy. `ATTACK DUMMY` begins real-time auto-attacks; the dummy does not retaliate.
+- **Vermin Pens** - contains a Sewer Rat and Small Imp. Both are low-risk live enemies and strike back. Defeating either completes the tutorial.
 
 While engaged, players can continue typing commands. `USE <ability>` or `CAST <ability>` executes unlocked abilities where an executable effect has been authored. `FLEE` is now a real combat action rather than guaranteed disengagement: the provisional base success chance is 70%. A successful breakaway chooses a legal exit; an engaged mobile predator may then attempt to pursue, but only through rooms inside its explicit habitat. `HEALTH` shows current HP, mana, and target HP. Tutorial spell costs/cooldowns and enemy numbers remain provisional tuning. If a trainee is reduced to 0 HP in the Vermin Pens, guards recover them in the Training Yard before a true death occurs. Ordinary lethal combat now uses the persistent death/bind system described below.
 
@@ -115,14 +115,14 @@ Each class has an authored, fixed ability set. Players do **not** build a class 
 
 The early class kits now established are:
 
-- **Brute** — `Taunt` at level 1 and `Heavy Strike` at level 2. Taunt costs **10 mana**, has a **5-second cooldown**, starts at a **30%** success chance at level 1, gains **2 percentage points per character level**, and caps at **95%**. On success it moves the Brute to the top of the target enemy's hate list.
-- **Wizard** — `Coldfire Burst` at level 1, `Minor Barrier` at level 2, and `Arcane Bolt` at level 3.
-- **Druid** — class Foraging utility and `Minor Heal` at level 1, then an ally/self HP buff at level 2. Druids explicitly **do not shapeshift**.
-- **Necromancer** — `Minor Life Tap` at level 1, `Raise Skeleton` at level 2 consuming common merchant-stock **Bone Chips**, then `Rot` at level 3 as the first damage-over-time spell. Bone Chips replace the older generic Bones catalyst and old inventories migrate automatically.
-- **Priest** — spell progression branches from the Priest's chosen deity:
-  - **Zerjz (Z-E-R-J-Z)** — Healing path; level 1 `Restoring Light`.
-  - **Tenebrous** — Protection path; level 1 `Guardian Ward`.
-  - **Leviathan** — Vengeance path; level 1 `Judgment Bolt`.
+- **Brute** - `Taunt` at level 1 and `Heavy Strike` at level 2. Taunt costs **10 mana**, has a **5-second cooldown**, starts at a **30%** success chance at level 1, gains **2 percentage points per character level**, and caps at **95%**. On success it moves the Brute to the top of the target enemy's hate list.
+- **Wizard** - `Coldfire Burst` at level 1, `Minor Barrier` at level 2, and `Arcane Bolt` at level 3.
+- **Druid** - class Foraging utility and `Minor Heal` at level 1, then an ally/self HP buff at level 2. Druids explicitly **do not shapeshift**.
+- **Necromancer** - `Minor Life Tap` at level 1, `Raise Skeleton` at level 2 consuming common merchant-stock **Bone Chips**, then `Rot` at level 3 as the first damage-over-time spell. Bone Chips replace the older generic Bones catalyst and old inventories migrate automatically.
+- **Priest** - spell progression branches from the Priest's chosen deity:
+  - **Zerjz (Z-E-R-J-Z)** - Healing path; level 1 `Restoring Light`.
+  - **Tenebrous** - Protection path; level 1 `Guardian Ward`.
+  - **Leviathan** - Vengeance path; level 1 `Judgment Bolt`.
   Each deity path has its own fixed progression of stronger themed spells as the Priest levels. Later spell names and tuning remain to be authored.
 
 Exact mana costs, cooldowns, damage/healing values, and skill-rank curves remain balance work unless explicitly noted otherwise.
@@ -139,23 +139,23 @@ The profession roster is **Blacksmithing, Tailoring, Enchanting, Alchemy, and Co
 
 Tailoring now has a full baseline textile progression from beginner through endgame. Harvesting nodes feed the profession, and each tier is processed at a **loom** into thread/yarn and then cloth before being sewn into baseline Hood and Tunic patterns. The progression is:
 
-1. **Cotton** — Cotton Patches -> Raw Cotton -> Cotton Thread -> Cotton Cloth. Common beginner textile from warm lowlands.
-2. **Wool** — Sheep Flocks -> Raw Wool -> Wool Yarn -> Wool Cloth. Warm, durable early-game textile from pastoral regions.
-3. **Silk** — Silk Cocoon Clusters -> Silk Cocoons -> Silk Thread -> Silk Cloth. Fine mid-game textile from warm groves and silkworm houses.
-4. **Moonweave** — Moonflax Beds -> Moonflax Fiber -> Moon Thread -> Moonweave Cloth. Pale, elegant high-altitude textile associated with Moon Elf lands.
-5. **Spidersilk** — Giant Spider Nests -> Raw Spidersilk -> Spidersilk Thread -> Spidersilk Cloth. Strong advanced textile from dangerous forests, caves, and ruins.
-6. **Ghostweave** — Ghostmoss Patches -> Ghostmoss Fiber -> Ghost Thread -> Ghostweave Cloth. Pale funerary textile from necropolises, catacombs, and other death-soaked places.
-7. **Astralweave** — Astral Blooms -> Astral Bloom Fiber -> Astral Thread -> Astralweave Cloth. Rare master Tailoring textile found only in dangerous endgame regions.
+1. **Cotton** - Cotton Patches -> Raw Cotton -> Cotton Thread -> Cotton Cloth. Common beginner textile from warm lowlands.
+2. **Wool** - Sheep Flocks -> Raw Wool -> Wool Yarn -> Wool Cloth. Warm, durable early-game textile from pastoral regions.
+3. **Silk** - Silk Cocoon Clusters -> Silk Cocoons -> Silk Thread -> Silk Cloth. Fine mid-game textile from warm groves and silkworm houses.
+4. **Moonweave** - Moonflax Beds -> Moonflax Fiber -> Moon Thread -> Moonweave Cloth. Pale, elegant high-altitude textile associated with Moon Elf lands.
+5. **Spidersilk** - Giant Spider Nests -> Raw Spidersilk -> Spidersilk Thread -> Spidersilk Cloth. Strong advanced textile from dangerous forests, caves, and ruins.
+6. **Ghostweave** - Ghostmoss Patches -> Ghostmoss Fiber -> Ghost Thread -> Ghostweave Cloth. Pale funerary textile from necropolises, catacombs, and other death-soaked places.
+7. **Astralweave** - Astral Blooms -> Astral Bloom Fiber -> Astral Thread -> Astralweave Cloth. Rare master Tailoring textile found only in dangerous endgame regions.
 
 Cotton remains the beginner loop, while later tiers require progressively higher **Harvesting** and **Tailoring** skill. Baseline tailored gear remains stat-first, and the current material quantities, skill thresholds, and item stats are provisional balance values. Rare drops, class/race restrictions, and scripted effects can later sit on top of this ladder.
 
 Alchemy now begins as an herb-first profession and branches beyond combat potions. The first authored resource nodes are **Greenleaf Patches**, **Bitterroot Clusters**, and **Lavender Patches**, all gathered with **Herbalism**. The first recipes are:
 
-- **Minor Healing Potion** — Greenleaf + Spring Water, prepared with a mortar and pestle.
-- **Lesser Antidote** — Bitterroot + Greenleaf + Spring Water, prepared with a mortar and pestle.
-- **Greenleaf Tincture** — Greenleaf steeped in Grain Alcohol.
-- **Lavender Essential Oil** — distilled from Lavender Blossoms at an alchemy table.
-- **Lavender Perfume** — Grain Alcohol + Lavender Essential Oil, blended at an alchemy table.
+- **Minor Healing Potion** - Greenleaf + Spring Water, prepared with a mortar and pestle.
+- **Lesser Antidote** - Bitterroot + Greenleaf + Spring Water, prepared with a mortar and pestle.
+- **Greenleaf Tincture** - Greenleaf steeped in Grain Alcohol.
+- **Lavender Essential Oil** - distilled from Lavender Blossoms at an alchemy table.
+- **Lavender Perfume** - Grain Alcohol + Lavender Essential Oil, blended at an alchemy table.
 
 Perfume is intentionally a real Alchemy branch rather than flavor-only vendor junk. The first Lavender Perfume carries a small temporary **Grace** bonus as provisional tuning, establishing that perfumes may provide subtle temporary effects without becoming major combat consumables. The item model now stores consumable/application effect metadata for healing, poison-cleansing, tinctures, and temporary perfume buffs. **Spring Water** and **Grain Alcohol** are authored reagents; their eventual world/vendor/brewing sources will be connected when those systems are built.
 
@@ -239,11 +239,11 @@ Every class should be capable of soloing the main level journey to the end level
 
 All race/class combinations are legal.
 
-1. **Brute** — warrior-like physical tank. Endgame Brutes control threat, taunt enemies, use high-damage melee attacks, carry only a few defensive self-buffs, and depend heavily on gear and weapons. Most major buffs are expected to come from other classes.
-2. **Wizard** — arcane nuke caster. Endgame Wizards specialize in very high single-target spell damage, world teleportation for players, self-protection, and smaller utility such as rooting enemies in place rather than buffing the group.
-3. **Druid** — nature support/healer. Druids forage, heal, buff, ward, and use nature-themed utility/control. At endgame they are reliable healers but deliberately not as strong at pure healing as Priests. They do not shapeshift.
-4. **Priest** — deity-path heavy-plate healer. The three locked deity paths are **Zerjz (healing)**, **Tenebrous (protection)**, and **Leviathan (vengeance)**. Their level-1 spells are `Restoring Light`, `Guardian Ward`, and `Judgment Bolt` respectively. Each path has its own fixed progression. Endgame Priests are the game's prime healers, resurrect fallen allies, and provide major HP and AC buffs.
-5. **Necromancer** — undead-pet and damage-over-time caster. Endgame Necromancers command powerful undead pets, specialize in rot/DoT magic, gain a lich-like skeletal form, and have distinctive dark utility.
+1. **Brute** - warrior-like physical tank. Endgame Brutes control threat, taunt enemies, use high-damage melee attacks, carry only a few defensive self-buffs, and depend heavily on gear and weapons. Most major buffs are expected to come from other classes.
+2. **Wizard** - arcane nuke caster. Endgame Wizards specialize in very high single-target spell damage, world teleportation for players, self-protection, and smaller utility such as rooting enemies in place rather than buffing the group.
+3. **Druid** - nature support/healer. Druids forage, heal, buff, ward, and use nature-themed utility/control. At endgame they are reliable healers but deliberately not as strong at pure healing as Priests. They do not shapeshift.
+4. **Priest** - deity-path heavy-plate healer. The three locked deity paths are **Zerjz (healing)**, **Tenebrous (protection)**, and **Leviathan (vengeance)**. Their level-1 spells are `Restoring Light`, `Guardian Ward`, and `Judgment Bolt` respectively. Each path has its own fixed progression. Endgame Priests are the game's prime healers, resurrect fallen allies, and provide major HP and AC buffs.
+5. **Necromancer** - undead-pet and damage-over-time caster. Endgame Necromancers command powerful undead pets, specialize in rot/DoT magic, gain a lich-like skeletal form, and have distinctive dark utility.
 
 The names and these class arcs are locked. Ability sets remain fixed by class rather than player-customized. Later-level ability names and exact numerical balance are still to be designed.
 
@@ -306,7 +306,7 @@ All eight playable races are humanoid enough to use one shared equipment anatomy
 - Culture is bureaucratic and intensely focused on craftsmanship, standards, and professional pride.
 - No particular cultural rivalry with goblins.
 - Mining, stonework, and metalworking exist but are not the sole focus of dwarven identity.
-- Starting experience feels like a **working industrial city** of workshops, foundries, union halls, freight routes, lifts, and steam systems—not a generic fantasy mine.
+- Starting experience feels like a **working industrial city** of workshops, foundries, union halls, freight routes, lifts, and steam systems-not a generic fantasy mine.
 - Passive and at-will racial ability remain open.
 
 ### Goblin
@@ -342,7 +342,7 @@ All eight playable races are humanoid enough to use one shared equipment anatomy
 - Bitter about widespread distrust and condescension.
 - Culture is brutal and intimidating in presentation.
 - Starting experience is harsh and dangerous immediately.
-- **Passive: Regeneration — +1 additional HP per normal server regeneration tick.** This exact bonus is implemented.
+- **Passive: Regeneration - +1 additional HP per normal server regeneration tick.** This exact bonus is implemented.
 - At-will racial ability remains open.
 
 ### Undead
@@ -374,7 +374,7 @@ All eight playable races are humanoid enough to use one shared equipment anatomy
 - Reproduce through **spores**.
 - See themselves as guides to the other races.
 - Possess a **shared consciousness**, giving their society a collective dimension.
-- **Passive: Deep Regeneration — +2 additional HP per normal server regeneration tick.** This exact bonus is implemented.
+- **Passive: Deep Regeneration - +2 additional HP per normal server regeneration tick.** This exact bonus is implemented.
 - At-will racial ability remains open.
 
 ## World geography locked so far
@@ -383,15 +383,15 @@ Astralis contains **multiple continents separated by seas**, though the number, 
 
 Current regional anchors are intentionally stored under descriptive placeholder names so we can choose proper in-world names later:
 
-- **Human Kingdom** — humans' single large kingdom; closest major neighbor is dwarven territory.
-- **Dwarven Mountain Settlements** — enormous underground/above-ground steam industrial region.
-- **Great Elven Forest** — isolated Forest Elf towns in a vast woodland.
-- **Moon Peaks** — high-altitude Moon Elf civilization.
-- **Goblin Swamps and Junk City** — swamp clans plus the major metropolitan Junk City.
-- **Troll Strongholds** — scattered deep-forest, wilderness, and tundra strongholds rather than one homeland.
-- **Desert Necropolis** — Undead capital civilization beneath a desolate desert.
-- **Sporekin Underways** — predominantly underground fungal civilization with limited surface presence.
-- **Central Trade City** — neutral melting-pot city at a major river/trade crossroads where all races mingle for commerce and diplomacy.
+- **Human Kingdom** - humans' single large kingdom; closest major neighbor is dwarven territory.
+- **Dwarven Mountain Settlements** - enormous underground/above-ground steam industrial region.
+- **Great Elven Forest** - isolated Forest Elf towns in a vast woodland.
+- **Moon Peaks** - high-altitude Moon Elf civilization.
+- **Goblin Swamps and Junk City** - swamp clans plus the major metropolitan Junk City.
+- **Troll Strongholds** - scattered deep-forest, wilderness, and tundra strongholds rather than one homeland.
+- **Desert Necropolis** - Undead capital civilization beneath a desolate desert.
+- **Sporekin Underways** - predominantly underground fungal civilization with limited surface presence.
+- **Central Trade City** - neutral melting-pot city at a major river/trade crossroads where all races mingle for commerce and diplomacy.
 
 All races will eventually be able to travel into every civilization. Race **and class** can affect core NPC reactions such as respect, distrust, fear, hostility, or rare refusal of service, while most dialogue remains universal. Major content is not intended to be hard-locked by race. The world is mostly open, with authored exceptions using persistent keys, character flags, progression state, or group requirements.
 
@@ -463,22 +463,22 @@ Mobile NPCs are world-state creatures with a single current room rather than sta
 
 Four behavior types are currently supported:
 
-- **Wander** — chooses a legal neighboring room at random.
-- **Patrol** — follows an authored room-by-room circuit.
-- **Hunter** — detects players within a configured radius and pathfinds one room at a time toward them, but stops at its habitat boundary. With no target detected, it prowls inside its habitat.
-- **Routine** — uses a time-of-day schedule and shortest-path movement to travel toward the room assigned for the current hour. The development build currently uses the host server's local hour until an Astralis-specific world clock is designed.
+- **Wander** - chooses a legal neighboring room at random.
+- **Patrol** - follows an authored room-by-room circuit.
+- **Hunter** - detects players within a configured radius and pathfinds one room at a time toward them, but stops at its habitat boundary. With no target detected, it prowls inside its habitat.
+- **Routine** - uses a time-of-day schedule and shortest-path movement to travel toward the room assigned for the current hour. The development build currently uses the host server's local hour until an Astralis-specific world clock is designed.
 
 The ambient Forest Elf wildlife remains:
 
-- **Silverleaf Hare** — wanders the Greenway, Old River Path, Waystone Bend, and Listening Pool.
-- **Redtail Squirrel** — wanders Circle Clearing, the Greenway, and Old River Path.
-- **Willow Wren** — wanders Old River Path, Waystone Bend, Listening Pool, and the Outer Grove.
+- **Silverleaf Hare** - wanders the Greenway, Old River Path, Waystone Bend, and Listening Pool.
+- **Redtail Squirrel** - wanders Circle Clearing, the Greenway, and Old River Path.
+- **Willow Wren** - wanders Old River Path, Waystone Bend, Listening Pool, and the Outer Grove.
 
 Three authored examples exercise the advanced behaviors in the current world:
 
-- **Blackwall Guard (Patrol)** — marches a loop from the Demon Gate to Outer Drill Road, into the Training Yard, and back.
-- **Briarshadow Stalker (Hunter)** — inhabits only Briarshadow Thicket and the Outer Grove. It does **not** detect players through adjacent rooms. Aggro begins only when the Stalker and a player share a room. Once combat has begun, a fleeing player can be pursued through the two-room habitat, but the Stalker can never cross south into the Listening Pool.
-- **Ashen Way Curio Peddler (Routine)** — moves among the Demon Gate, Ashen Way, and Cathedral Square according to the hour: early gate traffic, daytime market trade, evening cathedral crowds, then back toward the shopfront at night.
+- **Blackwall Guard (Patrol)** - marches a loop from the Demon Gate to Outer Drill Road, into the Training Yard, and back.
+- **Briarshadow Stalker (Hunter)** - inhabits only Briarshadow Thicket and the Outer Grove. It does **not** detect players through adjacent rooms. Aggro begins only when the Stalker and a player share a room. Once combat has begun, a fleeing player can be pursued through the two-room habitat, but the Stalker can never cross south into the Listening Pool.
+- **Ashen Way Curio Peddler (Routine)** - moves among the Demon Gate, Ashen Way, and Cathedral Square according to the hour: early gate traffic, daytime market trade, evening cathedral crowds, then back toward the shopfront at night.
 
 Players in an NPC's origin room see it leave, players in the destination room see it arrive, and `LOOK` shows whatever mobile NPCs are actually present at that moment. Movement verbs reflect behavior (`wanders`, `marches`, `stalks`/`prowls`, or `walks`). Movement probabilities and schedules remain provisional tuning values.
 
@@ -504,11 +504,11 @@ Dreams of the Fallen now negotiates GMCP (Telnet option 201) with capable MUD cl
 
 The server streams the following out-of-band state while a character is playing:
 
-- `Char.Maxstats` — maximum HP, mana, and movement
-- `Char.Vitals` — current/max HP, mana, movement, plus current opponent health while fighting
-- `Char.Status` — character identity plus current opponent name and health
-- `Dreams.Vitals` — Dreams of the Fallen's stable game-specific vitals payload
-- `Dreams.Target` — target name, current/max HP, and whether a target is active
+- `Char.Maxstats` - maximum HP, mana, and movement
+- `Char.Vitals` - current/max HP, mana, movement, plus current opponent health while fighting
+- `Char.Status` - character identity plus current opponent name and health
+- `Dreams.Vitals` - Dreams of the Fallen's stable game-specific vitals payload
+- `Dreams.Target` - target name, current/max HP, and whether a target is active
 
 This is intentionally sent outside the visible text stream. Current Mudlet 5.x new profiles can build Mudlet's Base UI from these standard GMCP messages, giving players automatic vitals gauges without writing triggers per character. Dreams of the Fallen now also ships its own official custom Mudlet HUD package.
 

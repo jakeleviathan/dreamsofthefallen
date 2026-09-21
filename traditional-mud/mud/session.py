@@ -1616,7 +1616,7 @@ class PlayerSession:
                 return
             await self.send(
                 "\r\nMoss fills most of the carving, but beneath the leaf-and-circle emblem three shallow lines remain clear: "
-                "a river bend, a still pool, and a single oak at the edge of thick woods. The marks are practical rather than mystical—a map taught by symbols.\r\n"
+                "a river bend, a still pool, and a single oak at the edge of thick woods. The marks are practical rather than mystical-a map taught by symbols.\r\n"
             )
             quest = self.database.get_quest(self.character.id, FOREST_ELF_FIRST_WALK.key)
             if quest and quest.get("status") == "active" and quest.get("current_step") == "study_waystone":
@@ -1665,7 +1665,7 @@ class PlayerSession:
             room = ROOMS_BY_KEY.get(self.character.current_room or "")
             if room and room.key == FOREST_ELF_LISTENING_POOL_KEY:
                 await self.send(
-                    "You stop moving. Beneath birdsong and the faint slide of water, the pool carries a second rhythm—so slight it could be current, root, or magic. "
+                    "You stop moving. Beneath birdsong and the faint slide of water, the pool carries a second rhythm-so slight it could be current, root, or magic. "
                     "The longer you listen, the easier it becomes to tell where the tended forest ends. North, the sounds grow rougher and less familiar.\r\n"
                 )
                 quest = self.database.get_quest(self.character.id, FOREST_ELF_FIRST_WALK.key)
@@ -2000,7 +2000,7 @@ class PlayerSession:
             for stock in merchant.stock:
                 item = ITEMS_BY_KEY.get(stock.item_key)
                 name = item.name if item else stock.item_key
-                price = f" — {stock.price_units} sparks" if stock.price_units is not None else ""
+                price = f" - {stock.price_units} sparks" if stock.price_units is not None else ""
                 await self.send(f"{name}{price}\r\n")
             await self.send(
                 "Sols are Astralis's sun-stamped currency. Use BUY, SELL, VALUE, or SOLS in the assembled live game.\r\n"

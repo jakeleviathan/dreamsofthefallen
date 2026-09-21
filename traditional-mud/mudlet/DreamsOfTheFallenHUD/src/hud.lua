@@ -320,7 +320,7 @@ function H.renderTarget()
   if not s.target_active or not s.target_name or s.target_name == "" then
     H.targetName:echo("<center>NO TARGET</center>")
     H.targetGauge:setValue(0, 1)
-    H.targetGauge.text:echo("<center>—</center>")
+    H.targetGauge.text:echo("<center>-</center>")
     H.targetDetail:echo("<center>The dark is watching.</center>")
     H.targetSigil:echo("<center>◇<br/>†<br/>◇</center>")
     return
