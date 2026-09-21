@@ -34,6 +34,7 @@ from mud.room_presentation import (
     render_room_lines,
 )
 from mud.stats import CharacterStats
+from mud.waymeet_adventure_arc import CELLAR_RAT, TOLL_RAT_RUN
 
 class DB:
     def list_flags(self, _character_id):
@@ -123,6 +124,31 @@ with tempfile.TemporaryDirectory() as temp:
     assert "[ Creatures ]" in after, after
     assert "[ Danger ]" not in after, after
     assert "[ Corpses ]" in after, after
+
+    duplicate_session = SimpleNamespace(
+        character=SimpleNamespace(
+            id=owner.id,
+            race="goblin",
+            character_class="priest",
+            level=6,
+            current_room=TOLL_RAT_RUN,
+        ),
+        database=database,
+        mobile_npcs=None,
+    )
+    duplicate_before = "\r\n".join(render_room_lines(duplicate_session, server.WORLD))
+    assert "Cellar Rat x2" not in duplicate_before, duplicate_before
+    assert duplicate_before.count("Cellar Rat - ") == 2, duplicate_before
+
+    mark_static_enemy_defeated(
+        database,
+        TOLL_RAT_RUN,
+        CELLAR_RAT.key,
+        120.0,
+    )
+    duplicate_after_one = "\r\n".join(render_room_lines(duplicate_session, server.WORLD))
+    assert "Cellar Rat x2" not in duplicate_after_one, duplicate_after_one
+    assert duplicate_after_one.count("Cellar Rat - ") == 1, duplicate_after_one
 
 # Attackable-but-passive mobiles are creatures; only explicit auto-aggro
 # definitions are labeled Hostile.
