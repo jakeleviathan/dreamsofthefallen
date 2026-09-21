@@ -329,7 +329,7 @@ TEXTILE_TIERS_BY_KEY = {tier.key: tier for tier in TEXTILE_TIERS}
 class ResourceNodeDefinition:
     key: str
     name: str
-    gathering_skill_key: str
+    gathering_skill_key: str | None
     output_item_key: str
     minimum_skill: int = 0
     node_based: bool = True
@@ -471,6 +471,16 @@ LAVENDER_PATCH = ResourceNodeDefinition(
     tier=1,
     region_hint="Sunny fields, cultivated gardens, and dry hillsides near settlements.",
 )
+FRESH_WATER_SOURCE = ResourceNodeDefinition(
+    key="fresh_water_source",
+    name="Fresh Water Source",
+    gathering_skill_key=None,
+    output_item_key="spring_water",
+    minimum_skill=0,
+    design_status="renewable_world_fresh_water",
+    tier=1,
+    region_hint="Protected wells, clear streams, cisterns, rain catchments, and other explicitly clean freshwater sources.",
+)
 COAL_SEAM = ResourceNodeDefinition(
     key="coal_seam",
     name="Coal Seam",
@@ -539,6 +549,7 @@ RESOURCE_NODES = (
     GREENLEAF_PATCH,
     BITTERROOT_CLUSTER,
     LAVENDER_PATCH,
+    FRESH_WATER_SOURCE,
     COAL_SEAM,
     COBALT_VEIN,
     MOONSILVER_VEIN,
@@ -1266,12 +1277,14 @@ def gather_node(
 ) -> str | None:
     """Gather from any authored resource node using that node's gathering skill."""
 
-    skill_value = trade_skill_value(database, character_id, node.definition.gathering_skill_key)
+    skill_key = node.definition.gathering_skill_key
+    skill_value = trade_skill_value(database, character_id, skill_key) if skill_key else 0
     output = node.gather(skill_value=skill_value)
     if output is None:
         return None
     database.add_item(character_id, output, 1)
-    database.record_trade_skill_use(character_id, node.definition.gathering_skill_key, 1)
+    if skill_key:
+        database.record_trade_skill_use(character_id, skill_key, 1)
     return output
 
 
