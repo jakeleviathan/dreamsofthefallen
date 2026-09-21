@@ -550,16 +550,15 @@ def _recipe_filter(value: str) -> tuple[str, str | None]:
 def _recipe_line(session, recipe: CraftingRecipe, *, include_materials: bool = True) -> str:
     station = STATION_LABELS.get(recipe.station_key, recipe.station_key or "No station")
     state = _recipe_state(session, recipe)
-    status = _recipe_status_label(session, recipe)
     name = _recipe_paint(_RECIPE_NAME, _recipe_output_name(recipe))
     success_pct = int(round(float(state["success_chance"]) * 100))
 
-    # Telnet-first hierarchy: make the crafted item the visual anchor, then put
-    # station/difficulty and ingredients on their own indented lines. This is
-    # intentionally spacing/order/color only; it does not depend on font size
-    # or a graphical client.
+    # Telnet-first hierarchy: the crafted item is the visual anchor. Repeated
+    # READY / CRAFT NOW labels added noise without adding useful information;
+    # material colors and the surrounding recipe section already communicate
+    # availability.
     line = (
-        f"  {status:<28} {name}\r\n"
+        f"  {name}\r\n"
         f"       {_recipe_paint(_RECIPE_LOCKED, station)}"
         f"  |  Trivial {recipe.trivial_skill}  |  {success_pct}% success\r\n"
     )
