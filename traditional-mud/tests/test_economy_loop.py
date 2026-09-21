@@ -187,6 +187,7 @@ class EconomyLoopTests(unittest.TestCase):
         output = "".join(session.outputs)
         self.assertIn("\x1b[92m1x Iron Ingot\x1b[0m", output)
         self.assertIn("\x1b[93m1x Coal\x1b[0m", output)
+        self.assertIn("\x1b[1;92mForge\x1b[0m", output)
 
     def test_recipe_detail_shows_owned_requirements_and_station(self):
         self.db.add_item(self.character.id, "iron_ore", 1)
@@ -198,10 +199,19 @@ class EconomyLoopTests(unittest.TestCase):
         self.assertIn("=== RECIPE ===", output)
         self.assertIn("Iron Ingot", output)
         self.assertIn("Blacksmithing", output)
-        self.assertIn("Forge", output)
+        self.assertIn("\x1b[1;92mForge  (HERE)\x1b[0m", output)
         self.assertIn("1/2", output)
         self.assertIn("Iron Ore", output)
         self.assertIn("Not ready: materials", output)
+
+    def test_recipe_list_keeps_missing_station_dimmed(self):
+        session = self._session_in("forest_elf_hearthwalk", ["recipes blacksmithing all"])
+
+        asyncio.run(session.playing_prompt())
+
+        output = "".join(session.outputs)
+        self.assertIn("\x1b[90mForge\x1b[0m", output)
+        self.assertNotIn("\x1b[1;92mForge\x1b[0m", output)
 
     def test_recipes_craftable_only_lists_items_possible_right_now(self):
         self.db.add_item(self.character.id, "iron_ore", 2)
