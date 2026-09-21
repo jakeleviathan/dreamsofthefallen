@@ -116,7 +116,7 @@ local SMALL_TEXT = [[
     background-color: transparent;
     border: 0px;
     color: #cfc4d2;
-    font-size: 9pt;
+    font-size: 12pt;
     qproperty-wordWrap: true;
     qproperty-alignment: 'AlignLeft|AlignVCenter';
   }
