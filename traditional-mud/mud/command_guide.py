@@ -41,7 +41,7 @@ COMMANDS: tuple[CommandEntry, ...] = (
 
     CommandEntry("character", "SCORE / STATUS / SHEET / STATS", "Show level, XP, base stats, equipment bonuses, and derived values."),
     CommandEntry("character", "INVENTORY / INV / I", "List items currently carried."),
-    CommandEntry("character", "EQUIPMENT / GEAR / WORN", "Show combat-equipment slots and stat totals."),
+    CommandEntry("character", "EQUIPMENT / GEAR / WORN", "Show worn equipment, including your BAG slot and its inventory capacity bonus."),
     CommandEntry("character", "EQUIP / WEAR / WIELD <item>", "Equip ordinary combat gear; WEAR automatically routes fashion pieces to the style system."),
     CommandEntry("character", "UNEQUIP / REMOVE <slot or item>", "Remove combat equipment."),
     CommandEntry("character", "COMPARE <item>", "Compare carried equipment with the item occupying the same combat slot."),
