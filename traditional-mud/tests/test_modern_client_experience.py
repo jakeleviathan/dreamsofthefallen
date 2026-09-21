@@ -205,6 +205,59 @@ class ModernClientExperienceTests(unittest.TestCase):
             self.assertIn("arcane_surge", by_key)
             self.assertGreater(by_key["blessing_of_resolve"]["remaining"], 0)
 
+    def test_effect_snapshot_reports_only_weather_mechanics_affecting_exposed_character(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session = self._session(Path(temp_dir))
+            world = self._world()
+            world.state.set_weather("human_kingdom", "rain")
+
+            effects = _effects_snapshot(session, world)["effects"]
+            weather_effects = {
+                effect["key"]: effect
+                for effect in effects
+                if effect["kind"] == "weather"
+            }
+
+            self.assertEqual(
+                set(weather_effects),
+                {"weather_concealment", "weather_footing_slick"},
+            )
+            self.assertIn("+8 percentage points to flee chance", weather_effects["weather_concealment"]["detail"])
+            self.assertIn("Outdoor movement is slowed", weather_effects["weather_footing_slick"]["detail"])
+            self.assertIsNone(weather_effects["weather_concealment"]["remaining"])
+
+    def test_effect_snapshot_hides_weather_mechanics_under_solid_cover(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session = self._session(Path(temp_dir))
+            session.database.set_character_room(session.character.id, "human_grand_cathedral")
+            session.character = session.database.get_character_by_name(session.character.name)
+            world = self._world()
+            world.state.set_weather("human_kingdom", "rain")
+
+            effects = _effects_snapshot(session, world)["effects"]
+            self.assertFalse(any(effect["kind"] == "weather" for effect in effects))
+
+    def test_effect_snapshot_shows_fire_disruption_only_for_character_with_fire_magic(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            database = Database(root / "weather_effects.db")
+            account = database.create_account("weather_effects", "x")
+            character = database.create_character(
+                account.id,
+                "WeatherMage",
+                "human",
+                "wizard",
+                CharacterStats(might=5, grace=5, love=6, mind=8, hp=5),
+            )
+            session = DummySession(database, character)
+            world = self._world()
+            world.state.set_weather("human_kingdom", "storm")
+
+            effects = _effects_snapshot(session, world)["effects"]
+            by_key = {effect["key"]: effect for effect in effects}
+            self.assertIn("weather_fire_disruption", by_key)
+            self.assertIn("20% chance", by_key["weather_fire_disruption"]["detail"])
+
     def test_full_push_emits_modern_structured_surfaces(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             session = self._session(Path(temp_dir))
