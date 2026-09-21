@@ -1210,16 +1210,33 @@ async def _show_provenance(session, target: str) -> None:
         await session.send(error + "\r\n")
         return
     assert key is not None
+
+    copied = _copied_style_row(session.database, session.character.id, key)
+    if copied is not None:
+        await session.send(
+            f"\r\n--- Style Copy: {copied['source_name']} ---\r\n"
+            f"Copied by {copied['copied_by']} from the ordinary equipment item "
+            f"{copied['source_name']}.\r\n"
+            "This is a personal wardrobe appearance, not a physical object. It cannot be traded, "
+            "does not carry the source item's stats, and remains available even if the original gear leaves your possession.\r\n"
+        )
+        return
+
     meta = STYLE_META_BY_KEY[key]
     if not meta.provenance_track:
-        await session.send(f"{_item_name(key)} is an ordinary {meta.house} piece. Its maker and collection are known, but individual ownership is not serialized.\r\n")
+        await session.send(
+            f"{_item_name(key)} is an ordinary {meta.house} piece. Its maker and collection are known, "
+            "but individual ownership is not serialized.\r\n"
+        )
         return
     _ensure_instances_for_inventory(session.database, session.character.id, key)
     instances = _owned_instances(session.database, session.character.id, key)
     await session.send(f"\r\n--- Provenance: {_item_name(key)} ---\r\n")
     with session.database.connect() as db:
         for instance in instances:
-            await session.send(f"Serial {instance['serial']} - origin Day {instance['created_day']}: {instance['origin_text']}\r\n")
+            await session.send(
+                f"Serial {instance['serial']} - origin Day {instance['created_day']}: {instance['origin_text']}\r\n"
+            )
             history = db.execute(
                 """
                 SELECT h.astralis_day, h.action, h.note,
@@ -1233,10 +1250,15 @@ async def _show_provenance(session, target: str) -> None:
             ).fetchall()
             for row in history:
                 if row["action"] == "origin":
-                    await session.send(f"  Day {row['astralis_day']}: entered the collection of {row['to_name'] or 'an unknown owner'}.\r\n")
+                    await session.send(
+                        f"  Day {row['astralis_day']}: entered the collection of "
+                        f"{row['to_name'] or 'an unknown owner'}.\r\n"
+                    )
                 else:
-                    await session.send(f"  Day {row['astralis_day']}: {row['from_name'] or 'unknown'} → {row['to_name'] or 'unknown'} ({row['note']}).\r\n")
-
+                    await session.send(
+                        f"  Day {row['astralis_day']}: {row['from_name'] or 'unknown'} -> "
+                        f"{row['to_name'] or 'unknown'} ({row['note']}).\r\n"
+                    )
 
 def _appearance_line(target_session) -> str:
     character = target_session.character
