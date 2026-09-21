@@ -17,6 +17,7 @@ from mud.enemy_lifecycle import (
     static_enemy_available,
     static_enemy_respawn_remaining,
 )
+from mud.waymeet_adventure_arc import CELLAR_RAT, TOLL_RAT_RUN
 from mud.world import ROOMS_BY_KEY
 
 
@@ -122,8 +123,14 @@ class RuntimeSession:
         self.active_enemy = None
 
     def _enemy_in_current_room(self, target_text: str):
-        if SEWER_RAT.matches(target_text):
-            return EnemyState(SEWER_RAT)
+        room = ROOMS_BY_KEY.get(self.character.current_room)
+        if room is None:
+            return None
+        for enemy_key in room.enemy_keys:
+            from mud.combat import ENEMIES_BY_KEY
+            definition = ENEMIES_BY_KEY.get(enemy_key)
+            if definition is not None and definition.matches(target_text):
+                return EnemyState(definition)
         return None
 
     async def start_combat(self, target_text: str):
@@ -188,6 +195,41 @@ class EnemyLifecycleRuntimeTests(unittest.TestCase):
         self.assertEqual(second.base_finish_calls, 0)
         self.assertEqual(second.stop_calls, 1)
         self.assertIn("no second kill to claim", "".join(second.outputs))
+
+    def test_duplicate_static_enemies_are_independent_spawns(self):
+        session = RuntimeSession(self.database, TOLL_RAT_RUN)
+
+        first = session._enemy_in_current_room("rat")
+        self.assertIsNotNone(first)
+        self.assertEqual(first.definition.key, CELLAR_RAT.key)
+        self.assertEqual(first.spawn_key, CELLAR_RAT.key)
+
+        session.active_enemy = first
+        asyncio.run(session._finish_enemy_defeat(first))
+        self.assertFalse(
+            static_enemy_available(
+                TOLL_RAT_RUN, CELLAR_RAT.key, database=self.database
+            )
+        )
+        self.assertTrue(
+            static_enemy_available(
+                TOLL_RAT_RUN, CELLAR_RAT.key + "#2", database=self.database
+            )
+        )
+
+        second = session._enemy_in_current_room("rat")
+        self.assertIsNotNone(second)
+        self.assertEqual(second.definition.key, CELLAR_RAT.key)
+        self.assertEqual(second.spawn_key, CELLAR_RAT.key + "#2")
+
+        session.active_enemy = second
+        asyncio.run(session._finish_enemy_defeat(second))
+        self.assertFalse(
+            static_enemy_available(
+                TOLL_RAT_RUN, CELLAR_RAT.key + "#2", database=self.database
+            )
+        )
+        self.assertIsNone(session._enemy_in_current_room("rat"))
 
     def test_legacy_room_output_hides_defeated_enemy(self):
         session = RuntimeSession(self.database, self.room_key)
