@@ -1232,6 +1232,14 @@ def craft_recipe(
         )
         return CraftAttemptResult(False, f"Missing materials: {text}.", trivial_skill=trivial)
 
+    from mud.inventory_capacity import crafting_output_fits
+    if not crafting_output_fits(database, character_id, recipe):
+        return CraftAttemptResult(
+            False,
+            "Your inventory has no room for the crafted item. Free a slot or equip a larger bag first.",
+            trivial_skill=trivial,
+        )
+
     success_chance = craft_success_chance(skill_value, trivial)
     skillup_chance = craft_skillup_chance(skill_value, trivial)
     if success_chance >= 1.0:
