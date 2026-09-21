@@ -295,6 +295,12 @@ class ModernClientExperienceTests(unittest.TestCase):
             )
             self.assertEqual(payloads["Dreams.Effects"]["effects"], [])
             self.assertTrue(payloads["Dreams.Context"]["actions"])
+            self.assertTrue(
+                any(
+                    action.get("command") == "ATELIER"
+                    for action in payloads["Dreams.Context"]["actions"]
+                )
+            )
             self.assertTrue(payloads["Dreams.Inventory"]["items"])
             self.assertTrue(payloads["Dreams.Quests"]["active"])
 
