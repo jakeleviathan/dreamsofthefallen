@@ -18,6 +18,7 @@ from mud.racial_abilities import (
     RACIAL_TEXT,
 )
 from mud.equipment_system import equipped_definitions, equipped_item_keys
+from mud.reflection_opportunities import reflection_opportunities
 from mud.room_engine import PlayerRoomContext
 from mud.weather_gameplay import effects_for_weather, room_is_weather_exposed, surface_condition
 from mud.world import NPCS_BY_KEY
@@ -79,6 +80,37 @@ def _room_snapshot(session, world) -> dict | None:
         visible.direction: visible.destination_key
         for visible in view.exits
     }
+    features = [
+        {
+            "key": feature.key,
+            "name": feature.name,
+            "summary": feature.summary,
+            "can_examine": bool(feature.examine_text or feature.summary),
+            "can_search": bool(feature.search_text),
+            "can_touch": bool(feature.touch_text),
+            "can_listen": bool(feature.listen_text),
+            "can_use": False,
+        }
+        for feature in view.features
+    ]
+    weather = world.state.weather_for(scene.region_key)
+    exposed = room_is_weather_exposed(scene.tags, scene.key)
+    for source in reflection_opportunities(scene, weather, exposed=exposed):
+        if any(feature["name"] == source.name for feature in features):
+            continue
+        features.append(
+            {
+                "key": f"reflection:{source.key}",
+                "name": source.name,
+                "summary": source.room_text,
+                "can_examine": True,
+                "can_search": False,
+                "can_touch": False,
+                "can_listen": False,
+                "can_use": True,
+            }
+        )
+
     return {
         "key": view.key,
         "num": stable_room_number(view.key),
@@ -88,18 +120,7 @@ def _room_snapshot(session, world) -> dict | None:
         "tags": list(view.tags),
         "exits": exits,
         "exit_keys": exit_keys,
-        "features": [
-            {
-                "key": feature.key,
-                "name": feature.name,
-                "summary": feature.summary,
-                "can_examine": bool(feature.examine_text or feature.summary),
-                "can_search": bool(feature.search_text),
-                "can_touch": bool(feature.touch_text),
-                "can_listen": bool(feature.listen_text),
-            }
-            for feature in view.features
-        ],
+        "features": features,
     }
 
 
@@ -526,6 +547,8 @@ def _party_snapshot(session) -> dict:
 
 def _feature_action(feature: dict) -> dict | None:
     target = feature["name"]
+    if feature.get("can_use"):
+        return {"label": f"Use {target}", "command": f"USE {target}", "kind": "inspect"}
     if feature.get("can_examine"):
         return {"label": f"Examine {target}", "command": f"EXAMINE {target}", "kind": "inspect"}
     if feature.get("can_listen"):
