@@ -58,6 +58,9 @@ assert f"{REGION}Junk City And Swamps" in text, text
 assert f"{FEATURE}[ Notable ]" in text, text
 assert f"{NPC}[ People ]" in text, text
 assert f"{NPC}Vikka Three-Nails" in text, text
+assert f"{NPC}Pavo Vellum" in text, text
+assert "Pavo's Impossible Atelier" in text, text
+assert "STYLE COPY" in text, text
 assert f"{EXIT}[ Exits ]" in text, text
 assert f"{EXIT}NORTH" in text, text
 assert "The Sorting Spine" in text, text
