@@ -48,6 +48,53 @@ ROOM_RESOURCE_NODE_KEYS: dict[str, tuple[str, ...]] = {
     "dwarf_upper_freight_deck": ("iron_vein", "coal_seam"),
 }
 
+# Fresh water is a common-world input rather than a race-specific convenience.
+# These placements are intentionally limited to rooms whose authored text
+# describes a protected, clear, tested, or otherwise credible freshwater source.
+# Polluted swamp water, floodwater, brine, dry wells, and merely decorative
+# water are deliberately excluded. Goblin Cleanwater Seep keeps its existing
+# authored one-Astralis-hour gathering service and is therefore not duplicated
+# in this generic table.
+FRESH_WATER_ROOM_KEYS: tuple[str, ...] = (
+    "human_cinder_ward",                 # public cisterns
+    "forest_elf_old_river_path",         # clear shallow river
+    "forest_elf_listening_pool",         # clear river pool
+    "forest_elf_rainpool_terrace",       # maintained rain catchments
+    "forest_elf_seepstone_run",          # clean hillside runoff
+    "moon_elf_alpine_light_garden",      # garden cistern and drip channels
+    "sporekin_lumen_hollow",             # clean cavern seepage
+    "waymeet_commonhouse_yard",          # public rain barrels
+    "greywake_three_banner_camp",        # shared camp well
+    "greywake_old_aqueduct",             # clean mountain aqueduct
+    "veyra_north_waterworks",            # tested mountain water
+    "sablewater_saltgrass_bend",         # mineral springs
+    "ashcross_common",                    # public water pump
+    "broken_reach_ragged_caravanserai",  # shared roadside cistern
+    "nine_vapors_distillation_hall",     # clean condenser drip
+    "underclock_condenser_court",        # condensed water in stone gutters
+    "keelspire_three_wells_court",       # public sweet-water well
+    "salt_kingdoms_springcut_gorge",     # restored natural stream
+    "salt_kingdoms_cistern_road",        # refilled roadside cisterns
+)
+
+
+def install_fresh_water_sources(rooms_by_key: dict[str, object] | None = None) -> None:
+    """Attach renewable Spring Water to credible freshwater rooms world-wide.
+
+    This runs after regional installers so it appends to, rather than being
+    overwritten by, region-specific mining/harvesting/herbalism placements.
+    """
+
+    if rooms_by_key is not None:
+        missing = tuple(key for key in FRESH_WATER_ROOM_KEYS if key not in rooms_by_key)
+        if missing:
+            raise RuntimeError("Unknown fresh-water room keys: " + ", ".join(missing))
+
+    for room_key in FRESH_WATER_ROOM_KEYS:
+        current = ROOM_RESOURCE_NODE_KEYS.get(room_key, ())
+        if "fresh_water_source" not in current:
+            ROOM_RESOURCE_NODE_KEYS[room_key] = current + ("fresh_water_source",)
+
 ROOM_STATIONS: dict[str, tuple[str, ...]] = {
     "human_cinder_lane": ("forge",),
     "forest_elf_hearthwalk": ("loom", "mortar_and_pestle", "alchemy_table"),
@@ -318,7 +365,9 @@ def _resolve_node(session, target: str, skill_key: str | None = None) -> tuple[L
     return nodes[0], None
 
 
-def _skill_label(skill_key: str) -> str:
+def _skill_label(skill_key: str | None) -> str:
+    if skill_key is None:
+        return "Collect"
     skill = crafting.GATHERING_SKILLS_BY_KEY.get(skill_key)
     return skill.name if skill is not None else skill_key.replace("_", " ").title()
 
@@ -338,12 +387,14 @@ async def _gather(session, target: str, skill_key: str | None = None) -> None:
     assert live is not None
     live.refresh()
     definition = live.state.definition
-    skill_value = crafting.trade_skill_value(session.database, character.id, definition.gathering_skill_key)
-    if skill_value < definition.minimum_skill:
-        await session.send(
-            f"{definition.name} requires {_skill_label(definition.gathering_skill_key)} {definition.minimum_skill}; your skill is {skill_value}.\r\n"
-        )
-        return
+    skill_key = definition.gathering_skill_key
+    if skill_key is not None:
+        skill_value = crafting.trade_skill_value(session.database, character.id, skill_key)
+        if skill_value < definition.minimum_skill:
+            await session.send(
+                f"{definition.name} requires {_skill_label(skill_key)} {definition.minimum_skill}; your skill is {skill_value}.\r\n"
+            )
+            return
     if live.state.depleted:
         live.mark_if_depleted()
         remaining = max(1, int(NODE_RESPAWN_SECONDS - (monotonic() - (live.depleted_at or monotonic()))))
@@ -357,11 +408,14 @@ async def _gather(session, target: str, skill_key: str | None = None) -> None:
         return
     output = crafting.ITEMS_BY_KEY.get(output_key)
     output_name = output.name if output is not None else output_key
-    new_skill = crafting.trade_skill_value(session.database, character.id, definition.gathering_skill_key)
-    await session.send(
-        f"You gather 1x {output_name} from {definition.name}. "
-        f"{_skill_label(definition.gathering_skill_key)} is now {new_skill}.\r\n"
-    )
+    if skill_key is None:
+        await session.send(f"You collect 1x {output_name} from {definition.name}.\r\n")
+    else:
+        new_skill = crafting.trade_skill_value(session.database, character.id, skill_key)
+        await session.send(
+            f"You gather 1x {output_name} from {definition.name}. "
+            f"{_skill_label(skill_key)} is now {new_skill}.\r\n"
+        )
 
 
 async def _show_resources(session) -> None:
@@ -376,25 +430,28 @@ async def _show_resources(session) -> None:
             live.refresh()
             definition = live.state.definition
             status = "depleted" if live.state.depleted else f"{live.state.remaining_uses} uses available"
-            await session.send(
-                f"- {definition.name} [{_skill_label(definition.gathering_skill_key)} {definition.minimum_skill}] - {status}\r\n"
+            requirement = (
+                _skill_label(definition.gathering_skill_key)
+                if definition.gathering_skill_key is None
+                else f"{_skill_label(definition.gathering_skill_key)} {definition.minimum_skill}"
             )
+            await session.send(f"- {definition.name} [{requirement}] - {status}\r\n")
     if stations:
         await session.send("Stations: " + ", ".join(STATION_LABELS.get(key, key) for key in stations) + ".\r\n")
     else:
         await session.send("Stations: none in this room.\r\n")
-    await session.send("Use GATHER <resource>, MINE, HARVEST, or HERBALISM as appropriate.\r\n")
+    await session.send("Use GATHER <resource>, COLLECT WATER, MINE, HARVEST, or HERBALISM as appropriate.\r\n")
 
 
 async def _show_economy_help(session) -> None:
     await session.send(
         "\r\n--- Hunt, Gather, Craft, Trade ---\r\n"
         "Hunters defeat creatures for materials such as Rough Hide and Imp Horn.\r\n"
-        "Gatherers work room resources with Mining, Harvesting, and Herbalism; those skills improve through use.\r\n"
+        "Gatherers work room resources with Mining, Harvesting, and Herbalism; those skills improve through use. Clean freshwater sources can be collected without a gathering skill.\r\n"
         "Artisans turn gathered and hunted inputs into equipment and consumables at real crafting stations.\r\n"
         "The useful chains overlap on purpose: Trailguard Gloves need hunted hide plus gathered-and-spun cotton; an Imp-Horn Dagger needs an imp drop plus mined-and-smelted iron.\r\n"
         "No role is a hard class lock, but use-based skill growth and geographically separated materials reward specialization and player exchange.\r\n"
-        "Commands: RESOURCES, RECIPES, RECIPES <profession>, RECIPES READY, RECIPES CRAFTABLE, RECIPE <name>, CRAFT <recipe>, GIVE <player> [qty] <item>, TRADE <player>.\r\n"
+        "Commands: RESOURCES, GATHER <resource>, COLLECT WATER, RECIPES, RECIPES <profession>, RECIPES READY, RECIPES CRAFTABLE, RECIPE <name>, CRAFT <recipe>, GIVE <player> [qty] <item>, TRADE <player>.\r\n"
     )
 
 
@@ -1303,6 +1360,14 @@ def install_economy_loop_runtime(player_session_class, world_service=None) -> No
         if normalized.startswith("gather "):
             await _gather(self, stripped.split(maxsplit=1)[1])
             return
+        if normalized in {"collect water", "collect spring water", "fill water", "fill spring water"}:
+            # Only claim these aliases when the generic world actually exposes a
+            # freshwater node here. This preserves specialized room handlers such
+            # as Goblin Cleanwater Seep, which owns its own depletion clock.
+            water, _ = _resolve_node(self, "water")
+            if water is not None and water.state.definition.gathering_skill_key is None:
+                await _gather(self, "water")
+                return
         if normalized in {"mine", "mining"}:
             await _gather(self, "", "mining")
             return
