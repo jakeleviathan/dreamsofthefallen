@@ -294,5 +294,5 @@ def appearance_menu_text(race_key: str, stored: dict[str, str]) -> str:
     lines = ["--- Reflection Appearance ---"]
     for trait in traits_for_race(race_key):
         lines.append(f"{trait.key}: {appearance[trait.key]}  | choices: {', '.join(trait.options)}")
-    lines.append("Use APPEARANCE <category> <choice> while looking into the puddle. Type DONE when finished.")
+    lines.append("Use APPEARANCE <category> <choice> while using this reflective surface. Type DONE when finished.")
     return "\r\n".join(lines)
