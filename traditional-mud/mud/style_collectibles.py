@@ -12,7 +12,7 @@ from mud.astralis_time import ASTRALIS_CLOCK
 from mud.character_options import CLASSES_BY_KEY, RACES_BY_KEY
 from mud.crafting import ItemDefinition
 from mud.database import Database
-from mud.equipment_system import equipped_definitions
+from mud.equipment_system import equipped_definitions, normalize_slot
 from mud.gloamworks_dungeon import BURIED_REGENT_KEY
 from mud.gravewatch_keep import CASTELLAN_KEY
 from mud.party_system import _party_sessions_here
@@ -21,6 +21,7 @@ from mud.veyra_city import VEYRA_BRASSMARKET_KEY
 from mud.veyra_underclock import GOVERNOR_KEY
 from mud.waymeet_adventure_arc import LISTENER_BELOW
 from mud.sols import format_sols
+from mud.starter_race_loops import STARTER_RACE_LOOPS
 from mud.waymeet_frontier import WAYMEET_LANTERN_MARKET_KEY
 
 
@@ -31,6 +32,45 @@ STYLE_SLOTS = (
     "waist", "legs", "feet", "back", "jewelry", "accessory",
 )
 STYLE_SLOT_LABELS = {slot: slot.replace("_", " ").title() for slot in STYLE_SLOTS}
+STYLE_SLOT_LABELS.update({"main_hand": "Main Hand", "off_hand": "Off Hand"})
+
+# Pavo's copied looks can override weapons as well as clothing. The original
+# collectible-fashion slots remain intact, while these two visual slots let a
+# player keep a favorite weapon or shield silhouette over stronger equipment.
+STYLE_SLOTS = STYLE_SLOTS + ("main_hand", "off_hand")
+STYLE_SLOT_LABELS = {slot: STYLE_SLOT_LABELS.get(slot, slot.replace("_", " ").title()) for slot in STYLE_SLOTS}
+
+PAVO_NAME = "Pavo Vellum"
+PAVO_TITLE = "Master of Appearances"
+PAVO_ATELIER_NAME = "Pavo's Impossible Atelier"
+PAVO_SHORT_DESCRIPTION = (
+    "an impeccably dressed, aggressively theatrical stylist surrounded by mirrors, "
+    "measuring tape, garment forms, and entirely too much confidence"
+)
+STYLE_COPY_BASE_COST_SPARKS = 10
+STYLE_COPY_TIER_COST_SPARKS = 5
+COPIED_STYLE_PREFIX = "copy:"
+
+_ATELIER_FIXED_ROOMS = frozenset(
+    {loop.starting_room_key for loop in STARTER_RACE_LOOPS}
+    | {VEYRA_BRASSMARKET_KEY, WAYMEET_LANTERN_MARKET_KEY}
+)
+_ATELIER_TAGS = frozenset({
+    "market", "merchant", "social_hub", "meeting_place", "trade", "bureaucracy",
+    "civic_work", "rail_hub", "commonhouse", "wayhouse",
+})
+_ATELIER_NAME_MARKERS = (
+    "market", "plaza", "concourse", "commonhouse", "wayhouse", "terminal",
+    "registry", "exchange", "guildhall", "bath", "inn", "tavern",
+)
+
+PAVO_DIALOGUE = (
+    "\"Armor is for surviving, darling. Style is for being remembered. We can do both.\"",
+    "\"Yes, you saw me in another city. No, we are not wasting good daylight on logistics.\"",
+    "\"There is only one atelier,\" Pavo says. \"It simply has an unreasonable number of front doors.\"",
+    "\"I do not destroy the garment. I preserve the idea of it. Much more civilized.\"",
+    "\"Bring me something with a silhouette worth saving and enough Sols to prove you mean it.\"",
+)
 
 
 @dataclass(frozen=True, slots=True)
