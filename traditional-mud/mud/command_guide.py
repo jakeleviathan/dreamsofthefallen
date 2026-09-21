@@ -196,7 +196,7 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("style", "APPLY FRAGRANCE <name> / APPLY PERFUME <name> / SPRAY <name>", "Consume one fragrance bottle and activate its authored real-time character-XP bonus. Only one scent is active at a time."),
     CommandEntry("style", "SCENT", "Show the fragrance currently worn, notes, remaining time, and bonus XP earned."),
     CommandEntry("style", "COLLECTION", "Show discovered fashion and fragrance counts by rarity; consumed bottles remain discovered."),
-    CommandEntry("style", "PROVENANCE <fashion item>", "Read the serialized origin and previous-owner history of a collectible heritage fashion piece."),
+    CommandEntry("style", "PROVENANCE <item>", "Read the serialized origin and previous-owner history of a collectible heritage fashion piece."),
     CommandEntry("style", "SEASONAL STYLE", "Show the current limited seasonal edition and how it is earned."),
 )
 
