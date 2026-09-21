@@ -219,6 +219,7 @@ class PlayerChannelTests(unittest.TestCase):
                 "channel create Raiders",
                 "channel rename Raiders Roadcrew",
                 "channel close Roadcrew",
+                "channel close Roadcrew confirm",
             ],
             ["channel join Raiders"],
         )
@@ -231,9 +232,21 @@ class PlayerChannelTests(unittest.TestCase):
         self.assertIn("renamed to Roadcrew", "".join(bob.outputs))
 
         bob.outputs.clear()
+        alice.outputs.clear()
+        asyncio.run(alice.playing_prompt())
+        warning = "".join(alice.outputs)
+        self.assertIn("permanently remove the channel and its memberships", warning)
+        self.assertIn("CHANNEL CLOSE Roadcrew CONFIRM", warning)
+        with self.db.connect() as db:
+            still_there = db.execute(
+                "SELECT 1 FROM player_chat_channels WHERE name = 'Roadcrew'"
+            ).fetchone()
+        self.assertIsNotNone(still_there)
+
+        alice.outputs.clear()
         asyncio.run(alice.playing_prompt())
         self.assertIn(
-            "Channel Roadcrew closed", "".join(alice.outputs)
+            "Channel Roadcrew permanently closed", "".join(alice.outputs)
         )
         self.assertIn(
             "Roadcrew has been closed", "".join(bob.outputs)
@@ -279,9 +292,56 @@ class PlayerChannelTests(unittest.TestCase):
         alice.outputs.clear()
         asyncio.run(alice.playing_prompt())
         info = "".join(alice.outputs)
+        self.assertIn("Access: Public", info)
+        self.assertIn("You own this channel.", info)
         self.assertIn("Owner controls:", info)
+        self.assertIn("CHANNEL SET Raiders PRIVATE", info)
         self.assertIn("CHANNEL INVITE Raiders <player>", info)
         self.assertIn("CHANNEL RENAME Raiders <new-name>", info)
+        self.assertIn("CHANNEL CLOSE Raiders", info)
+
+    def test_owner_can_set_private_and_public_with_clear_commands(self):
+        alice, bob, _ = self._sessions(
+            [
+                "channel create Raiders",
+                "channel set Raiders private",
+                "channel info Raiders",
+                "channel set Raiders public",
+                "channel info Raiders",
+            ],
+            ["channel join Raiders"],
+        )
+        asyncio.run(alice.playing_prompt())
+        asyncio.run(alice.playing_prompt())
+        self.assertIn("Raiders is now invite-only", "".join(alice.outputs))
+
+        bob.outputs.clear()
+        asyncio.run(bob.playing_prompt())
+        self.assertIn("owner invitation is required", "".join(bob.outputs))
+
+        alice.outputs.clear()
+        asyncio.run(alice.playing_prompt())
+        private_info = "".join(alice.outputs)
+        self.assertIn("Access: Private (invite-only)", private_info)
+        self.assertIn("CHANNEL SET Raiders PUBLIC", private_info)
+
+        alice.outputs.clear()
+        asyncio.run(alice.playing_prompt())
+        self.assertIn("Raiders is now public", "".join(alice.outputs))
+
+        alice.outputs.clear()
+        asyncio.run(alice.playing_prompt())
+        public_info = "".join(alice.outputs)
+        self.assertIn("Access: Public", public_info)
+        self.assertIn("CHANNEL SET Raiders PRIVATE", public_info)
+
+    def test_legacy_private_command_remains_supported(self):
+        alice, _, _ = self._sessions(
+            ["channel create Raiders", "channel private Raiders on"]
+        )
+        asyncio.run(alice.playing_prompt())
+        asyncio.run(alice.playing_prompt())
+        self.assertIn("Raiders is now invite-only", "".join(alice.outputs))
 
     def test_hash_shortcut_sends_to_player_channel(self):
         alice, bob, _ = self._sessions(
