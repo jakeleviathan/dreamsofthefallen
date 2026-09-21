@@ -54,6 +54,7 @@ from mud.mechanics import (
 from mud.world_data import REGIONS_BY_KEY
 from mud.weather_gameplay import (
     adjusted_attack_roll,
+    effects_for_weather,
     fire_spell_disrupted,
     flee_success_chance,
 )
@@ -1356,8 +1357,15 @@ class PlayerSession:
             return False
 
         candidates = self.mobile_npcs.aggressive_npcs_in_room(self.character.current_room or "")
+        weather, exposed = _session_weather(self)
+        concealment = effects_for_weather(weather, exposed=exposed).concealment_bonus
         for state in candidates:
             if npc_key is not None and state.definition.key != npc_key:
+                continue
+            if concealment > 0.0 and random.random() < concealment:
+                await self.send(
+                    f"\r\nThe {weather} masks your movement, and {state.definition.name} fails to pick you out.\r\n"
+                )
                 continue
             if await self.start_mobile_npc_combat(state.definition.key, initiated_by_npc=True):
                 return True
