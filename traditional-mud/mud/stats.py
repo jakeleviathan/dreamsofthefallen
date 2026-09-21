@@ -160,6 +160,7 @@ class EquipmentItem:
     allowed_races: frozenset[str] = frozenset()
     allowed_classes: frozenset[str] = frozenset()
     inventory_slots: int = 0
+    attack_style: str = "melee"
 
     @property
     def is_special(self) -> bool:
@@ -168,6 +169,10 @@ class EquipmentItem:
     @property
     def is_universal(self) -> bool:
         return not self.allowed_races and not self.allowed_classes
+
+    @property
+    def is_ranged(self) -> bool:
+        return self.attack_style.strip().lower() == "ranged"
 
     def can_equip(self, *, race_key: str, class_key: str) -> bool:
         if self.allowed_races and race_key not in self.allowed_races:

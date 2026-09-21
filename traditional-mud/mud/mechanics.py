@@ -91,6 +91,7 @@ class AbilityDefinition:
     skill_improves_effectiveness: bool = True
     design_status: str = "locked_identity_tuning_pending"
     cast_time_seconds: float = 0.0
+    element: str | None = None
 
 
 # Class ability identities are fixed rather than selected from a shared talent
@@ -127,6 +128,7 @@ FIXED_CLASS_ABILITIES: dict[str, tuple[AbilityDefinition, ...]] = {
             unlock_level=1,
             description="A simple burst of cold fire that deals direct spell damage.",
             category="spell_damage",
+            element="fire",
         ),
         AbilityDefinition(
             key="minor_barrier",

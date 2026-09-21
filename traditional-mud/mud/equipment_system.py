@@ -100,6 +100,7 @@ def _eq(
     love: int = 0,
     mind: int = 0,
     hp: int = 0,
+    attack_style: str = "melee",
 ) -> EquipmentItem:
     return EquipmentItem(
         name=name,
@@ -112,6 +113,7 @@ def _eq(
             mind=mind,
             hp=hp,
         ),
+        attack_style=attack_style,
     )
 
 
@@ -127,6 +129,7 @@ def _item(
     love: int = 0,
     mind: int = 0,
     hp: int = 0,
+    attack_style: str = "melee",
 ) -> ItemDefinition:
     return ItemDefinition(
         key=key,
@@ -142,6 +145,7 @@ def _item(
             love=love,
             mind=mind,
             hp=hp,
+            attack_style=attack_style,
         ),
         tier=0,
     )

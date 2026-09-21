@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from mud.appearance import appearance_menu_text, reflection_text, validate_choice
 from mud.appearance_storage import get_appearance, set_appearance
 from mud.astralis_human_district import HUMAN_DISTRICT
@@ -9,6 +11,16 @@ from mud.crafting import ITEMS_BY_KEY
 from mud.human_district import HUMAN_REGION_KEY
 from mud.room_content import complete_room_augmentations
 from mud.room_engine import PlayerRoomContext, WorldService
+from mud.weather_gameplay import (
+    effects_for_weather,
+    room_is_weather_exposed,
+    seasonal_sky_text,
+    surface_condition,
+    underground_weather_is_local,
+    weather_ambient_text,
+    weather_listen_text,
+    weather_smell_text,
+)
 from mud.world import (
     FOREST_ELF_LISTENING_POOL_KEY,
     FOREST_ELF_WAYSTONE_BEND_KEY,
@@ -91,6 +103,15 @@ def _puddle_here(session) -> bool:
     return puddle_available(session.character.current_room or "", scene.region_key, WORLD.state)
 
 
+def _weather_context(session):
+    scene = _current_scene(session)
+    if scene is None:
+        return None, "clear", False
+    weather = WORLD.state.weather_for(scene.region_key)
+    exposed = room_is_weather_exposed(scene.tags, scene.key)
+    return scene, weather, exposed
+
+
 async def _render_business_status(session) -> None:
     if session.character is None:
         return
@@ -119,6 +140,27 @@ async def _render_current_room(session, original_show_current_room) -> None:
     await session.send(f"{view.name}\r\n")
     await session.send(view.description.replace("\n", "\r\n") + "\r\n")
 
+    if scene is not None:
+        moment = _moment()
+        weather = WORLD.state.weather_for(scene.region_key)
+        exposed = room_is_weather_exposed(scene.tags, scene.key)
+        if exposed or underground_weather_is_local(scene.region_key):
+            ambience = weather_ambient_text(scene.region_key, weather)
+            if ambience:
+                await session.send("\r\n" + ambience + "\r\n")
+        if exposed:
+            sky = seasonal_sky_text(
+                moment.season,
+                moment.calendar.season_day,
+                moment.phase,
+                moment.moon_phase,
+            )
+            if sky:
+                await session.send(sky + "\r\n")
+            surface = surface_condition(scene.tags, weather, exposed=True)
+            if surface is not None:
+                await session.send(surface.text + "\r\n")
+
     if _puddle_here(session):
         await session.send(
             "\r\nRainwater has collected in a shallow puddle. Its dark surface catches a wavering reflection whenever the rain eases between drops.\r\n"
@@ -145,8 +187,15 @@ async def _render_current_room(session, original_show_current_room) -> None:
                 await session.send(f"\r\n{enemy.name} is here, {enemy.description}.\r\n")
 
     if session.mobile_npcs is not None:
+        local_weather = WORLD.state.weather_for(scene.region_key) if scene is not None else "clear"
         for state in session.mobile_npcs.npcs_in_room(view.key):
-            await session.send(f"\r\n{state.definition.name} is here, {state.definition.short_description}.\r\n")
+            description = state.definition.short_description
+            if (
+                state.definition.weather_shelter_room_key == view.key
+                and local_weather in state.definition.shelter_weathers
+            ):
+                description += ", keeping deliberately under cover until the weather eases"
+            await session.send(f"\r\n{state.definition.name} is here, {description}.\r\n")
 
     if view.exits:
         await session.send("Exits: " + ", ".join(exit_view.direction for exit_view in view.exits) + "\r\n")
@@ -216,9 +265,41 @@ async def _show_weather(session) -> None:
     if scene is None:
         await session.send("You cannot get a clear read on the weather here.\r\n")
         return
+
     weather = WORLD.state.weather_for(scene.region_key)
     moment = _moment()
-    await session.send(f"Astralis time: {moment.display}. Regional weather: {weather}.\r\n")
+    exposed = room_is_weather_exposed(scene.tags, scene.key)
+    local_climate = exposed or underground_weather_is_local(scene.region_key)
+    effects = effects_for_weather(weather, exposed=exposed)
+
+    await session.send(
+        f"Astralis time: {moment.display}. Regional weather: {weather}. "
+        f"Season: {moment.season_name}, day {moment.calendar.season_day}.\r\n"
+    )
+    if local_climate:
+        ambience = weather_ambient_text(scene.region_key, weather)
+        if ambience:
+            await session.send(ambience + "\r\n")
+    if not exposed and not underground_weather_is_local(scene.region_key):
+        await session.send("You are under solid cover here, so the regional weather has no direct combat or footing effect.\r\n")
+        return
+
+    if effects.ranged_attack_penalty:
+        await session.send(
+            f"Ranged attacks: -{effects.ranged_attack_penalty} to outdoor attack rolls while these conditions hold.\r\n"
+        )
+    if effects.concealment_bonus:
+        await session.send(
+            f"Concealment: +{int(round(effects.concealment_bonus * 100))} percentage points to outdoor flee chance.\r\n"
+        )
+    if effects.fire_disruption_chance:
+        await session.send(
+            f"Fire magic: {int(round(effects.fire_disruption_chance * 100))}% outdoor disruption chance.\r\n"
+        )
+
+    surface = surface_condition(scene.tags, weather, exposed=exposed)
+    if surface is not None:
+        await session.send("Footing: " + surface.text + "\r\n")
 
 
 async def _show_time(session) -> None:
@@ -290,6 +371,12 @@ def install_room_runtime(player_session_class) -> None:
         if not resolution.allowed:
             await self.send((resolution.message or "You cannot go that way.") + "\r\n")
             return
+        scene, weather, exposed = _weather_context(self)
+        if scene is not None:
+            surface = surface_condition(scene.tags, weather, exposed=exposed)
+            if surface is not None and surface.travel_delay_seconds > 0:
+                await self.send("\r\n" + surface.travel_text + "\r\n")
+                await asyncio.sleep(surface.travel_delay_seconds)
         if resolution.exit and resolution.exit.travel_text:
             await self.send("\r\n" + resolution.exit.travel_text + "\r\n")
         await original_move_character(self, direction)
@@ -316,6 +403,20 @@ def install_room_runtime(player_session_class) -> None:
             return
         if normalized in {"weather", "conditions"}:
             await _show_weather(self)
+            return
+        if normalized in {"listen weather", "listen rain", "listen storm", "listen wind", "listen snow"}:
+            scene, weather, exposed = _weather_context(self)
+            if scene is None:
+                await self.send("You cannot get a clear read on the weather here.\r\n")
+            else:
+                await self.send(weather_listen_text(scene.region_key, weather, exposed=exposed) + "\r\n")
+            return
+        if normalized in {"smell weather", "smell rain", "smell storm", "smell wind", "smell snow"}:
+            scene, weather, exposed = _weather_context(self)
+            if scene is None:
+                await self.send("You cannot get a clear read on the weather here.\r\n")
+            else:
+                await self.send(weather_smell_text(scene.region_key, weather, exposed=exposed) + "\r\n")
             return
         if normalized in {"time", "clock", "astralis time"}:
             await _show_time(self)
@@ -429,11 +530,21 @@ def install_room_runtime(player_session_class) -> None:
 
         if normalized in {"help", "?"}:
             await self.send(
-                "World commands: TIME shows accelerated Astralis time; WEATHER reports regional conditions. Rain can create PUDDLES in outdoor rooms; USE PUDDLE opens the reflection appearance editor. "
+                "World commands: TIME shows accelerated Astralis time; WEATHER reports regional conditions and active gameplay effects. Rain can create PUDDLES in outdoor rooms; USE PUDDLE opens the reflection appearance editor. LISTEN WEATHER and SMELL WEATHER reveal local weather ambience. "
                 "Room exploration: FEATURES/LANDMARKS lists interactive details; SEARCH/LOOK/EXAMINE/TOUCH/LISTEN/SMELL inspect the scene. Human district businesses also support SHOP, HOURS, TALK <proprietor>, OPEN <shop>, and CLOSE <shop>.\r\n"
             )
+
+    def current_weather(self) -> str:
+        _scene, weather, _exposed = _weather_context(self)
+        return weather
+
+    def current_weather_exposed(self) -> bool:
+        _scene, _weather, exposed = _weather_context(self)
+        return exposed
 
     player_session_class.show_current_room = show_current_room
     player_session_class.move_character = move_character
     player_session_class.playing_prompt = playing_prompt
+    player_session_class.current_weather = current_weather
+    player_session_class.current_weather_exposed = current_weather_exposed
     player_session_class._advanced_room_runtime_installed = True

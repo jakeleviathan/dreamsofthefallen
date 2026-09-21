@@ -113,6 +113,8 @@ class WeatherEvent:
     old_weather: str
     new_weather: str
     text: str
+    category: str = "weather_change"
+    phenomenon_key: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,28 +169,49 @@ def profile_for_biome(biome: str) -> WeatherProfile:
         return SWAMP
     if "mountain" in value:
         return MOUNTAIN
+    # Mixed Troll territory explicitly includes wilderness and tundra, so it
+    # needs the snow-capable profile even though deep forest is also present.
+    if "tundra" in value or "wilderness" in value:
+        return WILDERNESS
     if "forest" in value:
         return FOREST
     if "cavern" in value or "underground" in value:
         return UNDERWAYS
-    if "tundra" in value or "wilderness" in value:
-        return WILDERNESS
     return TEMPERATE
 
 
+_WEATHER_TRANSITIONS: dict[str, tuple[str, ...]] = {
+    "clear": ("cloudy", "windy", "humid", "damp"),
+    "cloudy": ("clear", "mist", "rain", "snow", "windy"),
+    "mist": ("clear", "cloudy", "rain", "humid", "damp", "snow"),
+    "rain": ("cloudy", "mist", "storm", "humid", "clear"),
+    "storm": ("rain", "cloudy", "snow", "windy"),
+    "thunderstorm": ("rain", "cloudy", "storm"),
+    "snow": ("cloudy", "mist", "storm", "clear"),
+    "windy": ("clear", "cloudy", "duststorm"),
+    "duststorm": ("windy", "cloudy", "clear"),
+    "humid": ("mist", "cloudy", "rain", "clear"),
+    "damp": ("mist", "rain", "clear"),
+}
+
+
 def _transition_candidates(profile: WeatherProfile, current: str) -> tuple[str, ...]:
-    states = list(profile.states)
-    if current not in states:
-        return tuple(states)
-    index = states.index(current)
-    adjacent = {current}
-    if index > 0:
-        adjacent.add(states[index - 1])
-    if index + 1 < len(states):
-        adjacent.add(states[index + 1])
-    severe = {"storm", "duststorm", "snow", "rain"}
-    adjacent.update(state for state in states if state in severe)
-    return tuple(state for state in states if state in adjacent)
+    """Return physically plausible next states available in this biome.
+
+    Severe weather now builds through an intermediate front instead of allowing
+    a clear sky to jump directly to a storm, blizzard, or dust wall.
+    """
+
+    if current not in profile.states:
+        return tuple(profile.states)
+    allowed = set(_WEATHER_TRANSITIONS.get(current, ()))
+    candidates = tuple(state for state in profile.states if state in allowed)
+    if candidates:
+        return candidates
+
+    # A custom future profile cannot dead-end just because its state names are
+    # not in the shared graph.
+    return tuple(state for state in profile.states if state != current)
 
 
 def _seasonally_weighted_candidates(candidates: tuple[str, ...], season: str) -> tuple[str, ...]:
@@ -233,8 +256,16 @@ def weather_change_text(region_name: str, old: str, new: str) -> str:
     return f"The weather across {region_name} shifts from {old} to {new}."
 
 
+RARE_STORMWAKE_CHANCE_PER_ASTRALIS_HOUR = 0.06
+
+
 class AstralisWeatherService:
-    """Low-volatility regional weather checked once per Astralis hour."""
+    """Low-volatility regional weather checked once per Astralis hour.
+
+    Ordinary fronts evolve slowly. Severe storms also have a small chance to
+    produce a Stormwake, a rare lightning event that the server can connect to
+    regional creature spawning without putting NPC concerns into the clock.
+    """
 
     def __init__(self, *, rng: random.Random | None = None) -> None:
         self.rng = rng or random.Random()
@@ -275,6 +306,29 @@ class AstralisWeatherService:
             text=weather_change_text(region_name, current, new_weather),
         )
 
+    def _roll_phenomenon(
+        self,
+        region_key: str,
+        region_name: str,
+        state: RoomStateStore,
+    ) -> WeatherEvent | None:
+        weather = state.weather_for(region_key)
+        if weather not in {"storm", "thunderstorm"}:
+            return None
+        if self.rng.random() >= RARE_STORMWAKE_CHANCE_PER_ASTRALIS_HOUR:
+            return None
+        return WeatherEvent(
+            region_key=region_key,
+            old_weather=weather,
+            new_weather=weather,
+            text=(
+                f"A white fork of lightning tears down over {region_name}. "
+                "The thunder that follows is close enough to shake the ground."
+            ),
+            category="weather_phenomenon",
+            phenomenon_key="stormwake",
+        )
+
     def sync(self, moment: AstralisMoment, state: RoomStateStore) -> tuple[WeatherEvent, ...]:
         if self.last_total_hour is None:
             self.initialize(moment, state)
@@ -296,6 +350,9 @@ class AstralisWeatherService:
                 )
                 if event is not None:
                     events.append(event)
+                phenomenon = self._roll_phenomenon(region.key, region.name, state)
+                if phenomenon is not None:
+                    events.append(phenomenon)
         self.last_total_hour = moment.total_hours
         return tuple(events)
 

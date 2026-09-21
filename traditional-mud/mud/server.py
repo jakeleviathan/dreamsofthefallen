@@ -387,9 +387,12 @@ class MudServer:
                 )
             elif room_key == movement.destination_room_key:
                 destination_sessions.append(session)
-                await session.send(
-                    f"\r\n{movement.npc_name} {movement.movement_verb} in from the {movement.arrival_from}.\r\n> "
+                arrival = (
+                    f"{movement.npc_name} {movement.movement_verb} in from the {movement.arrival_from}."
                 )
+                if movement.reason == "sheltering":
+                    arrival += " The worsening weather has driven them toward cover."
+                await session.send(f"\r\n{arrival}\r\n> ")
                 if movement.behavior == "hunter" and movement.reason == "pursuit":
                     await session.send(
                         f"{movement.npc_name} fixes its attention on you and continues to stalk your trail.\r\n> "
@@ -408,13 +411,25 @@ class MudServer:
             await session.send(f"\r\n{event.text}\r\n> ")
 
     async def broadcast_weather_event(self, event: WeatherEvent) -> None:
+        text = event.text
+        if event.phenomenon_key == "stormwake":
+            awakened = self.mobile_npcs.awaken_weather_rare(
+                event.region_key,
+                player_room_keys=self.player_room_keys(),
+            )
+            if awakened is not None:
+                text += (
+                    f" In the storm's wake, a {awakened.definition.name} has been "
+                    "driven out somewhere beyond the settled paths."
+                )
+
         for session in tuple(self.sessions):
             if session.state is not SessionState.PLAYING or session.character is None:
                 continue
             scene = WORLD.scene(session.character.current_room or "")
             if scene is None or scene.region_key != event.region_key:
                 continue
-            await session.send(f"\r\n{event.text}\r\n> ")
+            await session.send(f"\r\n{text}\r\n> ")
 
     async def broadcast_seasonal_culture_event(self, event: SeasonalCultureEvent) -> None:
         for session in tuple(self.sessions):
@@ -443,6 +458,7 @@ class MudServer:
                 self.broadcast_npc_movement,
                 player_rooms_provider=self.player_room_keys,
                 hour_provider=lambda: ASTRALIS_CLOCK.now().hour,
+                weather_provider=lambda region_key: WORLD.state.weather_for(region_key),
             )
         )
         weather_task = asyncio.create_task(
