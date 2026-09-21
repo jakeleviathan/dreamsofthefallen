@@ -302,6 +302,20 @@ class Database:
             ).fetchall()
         return [self._character_from_row(row) for row in rows]
 
+    def delete_character(self, account_id: int, character_id: int) -> bool:
+        """Permanently delete one character owned by an account.
+
+        Character-owned rows are removed by SQLite's ON DELETE CASCADE rules.
+        Scoping the delete by both account and character id prevents one account
+        from deleting another account's character even if an id is guessed.
+        """
+        with self.connect() as db:
+            cursor = db.execute(
+                "DELETE FROM characters WHERE id = ? AND account_id = ?",
+                (character_id, account_id),
+            )
+            return cursor.rowcount == 1
+
     def get_character_by_name(self, name: str) -> CharacterRecord | None:
         with self.connect() as db:
             row = db.execute(
