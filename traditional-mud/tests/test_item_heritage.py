@@ -17,7 +17,12 @@ from mud.item_heritage import (
     render_provenance,
     special_found_total,
 )
-from mud.item_locations import ItemLocation, add_to_location, transfer_item
+from mud.item_locations import (
+    ItemLocation,
+    add_to_location,
+    ensure_item_location_storage,
+    transfer_item,
+)
 from mud.trade_experience import exchange_items
 
 
@@ -168,6 +173,7 @@ class ItemHeritageTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         SPECIAL_ITEM_KEYS.add("iron_ore")
         ensure_item_heritage_schema(database)
+        ensure_item_location_storage(database)
 
         with database.connect() as db:
             cursor = db.execute(
