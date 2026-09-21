@@ -880,6 +880,61 @@ def heritage_summary_data(database, character_id: int, item_key: str) -> dict[st
     }
 
 
+def heritage_inventory_summaries(database, character_id: int) -> dict[str, dict[str, object]]:
+    """Return all carried heritage in two SQL reads for frequent client snapshots."""
+    ensure_item_heritage_schema(database)
+    holder_key = str(int(character_id))
+    with database.connect() as db:
+        rows = db.execute(
+            """
+            SELECT *
+            FROM item_heritage_instances
+            WHERE current_owner_character_id = ?
+              AND holder_kind = 'character'
+              AND holder_key = ?
+            ORDER BY item_key, id
+            """,
+            (int(character_id), holder_key),
+        ).fetchall()
+        totals = db.execute(
+            """
+            SELECT item_key, COUNT(*) AS n
+            FROM item_heritage_instances
+            WHERE discovery_ordinal IS NOT NULL
+            GROUP BY item_key
+            """
+        ).fetchall()
+
+    total_by_key = {str(row["item_key"]): int(row["n"]) for row in totals}
+    grouped: dict[str, list] = {}
+    for row in rows:
+        grouped.setdefault(str(row["item_key"]), []).append(row)
+
+    result: dict[str, dict[str, object]] = {}
+    for item_key, item_rows in grouped.items():
+        total = total_by_key.get(item_key, 0)
+        result[item_key] = {
+            "tracked": len(item_rows),
+            "serials": [str(row["serial"]) for row in item_rows],
+            "maker_marks": [
+                _maker_mark(row)
+                for row in item_rows
+                if row["maker_sequence"] is not None
+            ],
+            "discoveries": [
+                {
+                    "ordinal": int(row["discovery_ordinal"]),
+                    "exact": bool(row["discovery_exact"]),
+                    "total": total,
+                }
+                for row in item_rows
+                if row["discovery_ordinal"] is not None
+            ],
+            "special_total": total,
+        }
+    return result
+
+
 def compact_heritage_lines(database, character_id: int, item_key: str) -> tuple[str, ...]:
     if is_special_item(item_key):
         ensure_special_inventory_item(database, character_id, item_key)
