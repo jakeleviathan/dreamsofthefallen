@@ -458,7 +458,7 @@ async def _show_clan_standing(session) -> None:
     for key in (FLOODPICK_MIREHOOK, FLOODPICK_COPPERCAP, FLOODPICK_TINLEDGER):
         name, description = CLAN_DESCRIPTIONS[key]
         count = counts[key]
-        await session.send(f"{name}: {count} signal(s) — {clan_relationship_label(count)}. {description}\r\n")
+        await session.send(f"{name}: {count} signal(s) - {clan_relationship_label(count)}. {description}\r\n")
     await session.send(
         "Signals are remembered choices, not exclusive membership. At 2 signals, a contact considers you Trusted and shares a specialist briefing; no quest, room, recipe, or profession is locked behind that status.\r\n"
         "Trusted briefings: ASK JEX ABOUT ROUTES, ASK TALLA ABOUT REAGENTS, ASK SNIK ABOUT CLAIMS.\r\n"

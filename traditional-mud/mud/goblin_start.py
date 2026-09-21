@@ -178,7 +178,7 @@ def goblin_room_augmentations() -> dict[str, RoomAugmentation]:
                     examine="Ship plate, bridge iron, boiler doors, wagon springs, and at least one piece of old agricultural machinery have all become one perfectly functional gate. Repair plates are dated in at least five different marking systems.",
                     search="Among the overlapping clan marks you find maintenance notes, courier scratches, and a tiny old human maker's stamp on one plate that probably arrived here as salvage generations ago.",
                     touch="Every plate has a different temperature and texture. None of the seams line up; all of the load-bearing points do.",
-                    listen="The gate clicks, rattles, rings, and groans continuously as traffic passes through it—hence the name.",
+                    listen="The gate clicks, rattles, rings, and groans continuously as traffic passes through it-hence the name.",
                 ),
                 _feature(
                     "intake_counter", "Intake Counter", aliases=("counter", "intake", "claim counter"),
@@ -309,7 +309,7 @@ def goblin_room_augmentations() -> dict[str, RoomAugmentation]:
                 _feature(
                     "repair_shelf", "Finished Repair Shelf", aliases=("shelf", "finished repairs", "repaired goods"),
                     summary="completed jobs waiting under handwritten claim tags",
-                    examine="Every repaired object is tagged with an owner mark and a short note explaining exactly what was fixed—and, often, what was deliberately left unfixed because it was 'still good enough.'",
+                    examine="Every repaired object is tagged with an owner mark and a short note explaining exactly what was fixed-and, often, what was deliberately left unfixed because it was 'still good enough.'",
                 ),
             ),
             description_layers=(

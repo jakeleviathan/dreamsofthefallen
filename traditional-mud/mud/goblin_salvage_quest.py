@@ -365,7 +365,7 @@ async def _talk_ruskle(session) -> None:
         _consume_all_salvage(session)
         await session.send(
             "\r\nRuskle turns the repaired regulator over twice, tests the moving spindle with one thumbnail, and finally sets it beneath his counter.\r\n"
-            "'There. Found, weighed, claimed, repaired, returned. That's a Junk City object now—not because we made it from nothing, but because six people can tell you exactly what happened to it.'\r\n"
+            "'There. Found, weighed, claimed, repaired, returned. That's a Junk City object now-not because we made it from nothing, but because six people can tell you exactly what happened to it.'\r\n"
             "He scratches your name onto a narrow broker strip and adds his mark. 'Your first salvage credit is recorded. It isn't money. It means the next Goblin who asks whether you understand how this city works has one less reason to laugh.'\r\n"
             "\r\nQuest complete: A Piece Worth Keeping.\r\n"
         )
@@ -478,7 +478,7 @@ async def _handle_scavenge(session, normalized: str) -> bool:
     session.database.advance_quest(session.character.id, GOBLIN_SALVAGE_QUEST.key, "weigh_salvage")
     await session.send(
         "\r\nYou work through a knee-high bin marked UNKNOWN BUT INTERESTING: broken handles, cracked housings, loose springs, a valve wheel with no valve, and something that might once have been a clock.\r\n"
-        "Near the bottom, your fingers close around a heavy copper regulator with a bent spring cage. The old ownership marks have been scraped away, and no fresh claim tag is attached. Ugly, damaged, portable, and potentially useful—exactly what Ruskle asked for.\r\n"
+        "Near the bottom, your fingers close around a heavy copper regulator with a bent spring cage. The old ownership marks have been scraped away, and no fresh claim tag is attached. Ugly, damaged, portable, and potentially useful-exactly what Ruskle asked for.\r\n"
         "You take the Cracked Copper Regulator. Skiv Weightwire is working the scales nearby. TALK SKIV.\r\n"
         "Quest updated: A Piece Worth Keeping.\r\n"
     )
