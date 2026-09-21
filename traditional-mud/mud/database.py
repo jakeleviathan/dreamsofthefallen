@@ -130,6 +130,15 @@ class Database:
                     FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
                 );
 
+                CREATE TABLE IF NOT EXISTS character_appearance (
+                    character_id INTEGER NOT NULL,
+                    trait_key TEXT NOT NULL,
+                    trait_value TEXT NOT NULL,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (character_id, trait_key),
+                    FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
+                );
+
                 CREATE TABLE IF NOT EXISTS character_keys (
                     character_id INTEGER NOT NULL,
                     key_key TEXT NOT NULL,
@@ -337,6 +346,7 @@ class Database:
         character_class: str,
         stats: CharacterStats | None = None,
         deity_key: str | None = None,
+        appearance: dict[str, str] | None = None,
     ) -> CharacterRecord:
         with self.connect() as db:
             # Serialize writers while we count and insert so two simultaneous
@@ -373,6 +383,14 @@ class Database:
                 ),
             )
             character_id = int(cursor.lastrowid)
+            for trait_key, trait_value in (appearance or {}).items():
+                db.execute(
+                    """
+                    INSERT INTO character_appearance (character_id, trait_key, trait_value)
+                    VALUES (?, ?, ?)
+                    """,
+                    (character_id, str(trait_key), str(trait_value)),
+                )
             # Every new character receives a plain starting weapon. The full
             # equipment/inventory experience will grow around this persisted item.
             db.execute(
