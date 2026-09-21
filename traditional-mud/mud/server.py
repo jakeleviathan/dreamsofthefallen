@@ -430,6 +430,7 @@ class MudServer:
             if scene is None or scene.region_key != event.region_key:
                 continue
             await session.send(f"\r\n{text}\r\n> ")
+            await session.send_client_state()
 
     async def broadcast_seasonal_culture_event(self, event: SeasonalCultureEvent) -> None:
         for session in tuple(self.sessions):
