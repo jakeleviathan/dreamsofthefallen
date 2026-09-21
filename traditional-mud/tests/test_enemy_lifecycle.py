@@ -17,7 +17,7 @@ from mud.enemy_lifecycle import (
     static_enemy_available,
     static_enemy_respawn_remaining,
 )
-from mud.waymeet_adventure_arc import CELLAR_RAT, TOLL_RAT_RUN, install_adventure_content
+from mud.waymeet_adventure_arc import CELLAR_RAT, TOLL_RAT_RUN
 from mud.world import ROOMS_BY_KEY
 
 
@@ -197,7 +197,28 @@ class EnemyLifecycleRuntimeTests(unittest.TestCase):
         self.assertIn("no second kill to claim", "".join(second.outputs))
 
     def test_duplicate_static_enemies_are_independent_spawns(self):
-        install_adventure_content()
+        original_room = ROOMS_BY_KEY.get(TOLL_RAT_RUN)
+        ROOMS_BY_KEY[TOLL_RAT_RUN] = SimpleNamespace(
+            key=TOLL_RAT_RUN,
+            enemy_keys=(CELLAR_RAT.key, CELLAR_RAT.key),
+        )
+        from mud.combat import ENEMIES_BY_KEY
+        original_enemy = ENEMIES_BY_KEY.get(CELLAR_RAT.key)
+        ENEMIES_BY_KEY[CELLAR_RAT.key] = CELLAR_RAT
+        self.addCleanup(
+            lambda: (
+                ROOMS_BY_KEY.__setitem__(TOLL_RAT_RUN, original_room)
+                if original_room is not None
+                else ROOMS_BY_KEY.pop(TOLL_RAT_RUN, None)
+            )
+        )
+        self.addCleanup(
+            lambda: (
+                ENEMIES_BY_KEY.__setitem__(CELLAR_RAT.key, original_enemy)
+                if original_enemy is not None
+                else ENEMIES_BY_KEY.pop(CELLAR_RAT.key, None)
+            )
+        )
         session = RuntimeSession(self.database, TOLL_RAT_RUN)
 
         first = session._enemy_in_current_room("rat")
