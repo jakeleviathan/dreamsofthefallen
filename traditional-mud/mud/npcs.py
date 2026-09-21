@@ -129,8 +129,6 @@ class MobileNpcDefinition:
     move_chance_per_tick: float = 0.35
     patrol_route: tuple[str, ...] = ()
     routine_schedule: tuple[RoutineStop, ...] = ()
-    weather_shelter_room_key: str | None = None
-    shelter_weathers: tuple[str, ...] = ("storm", "thunderstorm", "snow", "duststorm")
     aliases: tuple[str, ...] = ()
     aggressive: bool = False
     # 0 means same-room aggro. Dreams of the Fallen currently does not permit
@@ -149,6 +147,8 @@ class MobileNpcDefinition:
     attackable: bool = False
     combat_enemy_key: str | None = None
     rare: bool = False
+    weather_shelter_room_key: str | None = None
+    shelter_weathers: tuple[str, ...] = ("storm", "thunderstorm", "snow", "duststorm")
 
     @property
     def movement_pattern(self) -> str:
