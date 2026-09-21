@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from unittest.mock import patch
 from dataclasses import dataclass
 from types import SimpleNamespace
 
@@ -171,6 +172,35 @@ class RoomPromptExperienceTests(unittest.TestCase):
         self.assertIn("Druid Nera Voss", output)
         self.assertIn("Exits: NORTH - Upper Walk | WEST", output)
         self.assertNotIn("OLD ROOM RENDER", output)
+
+    def test_look_at_player_shows_persisted_racial_appearance(self):
+        Session = session_type()
+        session = Session(commands=["look brom"])
+        brom = SimpleNamespace(
+            id=2,
+            name="Brom",
+            race="dwarf",
+            character_class="brute",
+            level=6,
+            current_room="test_room",
+        )
+        session.room_players_callback = lambda _room, _exclude: (brom,)
+        appearance = {
+            "build": "broad",
+            "complexion": "ruddy",
+            "hair_color": "brown",
+            "beard_style": "double-braided",
+            "beard_adornment": "brass clasps",
+            "eye_color": "green",
+        }
+        with patch.object(room_ux, "get_appearance", return_value=appearance):
+            asyncio.run(session.playing_prompt())
+
+        output = "".join(session.outputs)
+        self.assertIn("Brom - Level 6 Dwarf Brute", output)
+        self.assertIn("double-braided brown beard", output)
+        self.assertIn("brass clasps worked into the beard", output)
+        self.assertNotIn("BASE COMMAND: look brom", output)
 
     def test_quest_talk_hint_is_contextual_and_only_shown_once(self):
         quests = [
