@@ -998,6 +998,15 @@ async def _handle_deep_gathering(session, normalized: str) -> bool:
         await session.send("\r\nYou do not identify that as a usable alchemical gathering source here.\r\n")
         return True
 
+    output_key = GOBLIN_DEEP_MIRE_GATHERING.output_for(node)
+    checker = getattr(session, "can_receive_item", None)
+    if callable(checker) and not checker(output_key, 1):
+        await session.send(
+            "\r\nYour inventory has no free slot for that item type. "
+            "Free a slot or equip a larger bag before gathering it.\r\n"
+        )
+        return True
+
     success, result = GOBLIN_DEEP_MIRE_GATHERING.gather(session.database, session.character.id, node)
     if not success:
         await session.send("\r\n" + result + "\r\n")
