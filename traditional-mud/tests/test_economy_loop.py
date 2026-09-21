@@ -112,6 +112,13 @@ class EconomyLoopTests(unittest.TestCase):
         install_fresh_water_sources()
         self.assertIn("human_cinder_ward", FRESH_WATER_ROOM_KEYS)
         self.assertIn("fresh_water_source", ROOM_RESOURCE_NODE_KEYS["human_cinder_ward"])
+        for room_key in (
+            "goblin_patchwork_plaza",
+            "forest_elf_waystone_bend",
+            "greywake_lantern_hospice",
+            "veyra_five_ways_yard",
+        ):
+            self.assertIn(room_key, FRESH_WATER_ROOM_KEYS)
 
         resources = self._session_in("human_cinder_ward", ["resources"])
         asyncio.run(resources.playing_prompt())
