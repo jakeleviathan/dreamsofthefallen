@@ -70,6 +70,7 @@ from mud.command_help import install_command_help_runtime
 from mud.new_player_guidance import install_new_player_guidance_runtime
 from mud.player_preferences import install_player_preferences_runtime
 from mud.social_experience import install_social_experience_runtime
+from mud.player_channels import install_player_channels_runtime
 from mud.room_prompt_experience import install_room_prompt_experience_runtime
 from mud.staff_control import install_staff_control_runtime
 from mud.undead_start import install_undead_content, install_undead_runtime
@@ -300,6 +301,9 @@ install_new_player_guidance_runtime(PlayerSession)
 # helpers. They remain outside authored quest runtimes and inside the final prompt.
 install_player_preferences_runtime(PlayerSession)
 install_social_experience_runtime(PlayerSession)
+# Player-created channels wrap the built-in CHAT/OOC layer so CHANNELS can show
+# discoverable public/invite-only spaces while preserving the existing global toggles.
+install_player_channels_runtime(PlayerSession)
 # The room/prompt layer keeps ordinary play readable in both Telnet and Mudlet.
 install_room_prompt_experience_runtime(PlayerSession, WORLD)
 # Staff controls sit outermost so staff commands never leak into normal player
