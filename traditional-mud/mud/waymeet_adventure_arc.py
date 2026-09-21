@@ -474,7 +474,7 @@ def adventure_augmentations() -> dict[str, RoomAugmentation]:
         WAYMEET_HIGH_ROAD_KEY: RoomAugmentation(extra_exits=(ExitDefinition("east", ECHO_RIDGE, "Echo Ridge", "You climb a bare side ridge where the wind returns footsteps strangely.", ViewCondition(min_level=2)),)),
         OLD_TOLL_ROAD: RoomAugmentation(
             extra_exits=(ExitDefinition("down", TOLL_ENTRY, "Tollhouse Cellar", "You descend through the newer cellar doors.", ViewCondition(min_level=2)),),
-            features=(_feature("toll_cellar_doors", "Cellar Doors", "freshly repaired doors beneath a ruined tollhouse", "The doors are not locked. Fresh boot marks go down. DOWN enters the first compact dungeon.", ("doors", "cellar", "tollhouse")),),
+            features=(_feature("toll_cellar_doors", "Cellar Doors", "freshly repaired doors beneath a ruined tollhouse", "The doors are not locked. Fresh boot marks go down. DOWN enters the dungeon.", ("doors", "cellar", "tollhouse")),),
         ),
         BRIARWOOD_EDGE: RoomAugmentation(
             extra_exits=(ExitDefinition("north", BELL_GATE, "Crooked Bell Chapel", "You push north through the briars toward the cracked bell.", ViewCondition(min_level=3)),),

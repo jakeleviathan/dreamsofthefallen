@@ -59,7 +59,7 @@ def corrected_adventure_augmentations() -> dict[str, RoomAugmentation]:
             ),),
             features=(_feature(
                 "toll_cellar_doors", "Cellar Doors", "freshly repaired doors beneath a ruined tollhouse",
-                "The doors are not locked. Fresh boot marks go down. DOWN enters the first compact dungeon.",
+                "The doors are not locked. Fresh boot marks go down. DOWN enters the dungeon.",
                 ("doors", "cellar", "tollhouse"),
             ),),
         ),
