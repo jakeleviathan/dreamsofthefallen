@@ -20,6 +20,7 @@ from mud.racial_abilities import (
 from mud.equipment_system import equipped_definitions, equipped_item_keys
 from mud.reflection_opportunities import reflection_opportunities
 from mud.room_engine import PlayerRoomContext
+from mud.style_collectibles import style_atelier_available
 from mud.weather_gameplay import effects_for_weather, room_is_weather_exposed, surface_condition
 from mud.world import NPCS_BY_KEY
 
@@ -598,6 +599,8 @@ def _context_actions(session, world, room: dict | None) -> dict:
             actions.append(action)
 
     room_key = character.current_room or ""
+    if style_atelier_available(world, room_key):
+        actions.append({"label": "Atelier", "command": "ATELIER", "kind": "style"})
     if economy.ROOM_RESOURCE_NODE_KEYS.get(room_key):
         actions.append({"label": "Resources", "command": "RESOURCES", "kind": "craft"})
     if economy.ROOM_STATIONS.get(room_key):
