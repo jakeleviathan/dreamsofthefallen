@@ -22,7 +22,7 @@ if not hasattr(crafting, "register_item"):
 
 from mud.server import MudServer, PlayerSession, WORLD
 from mud.trade_experience import install_trade_experience_runtime
-from mud.economy_loop import install_economy_loop_runtime
+from mud.economy_loop import install_economy_loop_runtime, install_fresh_water_sources
 from mud.economy_balance import install_economy_balance_runtime
 from mud.sols import install_sols_runtime
 from mud.forest_elf_reading_forest import install_reading_forest_runtime
@@ -245,6 +245,11 @@ _PROFESSION_RECIPE_COUNTS = install_profession_expansion_content()
 apply_recipe_semantic_quality()
 install_profession_workshops_runtime(PlayerSession)
 install_profession_expansion_runtime(PlayerSession)
+
+# Regional installers above own their local gathering tables and may replace
+# entries while registering content. Add common freshwater last so those local
+# resources and the world-wide Spring Water layer coexist.
+install_fresh_water_sources(legacy_world.ROOMS_BY_KEY)
 
 # Expand the daily living-world pulse only after every physical region above is
 # registered. This yields hundreds of concrete regional events while preserving
