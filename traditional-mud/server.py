@@ -84,6 +84,7 @@ from mud.profession_workshops import install_profession_workshops_runtime
 from mud.profession_expansion import install_profession_expansion_content, install_profession_expansion_runtime
 from mud.planar_realms import install_planar_realms_runtime
 from mud.item_naming import install_authored_item_names
+from mud.item_heritage import install_item_heritage_runtime
 from mud.command_guide import install_command_guide_runtime
 from mud.alpha_ux import install_alpha_ux_runtime
 from mud.modern_client_experience import install_modern_client_runtime
@@ -292,6 +293,11 @@ if _CONTENT_LOOT_COVERAGE.missing_tables:
 # after all content and party loot hooks means every existing drop table feeds the
 # same corpse system while XP/quest credit remains on the normal kill path.
 install_corpse_loot_runtime(PlayerSession)
+
+# Item heritage is installed after every item-producing content pass and after
+# physical corpse loot, so crafted maker marks, special discovery editions, and
+# ownership chains all share one persistent registry.
+install_item_heritage_runtime(PlayerSession, WORLD)
 
 # Discovery/help, alpha friction telemetry, and modern-client presentation sit
 # outside the assembled content stack. The alpha layer wraps the command guide so
