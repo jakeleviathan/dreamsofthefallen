@@ -1128,8 +1128,19 @@ async def _handle_deep_alchemy(session, command: str) -> bool:
         await session.send("\r\n" + result.message + "\r\n")
         return True
     item = crafting.ITEMS_BY_KEY[result.output_item_key]
-    skill = trade_skill_value(session.database, session.character.id, "alchemy")
-    await session.send(f"\r\nYou prepare {result.output_quantity}x {item.name}. Alchemy improves through use (skill {skill}).\r\n")
+    skill = int(
+        result.new_skill_value
+        if result.new_skill_value is not None
+        else trade_skill_value(session.database, session.character.id, "alchemy")
+    )
+    feedback = crafting.crafting_skill_feedback(
+        recipe,
+        new_skill_value=skill,
+        skill_increased=result.skill_increased,
+    )
+    await session.send(
+        f"\r\nYou prepare {result.output_quantity}x {item.name}. {feedback}\r\n"
+    )
     return True
 
 
