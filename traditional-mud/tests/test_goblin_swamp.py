@@ -290,7 +290,11 @@ class GoblinSwampTests(unittest.TestCase):
         self.assertEqual(session.database.item_quantity(701, "greenleaf"), 0)
         self.assertEqual(session.database.item_quantity(701, "spring_water"), 0)
         self.assertEqual(session.database.get_trade_skill_progress(701, "alchemy")["skill_xp"], 0)
-        self.assertTrue(any("Minor Healing Potion" in text for text in session.outputs))
+        output = "".join(session.outputs)
+        self.assertIn("Minor Healing Potion", output)
+        self.assertIn("No Alchemy skill increase", output)
+        self.assertIn("current skill is 0", output)
+        self.assertNotIn("Alchemy improves through use", output)
 
     def test_field_alchemy_is_culturally_goblin_but_not_race_locked(self) -> None:
         session = FakeSession(GOBLIN_APOTHECARY_BLIND_KEY, race="human")
