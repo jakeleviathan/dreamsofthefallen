@@ -10,8 +10,11 @@ import mud.crafting as crafting
 from mud.combat import EnemyState, SEWER_RAT
 from mud.database import Database
 from mud.economy_loop import (
+    FRESH_WATER_ROOM_KEYS,
+    ROOM_RESOURCE_NODE_KEYS,
     install_economy_content,
     install_economy_loop_runtime,
+    install_fresh_water_sources,
     reset_economy_node_state,
 )
 
@@ -104,6 +107,39 @@ class EconomyLoopTests(unittest.TestCase):
         herbalism = self._session_in("forest_elf_old_river_path", ["herbalism green"])
         asyncio.run(herbalism.playing_prompt())
         self.assertEqual(self.db.item_quantity(self.character.id, "greenleaf"), 1)
+
+    def test_fresh_water_is_a_skillless_renewable_world_resource(self):
+        install_fresh_water_sources()
+        self.assertIn("human_cinder_ward", FRESH_WATER_ROOM_KEYS)
+        self.assertIn("fresh_water_source", ROOM_RESOURCE_NODE_KEYS["human_cinder_ward"])
+
+        resources = self._session_in("human_cinder_ward", ["resources"])
+        asyncio.run(resources.playing_prompt())
+        resource_output = "".join(resources.outputs)
+        self.assertIn("Fresh Water Source [Collect]", resource_output)
+
+        collect = self._session_in("human_cinder_ward", ["collect water"])
+        asyncio.run(collect.playing_prompt())
+        self.assertEqual(self.db.item_quantity(self.character.id, "spring_water"), 1)
+        self.assertIn("You collect 1x Spring Water", "".join(collect.outputs))
+        self.assertEqual(self.db.list_trade_skills(self.character.id), [])
+
+    def test_fresh_water_node_depletes_and_respawns_like_other_world_resources(self):
+        install_fresh_water_sources()
+        session = self._session_in("human_cinder_ward", ["collect water"] * 7)
+
+        with patch("mud.economy_loop.monotonic", return_value=1000.0):
+            for _ in range(5):
+                asyncio.run(session.playing_prompt())
+            asyncio.run(session.playing_prompt())
+
+        self.assertEqual(self.db.item_quantity(self.character.id, "spring_water"), 5)
+        self.assertIn("is depleted", "".join(session.outputs))
+
+        with patch("mud.economy_loop.monotonic", return_value=1121.0):
+            asyncio.run(session.playing_prompt())
+
+        self.assertEqual(self.db.item_quantity(self.character.id, "spring_water"), 6)
 
     def test_ambiguous_partial_resource_name_is_not_guessed(self):
         session = self._session_in("forest_elf_greenway", ["gather patch"])
