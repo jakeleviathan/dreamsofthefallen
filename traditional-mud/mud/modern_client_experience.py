@@ -17,8 +17,9 @@ from mud.racial_abilities import (
     RACIAL_ACTIVE_KEYS,
     RACIAL_TEXT,
 )
-from mud.equipment_system import equipped_item_keys
+from mud.equipment_system import equipped_definitions, equipped_item_keys
 from mud.room_engine import PlayerRoomContext
+from mud.weather_gameplay import effects_for_weather, room_is_weather_exposed, surface_condition
 from mud.world import NPCS_BY_KEY
 
 
@@ -287,11 +288,94 @@ def _ability_snapshot(session) -> dict:
     }
 
 
-def _effects_snapshot(session) -> dict:
-    """Return temporary player effects for structured clients.
+def _weather_effect_entries(session, world) -> list[dict]:
+    """Return only weather mechanics that currently affect this character."""
 
-    Effects remain authoritative on the server; the client only receives names,
-    descriptions, and approximate remaining durations for presentation.
+    character = getattr(session, "character", None)
+    if character is None or world is None or not character.current_room:
+        return []
+
+    scene = world.scene(character.current_room)
+    if scene is None or not room_is_weather_exposed(scene.tags, scene.key):
+        return []
+
+    weather = world.state.weather_for(scene.region_key)
+    weather_label = weather.replace("_", " ").title()
+    mechanics_effects = effects_for_weather(weather, exposed=True)
+    result: list[dict] = []
+
+    def add(key: str, name: str, detail: str) -> None:
+        result.append(
+            {
+                "key": key,
+                "name": name,
+                "kind": "weather",
+                "detail": detail,
+                "remaining": None,
+            }
+        )
+
+    concealment = float(mechanics_effects.concealment_bonus)
+    if concealment > 0:
+        percent = int(round(concealment * 100))
+        add(
+            "weather_concealment",
+            f"{weather_label}: Concealment",
+            (
+                f"+{percent} percentage points to flee chance; hostile roaming NPCs "
+                f"have a {percent}% chance to fail to notice you."
+            ),
+        )
+
+    footing = surface_condition(scene.tags, weather, exposed=True)
+    if footing is not None:
+        add(
+            f"weather_footing_{footing.key}",
+            f"{weather_label}: {footing.key.title()} Footing",
+            (
+                f"Outdoor movement is slowed by {footing.travel_delay_seconds:g} seconds here. "
+                f"{footing.text}"
+            ),
+        )
+
+    main_hand = equipped_definitions(session.database, character.id).get("main_hand")
+    equipment = getattr(main_hand, "equipment", None)
+    if (
+        mechanics_effects.ranged_attack_penalty > 0
+        and equipment is not None
+        and bool(getattr(equipment, "is_ranged", False))
+    ):
+        add(
+            "weather_ranged_interference",
+            f"{weather_label}: Ranged Interference",
+            f"-{mechanics_effects.ranged_attack_penalty} to outdoor ranged attack rolls.",
+        )
+
+    has_fire_magic = any(
+        str(getattr(ability, "element", "") or "").lower() == "fire"
+        for ability in mechanics.class_abilities_for_level(
+            character.character_class or "",
+            character.level,
+            getattr(character, "deity_key", None),
+        )
+    )
+    if mechanics_effects.fire_disruption_chance > 0 and has_fire_magic:
+        percent = int(round(mechanics_effects.fire_disruption_chance * 100))
+        add(
+            "weather_fire_disruption",
+            f"{weather_label}: Fire Disruption",
+            f"{percent}% chance an outdoor fire spell is disrupted when cast.",
+        )
+
+    return result
+
+
+def _effects_snapshot(session, world=None) -> dict:
+    """Return active player effects for structured clients.
+
+    Effects remain authoritative on the server. Timed class effects include
+    approximate remaining durations, while weather entries remain active until
+    the character reaches cover or the regional conditions change.
     """
     now = monotonic()
     result: list[dict] = []
@@ -363,6 +447,7 @@ def _effects_snapshot(session) -> dict:
             rejuvenation_until,
         )
 
+    result.extend(_weather_effect_entries(session, world))
     result.sort(key=lambda effect: (effect["kind"], effect["name"].lower()))
     return {"effects": result}
 
@@ -652,7 +737,7 @@ async def push_modern_state(session, world, *, full: bool = False) -> None:
 
     await _send_if_changed(session, "Dreams.Party", _party_snapshot(session))
     await _send_if_changed(session, "Dreams.Abilities", _ability_snapshot(session))
-    await _send_if_changed(session, "Dreams.Effects", _effects_snapshot(session))
+    await _send_if_changed(session, "Dreams.Effects", _effects_snapshot(session, world))
     await _send_if_changed(session, "Dreams.Context", _context_actions(session, world, room))
     await _send_if_changed(session, "Dreams.Onboarding", _onboarding_snapshot(session, room))
 
