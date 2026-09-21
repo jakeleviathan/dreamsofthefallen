@@ -179,7 +179,7 @@ class StyleCollectiblesTests(unittest.TestCase):
             self.assertIn("main_hand", worn)
             entry = style._style_entry(db, first.id, worn["main_hand"])
             self.assertEqual(entry["name"], "Cotton Hood")
-            self.assertIn("combat stats do not change", "".join(session.messages))
+            self.assertIn("changes appearance, not combat stats", "".join(session.messages))
 
     def test_heritage_piece_has_serial_origin_and_direct_trade_history(self):
         with tempfile.TemporaryDirectory() as temp:
