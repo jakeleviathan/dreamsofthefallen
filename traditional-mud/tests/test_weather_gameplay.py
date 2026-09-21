@@ -1,7 +1,13 @@
 import random
 import unittest
 
-from mud.astralis_time import AstralisWeatherService, TEMPERATE, _transition_candidates
+from mud.astralis_time import (
+    AstralisWeatherService,
+    TEMPERATE,
+    WILDERNESS,
+    _transition_candidates,
+    profile_for_biome,
+)
 from mud.npcs import BLACKWALL_GUARD, MobileNpcManager
 from mud.room_engine import RoomStateStore
 from mud.stats import EquipmentItem
@@ -88,6 +94,11 @@ class WeatherGameplayTests(unittest.TestCase):
         self.assertIn("cloudy", candidates)
         self.assertNotIn("storm", candidates)
         self.assertNotIn("rain", candidates)
+
+    def test_troll_mixed_forest_tundra_biome_uses_snow_capable_profile(self):
+        profile = profile_for_biome("deep forests, wilderness, and tundra")
+        self.assertIs(profile, WILDERNESS)
+        self.assertIn("snow", profile.states)
 
 
 class WeatherWorldEventTests(unittest.TestCase):
