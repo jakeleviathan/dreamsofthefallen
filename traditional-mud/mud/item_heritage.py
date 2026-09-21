@@ -1140,12 +1140,23 @@ def audit_item_heritage(database) -> tuple[str, ...]:
 
 
 def _session_is_staff(session) -> bool:
-    for attr in ("is_staff", "is_gm", "is_admin"):
-        value = getattr(session, attr, False)
-        if isinstance(value, bool) and value:
-            return True
-    role = str(getattr(session, "staff_role", "") or "").strip().lower()
-    return role in {"staff", "gm", "admin", "builder", "developer"}
+    if not bool(getattr(session, "_staff_mode", False)):
+        return False
+    account = getattr(session, "account", None)
+    database = getattr(session, "database", None)
+    if account is None or database is None:
+        return False
+    try:
+        with database.connect() as db:
+            row = db.execute(
+                "SELECT role FROM staff_roles WHERE account_id = ?",
+                (int(account.id),),
+            ).fetchone()
+    except Exception:
+        return False
+    if row is None:
+        return False
+    return str(row["role"]).strip().lower() in {"helper", "gm", "builder", "admin", "owner"}
 
 
 async def _delegate(self, previous_prompt, command: str) -> None:
