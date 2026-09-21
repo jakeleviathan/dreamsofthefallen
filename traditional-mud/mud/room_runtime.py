@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import asyncio
 
-from mud.appearance import appearance_menu_text, reflection_text, validate_choice
+from mud.appearance import appearance_menu_text, validate_choice
 from mud.appearance_storage import get_appearance, set_appearance
 from mud.astralis_human_district import HUMAN_DISTRICT
-from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
+from mud.astralis_time import ASTRALIS_CLOCK
 from mud.combat import ENEMIES_BY_KEY
 from mud.crafting import ITEMS_BY_KEY
 from mud.human_district import HUMAN_REGION_KEY
+from mud.reflection_opportunities import (
+    find_reflection_opportunity,
+    reflection_opportunities,
+    render_reflection,
+)
 from mud.room_content import complete_room_augmentations
 from mud.room_engine import PlayerRoomContext, WorldService
 from mud.weather_gameplay import (
@@ -94,13 +99,22 @@ def _current_scene(session):
     return WORLD.scene(session.character.current_room or "")
 
 
-def _puddle_here(session) -> bool:
-    if session.character is None:
-        return False
-    scene = _current_scene(session)
+def _reflection_sources_here(session):
+    scene, weather, exposed = _weather_context(session)
     if scene is None:
-        return False
-    return puddle_available(session.character.current_room or "", scene.region_key, WORLD.state)
+        return ()
+    return reflection_opportunities(scene, weather, exposed=exposed)
+
+
+def _reflection_source_here(session, target: str = ""):
+    scene, weather, exposed = _weather_context(session)
+    if scene is None:
+        return None
+    return find_reflection_opportunity(scene, weather, target, exposed=exposed)
+
+
+def _puddle_here(session) -> bool:
+    return any(source.key == "rain_puddle" for source in _reflection_sources_here(session))
 
 
 def _weather_context(session):
@@ -161,15 +175,16 @@ async def _render_current_room(session, original_show_current_room) -> None:
             if surface is not None:
                 await session.send(surface.text + "\r\n")
 
-    if _puddle_here(session):
-        await session.send(
-            "\r\nRainwater has collected in a shallow puddle. Its dark surface catches a wavering reflection whenever the rain eases between drops.\r\n"
-        )
+    reflection_sources = _reflection_sources_here(session)
+    for source in reflection_sources:
+        await session.send("\r\n" + source.room_text + "\r\n")
 
-    if view.features:
-        await session.send("\r\nNotable: " + ", ".join(feature.name for feature in view.features) + ".\r\n")
-    if _puddle_here(session):
-        await session.send("Notable: Puddle.\r\n")
+    notable_names = [feature.name for feature in view.features]
+    for source in reflection_sources:
+        if source.name not in notable_names:
+            notable_names.append(source.name)
+    if notable_names:
+        await session.send("\r\nNotable: " + ", ".join(notable_names) + ".\r\n")
 
     business = HUMAN_DISTRICT.business_in_room(view.key)
     if business is not None:
@@ -226,8 +241,8 @@ async def _show_features(session) -> None:
         return
     view = WORLD.build_view(character.current_room or "", _context_for(session))
     business = HUMAN_DISTRICT.business_in_room(character.current_room or "")
-    has_puddle = _puddle_here(session)
-    if (view is None or not view.features) and business is None and not has_puddle:
+    reflection_sources = _reflection_sources_here(session)
+    if (view is None or not view.features) and business is None and not reflection_sources:
         await session.send("Nothing here is singled out as an interactive landmark.\r\n")
         return
     await session.send("Notable features:\r\n")
@@ -237,8 +252,8 @@ async def _show_features(session) -> None:
             if feature.summary:
                 detail += f": {feature.summary}"
             await session.send(detail + "\r\n")
-    if has_puddle:
-        await session.send(" - Puddle: fresh rainwater deep enough to hold your reflection. Try USE PUDDLE.\r\n")
+    for source in reflection_sources:
+        await session.send(f" - {source.name}: {source.room_text} Try USE {source.name.upper()}.\r\n")
     if business is not None:
         await session.send(f" - {business.name}: {business.storefront_description} Proprietor: {business.proprietor}.\r\n")
     await session.send(
@@ -309,27 +324,53 @@ async def _show_time(session) -> None:
     )
 
 
-async def _show_reflection(session, *, enter_editor: bool = False) -> None:
+async def _show_reflection(session, target: str = "", *, enter_editor: bool = False) -> None:
     if session.character is None:
         return
-    if not _puddle_here(session):
-        await session.send("There is no rain puddle here deep and still enough to hold a useful reflection.\r\n")
+    source = _reflection_source_here(session, target)
+    if source is None:
+        await session.send(
+            "There is no clear reflective surface here matching that description. "
+            "Rain can leave usable puddles outdoors, while settlements and certain natural places have permanent mirrors or still water.\r\n"
+        )
         return
+
     race_key = session.character.race or "human"
     stored = get_appearance(session.database, session.character.id)
-    await session.send("\r\n" + reflection_text(session.character.name, race_key, stored) + "\r\n")
+    await session.send("\r\n" + render_reflection(session.character.name, race_key, stored, source) + "\r\n")
     if enter_editor:
         session._reflection_editor_room = session.character.current_room
+        session._reflection_editor_source_key = source.key
+        await session.send(
+            f"You settle in front of the {source.name.lower()} and study the details you could change.\r\n"
+        )
         await session.send(appearance_menu_text(race_key, stored) + "\r\n")
 
 
 async def _set_reflection_appearance(session, target: str) -> None:
     if session.character is None:
         return
-    if getattr(session, "_reflection_editor_room", None) != session.character.current_room or not _puddle_here(session):
+    if getattr(session, "_reflection_editor_room", None) != session.character.current_room:
         session._reflection_editor_room = None
-        await session.send("The reflection is no longer available. Find a fresh rain puddle and USE PUDDLE first.\r\n")
+        session._reflection_editor_source_key = None
+        await session.send(
+            "You are not currently using a reflective surface. Find a mirror, still water, or a rain puddle and USE it first.\r\n"
+        )
         return
+
+    source_key = getattr(session, "_reflection_editor_source_key", None)
+    source = next(
+        (value for value in _reflection_sources_here(session) if value.key == source_key),
+        None,
+    )
+    if source is None:
+        session._reflection_editor_room = None
+        session._reflection_editor_source_key = None
+        await session.send(
+            "That reflection is no longer usable. Find another mirror, still surface, or fresh rain puddle.\r\n"
+        )
+        return
+
     pieces = target.split(maxsplit=1)
     if len(pieces) != 2:
         stored = get_appearance(session.database, session.character.id)
@@ -340,12 +381,20 @@ async def _set_reflection_appearance(session, target: str) -> None:
     if not valid:
         await session.send(normalized + "\r\n")
         return
+
     normalized_key = trait_key.strip().lower().replace(" ", "_")
     set_appearance(session.database, session.character.id, normalized_key, normalized)
     stored = get_appearance(session.database, session.character.id)
     await session.send(f"Your reflected {normalized_key.replace('_', ' ')} shifts to {normalized}.\r\n")
-    await session.send(reflection_text(session.character.name, session.character.race or "human", stored) + "\r\n")
-
+    await session.send(
+        render_reflection(
+            session.character.name,
+            session.character.race or "human",
+            stored,
+            source,
+        )
+        + "\r\n"
+    )
 
 def install_room_runtime(player_session_class) -> None:
     """Install the advanced room/time/weather runtime without discarding established systems."""
@@ -367,6 +416,7 @@ def install_room_runtime(player_session_class) -> None:
             await original_move_character(self, direction)
             return
         self._reflection_editor_room = None
+        self._reflection_editor_source_key = None
         resolution = WORLD.resolve_exit(self.character.current_room or "", direction, _context_for(self))
         if not resolution.allowed:
             await self.send((resolution.message or "You cannot go that way.") + "\r\n")
@@ -421,10 +471,21 @@ def install_room_runtime(player_session_class) -> None:
         if normalized in {"time", "clock", "astralis time"}:
             await _show_time(self)
             return
-        if normalized in {"look puddle", "examine puddle", "look reflection", "examine reflection"}:
+        reflection_command = normalized.split(maxsplit=1)
+        reflection_action = reflection_command[0] if reflection_command else ""
+        reflection_target = reflection_command[1] if len(reflection_command) == 2 else ""
+        if normalized in {"reflection", "look reflection", "examine reflection"}:
             await _show_reflection(self)
             return
-        if normalized in {"use puddle", "use reflection"}:
+        if reflection_action in {"look", "examine"} and reflection_target:
+            if _reflection_source_here(self, reflection_target) is not None:
+                await _show_reflection(self, reflection_target)
+                return
+        if reflection_action in {"use", "check"} and reflection_target:
+            if _reflection_source_here(self, reflection_target) is not None:
+                await _show_reflection(self, reflection_target, enter_editor=True)
+                return
+        if normalized in {"use reflection", "check reflection"}:
             await _show_reflection(self, enter_editor=True)
             return
         if normalized == "appearance":
@@ -434,8 +495,20 @@ def install_room_runtime(player_session_class) -> None:
             await _set_reflection_appearance(self, command.strip().split(maxsplit=1)[1])
             return
         if normalized in {"done", "finish reflection", "leave reflection"} and getattr(self, "_reflection_editor_room", None):
+            source = next(
+                (
+                    value
+                    for value in _reflection_sources_here(self)
+                    if value.key == getattr(self, "_reflection_editor_source_key", None)
+                ),
+                None,
+            )
             self._reflection_editor_room = None
-            await self.send("You let the puddle settle back into ordinary rainwater.\r\n")
+            self._reflection_editor_source_key = None
+            if source is not None:
+                await self.send(f"You step away from the {source.name.lower()}.\r\n")
+            else:
+                await self.send("You stop studying your reflection.\r\n")
             return
 
         moment = _moment()
