@@ -703,7 +703,7 @@ function H.renderPartyPanel()
   local party = H.state.party or { active = false, members = {} }
   if not party.active then
     local nearby = party.nearby or {}
-    H.partyHeader:echo("PARTY — SOLO")
+    H.partyHeader:echo("PARTY - SOLO")
     for i = 1, 5 do
       local row = H.partyMembers[i]
       local candidate = nearby[i]
@@ -712,7 +712,7 @@ function H.renderPartyPanel()
         row:setClickCallback("DreamsHUD.runAction", "PARTY INVITE " .. candidate.name)
         row:show()
       elseif i == 1 then
-        row:echo("<center>PARTY NEARBY — find adventurers here</center>")
+        row:echo("<center>PARTY NEARBY - find adventurers here</center>")
         row:setClickCallback("DreamsHUD.runAction", "PARTY NEARBY")
         row:show()
       else
@@ -850,7 +850,7 @@ function H.renderHotbar()
     local button = H.hotbar[i]
     local ability = H.hotbarAbilityForSlot(i)
     if not ability then
-      button:echo("<center>—</center>")
+      button:echo("<center>-</center>")
       button:setStyleSheet(PANEL_STYLE)
       setTooltip(button, "")
     else
@@ -920,7 +920,7 @@ function H.renderOnboarding()
     H.onboarding:echo("Top row: use abilities. Bottom row: click SET to cycle each hotkey through learned abilities. Assignments are saved per character.")
     return
   end
-  H.onboarding:echo("<span style='color:#dfc18c'><b>" .. escape(o.title or "") .. "</b></span>  —  " .. escape(o.text or ""))
+  H.onboarding:echo("<span style='color:#dfc18c'><b>" .. escape(o.title or "") .. "</b></span>  -  " .. escape(o.text or ""))
   setTooltip(H.onboarding, o.command and ("Suggested command: " .. o.command) or "")
   if o.command and o.command ~= "" then H.onboarding:setClickCallback("DreamsHUD.runAction", o.command) end
 end

@@ -260,7 +260,7 @@ FOREST_ELF_ROOMS: tuple[RoomDefinition, ...] = (
         region_key="great_elf_forest",
         description=(
             "The river widens into a glassy pool beneath drooping willow branches. Water passes over a low shelf of stone with barely a splash. "
-            "Dragonflies hover above the surface, and the forest seems unusually still here—not silent, simply attentive. A narrow trail continues north "
+            "Dragonflies hover above the surface, and the forest seems unusually still here-not silent, simply attentive. A narrow trail continues north "
             "toward older, less-tended woodland."
         ),
         exits={"west": FOREST_ELF_WAYSTONE_BEND_KEY, "north": FOREST_ELF_OUTER_GROVE_KEY},
