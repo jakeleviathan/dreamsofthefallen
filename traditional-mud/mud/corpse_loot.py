@@ -645,7 +645,10 @@ def _mark_static_enemy_defeated_proxy(database, room_key, enemy_key, respawn_sec
     if (
         context is not None
         and context.room_key == str(room_key)
-        and context.enemy_key == str(enemy_key)
+        and (
+            context.enemy_key == str(enemy_key)
+            or str(enemy_key).startswith(context.enemy_key + "#")
+        )
     ):
         context.lifecycle_claimed = bool(claimed)
     return claimed
@@ -748,7 +751,8 @@ async def _commit_defeat_corpse(session, enemy, context: _DefeatLootContext) -> 
         # the one corpse and one set of rewards.
         return None
 
-    death_key = _static_death_key(session.database, context.room_key, context.enemy_key)
+    spawn_key = str(getattr(enemy, "spawn_key", "") or context.enemy_key)
+    death_key = _static_death_key(session.database, context.room_key, spawn_key)
     if death_key is None and context.mobile_npc_key:
         death_key = f"mobile:{context.room_key}:{context.mobile_npc_key}:{context.enemy_object_id}"
     if death_key is None:
