@@ -358,10 +358,10 @@ async def _show_channel_info(session, name: str) -> None:
         return
     online, total = _member_counts(session, int(row["id"]))
     access = "invite-only" if bool(row["invite_only"]) else "public"
-    await session.send(f"\r\n--- Channel: {row['name']} ---\r\n")
+    await session.send(f"\r\n--- {row['name']} ---\r\n")
     await session.send(
-        f"Owner: {row['owner_name']}\r\nAccess: {access}\r\n"
-        f"Members: {online} online / {total} total\r\n"
+        f"Owner: {row['owner_name']}\r\nAccess: {'Private (invite-only)' if bool(row['invite_only']) else 'Public'}\r\n"
+        f"Members: {total} ({online} online)\r\n"
     )
     if member is not None:
         state = "owner-muted" if bool(member["owner_muted"]) else "connected"
@@ -373,13 +373,14 @@ async def _show_channel_info(session, name: str) -> None:
 
     if _require_owner(session, row):
         await session.send(
-            "\r\nOwner controls:\r\n"
+            "\r\nYou own this channel.\r\n\r\n"
+            "Owner controls:\r\n"
+            f"  CHANNEL SET {row['name']} {'PUBLIC' if bool(row['invite_only']) else 'PRIVATE'}\r\n"
+            f"  CHANNEL RENAME {row['name']} <new-name>\r\n"
             f"  CHANNEL INVITE {row['name']} <player>\r\n"
             f"  CHANNEL KICK {row['name']} <player>\r\n"
             f"  CHANNEL MUTE {row['name']} <player>\r\n"
             f"  CHANNEL UNMUTE {row['name']} <player>\r\n"
-            f"  CHANNEL PRIVATE {row['name']} ON|OFF\r\n"
-            f"  CHANNEL RENAME {row['name']} <new-name>\r\n"
             f"  CHANNEL CLOSE {row['name']}\r\n"
         )
 
@@ -595,13 +596,19 @@ async def _rename_channel(session, old_name: str, new_name: str) -> None:
         )
 
 
-async def _close_channel(session, name: str) -> None:
+async def _close_channel(session, name: str, *, confirmed: bool = False) -> None:
     row = _channel_row(session, name)
     if row is None:
         await session.send("No player-created channel by that name exists.\r\n")
         return
     if not _require_owner(session, row):
         await session.send("Only the channel owner can close it.\r\n")
+        return
+    if not confirmed:
+        await session.send(
+            f"Closing {row['name']} will permanently remove the channel and its memberships.\r\n"
+            f"Type: CHANNEL CLOSE {row['name']} CONFIRM\r\n"
+        )
         return
     with session.database.connect() as db:
         member_ids = [
@@ -612,7 +619,7 @@ async def _close_channel(session, name: str) -> None:
             ).fetchall()
         ]
         db.execute("DELETE FROM player_chat_channels WHERE id = ?", (row["id"],))
-    await session.send(f"Channel {row['name']} closed.\r\n")
+    await session.send(f"Channel {row['name']} permanently closed.\r\n")
     for character_id in member_ids:
         target_session = _session_for_character_id(character_id)
         if target_session is None or target_session is session:
@@ -806,6 +813,14 @@ def install_player_channels_runtime(player_session_class) -> None:
                         self, parts[2], parts[3], action == "mute"
                     )
                 return
+            if action == "set":
+                if len(parts) != 4 or lower_parts[3] not in {"public", "private"}:
+                    await self.send("Use CHANNEL SET <name> PUBLIC|PRIVATE.\r\n")
+                else:
+                    await _set_private(
+                        self, parts[2], lower_parts[3] == "private"
+                    )
+                return
             if action == "private":
                 if len(parts) != 4 or lower_parts[3] not in {"on", "off"}:
                     await self.send("Use CHANNEL PRIVATE <name> ON|OFF.\r\n")
@@ -827,10 +842,16 @@ def install_player_channels_runtime(player_session_class) -> None:
                     await _rename_channel(self, parts[2], parts[3])
                 return
             if action == "close":
-                if len(parts) != 3:
-                    await self.send("Use CHANNEL CLOSE <name>.\r\n")
+                if len(parts) not in {3, 4} or (
+                    len(parts) == 4 and lower_parts[3] != "confirm"
+                ):
+                    await self.send(
+                        "Use CHANNEL CLOSE <name>, then CHANNEL CLOSE <name> CONFIRM.\r\n"
+                    )
                 else:
-                    await _close_channel(self, parts[2])
+                    await _close_channel(
+                        self, parts[2], confirmed=len(parts) == 4
+                    )
                 return
 
             if len(parts) >= 3:
