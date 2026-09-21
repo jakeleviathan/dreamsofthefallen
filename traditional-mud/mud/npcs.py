@@ -129,6 +129,8 @@ class MobileNpcDefinition:
     move_chance_per_tick: float = 0.35
     patrol_route: tuple[str, ...] = ()
     routine_schedule: tuple[RoutineStop, ...] = ()
+    weather_shelter_room_key: str | None = None
+    shelter_weathers: tuple[str, ...] = ("storm", "thunderstorm", "snow", "duststorm")
     aliases: tuple[str, ...] = ()
     aggressive: bool = False
     # 0 means same-room aggro. Dreams of the Fallen currently does not permit
@@ -195,6 +197,8 @@ class NpcMovement:
 
     @property
     def movement_verb(self) -> str:
+        if self.reason == "sheltering":
+            return "hurries"
         if self.behavior == BEHAVIOR_PATROL:
             return "marches"
         if self.behavior == BEHAVIOR_HUNTER:
@@ -273,6 +277,7 @@ BLACKWALL_GUARD = MobileNpcDefinition(
         HUMAN_TRAINING_YARD_KEY,
         "human_outer_drill_road",
     ),
+    weather_shelter_room_key=HUMAN_START_ROOM_KEY,
 )
 
 BRIARSHADOW_STALKER = MobileNpcDefinition(
@@ -316,6 +321,8 @@ ASHEN_WAY_CURIO_PEDDLER = MobileNpcDefinition(
         RoutineStop(18, "human_cathedral_square"),  # evening clerical crowds
         RoutineStop(22, "human_ashen_way"),     # returns to the shopfront
     ),
+    weather_shelter_room_key="human_ashen_way",
+    shelter_weathers=("rain", "storm", "thunderstorm", "snow", "duststorm"),
 )
 
 AMBIENT_FOREST_ANIMALS: tuple[MobileNpcDefinition, ...] = (
@@ -340,6 +347,7 @@ MOBILE_NPCS_BY_KEY = {npc.key: npc for npc in MOBILE_NPC_DEFINITIONS}
 MovementCallback = Callable[[NpcMovement], Awaitable[None]]
 PlayerRoomsProvider = Callable[[], Iterable[str]]
 HourProvider = Callable[[], int]
+WeatherProvider = Callable[[str], str]
 
 
 class MobileNpcManager:
@@ -423,6 +431,22 @@ class MobileNpcManager:
                 raise ValueError(f"Invalid pursuit chance for {definition.key}")
             if definition.aggressive and (definition.max_hp <= 0 or definition.auto_attack_damage < 0):
                 raise ValueError(f"Aggressive NPC {definition.key} requires valid combat stats")
+
+            if definition.weather_shelter_room_key is not None:
+                if definition.weather_shelter_room_key not in allowed:
+                    raise ValueError(
+                        f"Weather shelter leaves boundary for {definition.key}: "
+                        f"{definition.weather_shelter_room_key}"
+                    )
+                if self._shortest_path(
+                    definition.spawn_room_key,
+                    definition.weather_shelter_room_key,
+                    allowed,
+                ) is None:
+                    raise ValueError(
+                        f"Weather shelter is unreachable for {definition.key}: "
+                        f"{definition.weather_shelter_room_key}"
+                    )
 
             if definition.behavior == BEHAVIOR_ROUTINE:
                 if not definition.routine_schedule:
@@ -648,6 +672,49 @@ class MobileNpcManager:
             combat_enemy_key=base.key,
             rare=False,
         )
+
+    def awaken_weather_rare(
+        self,
+        region_key: str,
+        *,
+        player_room_keys: Iterable[str] = (),
+        rng: random.Random | None = None,
+    ) -> MobileNpcState | None:
+        """Spawn at most one hidden regional rare in response to a weather event."""
+
+        rng = rng or random.Random()
+        active_rare = any(
+            state.active
+            and state.definition.rare
+            and ROOMS_BY_KEY.get(state.current_room_key) is not None
+            and ROOMS_BY_KEY[state.current_room_key].region_key == region_key
+            for state in self.states.values()
+        )
+        if active_rare:
+            return None
+
+        regional_states = [
+            state
+            for state in self.states.values()
+            if state.active
+            and ROOMS_BY_KEY.get(state.current_room_key) is not None
+            and ROOMS_BY_KEY[state.current_room_key].region_key == region_key
+        ]
+        if len(regional_states) >= self._region_dynamic_cap(region_key):
+            return None
+
+        pools = [pool for pool in self.regional_pools.values() if pool.region_key == region_key]
+        rng.shuffle(pools)
+        for pool in pools:
+            state = self._spawn_regional_instance(
+                pool,
+                player_room_keys=player_room_keys,
+                rng=rng,
+                rare=True,
+            )
+            if state is not None:
+                return state
+        return None
 
     def _choose_regional_spawn_room(
         self,
@@ -1076,12 +1143,30 @@ class MobileNpcManager:
             return None
         return direction, destination, "schedule"
 
+    def _choose_weather_shelter_move(self, state: MobileNpcState) -> tuple[str, str, str] | None:
+        shelter = state.definition.weather_shelter_room_key
+        if shelter is None or shelter == state.current_room_key:
+            return None
+        path = self._shortest_path(
+            state.current_room_key,
+            shelter,
+            set(state.definition.allowed_room_keys),
+        )
+        if path is None or len(path) < 2:
+            return None
+        destination = path[1]
+        direction = self._direction_to(state.current_room_key, destination)
+        if direction is None:
+            return None
+        return direction, destination, "sheltering"
+
     def tick(
         self,
         rng: random.Random | None = None,
         *,
         player_room_keys: Iterable[str] = (),
         hour: int | None = None,
+        weather_provider: WeatherProvider | None = None,
     ) -> tuple[NpcMovement, ...]:
         rng = rng or random.Random()
         player_rooms = tuple(player_room_keys)
@@ -1106,27 +1191,48 @@ class MobileNpcManager:
             if state.engaged_character_id is not None:
                 continue
 
-            # Routine NPCs should promptly travel toward their scheduled room;
-            # their move chance still allows designers to slow that travel down.
-            if rng.random() > definition.move_chance_per_tick:
-                continue
+            current_room = ROOMS_BY_KEY.get(state.current_room_key)
+            region_key = current_room.region_key if current_room is not None else ""
+            current_weather = (
+                weather_provider(region_key)
+                if weather_provider is not None and region_key
+                else "clear"
+            )
+            seeking_shelter = (
+                definition.weather_shelter_room_key is not None
+                and current_weather in definition.shelter_weathers
+            )
 
-            selected: tuple[str, str, str] | None
-            if state.returning_to_duty:
-                selected = self._choose_return_move(state, current_hour)
-            elif definition.behavior == BEHAVIOR_PATROL:
-                selected = self._choose_patrol_move(state)
-            elif definition.behavior == BEHAVIOR_HUNTER:
-                selected = self._choose_hunter_move(state, rng)
-            elif definition.behavior == BEHAVIOR_ROUTINE:
-                selected = self._choose_routine_move(state, current_hour)
+            # Severe weather overrides an ordinary patrol or routine. NPCs with
+            # authored shelter hurry toward it and remain there until conditions
+            # ease, then resume their normal schedule automatically.
+            if seeking_shelter:
+                if state.current_room_key == definition.weather_shelter_room_key:
+                    continue
+                if rng.random() > max(0.75, definition.move_chance_per_tick):
+                    continue
+                selected = self._choose_weather_shelter_move(state)
             else:
-                legal = self._legal_moves(state)
-                if legal:
-                    direction, destination = rng.choice(legal)
-                    selected = direction, destination, "roaming"
+                # Routine NPCs should promptly travel toward their scheduled room;
+                # their move chance still allows designers to slow that travel down.
+                if rng.random() > definition.move_chance_per_tick:
+                    continue
+                selected: tuple[str, str, str] | None
+                if state.returning_to_duty:
+                    selected = self._choose_return_move(state, current_hour)
+                elif definition.behavior == BEHAVIOR_PATROL:
+                    selected = self._choose_patrol_move(state)
+                elif definition.behavior == BEHAVIOR_HUNTER:
+                    selected = self._choose_hunter_move(state, rng)
+                elif definition.behavior == BEHAVIOR_ROUTINE:
+                    selected = self._choose_routine_move(state, current_hour)
                 else:
-                    selected = None
+                    legal = self._legal_moves(state)
+                    if legal:
+                        direction, destination = rng.choice(legal)
+                        selected = direction, destination, "roaming"
+                    else:
+                        selected = None
 
             if selected is None:
                 continue
@@ -1158,10 +1264,15 @@ class MobileNpcManager:
         tick_seconds: float = NPC_TICK_SECONDS,
         player_rooms_provider: PlayerRoomsProvider | None = None,
         hour_provider: HourProvider | None = None,
+        weather_provider: WeatherProvider | None = None,
     ) -> None:
         while True:
             await asyncio.sleep(tick_seconds)
             player_rooms = tuple(player_rooms_provider()) if player_rooms_provider is not None else ()
             hour = hour_provider() if hour_provider is not None else datetime.now().hour
-            for movement in self.tick(player_room_keys=player_rooms, hour=hour):
+            for movement in self.tick(
+                player_room_keys=player_rooms,
+                hour=hour,
+                weather_provider=weather_provider,
+            ):
                 await on_movement(movement)
