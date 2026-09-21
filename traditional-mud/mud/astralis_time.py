@@ -169,12 +169,14 @@ def profile_for_biome(biome: str) -> WeatherProfile:
         return SWAMP
     if "mountain" in value:
         return MOUNTAIN
+    # Mixed Troll territory explicitly includes wilderness and tundra, so it
+    # needs the snow-capable profile even though deep forest is also present.
+    if "tundra" in value or "wilderness" in value:
+        return WILDERNESS
     if "forest" in value:
         return FOREST
     if "cavern" in value or "underground" in value:
         return UNDERWAYS
-    if "tundra" in value or "wilderness" in value:
-        return WILDERNESS
     return TEMPERATE
 
 
