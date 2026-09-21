@@ -666,6 +666,8 @@ def apply_equipment_to_combatant(session) -> None:
 
 def _stat_parts(equipment: EquipmentItem) -> list[str]:
     parts: list[str] = []
+    if equipment.inventory_slots:
+        parts.append(f"Inventory +{equipment.inventory_slots} slots")
     if equipment.armor_class:
         parts.append(f"AC +{equipment.armor_class}")
     for key, label in (
@@ -768,7 +770,9 @@ async def _show_inventory(session) -> None:
         reverse.setdefault(item_key, []).append(SLOT_LABELS[slot])
 
     items = session.database.list_items(session.character.id)
+    from mud.inventory_capacity import capacity_message
     await session.send("\r\n--- Inventory ---\r\n")
+    await session.send(capacity_message(session.database, session.character.id) + "\r\n")
     if not items:
         await session.send("Empty.\r\n")
         await session.send(f"Sols: {format_sols(session.database.get_sols(session.character.id))}\r\n")
@@ -872,11 +876,18 @@ async def _compare_item(session, target: str) -> None:
         )
     )
     ac_diff = c.armor_class - e.armor_class
-    parts = [f"AC {ac_diff:+d}"]
+    inventory_diff = c.inventory_slots - e.inventory_slots
+    parts = []
+    if inventory_diff:
+        parts.append(f"Inventory {inventory_diff:+d} slots")
+    if ac_diff:
+        parts.append(f"AC {ac_diff:+d}")
     for key, label in (("might", "Might"), ("grace", "Grace"), ("love", "Love"), ("mind", "Mind"), ("hp", "HP")):
         value = getattr(diff, key)
         if value:
             parts.append(f"{label} {value:+d}")
+    if not parts:
+        parts.append("no mechanical change")
     await session.send(
         f"{candidate.name} vs {current.name} ({SLOT_LABELS[slot]}): " + ", ".join(parts) + ".\r\n"
     )
@@ -909,6 +920,14 @@ async def _equip(session, target: str) -> None:
     else:
         await session.send(f"You equip {definition.name} in {SLOT_LABELS[slot]}.\r\n")
     await session.send(f"Stats: {', '.join(_stat_parts(definition.equipment))}.\r\n")
+    if slot == "bag":
+        from mud.inventory_capacity import inventory_capacity_status
+        used, capacity = inventory_capacity_status(session.database, session.character.id)
+        await session.send(f"Carry capacity: {used}/{capacity} slots.\r\n")
+        if used > capacity:
+            await session.send(
+                "Your inventory is over capacity. You may keep what you carry, but cannot add a new item type until you free space or equip a larger bag.\r\n"
+            )
     await session.send_client_state()
     await _send_equipment_gmcp(session)
 
@@ -931,6 +950,14 @@ async def _unequip(session, target: str) -> None:
     clear_equipped_slot(session.database, session.character.id, slot)
     apply_equipment_to_combatant(session)
     await session.send(f"You unequip {definition.name if definition else item_key} from {SLOT_LABELS[slot]}.\r\n")
+    if slot == "bag":
+        from mud.inventory_capacity import inventory_capacity_status
+        used, capacity = inventory_capacity_status(session.database, session.character.id)
+        await session.send(f"Carry capacity: {used}/{capacity} slots.\r\n")
+        if used > capacity:
+            await session.send(
+                "Your inventory is now over capacity. Nothing is discarded, but you cannot add a new item type until you free space or equip a larger bag.\r\n"
+            )
     await session.send_client_state()
     await _send_equipment_gmcp(session)
 
@@ -941,6 +968,8 @@ async def _show_live_stats(session) -> None:
     total = session.character.stats.plus(bonus)
     race = RACES_BY_KEY.get(session.character.race or "")
     character_class = CLASSES_BY_KEY.get(session.character.character_class or "")
+    from mud.inventory_capacity import inventory_capacity_status
+    carried_slots, carry_capacity = inventory_capacity_status(session.database, session.character.id)
     await session.send(
         f"\r\nName : {session.character.name}\r\n"
         f"Race : {race.name if race else session.character.race}\r\n"
@@ -953,6 +982,7 @@ async def _show_live_stats(session) -> None:
         + f"Level: {session.character.level}\r\n"
         f"XP   : {session.character.experience}\r\n"
         f"Sols : {format_sols(session.database.get_sols(session.character.id))}\r\n"
+        f"Carry: {carried_slots} / {carry_capacity} inventory slots\r\n"
         f"Next : {PROGRESSION_RULES.cumulative_xp_for_level(session.character.level + 1)} total XP\r\n"
         "\r\n--- Stats (base + equipment = total) ---\r\n"
         f"Might: {session.character.might} {bonus.might:+d} = {total.might}\r\n"
@@ -1039,7 +1069,7 @@ def install_equipment_runtime(player_session_class) -> None:
         if rewards:
             await _announce_rewards(self, rewards)
         await self.send(
-            "\r\nEquipment is active: HEAD, CHEST, LEGS, FEET, HANDS, MAIN HAND, and OFF HAND. "
+            "\r\nEquipment is active: HEAD, CHEST, LEGS, FEET, HANDS, MAIN HAND, OFF HAND, and BAG. "
             "Type EQUIPMENT to inspect your worn gear.\r\n"
         )
         await self.send_client_state()

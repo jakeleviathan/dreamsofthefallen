@@ -237,6 +237,14 @@ async def take_item_command(session, argument: str) -> bool:
         await session.send(f"There are only {available}x {_display_name(item_key)} here.\r\n")
         return True
 
+    checker = getattr(session, "can_receive_item", None)
+    if callable(checker) and not checker(item_key, quantity):
+        await session.send(
+            "Your inventory has no free slot for that item type. "
+            "Free a slot or equip a larger bag first.\r\n"
+        )
+        return True
+
     if not transfer_ground_to_inventory(
         session.database,
         character.id,

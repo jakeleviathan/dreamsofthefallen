@@ -765,6 +765,14 @@ async def _handle_swamp_gathering(session, normalized: str) -> bool:
             return True
         return False
 
+    checker = getattr(session, "can_receive_item", None)
+    if callable(checker) and not checker(state.definition.output_item_key, 1):
+        await session.send(
+            "\r\nYour inventory has no free slot for that item type. "
+            "Free a slot or equip a larger bag before gathering it.\r\n"
+        )
+        return True
+
     success, result = GOBLIN_SWAMP_GATHERING.gather(session.database, session.character.id, state)
     if not success:
         await session.send("\r\n" + result + "\r\n")

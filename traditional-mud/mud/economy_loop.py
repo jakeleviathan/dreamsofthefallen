@@ -405,6 +405,14 @@ async def _gather(session, target: str, skill_key: str | None = None) -> None:
         await session.send(f"{definition.name} is depleted. It should recover in about {remaining} seconds.\r\n")
         return
 
+    checker = getattr(session, "can_receive_item", None)
+    if callable(checker) and not checker(definition.output_item_key, 1):
+        await session.send(
+            "Your inventory has no free slot for that item type. "
+            "Free a slot or equip a larger bag before gathering it.\r\n"
+        )
+        return
+
     output_key = crafting.gather_node(session.database, character.id, live.state)
     live.mark_if_depleted()
     if output_key is None:

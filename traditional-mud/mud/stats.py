@@ -159,6 +159,7 @@ class EquipmentItem:
     scripted_effects: tuple[str, ...] = ()
     allowed_races: frozenset[str] = frozenset()
     allowed_classes: frozenset[str] = frozenset()
+    inventory_slots: int = 0
 
     @property
     def is_special(self) -> bool:

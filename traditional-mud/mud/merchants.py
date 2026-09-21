@@ -49,7 +49,12 @@ class MerchantDefinition:
 # This is the first authored merchant in the current room world. Future normal
 # merchants should default to uses_common_stock=True unless there is a reason
 # their inventory is deliberately unusual.
-ASHEN_WAY_CURIO_PEDDLER_MERCHANT = MerchantDefinition("ashen_way_curio_peddler")
+ASHEN_WAY_CURIO_PEDDLER_MERCHANT = MerchantDefinition(
+    "ashen_way_curio_peddler",
+    additional_stock=(
+        MerchantStockEntry("bag_blackwall_road_satchel", price_units=16),
+    ),
+)
 
 # Waymeet predates the universal merchant layer and originally traded in local
 # scrip. Its static market NPCs now participate in the same Sol economy while
@@ -69,6 +74,7 @@ WAYMEET_SEVRA_MERCHANT = MerchantDefinition(
     additional_stock=(
         MerchantStockEntry("iron_ingot", price_units=8),
         MerchantStockEntry("cotton_thread", price_units=8),
+        MerchantStockEntry("bag_waymeet_caravan_pack", price_units=45),
     ),
     uses_common_stock=False,
 )
@@ -82,6 +88,7 @@ GOBLIN_BRASSGUT_MERCHANT = MerchantDefinition(
         MerchantStockEntry("coal", price_units=4),
         MerchantStockEntry("raw_cotton", price_units=4),
         MerchantStockEntry("bone_chips", price_units=3),
+        MerchantStockEntry("bag_brassgut_salvage_sack", price_units=12),
     ),
 )
 
@@ -91,6 +98,7 @@ UNDEAD_CHISEL_MERCHANT = MerchantDefinition(
         MerchantStockEntry("bone_chips", price_units=3),
         MerchantStockEntry("iron_ore", price_units=4),
         MerchantStockEntry("coal", price_units=4),
+        MerchantStockEntry("bag_gravecloth_courier_bag", price_units=32),
     ),
 )
 
@@ -103,30 +111,35 @@ REGIONAL_STARTER_MERCHANTS: tuple[MerchantDefinition, ...] = (
         MerchantStockEntry("bitterroot", price_units=6),
         MerchantStockEntry("spring_water", price_units=3),
         MerchantStockEntry("lavender_blossom", price_units=10),
+        MerchantStockEntry("bag_greenway_forager_pack", price_units=16),
     )),
     MerchantDefinition("moon_elf_lantern_trader", additional_stock=(
         MerchantStockEntry("lavender_blossom", price_units=5),
         MerchantStockEntry("spring_water", price_units=8),
         MerchantStockEntry("moonflax_fiber", price_units=10),
         MerchantStockEntry("moonsilver_ore", price_units=20),
+        MerchantStockEntry("bag_moonstep_travelers_bag", price_units=32),
     )),
     MerchantDefinition("dwarf_toolwright_bram", additional_stock=(
         MerchantStockEntry("coal", price_units=8),
         MerchantStockEntry("iron_ingot", price_units=20),
         MerchantStockEntry("steel_ingot", price_units=30),
         MerchantStockEntry("cobalt_ingot", price_units=50),
+        MerchantStockEntry("bag_chainmark_tool_pack", price_units=24),
     )),
     MerchantDefinition("troll_provisioner_yrsa", additional_stock=(
         MerchantStockEntry("spring_water", price_units=3),
         MerchantStockEntry("raw_wool", price_units=6),
         MerchantStockEntry("starter_weapon", price_units=15),
         MerchantStockEntry("greenleaf", price_units=20),
+        MerchantStockEntry("bag_frostroot_hide_pack", price_units=24),
     )),
     MerchantDefinition("sporekin_tender_murr", additional_stock=(
         MerchantStockEntry("greenleaf", price_units=2),
         MerchantStockEntry("bitterroot", price_units=7),
         MerchantStockEntry("spring_water", price_units=10),
         MerchantStockEntry("ghostmoss_fiber", price_units=30),
+        MerchantStockEntry("bag_lumen_sporewoven_pack", price_units=32),
     )),
 )
 

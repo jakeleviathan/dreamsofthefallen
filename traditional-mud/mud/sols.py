@@ -374,6 +374,14 @@ async def _buy(session, target: str) -> bool:
         )
         return True
 
+    checker = getattr(session, "can_receive_item", None)
+    if callable(checker) and not checker(stock.item_key, quantity):
+        await session.send(
+            "Your inventory has no free slot for that item type. "
+            "Free a slot or equip a larger bag first.\r\n"
+        )
+        return True
+
     if not session.database.complete_merchant_purchase(
         session.character.id,
         item_key=stock.item_key,
