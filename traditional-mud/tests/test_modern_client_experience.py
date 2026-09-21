@@ -279,6 +279,13 @@ class ModernClientExperienceTests(unittest.TestCase):
             )
             payloads = {package: payload for package, payload in session.telnet.messages}
             self.assertEqual(payloads["Room.Info"]["num"], stable_room_number("human_demon_gate"))
+            reflection_features = [
+                feature
+                for feature in payloads["Dreams.Room"]["features"]
+                if str(feature.get("key", "")).startswith("reflection:")
+            ]
+            self.assertTrue(reflection_features)
+            self.assertTrue(any(feature.get("can_use") for feature in reflection_features))
             self.assertTrue(payloads["Dreams.Abilities"]["abilities"])
             self.assertTrue(
                 any(
