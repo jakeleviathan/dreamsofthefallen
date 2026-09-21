@@ -342,6 +342,169 @@ def _sync_discoveries(session) -> None:
                 _ensure_instances_for_inventory(session.database, session.character.id, key)
 
 
+def style_atelier_available(world_service, room_key: str) -> bool:
+    """Return whether one of Pavo's mysteriously ubiquitous atelier counters is here."""
+    if not room_key:
+        return False
+    if room_key in _ATELIER_FIXED_ROOMS:
+        return True
+    scene = world_service.scene(room_key) if world_service is not None else None
+    if scene is None:
+        return False
+    tags = {str(tag).strip().lower() for tag in getattr(scene, "tags", ())}
+    if tags & _ATELIER_TAGS:
+        return True
+    name = str(getattr(scene, "name", "") or "").lower()
+    return any(marker in name for marker in _ATELIER_NAME_MARKERS)
+
+
+def _is_pavo_target(target: str) -> bool:
+    wanted = _normalize(target)
+    return wanted in {
+        "pavo",
+        "pavo vellum",
+        "vellum",
+        "master vellum",
+        "master of appearances",
+        "stylist",
+        "atelier master",
+    }
+
+
+def _copy_token(copy_id: int) -> str:
+    return f"{COPIED_STYLE_PREFIX}{int(copy_id)}"
+
+
+def _copy_id(style_key: str) -> int | None:
+    if not style_key.startswith(COPIED_STYLE_PREFIX):
+        return None
+    value = style_key[len(COPIED_STYLE_PREFIX):]
+    return int(value) if value.isdigit() else None
+
+
+def _copied_style_rows(database, character_id: int):
+    ensure_style_schema(database)
+    with database.connect() as db:
+        return db.execute(
+            """
+            SELECT id, source_item_key, source_name, source_description,
+                   source_equipment_slot, copied_by, copied_at
+            FROM character_style_copies
+            WHERE character_id = ?
+            ORDER BY source_name COLLATE NOCASE, id
+            """,
+            (character_id,),
+        ).fetchall()
+
+
+def _copied_style_row(database, character_id: int, style_key: str):
+    copy_id = _copy_id(style_key)
+    if copy_id is None:
+        return None
+    ensure_style_schema(database)
+    with database.connect() as db:
+        return db.execute(
+            """
+            SELECT id, source_item_key, source_name, source_description,
+                   source_equipment_slot, copied_by, copied_at
+            FROM character_style_copies
+            WHERE id = ? AND character_id = ?
+            """,
+            (copy_id, character_id),
+        ).fetchone()
+
+
+def _style_slot_from_equipment_slot(slot: str) -> str:
+    try:
+        normalized = normalize_slot(slot)
+    except ValueError:
+        return "accessory"
+    return normalized if normalized in STYLE_SLOTS else "accessory"
+
+
+def _resolve_style_slot(value: str) -> str | None:
+    wanted = _normalize(value)
+    for slot in STYLE_SLOTS:
+        if wanted in {_normalize(slot), _normalize(STYLE_SLOT_LABELS[slot])}:
+            return slot
+    return None
+
+
+def _style_entry(database, character_id: int, style_key: str) -> dict | None:
+    meta = STYLE_META_BY_KEY.get(style_key)
+    if meta is not None:
+        return {
+            "key": style_key,
+            "name": _item_name(style_key),
+            "description": crafting.ITEMS_BY_KEY[style_key].description,
+            "rarity": meta.rarity,
+            "house": meta.house,
+            "collection": meta.collection,
+            "default_slot": meta.style_slot,
+            "source_kind": "fashion",
+            "source_item_key": style_key,
+        }
+
+    row = _copied_style_row(database, character_id, style_key)
+    if row is None:
+        return None
+    return {
+        "key": style_key,
+        "name": str(row["source_name"]),
+        "description": str(row["source_description"]),
+        "rarity": "copied",
+        "house": PAVO_ATELIER_NAME,
+        "collection": "Copied Looks",
+        "default_slot": _style_slot_from_equipment_slot(str(row["source_equipment_slot"])),
+        "source_kind": "copied",
+        "source_item_key": str(row["source_item_key"]),
+    }
+
+
+def _style_copy_cost(definition: ItemDefinition) -> int:
+    return STYLE_COPY_BASE_COST_SPARKS + max(0, int(definition.tier)) * STYLE_COPY_TIER_COST_SPARKS
+
+
+def _eligible_equipment_matches(session, target: str) -> list[ItemDefinition]:
+    if session.character is None:
+        return []
+    wanted = _normalize(target)
+    exact: list[ItemDefinition] = []
+    partial: list[ItemDefinition] = []
+    for row in session.database.list_items(session.character.id):
+        if int(row["quantity"]) <= 0:
+            continue
+        key = str(row["item_key"])
+        definition = crafting.ITEMS_BY_KEY.get(key)
+        if definition is None or definition.equipment is None:
+            continue
+        names = {_normalize(definition.key), _normalize(definition.name)}
+        if wanted in names:
+            exact.append(definition)
+        elif any(wanted in name for name in names):
+            partial.append(definition)
+    unique = {item.key: item for item in (exact or partial)}
+    return list(unique.values())
+
+
+def _split_target_and_style_slot(target: str) -> tuple[str, str | None, str | None]:
+    raw = target.strip()
+    lowered = raw.lower()
+    marker = lowered.rfind(" as ")
+    if marker < 0:
+        return raw, None, None
+    item_target = raw[:marker].strip()
+    slot_text = raw[marker + 4:].strip()
+    slot = _resolve_style_slot(slot_text)
+    if slot is None:
+        return item_target, None, (
+            "Unknown style slot. Choose: "
+            + ", ".join(STYLE_SLOT_LABELS[value] for value in STYLE_SLOTS)
+            + "."
+        )
+    return item_target, slot, None
+
+
 def _worn_style(database, character_id: int) -> dict[str, str]:
     ensure_style_schema(database)
     with database.connect() as db:
@@ -352,14 +515,21 @@ def _worn_style(database, character_id: int) -> dict[str, str]:
     result: dict[str, str] = {}
     for row in rows:
         slot = str(row["slot_key"])
-        item_key = str(row["item_key"])
-        if database.item_quantity(character_id, item_key) <= 0 or item_key not in STYLE_META_BY_KEY:
+        style_key = str(row["item_key"])
+        valid = False
+        if style_key in STYLE_META_BY_KEY:
+            valid = database.item_quantity(character_id, style_key) > 0
+        elif _copy_id(style_key) is not None:
+            valid = _copied_style_row(database, character_id, style_key) is not None
+        if slot not in STYLE_SLOTS or not valid:
             with database.connect() as db:
-                db.execute("DELETE FROM character_style_slots WHERE character_id = ? AND slot_key = ?", (character_id, slot))
+                db.execute(
+                    "DELETE FROM character_style_slots WHERE character_id = ? AND slot_key = ?",
+                    (character_id, slot),
+                )
             continue
-        result[slot] = item_key
+        result[slot] = style_key
     return result
-
 
 def _is_style_worn(database, character_id: int, item_key: str) -> bool:
     return item_key in _worn_style(database, character_id).values()
@@ -371,6 +541,7 @@ def _resolve_owned_style(session, target: str) -> tuple[str | None, str | None]:
     wanted = _normalize(target)
     exact: list[str] = []
     partial: list[str] = []
+
     for row in session.database.list_items(session.character.id):
         key = str(row["item_key"])
         if key not in STYLE_META_BY_KEY or int(row["quantity"]) <= 0:
@@ -380,13 +551,29 @@ def _resolve_owned_style(session, target: str) -> tuple[str | None, str | None]:
             exact.append(key)
         elif any(wanted in name for name in names):
             partial.append(key)
+
+    for row in _copied_style_rows(session.database, session.character.id):
+        key = _copy_token(int(row["id"]))
+        names = {
+            _normalize(str(row["source_item_key"])),
+            _normalize(str(row["source_name"])),
+            _normalize("copied " + str(row["source_name"])),
+        }
+        if wanted in names:
+            exact.append(key)
+        elif any(wanted in name for name in names):
+            partial.append(key)
+
     matches = tuple(dict.fromkeys(exact or partial))
     if not matches:
-        return None, "You do not own a fashion piece by that name."
+        return None, "You do not own a fashion piece or copied look by that name."
     if len(matches) > 1:
-        return None, "Be more specific: " + ", ".join(_item_name(key) for key in matches) + "."
+        names = [
+            (_style_entry(session.database, session.character.id, key) or {"name": key})["name"]
+            for key in matches
+        ]
+        return None, "Be more specific: " + ", ".join(names) + "."
     return matches[0], None
-
 
 def _resolve_owned_fragrance(session, target: str) -> tuple[str | None, str | None]:
     if session.character is None:
