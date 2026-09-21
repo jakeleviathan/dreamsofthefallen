@@ -144,17 +144,116 @@ def validate_choice(race_key: str, trait_key: str, choice: str) -> tuple[bool, s
 
 
 def _detail_phrases(race_key: str, appearance: dict[str, str]) -> list[str]:
-    traits = {trait.key: trait for trait in traits_for_race(race_key)}
     phrases: list[str] = []
-    for key, value in appearance.items():
-        trait = traits.get(key)
-        if trait is None:
-            continue
-        if value == "none":
-            continue
-        phrases.append(f"{trait.label.lower()} {value}")
-    return phrases
+    handled: set[str] = set()
 
+    if "build" in appearance:
+        phrases.append(f"a {appearance['build']} build")
+        handled.add("build")
+    if "frame" in appearance:
+        phrases.append(f"a {appearance['frame']} skeletal frame")
+        handled.add("frame")
+    if "stature" in appearance:
+        phrases.append(f"{appearance['stature']} stature")
+        handled.add("stature")
+    if "body_shape" in appearance:
+        phrases.append(f"a {appearance['body_shape']} body")
+        handled.add("body_shape")
+    if "complexion" in appearance:
+        phrases.append(f"a {appearance['complexion']} complexion")
+        handled.add("complexion")
+    if "skin_tone" in appearance:
+        phrases.append(f"{appearance['skin_tone']} skin")
+        handled.add("skin_tone")
+
+    hair_style = appearance.get("hair_style")
+    hair_color = appearance.get("hair_color")
+    if hair_style is not None:
+        hair = f"{hair_style} {hair_color} hair" if hair_color is not None else f"{hair_style} hair"
+        phrases.append(hair)
+        handled.add("hair_style")
+        if hair_color is not None:
+            handled.add("hair_color")
+    elif hair_color is not None and race_key != "dwarf":
+        phrases.append(f"{hair_color} hair")
+        handled.add("hair_color")
+
+    beard_style = appearance.get("beard_style")
+    if beard_style is not None:
+        if beard_style == "clean-shaven":
+            phrases.append("a clean-shaven face")
+        else:
+            color = appearance.get("hair_color")
+            phrases.append(f"a {beard_style} {color} beard" if color else f"a {beard_style} beard")
+        handled.add("beard_style")
+        if "hair_color" in appearance:
+            handled.add("hair_color")
+    beard_adornment = appearance.get("beard_adornment")
+    if beard_adornment and beard_adornment != "none" and beard_style != "clean-shaven":
+        phrases.append(f"{beard_adornment} worked into the beard")
+        handled.add("beard_adornment")
+
+    if "eye_color" in appearance:
+        phrases.append(f"{appearance['eye_color']} eyes")
+        handled.add("eye_color")
+    if "ear_style" in appearance:
+        phrases.append(f"{appearance['ear_style']} ears")
+        handled.add("ear_style")
+    if "nose_shape" in appearance:
+        phrases.append(f"a {appearance['nose_shape']} nose")
+        handled.add("nose_shape")
+    if "teeth" in appearance:
+        phrases.append(f"{appearance['teeth']} teeth")
+        handled.add("teeth")
+    if "tusks" in appearance and appearance["tusks"] != "none":
+        phrases.append(f"{appearance['tusks']} tusks")
+        handled.add("tusks")
+    if "scars" in appearance and appearance["scars"] != "none":
+        phrases.append(appearance["scars"])
+        handled.add("scars")
+
+    if "skeletal_state" in appearance:
+        phrases.append(appearance["skeletal_state"])
+        handled.add("skeletal_state")
+    if "eye_glow" in appearance and appearance["eye_glow"] != "none":
+        phrases.append(f"{appearance['eye_glow']} light in the eye sockets")
+        handled.add("eye_glow")
+    if "bone_finish" in appearance:
+        phrases.append(f"{appearance['bone_finish']} bones")
+        handled.add("bone_finish")
+    if "damage_marks" in appearance and appearance["damage_marks"] != "none":
+        phrases.append(appearance["damage_marks"])
+        handled.add("damage_marks")
+
+    cap_shape = appearance.get("cap_shape")
+    cap_pattern = appearance.get("cap_pattern")
+    cap_color = appearance.get("cap_color")
+    if cap_shape is not None:
+        cap_bits = [value for value in (cap_color, cap_pattern, cap_shape) if value]
+        phrases.append("a " + " ".join(cap_bits) + " cap")
+        handled.update({"cap_shape", "cap_pattern", "cap_color"})
+    if "glow" in appearance and appearance["glow"] != "none":
+        phrases.append(f"a {appearance['glow']} bioluminescent glow")
+        handled.add("glow")
+    if "surface_texture" in appearance:
+        phrases.append(f"a {appearance['surface_texture']} surface")
+        handled.add("surface_texture")
+
+    if "lunar_marking" in appearance and appearance["lunar_marking"] != "none":
+        phrases.append(f"a {appearance['lunar_marking']}")
+        handled.add("lunar_marking")
+    if "adornment" in appearance and appearance["adornment"] != "none":
+        phrases.append(f"{appearance['adornment']} as adornment")
+        handled.add("adornment")
+
+    traits = {trait.key: trait for trait in traits_for_race(race_key)}
+    for key, value in appearance.items():
+        if key in handled or value == "none":
+            continue
+        trait = traits.get(key)
+        if trait is not None:
+            phrases.append(f"{trait.label.lower()} {value}")
+    return phrases
 
 def appearance_description(character_name: str, race_key: str, stored: dict[str, str]) -> str:
     appearance = normalized_appearance(race_key, stored)
