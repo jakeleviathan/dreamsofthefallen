@@ -1,5 +1,5 @@
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.10
+-- Version 2.2.11
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -7,7 +7,7 @@
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.10"
+H.version = "2.2.11"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -28,7 +28,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.10"
+local MODERN_UI_VERSION = "2.2.11"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -896,18 +896,22 @@ function H.renderCrafting()
   local craft = H.state.crafting or { active = false }
   if not craft.active then return false end
 
-  local item = escape(truncate(craft.item or "something", 30))
+  local itemRaw = tostring(craft.item or "Unknown item")
+  local item = escape(truncate(itemRaw, 38))
   local percent = math.max(0, math.min(100, tonumber(craft.percent) or 0))
   local remaining = math.max(0, tonumber(craft.remaining) or 0)
   local bar = craftingBar(percent)
   H.onboarding:echo(
-    "<span style='color:#dfc18c'><b>CRAFTING</b></span>  " ..
-    item ..
-    "  <span style='color:#b69772'><b>" .. bar .. "</b></span>  " ..
-    tostring(math.floor(percent + 0.5)) .. "%  •  " ..
+    "<span style='color:#fff0c9;font-size:11pt'><b>" .. item .. "</b></span>  " ..
+    "<span style='color:#94889a;font-size:8pt'>CRAFTING</span>  " ..
+    "<span style='color:#b69772'><b>" .. bar .. "</b></span>  " ..
+    "<span style='color:#e8dfd1'><b>" .. tostring(math.floor(percent + 0.5)) .. "%</b></span>  •  " ..
     string.format("%.1fs", remaining)
   )
-  setTooltip(H.onboarding, "Movement or damage interrupts this craft without consuming materials.")
+  setTooltip(
+    H.onboarding,
+    "Crafting " .. itemRaw .. "\nMovement or damage interrupts this craft without consuming materials."
+  )
   return true
 end
 
@@ -1006,14 +1010,16 @@ function H.onCraftingModern()
 
   if not H.modernBuilt or not H.onboarding then return end
   local status = tostring(data.status or "")
-  local item = escape(truncate(data.item or "craft", 30))
+  local itemRaw = tostring(data.item or "craft")
+  local item = escape(truncate(itemRaw, 38))
+  local itemLead = "<span style='color:#fff0c9;font-size:11pt'><b>" .. item .. "</b></span>  "
   local message = nil
   if status == "complete" then
-    message = "<span style='color:#a9d39f'><b>CRAFT COMPLETE</b></span>  " .. item
+    message = itemLead .. "<span style='color:#a9d39f'><b>CRAFT COMPLETE</b></span>"
   elseif status == "failed" then
-    message = "<span style='color:#d7a17a'><b>CRAFT FAILED</b></span>  " .. item
+    message = itemLead .. "<span style='color:#d7a17a'><b>CRAFT FAILED</b></span>"
   elseif status == "interrupted" then
-    message = "<span style='color:#cf8e98'><b>CRAFT INTERRUPTED</b></span>  " .. item
+    message = itemLead .. "<span style='color:#cf8e98'><b>CRAFT INTERRUPTED</b></span>"
   end
 
   if not message then
