@@ -968,6 +968,8 @@ async def _show_live_stats(session) -> None:
     total = session.character.stats.plus(bonus)
     race = RACES_BY_KEY.get(session.character.race or "")
     character_class = CLASSES_BY_KEY.get(session.character.character_class or "")
+    from mud.inventory_capacity import inventory_capacity_status
+    carried_slots, carry_capacity = inventory_capacity_status(session.database, session.character.id)
     await session.send(
         f"\r\nName : {session.character.name}\r\n"
         f"Race : {race.name if race else session.character.race}\r\n"
@@ -980,14 +982,8 @@ async def _show_live_stats(session) -> None:
         + f"Level: {session.character.level}\r\n"
         f"XP   : {session.character.experience}\r\n"
         f"Sols : {format_sols(session.database.get_sols(session.character.id))}\r\n"
-        + (
-            (lambda status: f"Carry: {status[0]} / {status[1]} inventory slots\r\n")(
-                __import__("mud.inventory_capacity", fromlist=["inventory_capacity_status"]).inventory_capacity_status(
-                    session.database, session.character.id
-                )
-            )
-        )
-        + f"Next : {PROGRESSION_RULES.cumulative_xp_for_level(session.character.level + 1)} total XP\r\n"
+        f"Carry: {carried_slots} / {carry_capacity} inventory slots\r\n"
+        f"Next : {PROGRESSION_RULES.cumulative_xp_for_level(session.character.level + 1)} total XP\r\n"
         "\r\n--- Stats (base + equipment = total) ---\r\n"
         f"Might: {session.character.might} {bonus.might:+d} = {total.might}\r\n"
         f"Grace: {session.character.grace} {bonus.grace:+d} = {total.grace}\r\n"
