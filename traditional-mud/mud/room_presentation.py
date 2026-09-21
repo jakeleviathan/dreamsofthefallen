@@ -29,6 +29,12 @@ from mud.movement_system import install_movement_runtime
 from mud.partial_target_matching import install_partial_target_matching_runtime
 from mud.quest_experience import install_quest_experience_runtime
 from mud.room_engine import PlayerRoomContext
+from mud.style_collectibles import (
+    PAVO_ATELIER_NAME,
+    PAVO_NAME,
+    PAVO_SHORT_DESCRIPTION,
+    style_atelier_available,
+)
 from mud.world import NPCS_BY_KEY
 
 
@@ -114,6 +120,7 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
 
     has_puddle = puddle_available(view.key, scene.region_key, world_service.state)
     business = HUMAN_DISTRICT.business_in_room(view.key)
+    has_style_atelier = style_atelier_available(world_service, view.key)
 
     notable: list[str] = []
     for feature in view.features:
@@ -129,6 +136,11 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         notable.append(
             f"  {_paint(BUSINESS, business.name)} - {business.storefront_description}"
         )
+    if has_style_atelier:
+        notable.append(
+            f"  {_paint(BUSINESS, PAVO_ATELIER_NAME)} - mirrors, draped garment forms, "
+            "and a brass placard offering permanent STYLE COPY service"
+        )
 
     if notable:
         lines.extend(["", _section_header("Notable", FEATURE), *notable])
@@ -140,6 +152,8 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         npc = NPCS_BY_KEY.get(npc_key)
         if npc is not None:
             people.append(f"  {_paint(NPC, npc.name)} - {npc.short_description}")
+    if has_style_atelier:
+        people.append(f"  {_paint(NPC, PAVO_NAME)} - {PAVO_SHORT_DESCRIPTION}")
 
     mobile_npcs = getattr(session, "mobile_npcs", None)
     if mobile_npcs is not None:

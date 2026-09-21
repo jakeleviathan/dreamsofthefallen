@@ -12,7 +12,7 @@ from mud.astralis_time import ASTRALIS_CLOCK
 from mud.character_options import CLASSES_BY_KEY, RACES_BY_KEY
 from mud.crafting import ItemDefinition
 from mud.database import Database
-from mud.equipment_system import equipped_definitions
+from mud.equipment_system import equipped_definitions, normalize_slot
 from mud.gloamworks_dungeon import BURIED_REGENT_KEY
 from mud.gravewatch_keep import CASTELLAN_KEY
 from mud.party_system import _party_sessions_here
@@ -21,16 +21,57 @@ from mud.veyra_city import VEYRA_BRASSMARKET_KEY
 from mud.veyra_underclock import GOVERNOR_KEY
 from mud.waymeet_adventure_arc import LISTENER_BELOW
 from mud.sols import format_sols
+from mud.starter_race_loops import STARTER_RACE_LOOPS
 from mud.waymeet_frontier import WAYMEET_LANTERN_MARKET_KEY
 
 
-STYLE_VERSION = "1.0.0"
+STYLE_VERSION = "2.0.0"
 RARITY_ORDER = ("common", "uncommon", "rare", "epic", "legendary")
+# Style is a visual layer independent of combat equipment. Pavo's copied looks
+# can use every traditional fashion slot plus the two visible hand slots, so a
+# favorite weapon or shield silhouette can remain visible over stronger gear.
 STYLE_SLOTS = (
     "head", "face", "neck", "shoulders", "chest", "hands",
     "waist", "legs", "feet", "back", "jewelry", "accessory",
+    "main_hand", "off_hand",
 )
-STYLE_SLOT_LABELS = {slot: slot.replace("_", " ").title() for slot in STYLE_SLOTS}
+STYLE_SLOT_LABELS = {
+    **{slot: slot.replace("_", " ").title() for slot in STYLE_SLOTS},
+    "main_hand": "Main Hand",
+    "off_hand": "Off Hand",
+}
+
+PAVO_NAME = "Pavo Vellum"
+PAVO_TITLE = "Master of Appearances"
+PAVO_ATELIER_NAME = "Pavo's Impossible Atelier"
+PAVO_SHORT_DESCRIPTION = (
+    "an impeccably dressed, aggressively theatrical stylist surrounded by mirrors, "
+    "measuring tape, garment forms, and entirely too much confidence"
+)
+STYLE_COPY_BASE_COST_SPARKS = 10
+STYLE_COPY_TIER_COST_SPARKS = 5
+COPIED_STYLE_PREFIX = "copy:"
+
+_ATELIER_FIXED_ROOMS = frozenset(
+    {loop.starting_room_key for loop in STARTER_RACE_LOOPS}
+    | {VEYRA_BRASSMARKET_KEY, WAYMEET_LANTERN_MARKET_KEY}
+)
+_ATELIER_TAGS = frozenset({
+    "market", "merchant", "social_hub", "meeting_place", "trade", "bureaucracy",
+    "civic_work", "rail_hub", "commonhouse", "wayhouse",
+})
+_ATELIER_NAME_MARKERS = (
+    "market", "plaza", "concourse", "commonhouse", "wayhouse", "terminal",
+    "registry", "exchange", "guildhall", "bath", "inn", "tavern",
+)
+
+PAVO_DIALOGUE = (
+    "\"Armor is for surviving, darling. Style is for being remembered. We can do both.\"",
+    "\"Yes, you saw me in another city. No, we are not wasting good daylight on logistics.\"",
+    "\"There is only one atelier,\" Pavo says. \"It simply has an unreasonable number of front doors.\"",
+    "\"I do not destroy the garment. I preserve the idea of it. Much more civilized.\"",
+    "\"Bring me something with a silhouette worth saving and enough Sols to prove you mean it.\"",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,6 +248,22 @@ def ensure_style_schema(database) -> None:
                 FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS character_style_copies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                character_id INTEGER NOT NULL,
+                source_item_key TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                source_description TEXT NOT NULL,
+                source_equipment_slot TEXT NOT NULL,
+                copied_by TEXT NOT NULL DEFAULT 'Pavo Vellum',
+                copied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(character_id, source_item_key),
+                FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_character_style_copies_character
+            ON character_style_copies(character_id);
+
             CREATE TABLE IF NOT EXISTS character_fragrance_effects (
                 character_id INTEGER PRIMARY KEY,
                 fragrance_key TEXT NOT NULL,
@@ -286,6 +343,177 @@ def _sync_discoveries(session) -> None:
                 _ensure_instances_for_inventory(session.database, session.character.id, key)
 
 
+def style_atelier_available(world_service, room_key: str) -> bool:
+    """Return whether one of Pavo's mysteriously ubiquitous atelier counters is here."""
+    if not room_key:
+        return False
+    if room_key in _ATELIER_FIXED_ROOMS:
+        return True
+    if world_service is None:
+        return False
+
+    scene_getter = getattr(world_service, "scene", None)
+    if callable(scene_getter):
+        room = scene_getter(room_key)
+    else:
+        room = getattr(world_service, "legacy_rooms", {}).get(room_key)
+    if room is None:
+        return False
+
+    tags = {str(tag).strip().lower() for tag in getattr(room, "tags", ())}
+    if tags & _ATELIER_TAGS:
+        return True
+    name = str(getattr(room, "name", "") or "").lower()
+    return any(marker in name for marker in _ATELIER_NAME_MARKERS)
+
+
+def _is_pavo_target(target: str) -> bool:
+    wanted = _normalize(target)
+    return wanted in {
+        "pavo",
+        "pavo vellum",
+        "vellum",
+        "master vellum",
+        "master of appearances",
+        "stylist",
+        "atelier master",
+    }
+
+
+def _copy_token(copy_id: int) -> str:
+    return f"{COPIED_STYLE_PREFIX}{int(copy_id)}"
+
+
+def _copy_id(style_key: str) -> int | None:
+    if not style_key.startswith(COPIED_STYLE_PREFIX):
+        return None
+    value = style_key[len(COPIED_STYLE_PREFIX):]
+    return int(value) if value.isdigit() else None
+
+
+def _copied_style_rows(database, character_id: int):
+    ensure_style_schema(database)
+    with database.connect() as db:
+        return db.execute(
+            """
+            SELECT id, source_item_key, source_name, source_description,
+                   source_equipment_slot, copied_by, copied_at
+            FROM character_style_copies
+            WHERE character_id = ?
+            ORDER BY source_name COLLATE NOCASE, id
+            """,
+            (character_id,),
+        ).fetchall()
+
+
+def _copied_style_row(database, character_id: int, style_key: str):
+    copy_id = _copy_id(style_key)
+    if copy_id is None:
+        return None
+    ensure_style_schema(database)
+    with database.connect() as db:
+        return db.execute(
+            """
+            SELECT id, source_item_key, source_name, source_description,
+                   source_equipment_slot, copied_by, copied_at
+            FROM character_style_copies
+            WHERE id = ? AND character_id = ?
+            """,
+            (copy_id, character_id),
+        ).fetchone()
+
+
+def _style_slot_from_equipment_slot(slot: str) -> str:
+    try:
+        normalized = normalize_slot(slot)
+    except ValueError:
+        return "accessory"
+    return normalized if normalized in STYLE_SLOTS else "accessory"
+
+
+def _resolve_style_slot(value: str) -> str | None:
+    wanted = _normalize(value)
+    for slot in STYLE_SLOTS:
+        if wanted in {_normalize(slot), _normalize(STYLE_SLOT_LABELS[slot])}:
+            return slot
+    return None
+
+
+def _style_entry(database, character_id: int, style_key: str) -> dict | None:
+    meta = STYLE_META_BY_KEY.get(style_key)
+    if meta is not None:
+        return {
+            "key": style_key,
+            "name": _item_name(style_key),
+            "description": crafting.ITEMS_BY_KEY[style_key].description,
+            "rarity": meta.rarity,
+            "house": meta.house,
+            "collection": meta.collection,
+            "default_slot": meta.style_slot,
+            "source_kind": "fashion",
+            "source_item_key": style_key,
+        }
+
+    row = _copied_style_row(database, character_id, style_key)
+    if row is None:
+        return None
+    return {
+        "key": style_key,
+        "name": str(row["source_name"]),
+        "description": str(row["source_description"]),
+        "rarity": "copied",
+        "house": PAVO_ATELIER_NAME,
+        "collection": "Copied Looks",
+        "default_slot": _style_slot_from_equipment_slot(str(row["source_equipment_slot"])),
+        "source_kind": "copied",
+        "source_item_key": str(row["source_item_key"]),
+    }
+
+
+def _style_copy_cost(definition: ItemDefinition) -> int:
+    return STYLE_COPY_BASE_COST_SPARKS + max(0, int(definition.tier)) * STYLE_COPY_TIER_COST_SPARKS
+
+
+def _eligible_equipment_matches(session, target: str) -> list[ItemDefinition]:
+    if session.character is None:
+        return []
+    wanted = _normalize(target)
+    exact: list[ItemDefinition] = []
+    partial: list[ItemDefinition] = []
+    for row in session.database.list_items(session.character.id):
+        if int(row["quantity"]) <= 0:
+            continue
+        key = str(row["item_key"])
+        definition = crafting.ITEMS_BY_KEY.get(key)
+        if definition is None or definition.equipment is None:
+            continue
+        names = {_normalize(definition.key), _normalize(definition.name)}
+        if wanted in names:
+            exact.append(definition)
+        elif any(wanted in name for name in names):
+            partial.append(definition)
+    unique = {item.key: item for item in (exact or partial)}
+    return list(unique.values())
+
+
+def _split_target_and_style_slot(target: str) -> tuple[str, str | None, str | None]:
+    raw = target.strip()
+    lowered = raw.lower()
+    marker = lowered.rfind(" as ")
+    if marker < 0:
+        return raw, None, None
+    item_target = raw[:marker].strip()
+    slot_text = raw[marker + 4:].strip()
+    slot = _resolve_style_slot(slot_text)
+    if slot is None:
+        return item_target, None, (
+            "Unknown style slot. Choose: "
+            + ", ".join(STYLE_SLOT_LABELS[value] for value in STYLE_SLOTS)
+            + "."
+        )
+    return item_target, slot, None
+
+
 def _worn_style(database, character_id: int) -> dict[str, str]:
     ensure_style_schema(database)
     with database.connect() as db:
@@ -296,14 +524,21 @@ def _worn_style(database, character_id: int) -> dict[str, str]:
     result: dict[str, str] = {}
     for row in rows:
         slot = str(row["slot_key"])
-        item_key = str(row["item_key"])
-        if database.item_quantity(character_id, item_key) <= 0 or item_key not in STYLE_META_BY_KEY:
+        style_key = str(row["item_key"])
+        valid = False
+        if style_key in STYLE_META_BY_KEY:
+            valid = database.item_quantity(character_id, style_key) > 0
+        elif _copy_id(style_key) is not None:
+            valid = _copied_style_row(database, character_id, style_key) is not None
+        if slot not in STYLE_SLOTS or not valid:
             with database.connect() as db:
-                db.execute("DELETE FROM character_style_slots WHERE character_id = ? AND slot_key = ?", (character_id, slot))
+                db.execute(
+                    "DELETE FROM character_style_slots WHERE character_id = ? AND slot_key = ?",
+                    (character_id, slot),
+                )
             continue
-        result[slot] = item_key
+        result[slot] = style_key
     return result
-
 
 def _is_style_worn(database, character_id: int, item_key: str) -> bool:
     return item_key in _worn_style(database, character_id).values()
@@ -315,6 +550,7 @@ def _resolve_owned_style(session, target: str) -> tuple[str | None, str | None]:
     wanted = _normalize(target)
     exact: list[str] = []
     partial: list[str] = []
+
     for row in session.database.list_items(session.character.id):
         key = str(row["item_key"])
         if key not in STYLE_META_BY_KEY or int(row["quantity"]) <= 0:
@@ -324,13 +560,29 @@ def _resolve_owned_style(session, target: str) -> tuple[str | None, str | None]:
             exact.append(key)
         elif any(wanted in name for name in names):
             partial.append(key)
+
+    for row in _copied_style_rows(session.database, session.character.id):
+        key = _copy_token(int(row["id"]))
+        names = {
+            _normalize(str(row["source_item_key"])),
+            _normalize(str(row["source_name"])),
+            _normalize("copied " + str(row["source_name"])),
+        }
+        if wanted in names:
+            exact.append(key)
+        elif any(wanted in name for name in names):
+            partial.append(key)
+
     matches = tuple(dict.fromkeys(exact or partial))
     if not matches:
-        return None, "You do not own a fashion piece by that name."
+        return None, "You do not own a fashion piece or copied look by that name."
     if len(matches) > 1:
-        return None, "Be more specific: " + ", ".join(_item_name(key) for key in matches) + "."
+        names = [
+            (_style_entry(session.database, session.character.id, key) or {"name": key})["name"]
+            for key in matches
+        ]
+        return None, "Be more specific: " + ", ".join(names) + "."
     return matches[0], None
-
 
 def _resolve_owned_fragrance(session, target: str) -> tuple[str | None, str | None]:
     if session.character is None:
@@ -514,20 +766,242 @@ async def _buy_boutique(session, target: str, *, fragrance: bool) -> None:
     await session.send(f"The counter wraps {_item_name(key)} carefully. You pay {format_sols(price)}.\r\n")
 
 
+async def _show_pavo(session, world_service) -> None:
+    if session.character is None:
+        return
+    if not style_atelier_available(world_service, session.character.current_room or ""):
+        await session.send(
+            "Pavo Vellum is not here. His ateliers turn up in major markets, civic hubs, wayhouses, "
+            "and, for reasons nobody can explain, every racial starting settlement.\r\n"
+        )
+        return
+    await session.send(
+        f"\r\n--- {PAVO_NAME}, {PAVO_TITLE} ---\r\n"
+        f"{PAVO_SHORT_DESCRIPTION.capitalize()}.\r\n"
+        "\"There is only one atelier,\" Pavo says, flicking open a measuring tape. "
+        "\"It simply has an unreasonable number of front doors.\"\r\n"
+        "He can preserve the visible design of any ordinary piece of equipment as a permanent copied look. "
+        "The original item stays in your inventory, keeps all of its real stats, and can later be sold, traded, "
+        "replaced, or lost without removing the copied look from your wardrobe.\r\n"
+        "Commands: ATELIER | STYLE COPY <equipment> [AS <slot>] | STYLE WEAR <look> [AS <slot>]\r\n"
+    )
+
+
+async def _talk_pavo(session, world_service) -> None:
+    if session.character is None:
+        return
+    if not style_atelier_available(world_service, session.character.current_room or ""):
+        await session.send("Pavo Vellum is not here. Somehow, this is one of the few places where that is true.\r\n")
+        return
+    index = (session.character.id + ASTRALIS_CLOCK.now().day_number) % len(PAVO_DIALOGUE)
+    await session.send(f"\r\n{PAVO_NAME} smiles as if your arrival completed a composition.\r\n")
+    await session.send(PAVO_DIALOGUE[index] + "\r\n")
+    await session.send(
+        "Pavo taps a brass plaque: STYLE COPY <equipment> [AS <slot>]. "
+        "ATELIER lists what you are carrying and what each copy costs.\r\n"
+    )
+
+
+async def _show_atelier(session, world_service) -> None:
+    if session.character is None:
+        return
+    if not style_atelier_available(world_service, session.character.current_room or ""):
+        await session.send(
+            "There is no Impossible Atelier here. Look for Pavo Vellum in major settlements, markets, "
+            "wayhouses, exchanges, and other suspiciously convenient places.\r\n"
+        )
+        return
+
+    await session.send(f"\r\n--- {PAVO_ATELIER_NAME} ---\r\n")
+    await session.send(
+        f"{PAVO_NAME} has somehow arranged the same mirrors, plum-colored drapes, and brass measuring stand here too.\r\n"
+        "\"Do not confuse equipment with appearance,\" he says. \"One keeps you alive. The other gives witnesses useful details.\"\r\n"
+    )
+
+    copies = {
+        str(row["source_item_key"]): row
+        for row in _copied_style_rows(session.database, session.character.id)
+    }
+    equipment: list[ItemDefinition] = []
+    for row in session.database.list_items(session.character.id):
+        if int(row["quantity"]) <= 0:
+            continue
+        definition = crafting.ITEMS_BY_KEY.get(str(row["item_key"]))
+        if definition is not None and definition.equipment is not None:
+            equipment.append(definition)
+    equipment.sort(key=lambda item: (item.tier, item.name.lower()))
+
+    if not equipment:
+        await session.send("You are not carrying any ordinary equipment for Pavo to copy.\r\n")
+    else:
+        await session.send("Carried equipment eligible for a permanent style copy:\r\n")
+        for definition in equipment:
+            copied = " [ALREADY COPIED]" if definition.key in copies else ""
+            slot = _style_slot_from_equipment_slot(definition.equipment.slot)
+            await session.send(
+                f"  {definition.name} - default {STYLE_SLOT_LABELS[slot]} - "
+                f"{format_sols(_style_copy_cost(definition))}{copied}\r\n"
+            )
+
+    await session.send(
+        "\r\nSTYLE COPY <equipment> preserves only the look. The source item is not consumed and its stats are never copied.\r\n"
+        "Add AS <slot> to copy and immediately style it there. Any copied look can later override any fashion slot, "
+        "including Main Hand and Off Hand, with STYLE WEAR <look> AS <slot>.\r\n"
+    )
+
+
+async def _wear_style_key(session, style_key: str, slot: str) -> None:
+    if session.character is None:
+        return
+    entry = _style_entry(session.database, session.character.id, style_key)
+    if entry is None:
+        await session.send("That style appearance is no longer available.\r\n")
+        return
+
+    ensure_style_schema(session.database)
+    with session.database.connect() as db:
+        # One appearance occupies one style slot at a time, but the player may
+        # place it in any visual slot regardless of the source gear's real slot.
+        db.execute(
+            "DELETE FROM character_style_slots WHERE character_id = ? AND item_key = ?",
+            (session.character.id, style_key),
+        )
+        db.execute(
+            "INSERT INTO character_style_slots (character_id, slot_key, item_key) VALUES (?, ?, ?) "
+            "ON CONFLICT(character_id, slot_key) DO UPDATE SET "
+            "item_key = excluded.item_key, worn_at = CURRENT_TIMESTAMP",
+            (session.character.id, slot, style_key),
+        )
+
+    if style_key in STYLE_META_BY_KEY:
+        _mark_discovered(session.database, session.character.id, style_key)
+    source_note = "copied equipment look" if entry["source_kind"] == "copied" else "fashion piece"
+    await session.send(
+        f"You style {entry['name']} in your {STYLE_SLOT_LABELS[slot]} slot as a {source_note}. "
+        "It changes appearance, not combat stats; your practical equipment remains equipped underneath.\r\n"
+    )
+    await _send_style_gmcp(session)
+
+
+async def _copy_style_from_equipment(session, target: str, world_service) -> None:
+    if session.character is None:
+        return
+    if not style_atelier_available(world_service, session.character.current_room or ""):
+        await session.send(
+            "STYLE COPY is a Pavo Vellum service. Find one of his Impossible Atelier counters first.\r\n"
+        )
+        return
+
+    item_target, requested_slot, slot_error = _split_target_and_style_slot(target)
+    if slot_error:
+        await session.send(slot_error + "\r\n")
+        return
+    matches = _eligible_equipment_matches(session, item_target)
+    if not matches:
+        await session.send(
+            "Pavo can copy ordinary equipment you currently carry. That name does not match any carried equipment.\r\n"
+        )
+        return
+    if len(matches) > 1:
+        await session.send("Be more specific: " + ", ".join(item.name for item in matches) + ".\r\n")
+        return
+
+    definition = matches[0]
+    assert definition.equipment is not None
+    ensure_style_schema(session.database)
+
+    with session.database.connect() as db:
+        existing = db.execute(
+            "SELECT id FROM character_style_copies WHERE character_id = ? AND source_item_key = ?",
+            (session.character.id, definition.key),
+        ).fetchone()
+    if existing is not None:
+        style_key = _copy_token(int(existing["id"]))
+        await session.send(
+            f"Pavo looks wounded. \"Darling. I already preserved {definition.name}. I do excellent work once.\"\r\n"
+        )
+        if requested_slot is not None:
+            await _wear_style_key(session, style_key, requested_slot)
+        else:
+            await session.send("Use STYLE WEAR " + definition.name.upper() + " AS <slot> whenever you want that look.\r\n")
+        return
+
+    price = _style_copy_cost(definition)
+    with session.database.connect() as db:
+        db.execute("BEGIN IMMEDIATE")
+        balance = db.execute(
+            "SELECT sols FROM characters WHERE id = ?",
+            (session.character.id,),
+        ).fetchone()
+        if balance is None or int(balance["sols"]) < price:
+            await session.send(
+                f"Pavo names the fee without blinking: {format_sols(price)}. You do not have enough Sols.\r\n"
+            )
+            return
+        db.execute(
+            "UPDATE characters SET sols = sols - ? WHERE id = ?",
+            (price, session.character.id),
+        )
+        cursor = db.execute(
+            """
+            INSERT INTO character_style_copies (
+                character_id, source_item_key, source_name, source_description,
+                source_equipment_slot, copied_by
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session.character.id,
+                definition.key,
+                definition.name,
+                definition.description,
+                normalize_slot(definition.equipment.slot),
+                PAVO_NAME,
+            ),
+        )
+        copy_id = int(cursor.lastrowid)
+
+    style_key = _copy_token(copy_id)
+    await session.send(
+        f"Pavo circles {definition.name}, makes three impossible measurements, and sketches exactly one line. "
+        f"\"There. The object may someday be obsolete. The silhouette is now immortal.\"\r\n"
+        f"Style copy added permanently: {definition.name}. Fee: {format_sols(price)}. "
+        "The original item was not consumed and no stats were copied.\r\n"
+    )
+    if requested_slot is not None:
+        await _wear_style_key(session, style_key, requested_slot)
+    else:
+        default_slot = _style_slot_from_equipment_slot(definition.equipment.slot)
+        await session.send(
+            f"Default visual slot: {STYLE_SLOT_LABELS[default_slot]}. "
+            f"Use STYLE WEAR {definition.name.upper()} or STYLE WEAR {definition.name.upper()} AS <slot>.\r\n"
+        )
+    await _send_style_gmcp(session)
+
+
 async def _show_wardrobe(session) -> None:
     if session.character is None:
         return
     worn = _worn_style(session.database, session.character.id)
-    await session.send("\r\n--- Outfit ---\r\n")
+    await session.send("\r\n--- Styled Outfit ---\r\n")
     if not worn:
-        await session.send("No fashion pieces are currently styled. Your combat equipment still exists separately.\r\n")
+        await session.send(
+            "No visual overrides are currently styled. Your practical equipment remains fully active underneath.\r\n"
+        )
     else:
         for slot in STYLE_SLOTS:
             key = worn.get(slot)
-            if key:
-                meta = STYLE_META_BY_KEY[key]
-                await session.send(f"{STYLE_SLOT_LABELS[slot]:<10}: {_item_name(key)} [{meta.rarity.upper()}] - {meta.house}\r\n")
-    await session.send("\r\n--- Wardrobe You Carry ---\r\n")
+            if not key:
+                continue
+            entry = _style_entry(session.database, session.character.id, key)
+            if entry is None:
+                continue
+            tag = entry["rarity"].upper() if entry["source_kind"] == "fashion" else "COPIED LOOK"
+            await session.send(
+                f"{STYLE_SLOT_LABELS[slot]:<10}: {entry['name']} [{tag}] - {entry['house']}\r\n"
+            )
+
+    await session.send("\r\n--- Fashion Pieces You Carry ---\r\n")
     found = False
     for row in session.database.list_items(session.character.id):
         key = str(row["item_key"])
@@ -537,30 +1011,52 @@ async def _show_wardrobe(session) -> None:
         found = True
         marker = " [WORN]" if key in worn.values() else ""
         limited = " LIMITED" if meta.limited else ""
-        await session.send(f"{int(row['quantity'])}x {_item_name(key)} [{meta.rarity.upper()}{limited}] - {STYLE_SLOT_LABELS[meta.style_slot]}{marker}\r\n")
+        await session.send(
+            f"{int(row['quantity'])}x {_item_name(key)} [{meta.rarity.upper()}{limited}] - "
+            f"default {STYLE_SLOT_LABELS[meta.style_slot]}{marker}\r\n"
+        )
     if not found:
-        await session.send("No fashion pieces yet. BOUTIQUE shows ordinary designer pieces; dungeon and seasonal heritage pieces come from play.\r\n")
-    await session.send("STYLE WEAR <item> | STYLE REMOVE <slot> | LOOK <player> | COLLECTION | PROVENANCE <item>\r\n")
+        await session.send("No dedicated fashion pieces currently carried.\r\n")
+
+    await session.send("\r\n--- Copied Looks ---\r\n")
+    copies = _copied_style_rows(session.database, session.character.id)
+    if not copies:
+        await session.send(
+            f"None yet. Find {PAVO_NAME} and use STYLE COPY <equipment> to preserve ordinary gear as fashion.\r\n"
+        )
+    else:
+        for row in copies:
+            key = _copy_token(int(row["id"]))
+            marker = " [WORN]" if key in worn.values() else ""
+            default_slot = _style_slot_from_equipment_slot(str(row["source_equipment_slot"]))
+            await session.send(
+                f"{row['source_name']} [COPIED LOOK] - default {STYLE_SLOT_LABELS[default_slot]}{marker}\r\n"
+            )
+
+    await session.send(
+        "STYLE WEAR <look> [AS <slot>] | STYLE REMOVE <slot or look> | ATELIER | "
+        "LOOK <player> | COLLECTION | PROVENANCE <item>\r\n"
+    )
 
 
 async def _wear_style(session, target: str) -> None:
     if session.character is None:
         return
-    key, error = _resolve_owned_style(session, target)
+    item_target, requested_slot, slot_error = _split_target_and_style_slot(target)
+    if slot_error:
+        await session.send(slot_error + "\r\n")
+        return
+    key, error = _resolve_owned_style(session, item_target)
     if error:
         await session.send(error + "\r\n")
         return
     assert key is not None
-    meta = STYLE_META_BY_KEY[key]
-    ensure_style_schema(session.database)
-    with session.database.connect() as db:
-        db.execute(
-            "INSERT INTO character_style_slots (character_id, slot_key, item_key) VALUES (?, ?, ?) ON CONFLICT(character_id, slot_key) DO UPDATE SET item_key = excluded.item_key, worn_at = CURRENT_TIMESTAMP",
-            (session.character.id, meta.style_slot, key),
-        )
-    _mark_discovered(session.database, session.character.id, key)
-    await session.send(f"You style {_item_name(key)} in your {STYLE_SLOT_LABELS[meta.style_slot]} slot. It changes appearance, not combat stats.\r\n")
-    await _send_style_gmcp(session)
+    entry = _style_entry(session.database, session.character.id, key)
+    if entry is None:
+        await session.send("That style appearance is no longer available.\r\n")
+        return
+    slot = requested_slot or str(entry["default_slot"])
+    await _wear_style_key(session, key, slot)
 
 
 async def _remove_style(session, target: str) -> None:
@@ -568,16 +1064,40 @@ async def _remove_style(session, target: str) -> None:
         return
     wanted = _normalize(target)
     worn = _worn_style(session.database, session.character.id)
-    slot = next((slot for slot in STYLE_SLOTS if wanted in {_normalize(slot), _normalize(STYLE_SLOT_LABELS[slot])}), None)
+    slot = next(
+        (
+            slot
+            for slot in STYLE_SLOTS
+            if wanted in {_normalize(slot), _normalize(STYLE_SLOT_LABELS[slot])}
+        ),
+        None,
+    )
     if slot is None:
-        slot = next((slot for slot, key in worn.items() if wanted in {_normalize(key), _normalize(_item_name(key))}), None)
+        for candidate_slot, key in worn.items():
+            entry = _style_entry(session.database, session.character.id, key)
+            if entry is None:
+                continue
+            if wanted in {
+                _normalize(key),
+                _normalize(str(entry["name"])),
+                _normalize("copied " + str(entry["name"])),
+            }:
+                slot = candidate_slot
+                break
     if slot is None or slot not in worn:
-        await session.send("No worn fashion piece matches that slot or name.\r\n")
+        await session.send("No worn style appearance matches that slot or name.\r\n")
         return
     key = worn[slot]
+    entry = _style_entry(session.database, session.character.id, key)
     with session.database.connect() as db:
-        db.execute("DELETE FROM character_style_slots WHERE character_id = ? AND slot_key = ?", (session.character.id, slot))
-    await session.send(f"You remove {_item_name(key)} from your styled outfit.\r\n")
+        db.execute(
+            "DELETE FROM character_style_slots WHERE character_id = ? AND slot_key = ?",
+            (session.character.id, slot),
+        )
+    await session.send(
+        f"You remove {entry['name'] if entry else key} from your styled outfit. "
+        "Your practical equipment remains unchanged.\r\n"
+    )
     await _send_style_gmcp(session)
 
 
@@ -699,16 +1219,33 @@ async def _show_provenance(session, target: str) -> None:
         await session.send(error + "\r\n")
         return
     assert key is not None
+
+    copied = _copied_style_row(session.database, session.character.id, key)
+    if copied is not None:
+        await session.send(
+            f"\r\n--- Style Copy: {copied['source_name']} ---\r\n"
+            f"Copied by {copied['copied_by']} from the ordinary equipment item "
+            f"{copied['source_name']}.\r\n"
+            "This is a personal wardrobe appearance, not a physical object. It cannot be traded, "
+            "does not carry the source item's stats, and remains available even if the original gear leaves your possession.\r\n"
+        )
+        return
+
     meta = STYLE_META_BY_KEY[key]
     if not meta.provenance_track:
-        await session.send(f"{_item_name(key)} is an ordinary {meta.house} piece. Its maker and collection are known, but individual ownership is not serialized.\r\n")
+        await session.send(
+            f"{_item_name(key)} is an ordinary {meta.house} piece. Its maker and collection are known, "
+            "but individual ownership is not serialized.\r\n"
+        )
         return
     _ensure_instances_for_inventory(session.database, session.character.id, key)
     instances = _owned_instances(session.database, session.character.id, key)
     await session.send(f"\r\n--- Provenance: {_item_name(key)} ---\r\n")
     with session.database.connect() as db:
         for instance in instances:
-            await session.send(f"Serial {instance['serial']} - origin Day {instance['created_day']}: {instance['origin_text']}\r\n")
+            await session.send(
+                f"Serial {instance['serial']} - origin Day {instance['created_day']}: {instance['origin_text']}\r\n"
+            )
             history = db.execute(
                 """
                 SELECT h.astralis_day, h.action, h.note,
@@ -722,10 +1259,15 @@ async def _show_provenance(session, target: str) -> None:
             ).fetchall()
             for row in history:
                 if row["action"] == "origin":
-                    await session.send(f"  Day {row['astralis_day']}: entered the collection of {row['to_name'] or 'an unknown owner'}.\r\n")
+                    await session.send(
+                        f"  Day {row['astralis_day']}: entered the collection of "
+                        f"{row['to_name'] or 'an unknown owner'}.\r\n"
+                    )
                 else:
-                    await session.send(f"  Day {row['astralis_day']}: {row['from_name'] or 'unknown'} → {row['to_name'] or 'unknown'} ({row['note']}).\r\n")
-
+                    await session.send(
+                        f"  Day {row['astralis_day']}: {row['from_name'] or 'unknown'} -> "
+                        f"{row['to_name'] or 'unknown'} ({row['note']}).\r\n"
+                    )
 
 def _appearance_line(target_session) -> str:
     character = target_session.character
@@ -759,13 +1301,23 @@ async def _look_player(session, target_name: str) -> bool:
         await session.send("Styled outfit:\r\n")
         for slot in STYLE_SLOTS:
             key = worn.get(slot)
-            if key:
-                meta = STYLE_META_BY_KEY[key]
-                await session.send(f"  {STYLE_SLOT_LABELS[slot]}: {_item_name(key)} [{meta.rarity.upper()}]\r\n")
+            if not key:
+                continue
+            entry = _style_entry(target_session.database, target.id, key)
+            if entry is None:
+                continue
+            label = entry["rarity"].upper() if entry["source_kind"] == "fashion" else "COPIED LOOK"
+            await session.send(
+                f"  {STYLE_SLOT_LABELS[slot]}: {entry['name']} [{label}]\r\n"
+            )
     else:
-        await session.send("Styled outfit: no separate fashion pieces currently worn.\r\n")
+        await session.send("Styled outfit: no visual overrides currently worn.\r\n")
     gear = equipped_definitions(target_session.database, target.id)
-    visible_gear = [_item_name(definition.key) for slot, definition in gear.items() if slot not in worn]
+    visible_gear = [
+        _item_name(definition.key)
+        for slot, definition in gear.items()
+        if slot not in worn
+    ]
     if visible_gear:
         await session.send("Practical gear: " + ", ".join(visible_gear) + ".\r\n")
     scent_row = _active_fragrance(target_session.database, target.id)
@@ -780,8 +1332,30 @@ async def _send_style_gmcp(session) -> None:
         return
     worn = _worn_style(session.database, session.character.id)
     effect = _active_fragrance(session.database, session.character.id)
+    outfit = {}
+    for slot, key in worn.items():
+        entry = _style_entry(session.database, session.character.id, key)
+        if entry is None:
+            continue
+        outfit[slot] = {
+            "item_key": key,
+            "source_item_key": entry["source_item_key"],
+            "name": entry["name"],
+            "rarity": entry["rarity"],
+            "source_kind": entry["source_kind"],
+            "collection": entry["collection"],
+        }
     payload = {
-        "outfit": {slot: {"item_key": key, "name": _item_name(key), "rarity": STYLE_META_BY_KEY[key].rarity} for slot, key in worn.items()},
+        "outfit": outfit,
+        "copied_looks": [
+            {
+                "style_key": _copy_token(int(row["id"])),
+                "source_item_key": str(row["source_item_key"]),
+                "name": str(row["source_name"]),
+                "default_slot": _style_slot_from_equipment_slot(str(row["source_equipment_slot"])),
+            }
+            for row in _copied_style_rows(session.database, session.character.id)
+        ],
         "fragrance": None,
     }
     if effect is not None:
@@ -885,13 +1459,14 @@ async def _delegate(self, previous_prompt, command: str) -> None:
 
 def _listed_style_key(session, command: str) -> str | None:
     # Veyra's player market uses LIST <qty> <item> FOR <qty> <item>.
+    # Copied looks are wardrobe records, not transferable inventory objects.
     body = command.strip()[5:] if command.strip().lower().startswith("list ") else ""
     left = body.split(" for ", 1)[0].strip()
     parts = left.split()
     if parts and parts[0].isdigit():
         left = " ".join(parts[1:])
     key, _ = _resolve_owned_style(session, left)
-    return key
+    return key if key in STYLE_META_BY_KEY else None
 
 
 def install_style_collectibles_runtime(player_session_class, world_service=None) -> None:
@@ -934,6 +1509,16 @@ def install_style_collectibles_runtime(player_session_class, world_service=None)
 
         if normalized in {"style", "wardrobe", "outfit", "fashion"}:
             await _show_wardrobe(self); return
+        if normalized in {"atelier", "style service", "style services", "style atelier"}:
+            await _show_atelier(self, world_service); return
+        if normalized in {"style slots", "fashion slots"}:
+            await self.send(
+                "Style slots: " + ", ".join(STYLE_SLOT_LABELS[slot] for slot in STYLE_SLOTS) + ".\r\n"
+                "Copied looks and dedicated fashion may be placed in any of these visual slots. "
+                "They never alter the real equipment underneath.\r\n"
+            ); return
+        if normalized.startswith("style copy "):
+            await _copy_style_from_equipment(self, stripped[len("style copy "):], world_service); return
         if normalized.startswith("style wear "):
             await _wear_style(self, stripped[len("style wear "):]); return
         if normalized.startswith("style remove "):
@@ -968,6 +1553,16 @@ def install_style_collectibles_runtime(player_session_class, world_service=None)
             await _show_seasonal(self); return
         if normalized.startswith("provenance "):
             await _show_provenance(self, stripped[len("provenance "):]); return
+        if normalized.startswith("talk to ") and _is_pavo_target(stripped[len("talk to "):]):
+            await _talk_pavo(self, world_service); return
+        if normalized.startswith("talk ") and _is_pavo_target(stripped[len("talk "):]):
+            await _talk_pavo(self, world_service); return
+        if normalized.startswith("look at ") and _is_pavo_target(stripped[len("look at "):]):
+            await _show_pavo(self, world_service); return
+        if normalized.startswith("look ") and _is_pavo_target(stripped[len("look "):]):
+            await _show_pavo(self, world_service); return
+        if normalized.startswith("examine ") and _is_pavo_target(stripped[len("examine "):]):
+            await _show_pavo(self, world_service); return
         if normalized.startswith("look "):
             if await _look_player(self, stripped[len("look "):]): return
         if normalized.startswith("item ") or normalized.startswith("inspect item "):
