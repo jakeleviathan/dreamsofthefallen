@@ -58,14 +58,18 @@ ROOM_RESOURCE_NODE_KEYS: dict[str, tuple[str, ...]] = {
 FRESH_WATER_ROOM_KEYS: tuple[str, ...] = (
     "human_cinder_ward",                 # public cisterns
     "forest_elf_old_river_path",         # clear shallow river
+    "forest_elf_waystone_bend",           # same clear river at the waystone bend
     "forest_elf_listening_pool",         # clear river pool
     "forest_elf_rainpool_terrace",       # maintained rain catchments
     "forest_elf_seepstone_run",          # clean hillside runoff
     "moon_elf_alpine_light_garden",      # garden cistern and drip channels
     "sporekin_lumen_hollow",             # clean cavern seepage
+    "goblin_patchwork_plaza",            # maintained public water trough
     "waymeet_commonhouse_yard",          # public rain barrels
     "greywake_three_banner_camp",        # shared camp well
+    "greywake_lantern_hospice",          # explicitly maintained clean water
     "greywake_old_aqueduct",             # clean mountain aqueduct
+    "veyra_five_ways_yard",              # central public water trough
     "veyra_north_waterworks",            # tested mountain water
     "sablewater_saltgrass_bend",         # mineral springs
     "ashcross_common",                    # public water pump
