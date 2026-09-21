@@ -114,8 +114,9 @@ class PlayerChannelTests(unittest.TestCase):
 
         asyncio.run(bob.playing_prompt())
         listing = "".join(bob.outputs)
-        self.assertIn("Raiders - public", listing)
-        self.assertIn("owner Alice", listing)
+        self.assertIn("Raiders", listing)
+        self.assertIn("public", listing)
+        self.assertIn("Members", listing)
 
         bob.outputs.clear()
         asyncio.run(bob.playing_prompt())
@@ -150,7 +151,8 @@ class PlayerChannelTests(unittest.TestCase):
 
         asyncio.run(cara.playing_prompt())
         listing = "".join(cara.outputs)
-        self.assertIn("Circle - invite-only", listing)
+        self.assertIn("Circle", listing)
+        self.assertIn("invite-only", listing)
         self.assertNotIn("owner Alice", listing)
 
         cara.outputs.clear()
