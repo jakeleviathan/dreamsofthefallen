@@ -8,6 +8,7 @@ from mud.reflection_opportunities import (
     reflection_opportunities,
     render_reflection,
 )
+from mud.starter_race_loops import STARTER_RACE_LOOPS
 
 
 def scene(
@@ -26,20 +27,15 @@ def scene(
 
 class ReflectionOpportunityTests(unittest.TestCase):
     def test_every_racial_start_has_a_permanent_reflective_source(self):
-        starts = (
-            ("human_demon_gate", "The Demon Gate", "human_kingdom"),
-            ("forest_elf_circle_clearing", "Circle Clearing", "great_elf_forest"),
-            ("moon_elf_high_horizon_plaza", "High Horizon Plaza", "moon_peaks"),
-            ("dwarf_foundry_concourse", "Foundry Concourse", "dwarven_mountain_industry"),
-            ("goblin_clattergate", "Clattergate", "junk_city_and_swamps"),
-            ("troll_frostroot_camp", "Frostroot Camp", "troll_strongholds"),
-            ("undead_reclamation_vault", "Reclamation Vault", "desert_necropolis"),
-            ("sporekin_lumen_hollow", "Lumen Hollow", "sporekin_underways"),
-        )
-        for room_key, name, region in starts:
-            with self.subTest(room_key=room_key):
+        self.assertEqual(len(STARTER_RACE_LOOPS), 8)
+        for loop in STARTER_RACE_LOOPS:
+            with self.subTest(race=loop.race_key, room_key=loop.starting_room_key):
                 sources = reflection_opportunities(
-                    scene(room_key, name, region),
+                    scene(
+                        loop.starting_room_key,
+                        loop.starting_room_key.replace("_", " ").title(),
+                        loop.region_key,
+                    ),
                     "clear",
                     exposed=True,
                 )
