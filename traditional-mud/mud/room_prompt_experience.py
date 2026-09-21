@@ -105,6 +105,18 @@ def _npc_lines(session, scene) -> list[str]:
     return lines
 
 
+def _player_lines(session) -> list[str]:
+    character = getattr(session, "character", None)
+    callback = getattr(session, "room_players_callback", None)
+    if character is None or callback is None or not character.current_room:
+        return []
+    try:
+        players = callback(character.current_room, character.id)
+    except Exception:
+        return []
+    return [str(player.name) for player in players if getattr(player, "name", None)]
+
+
 def _enemy_lines(scene) -> list[str]:
     lines: list[str] = []
     if scene is None:
@@ -236,6 +248,12 @@ async def _render_room(session, world, previous_show_current_room) -> None:
         await session.send(style_text(session, "People:", "accent") + "\r\n")
         for line in people:
             await session.send(f"  {line}\r\n")
+
+    players = _player_lines(session)
+    if players:
+        await session.send(style_text(session, "Players:", "accent") + "\r\n")
+        for name in players:
+            await session.send(f"  {name} is here.\r\n")
 
     threats = _enemy_lines(scene)
     if threats:
