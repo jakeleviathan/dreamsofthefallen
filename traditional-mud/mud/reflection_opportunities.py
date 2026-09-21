@@ -306,8 +306,8 @@ def reflection_opportunities(scene, weather: str, *, exposed: bool) -> tuple[Ref
         result.append(curated)
 
     for candidate in (
-        _named_reflective_source(scene),
-        _natural_water_source(scene),
+        None if curated is not None else _named_reflective_source(scene),
+        None if curated is not None else _natural_water_source(scene),
         None if curated is not None else _hub_fixture(scene),
     ):
         if candidate is None:
