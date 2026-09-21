@@ -25,7 +25,7 @@ from mud.starter_race_loops import STARTER_RACE_LOOPS
 from mud.waymeet_frontier import WAYMEET_LANTERN_MARKET_KEY
 
 
-STYLE_VERSION = "1.0.0"
+STYLE_VERSION = "2.0.0"
 RARITY_ORDER = ("common", "uncommon", "rare", "epic", "legendary")
 STYLE_SLOTS = (
     "head", "face", "neck", "shoulders", "chest", "hands",
@@ -1450,13 +1450,14 @@ async def _delegate(self, previous_prompt, command: str) -> None:
 
 def _listed_style_key(session, command: str) -> str | None:
     # Veyra's player market uses LIST <qty> <item> FOR <qty> <item>.
+    # Copied looks are wardrobe records, not transferable inventory objects.
     body = command.strip()[5:] if command.strip().lower().startswith("list ") else ""
     left = body.split(" for ", 1)[0].strip()
     parts = left.split()
     if parts and parts[0].isdigit():
         left = " ".join(parts[1:])
     key, _ = _resolve_owned_style(session, left)
-    return key
+    return key if key in STYLE_META_BY_KEY else None
 
 
 def install_style_collectibles_runtime(player_session_class, world_service=None) -> None:
