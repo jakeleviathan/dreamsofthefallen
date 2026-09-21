@@ -1260,17 +1260,30 @@ def craft_recipe(
 
         heritage_recipe_revision = recipe_revision(recipe)
 
+    transaction_kwargs = {
+        "trade_skill_key": recipe.trade_skill_key,
+        "materials": recipe.materials,
+        "output_item_key": recipe.output_item_key,
+        "output_quantity": recipe.output_quantity,
+        "skill_xp_gain": 1 if skill_increased else 0,
+        "craft_succeeded": crafted,
+    }
+    # Lightweight content tests and third-party integrations may provide the
+    # older transaction contract. Only pass heritage metadata when that method
+    # explicitly supports it; the real Database does.
+    from inspect import signature
+
+    transaction_parameters = signature(database.complete_crafting_transaction).parameters
+    if "heritage_recipe_key" in transaction_parameters:
+        transaction_kwargs.update(
+            heritage_recipe_key=recipe.key if crafted else None,
+            heritage_recipe_revision=heritage_recipe_revision,
+            heritage_high_quality=high_quality,
+        )
+
     committed = database.complete_crafting_transaction(
         character_id,
-        trade_skill_key=recipe.trade_skill_key,
-        materials=recipe.materials,
-        output_item_key=recipe.output_item_key,
-        output_quantity=recipe.output_quantity,
-        skill_xp_gain=1 if skill_increased else 0,
-        craft_succeeded=crafted,
-        heritage_recipe_key=recipe.key if crafted else None,
-        heritage_recipe_revision=heritage_recipe_revision,
-        heritage_high_quality=high_quality,
+        **transaction_kwargs,
     )
     if not committed:
         return CraftAttemptResult(
