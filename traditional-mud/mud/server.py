@@ -86,6 +86,7 @@ from mud.troll_choice_echoes import (
 )
 from mud.equipment_system import install_equipment_runtime
 from mud.equipment_accessory import install_accessory_runtime
+from mud.inventory_capacity import install_inventory_capacity_runtime
 from mud.login_experience import install_login_experience
 
 install_dwarf_content()
@@ -289,8 +290,11 @@ enforce_first_piling_swamp_access(WORLD)
 # Equipment is deliberately the outermost game-command layer. It normalizes the
 # final item catalog once, then notices quest rewards granted by existing runtimes.
 install_equipment_runtime(PlayerSession)
-# One universal accessory slot extends the base seven-slot equipment pass.
+# One universal accessory slot extends the base seven-slot combat equipment pass.
 install_accessory_runtime(PlayerSession)
+# Bags use their own equipment slot and expand the shared inventory rather than
+# creating nested container inventories.
+install_inventory_capacity_runtime(PlayerSession)
 # The pre-character experience owns only opening/login/account/roster screens.
 install_login_experience(PlayerSession)
 # HELP owns the polished help commands; newcomer guidance then sits outside it so
