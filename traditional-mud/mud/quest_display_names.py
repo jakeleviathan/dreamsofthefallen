@@ -9,8 +9,8 @@ import mud.quests as quests
 # Keep the original authored title on one quest in each collision and make only the
 # conflicting later title more specific.
 QUEST_DISPLAY_NAME_OVERRIDES: dict[str, str] = {
-    "first_ten_undead_capstone": "No Voice Above You — Necropolis Capstone",
-    "broken_reach_three_claims": "Three Claims on One Road — Broken Reach",
+    "first_ten_undead_capstone": "No Voice Above You - Necropolis Capstone",
+    "broken_reach_three_claims": "Three Claims on One Road - Broken Reach",
 }
 
 

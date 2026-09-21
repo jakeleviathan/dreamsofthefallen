@@ -129,7 +129,7 @@ QUIET_QUEST = QuestDefinition(
     name="The Bell That Left",
     style="freeform",
     minimum_level=18,
-    description="The abandoned tower above Far Watch has a belfry, a bell-frame, and old duty logs—but no bell and no record of when it was removed.",
+    description="The abandoned tower above Far Watch has a belfry, a bell-frame, and old duty logs-but no bell and no record of when it was removed.",
     objective_steps=(
         ("read_log", "READ WATCH LOG in the Keeper Room."),
         ("examine_frame", "EXAMINE BELL FRAME in the belfry."),
@@ -223,7 +223,7 @@ ROADSIDE_ROOMS = (
         QUIET_KEEPER_KEY,
         "Abandoned Keeper Room",
         QUIET_BELL_REGION_KEY,
-        "The keeper's room contains a narrow bunk, a cold stove, and a weather log written in three hands. Every day records dawn, midday, dusk, and midnight—except for one repeating hour that has been cut cleanly out of every page.",
+        "The keeper's room contains a narrow bunk, a cold stove, and a weather log written in three hands. Every day records dawn, midday, dusk, and midnight-except for one repeating hour that has been cut cleanly out of every page.",
         {"down": QUIET_STAIR_KEY, "up": QUIET_BELFRY_KEY},
         tags=("level_18_20", "watchtower", "lore"),
     ),
@@ -350,7 +350,7 @@ FEATURES_BY_ROOM: dict[str, tuple[FeatureDefinition, ...]] = {
         _feature("blue_salt", "Blue Salt", "cold cobalt mineral growth on dry stone", "The mineral forms over older salt but does not follow moisture lines. Its blue is strongest where the wall should be driest.", ("salt", "blue salt", "mineral"), touch="Cold travels through the fingertip faster than it should, then stops exactly at the first knuckle."),
     ),
     BLUE_SHELL_KEY: (
-        _feature("loose_shells", "Loose Shells", "a few unfossilized shells resting above the old mineral crust", "These shells are not part of the stone. Someone—or something—placed them after the basin dried.", ("shell", "shells", "loose shells"), listen="One shell gives back a tiny wash of surf that ends before a second wave arrives."),
+        _feature("loose_shells", "Loose Shells", "a few unfossilized shells resting above the old mineral crust", "These shells are not part of the stone. Someone-or something-placed them after the basin dried.", ("shell", "shells", "loose shells"), listen="One shell gives back a tiny wash of surf that ends before a second wave arrives."),
     ),
     BLUE_TABLE_KEY: (
         _feature("dry_table", "Dry Table", "an impossible wooden table with one cup ring", "The table is too broad for the passage you used. Every surface is dry. The lone ring stain is fresh enough to have a sharp edge.", ("table", "wooden table", "ring stain")),
@@ -603,7 +603,7 @@ def install_roadside_discoveries_runtime(player_session_class, world_service) ->
         if room == QUIET_BELFRY_KEY and n in {"ring frame", "strike frame", "pull frame"}:
             q = _quest(self, QUIET_QUEST_KEY)
             if q and q.get("status") == "active" and q.get("current_step") == "ring_frame" and _award_completion(self, QUIET_QUEST_KEY, QUIET_COMPLETE_FLAG, QUIET_RIVET_KEY, 475):
-                await self.send("You put one hand on the empty frame and pull. Nothing moves. Somewhere above you, one deep bell-note sounds anyway—clean, distant, and finished before an echo can form. The loose rivet drops into your palm. Quest complete: The Bell That Left. Reward: 475 XP and Silent Watch Rivet.\r\n")
+                await self.send("You put one hand on the empty frame and pull. Nothing moves. Somewhere above you, one deep bell-note sounds anyway-clean, distant, and finished before an echo can form. The loose rivet drops into your palm. Quest complete: The Bell That Left. Reward: 475 XP and Silent Watch Rivet.\r\n")
             else:
                 await self.send("The empty frame answers only with old timber. Whatever happened here does not repeat on demand.\r\n")
             return

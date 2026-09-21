@@ -310,7 +310,7 @@ def _demon_gate_augmentation() -> RoomAugmentation:
                 aliases=("guards", "watch", "guardhouse", "watchtower", "watchtowers"),
                 summary="the black-uniformed gate watch and iron watchtowers",
                 examine_text=(
-                    "The gate watch wears dark practical uniforms beneath ceremonial horn-shaped badges. Their attention is on arrivals, wagons, and the road—not on posing for visitors."
+                    "The gate watch wears dark practical uniforms beneath ceremonial horn-shaped badges. Their attention is on arrivals, wagons, and the road-not on posing for visitors."
                 ),
             ),
         ),
