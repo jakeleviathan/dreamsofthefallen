@@ -201,38 +201,37 @@ async def _show_channels(session) -> None:
 
     await session.send("\r\n--- Channels ---\r\n")
     await session.send(
-        f"Built-in: CHAT [{'ON' if chat_enabled else 'OFF'}]  OOC [{'ON' if ooc_enabled else 'OFF'}]\r\n"
-    )
-    await session.send(
-        f"Player-created channels are free. You may own up to {MAX_OWNED_CHANNELS} at once.\r\n"
+        f"Built-in: CHAT [{'ON' if chat_enabled else 'OFF'}]  OOC [{'ON' if ooc_enabled else 'OFF'}]\r\n\r\n"
     )
     if not rows:
-        await session.send("No player-created channels exist yet. Use CHANNEL CREATE <name>.\r\n")
+        await session.send("No player-created channels yet.  CHANNEL CREATE <name>\r\n")
     else:
+        await session.send(f"{'Name':<22} {'Members':<11} {'Access':<12} Status\r\n")
+        await session.send(f"{'-' * 20:<22} {'-' * 9:<11} {'-' * 10:<12} {'-' * 8}\r\n")
         for row in rows:
             joined = bool(row["joined"])
             invited = bool(row["invited"])
-            status = " [joined]" if joined else (" [invited]" if invited else "")
+            status = "joined" if joined else ("invited" if invited else "")
             if bool(row["invite_only"]) and not (
                 joined
                 or invited
                 or int(row["owner_character_id"]) == int(character.id)
             ):
-                await session.send(f"{row['name']} - invite-only{status}\r\n")
+                await session.send(
+                    f"{str(row['name']):<22} {'--':<11} {'invite-only':<12} {status}\r\n"
+                )
                 continue
             online, total = _member_counts(session, int(row["id"]))
             access = "invite-only" if bool(row["invite_only"]) else "public"
+            members = f"{online}/{total}"
             await session.send(
-                f"{row['name']} - {access} - {online} online / {total} members - "
-                f"owner {row['owner_name']}{status}\r\n"
+                f"{str(row['name']):<22} {members:<11} {access:<12} {status}\r\n"
             )
     await session.send(
-        "CREATE/JOIN/LEAVE/INFO: CHANNEL CREATE <name>, CHANNEL JOIN <name>, "
-        "CHANNEL LEAVE <name>, CHANNEL INFO <name>\r\n"
-        "TALK: CHANNEL <name> <message>\r\n"
-        "OWNER: CHANNEL INVITE/KICK/MUTE/UNMUTE <name> <player>; "
-        "CHANNEL PRIVATE <name> ON|OFF; CHANNEL RENAME <old> <new>; "
-        "CHANNEL CLOSE <name>\r\n"
+        "\r\nCHANNEL JOIN <name>  |  CHANNEL LEAVE <name>  |  CHANNEL INFO <name>\r\n"
+        "Talk: CHANNEL <name> <message> or #<name> <message>\r\n"
+        "Create: CHANNEL CREATE <name> (free; up to "
+        f"{MAX_OWNED_CHANNELS} owned channels)\r\n"
     )
 
 
@@ -371,6 +370,18 @@ async def _show_channel_info(session, name: str) -> None:
         await session.send("Your status: invited; use CHANNEL JOIN to connect.\r\n")
     else:
         await session.send("Your status: not connected.\r\n")
+
+    if _require_owner(session, row):
+        await session.send(
+            "\r\nOwner controls:\r\n"
+            f"  CHANNEL INVITE {row['name']} <player>\r\n"
+            f"  CHANNEL KICK {row['name']} <player>\r\n"
+            f"  CHANNEL MUTE {row['name']} <player>\r\n"
+            f"  CHANNEL UNMUTE {row['name']} <player>\r\n"
+            f"  CHANNEL PRIVATE {row['name']} ON|OFF\r\n"
+            f"  CHANNEL RENAME {row['name']} <new-name>\r\n"
+            f"  CHANNEL CLOSE {row['name']}\r\n"
+        )
 
 
 def _require_owner(session, row) -> bool:
@@ -726,6 +737,14 @@ def install_player_channels_runtime(player_session_class) -> None:
         normalized = " ".join(stripped.lower().split())
         if normalized in {"channels", "channel", "channel list", "channel help"}:
             await _show_channels(self)
+            return
+
+        if stripped.startswith("#") and len(stripped) > 1:
+            shortcut = stripped[1:].split(maxsplit=1)
+            if len(shortcut) < 2:
+                await self.send("Use #<channel> <message>.\r\n")
+            else:
+                await _broadcast(self, shortcut[0], shortcut[1])
             return
 
         parts = stripped.split()
