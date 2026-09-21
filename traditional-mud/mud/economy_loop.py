@@ -512,40 +512,87 @@ def _resolve_recipe(
         return None, f"That matches several recipes: {names}{suffix}. Be more specific."
     return crafting.RECIPES_BY_KEY[unique_keys[0]], None
 
-def _recipe_filter(value: str) -> tuple[str, str | None]:
+def _recipe_filter(value: str) -> tuple[str, str | None, str | None]:
+    """Parse recipe-book views without making players memorize rigid syntax."""
+
     wanted = _normalize(value)
     aliases = {
-        "smith": "blacksmithing",
-        "smithing": "blacksmithing",
-        "blacksmith": "blacksmithing",
-        "blacksmithing": "blacksmithing",
-        "tailor": "tailoring",
-        "tailoring": "tailoring",
-        "sewing": "tailoring",
-        "alchemy": "alchemy",
-        "alchemist": "alchemy",
-        "enchant": "enchanting",
-        "enchanter": "enchanting",
-        "enchanting": "enchanting",
-        "cook": "cooking",
-        "cooking": "cooking",
-        "chef": "cooking",
+        "smith": "blacksmithing", "smithing": "blacksmithing",
+        "blacksmith": "blacksmithing", "blacksmithing": "blacksmithing",
+        "tailor": "tailoring", "tailoring": "tailoring", "sewing": "tailoring",
+        "alchemy": "alchemy", "alchemist": "alchemy",
+        "enchant": "enchanting", "enchanter": "enchanting", "enchanting": "enchanting",
+        "cook": "cooking", "cooking": "cooking", "chef": "cooking",
     }
     if not wanted:
-        return "overview", None
-    if wanted in {"all", "catalog", "full"}:
-        return "all", None
-    if wanted in {"ready", "unlocked", "known"}:
-        return "ready", None
-    if wanted in {"craftable", "now", "craftable now"}:
-        return "craftable", None
+        return "overview", None, None
     if wanted in {"help", "?"}:
-        return "help", None
-    profession = aliases.get(wanted)
-    if profession:
-        return "profession", profession
-    return "unknown", wanted
+        return "help", None, None
 
+    parts = wanted.split()
+    profession = aliases.get(parts[0])
+    if profession:
+        if len(parts) == 1:
+            # A profession view answers the most useful question first: what can
+            # I actually make right now?
+            return "craftable", profession, None
+        view = parts[1]
+        if view in {"craftable", "now"} and len(parts) == 2:
+            return "craftable", profession, None
+        if view in {"all", "ready", "unlocked", "known"} and len(parts) == 2:
+            return "ready", profession, None
+        if view in {"difficult", "hard", "locked"} and len(parts) == 2:
+            return "difficult", profession, None
+        if view in {"armor", "clothing", "materials"} and len(parts) == 2:
+            return view, profession, None
+        if view == "search" and len(parts) >= 3:
+            return "search", profession, " ".join(parts[2:])
+        return "unknown", profession, None
+
+    if parts[0] == "search" and len(parts) >= 2:
+        return "search", None, " ".join(parts[1:])
+    if wanted in {"all", "catalog", "full"}:
+        return "all", None, None
+    if wanted in {"ready", "unlocked", "known"}:
+        return "ready", None, None
+    if wanted in {"craftable", "now", "craftable now"}:
+        return "craftable", None, None
+    if wanted in {"difficult", "hard", "locked"}:
+        return "difficult", None, None
+    if wanted in {"armor", "clothing", "materials"}:
+        return wanted, None, None
+    return "unknown", None, None
+
+
+def _recipe_category_matches(recipe: CraftingRecipe, category: str) -> bool:
+    """Semantic recipe categories derived from the output item, not its name."""
+
+    output = crafting.ITEMS_BY_KEY.get(recipe.output_item_key)
+    if output is None:
+        return False
+    if category == "materials":
+        return output.equipment is None and output.consumable is None
+    if category == "armor":
+        return output.equipment is not None and output.equipment.armor_class > 0
+    if category == "clothing":
+        return output.equipment is not None
+    return False
+
+
+def _recipe_search_matches(recipe: CraftingRecipe, query: str) -> bool:
+    needle = _normalize(query)
+    if not needle:
+        return False
+    output = crafting.ITEMS_BY_KEY.get(recipe.output_item_key)
+    haystack = " ".join(
+        (
+            _recipe_output_name(recipe),
+            recipe.key.replace("_", " "),
+            recipe.description,
+            output.description if output is not None else "",
+        )
+    )
+    return needle in _normalize(haystack)
 
 def _recipe_line(session, recipe: CraftingRecipe, *, include_materials: bool = True) -> str:
     station = STATION_LABELS.get(recipe.station_key, recipe.station_key or "No station")
@@ -576,21 +623,22 @@ def _recipe_line(session, recipe: CraftingRecipe, *, include_materials: bool = T
 async def _show_recipe_help(session) -> None:
     await session.send(
         "\r\n--- Recipe Book Commands ---\r\n"
-        "RECIPES                  concise overview: attemptable recipes plus the next harder recipes\r\n"
-        "RECIPES BLACKSMITHING    full Blacksmithing catalog\r\n"
-        "RECIPES TAILORING        full Tailoring catalog\r\n"
-        "RECIPES ALCHEMY          full Alchemy catalog\r\n"
-        "RECIPES ENCHANTING       full Enchanting catalog\r\n"
-        "RECIPES COOKING          full Cooking catalog\r\n"
-        "RECIPES READY            every recipe within 50 skill of your current ability\r\n"
-        "RECIPES CRAFTABLE        attemptable recipes with the materials and station ready now\r\n"
-        "RECIPES ALL              complete catalog\r\n"
-        "RECIPE <name>            trivial value, success chance, ingredients, station, and details\r\n"
-        "CRAFT <name>             begin an interruptible crafting action\r\n\r\n"
+        "RECIPES                         concise all-profession overview\r\n"
+        "RECIPES <profession>            recipes you can craft right now\r\n"
+        "RECIPES <profession> ALL        every attemptable recipe\r\n"
+        "RECIPES <profession> CRAFTABLE  materials, station, and skill ready now\r\n"
+        "RECIPES <profession> ARMOR      protective equipment\r\n"
+        "RECIPES <profession> CLOTHING   wearable equipment\r\n"
+        "RECIPES <profession> MATERIALS  thread, cloth, ingots, and other components\r\n"
+        "RECIPES <profession> DIFFICULT  visible recipes beyond your current skill range\r\n"
+        "RECIPES <profession> SEARCH <text>  search names and descriptions\r\n"
+        "RECIPES CRAFTABLE               craftable recipes across every profession\r\n"
+        "RECIPES SEARCH <text>           search the whole visible recipe book\r\n"
+        "RECIPE <name>                   full recipe details\r\n"
+        "CRAFT <name>                    begin an interruptible crafting action\r\n\r\n"
         "At a recipe trivial value, success is guaranteed and that recipe can no longer raise your skill.\r\n"
         "Completed failures consume ingredients. Movement or damage interrupts crafting without consuming them.\r\n"
     )
-
 async def _show_recipe_group(
     session,
     profession_key: str,
@@ -646,7 +694,7 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
     if character is None:
         return
 
-    mode, profession = _recipe_filter(recipe_filter)
+    mode, profession, query = _recipe_filter(recipe_filter)
     if mode == "help":
         await _show_recipe_help(session)
         return
@@ -656,54 +704,107 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
         )
         return
 
-    stations = _stations_here(session)
-    station_text = (
-        ", ".join(STATION_LABELS.get(key, key) for key in stations)
-        if stations
-        else "none in this room"
-    )
-    await session.send(
-        f"\r\n{_recipe_paint(_RECIPE_HEADER, '=== RECIPE BOOK ===')}\r\n"
-        f"Stations here: {station_text}\r\n"
-        "Use RECIPE <name> for full details.\r\n"
-    )
+    visible = list(_visible_recipes(session))
+    scoped = [r for r in visible if profession is None or r.trade_skill_key == profession]
 
-    if mode == "overview":
-        await session.send(
-            "Showing a concise view. Use RECIPES <profession>, RECIPES READY, "
-            "RECIPES CRAFTABLE, or RECIPES ALL for more.\r\n"
-        )
-        profession_order = ("blacksmithing", "tailoring", "alchemy", "enchanting", "cooking")
-        for key in profession_order:
-            recipes = [r for r in _visible_recipes(session) if r.trade_skill_key == key]
-            if recipes:
-                await _show_recipe_group(session, key, recipes, overview=True)
-        return
-
-    selected = list(_visible_recipes(session))
-    if mode == "profession" and profession is not None:
-        selected = [r for r in selected if r.trade_skill_key == profession]
+    # Filter before rendering so a profession command never falls back to the
+    # old wall-of-recipes behavior.
+    if mode == "craftable":
+        selected = [r for r in scoped if _recipe_state(session, r)["craftable"]]
     elif mode == "ready":
         selected = [
-            r for r in selected
+            r for r in scoped
             if r.can_attempt(
                 crafting.trade_skill_value(session.database, character.id, r.trade_skill_key),
                 max_gap=crafting.MAX_CRAFT_DIFFICULTY_GAP,
             )
         ]
-    elif mode == "craftable":
-        selected = [r for r in selected if _recipe_state(session, r)["craftable"]]
+    elif mode == "difficult":
+        selected = [
+            r for r in scoped
+            if not r.can_attempt(
+                crafting.trade_skill_value(session.database, character.id, r.trade_skill_key),
+                max_gap=crafting.MAX_CRAFT_DIFFICULTY_GAP,
+            )
+        ]
+    elif mode in {"armor", "clothing", "materials"}:
+        selected = [r for r in scoped if _recipe_category_matches(r, mode)]
+    elif mode == "search":
+        selected = [r for r in scoped if _recipe_search_matches(r, query or "")]
+    else:
+        selected = scoped
+
+    stations = _stations_here(session)
+    station_text = (
+        ", ".join(STATION_LABELS.get(key, key) for key in stations)
+        if stations else "none in this room"
+    )
+
+    if profession is not None:
+        skill = crafting.trade_skill_value(session.database, character.id, profession)
+        attemptable = [
+            r for r in scoped
+            if r.can_attempt(skill, max_gap=crafting.MAX_CRAFT_DIFFICULTY_GAP)
+        ]
+        craftable = [r for r in attemptable if _recipe_state(session, r)["craftable"]]
+        difficult = [r for r in scoped if r not in attemptable]
+        view_label = {
+            "craftable": "CRAFTABLE",
+            "ready": "ALL ATTEMPTABLE",
+            "difficult": "DIFFICULT",
+            "armor": "ARMOR",
+            "clothing": "CLOTHING",
+            "materials": "MATERIALS",
+            "search": f'SEARCH: {query}',
+        }.get(mode, "ALL")
+        await session.send(
+            f"\r\n{_recipe_paint(_RECIPE_HEADER, f'=== {_profession_name(profession).upper()} RECIPES ===')}\r\n"
+            f"Skill: {skill}\r\n"
+            f"{len(scoped)} known recipes | {len(craftable)} craftable now | {len(difficult)} too difficult\r\n"
+            f"Stations here: {station_text}\r\n"
+            f"Showing: {view_label} ({len(selected)})\r\n"
+        )
+    else:
+        await session.send(
+            f"\r\n{_recipe_paint(_RECIPE_HEADER, '=== RECIPE BOOK ===')}\r\n"
+            f"Stations here: {station_text}\r\n"
+            "Use RECIPE <name> for full details.\r\n"
+        )
+
+    if mode == "overview":
+        await session.send(
+            "Showing a concise view. Use RECIPES <profession> for what you can craft now, "
+            "or RECIPES HELP for filters.\r\n"
+        )
+        profession_order = ("blacksmithing", "tailoring", "alchemy", "enchanting", "cooking")
+        for key in profession_order:
+            recipes = [r for r in visible if r.trade_skill_key == key]
+            if recipes:
+                await _show_recipe_group(session, key, recipes, overview=True)
+        return
 
     if not selected:
         await session.send("No recipes match that view right now.\r\n")
-        return
+    else:
+        profession_order = ("blacksmithing", "tailoring", "alchemy", "enchanting", "cooking")
+        remaining = sorted({r.trade_skill_key for r in selected} - set(profession_order))
+        for key in (*profession_order, *remaining):
+            group = [r for r in selected if r.trade_skill_key == key]
+            if group:
+                # Profession-scoped screens already have their own header/counts.
+                if profession is not None:
+                    for recipe in sorted(group, key=_recipe_sort_key):
+                        await session.send(_recipe_line(session, recipe))
+                else:
+                    await _show_recipe_group(session, key, group)
 
-    profession_order = ("blacksmithing", "tailoring", "alchemy", "enchanting", "cooking")
-    remaining = sorted({r.trade_skill_key for r in selected} - set(profession_order))
-    for key in (*profession_order, *remaining):
-        group = [r for r in selected if r.trade_skill_key == key]
-        if group:
-            await _show_recipe_group(session, key, group)
+    if profession is not None:
+        label = _profession_name(profession).upper()
+        await session.send(
+            f"\r\nFilters: ALL | CRAFTABLE | ARMOR | CLOTHING | MATERIALS | DIFFICULT\r\n"
+            f"Search: RECIPES {label} SEARCH <text>\r\n"
+            "Details: RECIPE <name>\r\n"
+        )
 
 
 async def _show_recipe_detail(session, target: str) -> None:
