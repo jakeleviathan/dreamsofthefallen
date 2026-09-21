@@ -706,6 +706,13 @@ def deposit_to_vault(session, item_text: str, quantity: int = 1) -> tuple[bool, 
     if session.character is None:
         return False, "No active character."
     ensure_veyra_service_tables(session.database)
+    from mud.item_heritage import (
+        HeritageHolder,
+        ensure_item_heritage_schema,
+        ensure_special_inventory_item,
+        is_special_item,
+        move_owned_to_holder_in_connection,
+    )
     item = _resolve_item(item_text)
     if item is None:
         return False, "The Keyhouse cannot identify that item. Use the exact inventory name."
@@ -720,6 +727,9 @@ def deposit_to_vault(session, item_text: str, quantity: int = 1) -> tuple[bool, 
     capacity = _vault_capacity(session)
     if used + quantity > capacity:
         return False, f"Your Veyra vault allotment is {capacity} item-units; {used} are already stored."
+    ensure_item_heritage_schema(session.database)
+    if is_special_item(item.key):
+        ensure_special_inventory_item(session.database, session.character.id, item.key)
     with session.database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute(
@@ -741,6 +751,16 @@ def deposit_to_vault(session, item_text: str, quantity: int = 1) -> tuple[bool, 
             """,
             (session.character.id, item.key, quantity),
         )
+        move_owned_to_holder_in_connection(
+            db,
+            character_id=session.character.id,
+            item_key=item.key,
+            quantity=quantity,
+            destination=HeritageHolder.veyra_vault(session.character.id),
+            event_type="vault_deposit",
+            note="Stored in the Veyra Keyhouse vault.",
+            keep_owner=True,
+        )
     return True, f"Stored {quantity} x {item.name}. Vault use: {used + quantity}/{capacity}."
 
 
@@ -748,10 +768,16 @@ def withdraw_from_vault(session, item_text: str, quantity: int = 1) -> tuple[boo
     if session.character is None:
         return False, "No active character."
     ensure_veyra_service_tables(session.database)
+    from mud.item_heritage import (
+        HeritageHolder,
+        ensure_item_heritage_schema,
+        move_holder_to_owner_in_connection,
+    )
     item = _resolve_item(item_text)
     if item is None:
         return False, "The Keyhouse cannot identify that item."
     quantity = max(1, quantity)
+    ensure_item_heritage_schema(session.database)
     with session.database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute(
@@ -773,6 +799,15 @@ def withdraw_from_vault(session, item_text: str, quantity: int = 1) -> tuple[boo
             """,
             (session.character.id, item.key, quantity),
         )
+        move_holder_to_owner_in_connection(
+            db,
+            source=HeritageHolder.veyra_vault(session.character.id),
+            character_id=session.character.id,
+            item_key=item.key,
+            quantity=quantity,
+            event_type="vault_withdrawal",
+            note="Withdrawn from the Veyra Keyhouse vault.",
+        )
     return True, f"Withdrew {quantity} x {item.name}."
 
 
@@ -780,6 +815,13 @@ def create_market_listing(session, offered_text: str, offered_quantity: int, wan
     if session.character is None:
         return False, "No active character."
     ensure_veyra_service_tables(session.database)
+    from mud.item_heritage import (
+        HeritageHolder,
+        ensure_item_heritage_schema,
+        ensure_special_inventory_item,
+        is_special_item,
+        move_owned_to_holder_in_connection,
+    )
     offered = _resolve_item(offered_text)
     wanted = _resolve_item(wanted_text)
     if offered is None or wanted is None:
@@ -793,6 +835,9 @@ def create_market_listing(session, offered_text: str, offered_quantity: int, wan
     available = session.database.item_quantity(session.character.id, offered.key) - _equipped_reserve(session, offered.key)
     if available < offered_quantity:
         return False, f"You only have {max(0, available)} unequipped {offered.name} available."
+    ensure_item_heritage_schema(session.database)
+    if is_special_item(offered.key):
+        ensure_special_inventory_item(session.database, session.character.id, offered.key)
     with session.database.connect() as db:
         active = db.execute(
             "SELECT COUNT(*) AS n FROM veyra_market_listings WHERE seller_character_id = ? AND status = 'active'",
@@ -819,6 +864,16 @@ def create_market_listing(session, offered_text: str, offered_quantity: int, wan
             (session.character.id, offered.key, offered_quantity, wanted.key, wanted_quantity),
         )
         listing_id = int(cursor.lastrowid)
+        move_owned_to_holder_in_connection(
+            db,
+            character_id=session.character.id,
+            item_key=offered.key,
+            quantity=offered_quantity,
+            destination=HeritageHolder.veyra_market(listing_id),
+            event_type="market_escrow",
+            note=f"Placed into Veyra Exchange listing {listing_id}.",
+            keep_owner=True,
+        )
     return True, f"Listing {listing_id} posted: {offered_quantity} x {offered.name} FOR {wanted_quantity} x {wanted.name}."
 
 
@@ -853,6 +908,31 @@ def fill_market_listing(session, listing_id: int) -> tuple[bool, str]:
     if session.character is None:
         return False, "No active character."
     ensure_veyra_service_tables(session.database)
+
+    from mud.item_heritage import (
+        HeritageHolder,
+        chronicle_first_discoveries,
+        ensure_item_heritage_schema,
+        ensure_special_inventory_item,
+        is_special_item,
+        move_holder_to_owner_in_connection,
+        record_special_acquisition_in_connection,
+        transfer_owned_instances_in_connection,
+    )
+
+    ensure_item_heritage_schema(session.database)
+    with session.database.connect() as db:
+        preview = db.execute(
+            "SELECT wanted_item_key FROM veyra_market_listings WHERE id = ? AND status = 'active'",
+            (listing_id,),
+        ).fetchone()
+    if preview is None:
+        return False, "That listing is no longer active."
+    preview_wanted_key = str(preview["wanted_item_key"])
+    if is_special_item(preview_wanted_key):
+        ensure_special_inventory_item(session.database, session.character.id, preview_wanted_key)
+
+    created_heritage = []
     with session.database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute(
@@ -875,11 +955,18 @@ def fill_market_listing(session, listing_id: int) -> tuple[bool, str]:
         reserved = _equipped_reserve(session, wanted_key)
         if buyer_row is None or int(buyer_row["quantity"]) - reserved < wanted_qty:
             return False, f"You do not have {wanted_qty} unequipped {_item_name(wanted_key)} to fill that listing."
+
         remaining = int(buyer_row["quantity"]) - wanted_qty
         if remaining:
-            db.execute("UPDATE character_items SET quantity = ? WHERE character_id = ? AND item_key = ?", (remaining, session.character.id, wanted_key))
+            db.execute(
+                "UPDATE character_items SET quantity = ? WHERE character_id = ? AND item_key = ?",
+                (remaining, session.character.id, wanted_key),
+            )
         else:
-            db.execute("DELETE FROM character_items WHERE character_id = ? AND item_key = ?", (session.character.id, wanted_key))
+            db.execute(
+                "DELETE FROM character_items WHERE character_id = ? AND item_key = ?",
+                (session.character.id, wanted_key),
+            )
         db.execute(
             """
             INSERT INTO character_items (character_id, item_key, quantity)
@@ -896,17 +983,58 @@ def fill_market_listing(session, listing_id: int) -> tuple[bool, str]:
             """,
             (session.character.id, offered_key, offered_qty),
         )
+
+        transfer_owned_instances_in_connection(
+            db,
+            from_character_id=session.character.id,
+            to_character_id=seller_id,
+            item_key=wanted_key,
+            quantity=wanted_qty,
+            event_type="market_fill",
+            note=f"Transferred as payment through Veyra Exchange listing {listing_id}.",
+        )
+        moved_offered = move_holder_to_owner_in_connection(
+            db,
+            source=HeritageHolder.veyra_market(listing_id),
+            character_id=session.character.id,
+            item_key=offered_key,
+            quantity=offered_qty,
+            event_type="market_fill",
+            note=f"Purchased through Veyra Exchange listing {listing_id}.",
+        )
+        missing_offered = offered_qty - len(moved_offered)
+        if missing_offered > 0 and is_special_item(offered_key):
+            created_heritage = record_special_acquisition_in_connection(
+                db,
+                character_id=session.character.id,
+                item_key=offered_key,
+                quantity=missing_offered,
+                origin_text=(
+                    f"Recovered from Veyra Exchange listing {listing_id}; this escrow entry "
+                    "predated complete heritage-location tracking."
+                ),
+                discovery_exact=False,
+            )
+
         db.execute(
             "UPDATE veyra_market_listings SET status = 'filled', filled_by_character_id = ?, filled_at = CURRENT_TIMESTAMP WHERE id = ?",
             (session.character.id, listing_id),
         )
-    return True, f"Filled listing {listing_id}: received {offered_qty} x {_item_name(offered_key)} for {wanted_qty} x {_item_name(wanted_key)}."
 
+    if created_heritage:
+        chronicle_first_discoveries(session.database, created_heritage)
+    return True, f"Filled listing {listing_id}: received {offered_qty} x {_item_name(offered_key)} for {wanted_qty} x {_item_name(wanted_key)}."
 
 def cancel_market_listing(session, listing_id: int) -> tuple[bool, str]:
     if session.character is None:
         return False, "No active character."
     ensure_veyra_service_tables(session.database)
+    from mud.item_heritage import (
+        HeritageHolder,
+        ensure_item_heritage_schema,
+        move_holder_to_owner_in_connection,
+    )
+    ensure_item_heritage_schema(session.database)
     with session.database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute(
@@ -925,6 +1053,15 @@ def cancel_market_listing(session, listing_id: int) -> tuple[bool, str]:
             ON CONFLICT(character_id, item_key) DO UPDATE SET quantity = quantity + excluded.quantity
             """,
             (session.character.id, item_key, qty),
+        )
+        move_holder_to_owner_in_connection(
+            db,
+            source=HeritageHolder.veyra_market(listing_id),
+            character_id=session.character.id,
+            item_key=item_key,
+            quantity=qty,
+            event_type="market_cancel",
+            note=f"Returned from cancelled Veyra Exchange listing {listing_id}.",
         )
     return True, f"Cancelled listing {listing_id}; {qty} x {_item_name(item_key)} returned from escrow."
 
