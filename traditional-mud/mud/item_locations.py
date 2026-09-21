@@ -263,7 +263,30 @@ def transfer_item(
     if source.kind == "container" and source.reservation is None:
         raise ValueError("Container transfers require an exact reservation bucket.")
 
+    from mud.item_heritage import (
+        HeritageHolder,
+        chronicle_first_discoveries,
+        ensure_item_heritage_schema,
+        ensure_special_inventory_item,
+        is_special_item,
+        move_location_instances_in_connection,
+    )
+
     ensure_item_location_storage(database)
+    ensure_item_heritage_schema(database)
+    if source.kind == "character" and is_special_item(item_key):
+        ensure_special_inventory_item(database, int(source.key), item_key)
+
+    def heritage_holder(location: ItemLocation) -> HeritageHolder:
+        if location.kind == "character":
+            return HeritageHolder.character(int(location.key))
+        if location.kind == "room":
+            return HeritageHolder.room(location.key)
+        if location.kind == "container":
+            return HeritageHolder.container(int(location.key), location.reservation)
+        return HeritageHolder(location.kind, location.key, location.reservation)
+
+    changed_heritage = []
     with database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
         available = location_item_quantity_in_connection(db, source, item_key)
@@ -273,6 +296,15 @@ def transfer_item(
         _write_quantity(db, source, item_key, available - quantity)
         current = location_item_quantity_in_connection(db, destination, item_key)
         _write_quantity(db, destination, item_key, current + quantity)
+        changed_heritage = move_location_instances_in_connection(
+            db,
+            source=heritage_holder(source),
+            destination=heritage_holder(destination),
+            item_key=item_key,
+            quantity=quantity,
+        )
+    if changed_heritage:
+        chronicle_first_discoveries(database, changed_heritage)
     return True
 
 

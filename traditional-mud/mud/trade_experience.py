@@ -201,6 +201,22 @@ def exchange_items(
         if any(quantity <= 0 for quantity in offer.values()):
             raise ValueError("Trade quantities must be positive.")
 
+    from mud.item_heritage import (
+        ensure_item_heritage_schema,
+        ensure_special_inventory_item,
+        is_special_item,
+        transfer_owned_instances_in_connection,
+    )
+
+    ensure_item_heritage_schema(database)
+    for character_id, offer in (
+        (first_character_id, first_offer),
+        (second_character_id, second_offer),
+    ):
+        for item_key in offer:
+            if is_special_item(item_key):
+                ensure_special_inventory_item(database, character_id, item_key)
+
     db = database.connect()
     try:
         db.execute("BEGIN IMMEDIATE")
@@ -251,6 +267,27 @@ def exchange_items(
         debit(second_character_id, second_offer)
         credit(second_character_id, first_offer)
         credit(first_character_id, second_offer)
+
+        for item_key, quantity in first_offer.items():
+            transfer_owned_instances_in_connection(
+                db,
+                from_character_id=first_character_id,
+                to_character_id=second_character_id,
+                item_key=item_key,
+                quantity=quantity,
+                event_type="trade",
+                note="Transferred through a direct player exchange.",
+            )
+        for item_key, quantity in second_offer.items():
+            transfer_owned_instances_in_connection(
+                db,
+                from_character_id=second_character_id,
+                to_character_id=first_character_id,
+                item_key=item_key,
+                quantity=quantity,
+                event_type="trade",
+                note="Transferred through a direct player exchange.",
+            )
         db.commit()
         return True
     except Exception:

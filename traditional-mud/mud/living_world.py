@@ -1038,6 +1038,13 @@ async def _room_store(session, text: str) -> None:
     if not _is_private_room(session):
         await session.send("Use your storage chest from inside your room.\r\n")
         return
+    from mud.item_heritage import (
+        HeritageHolder,
+        ensure_item_heritage_schema,
+        ensure_special_inventory_item,
+        is_special_item,
+        move_owned_to_holder_in_connection,
+    )
     character = session.character
     quantity, item_text = _parse_quantity(text)
     item_key, error = _resolve_inventory_item(session, item_text)
@@ -1057,6 +1064,9 @@ async def _room_store(session, text: str) -> None:
     if used + quantity > ROOM_STORAGE_CAPACITY:
         await session.send(f"That would exceed the {ROOM_STORAGE_CAPACITY}-unit storage chest.\r\n")
         return
+    ensure_item_heritage_schema(session.database)
+    if is_special_item(item_key):
+        ensure_special_inventory_item(session.database, character.id, item_key)
     with session.database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute(
@@ -1086,6 +1096,16 @@ async def _room_store(session, text: str) -> None:
             """,
             (character.id, item_key, quantity),
         )
+        move_owned_to_holder_in_connection(
+            db,
+            character_id=character.id,
+            item_key=item_key,
+            quantity=quantity,
+            destination=HeritageHolder.living_storage(character.id),
+            event_type="room_storage",
+            note="Placed into private room storage.",
+            keep_owner=True,
+        )
     await session.send(f"Stored {quantity} x {_item_label(item_key)} in your room chest.\r\n")
 
 
@@ -1093,6 +1113,11 @@ async def _room_take(session, text: str) -> None:
     if not _is_private_room(session):
         await session.send("Use your storage chest from inside your room.\r\n")
         return
+    from mud.item_heritage import (
+        HeritageHolder,
+        ensure_item_heritage_schema,
+        move_holder_to_owner_in_connection,
+    )
     character = session.character
     quantity, item_text = _parse_quantity(text)
     wanted = _normalize(item_text)
@@ -1106,6 +1131,7 @@ async def _room_take(session, text: str) -> None:
         await session.send("Name one item currently in ROOM STORAGE.\r\n")
         return
     item_key = str(matches[0]["item_key"])
+    ensure_item_heritage_schema(session.database)
     with session.database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute(
@@ -1135,6 +1161,15 @@ async def _room_take(session, text: str) -> None:
             """,
             (character.id, item_key, quantity),
         )
+        move_holder_to_owner_in_connection(
+            db,
+            source=HeritageHolder.living_storage(character.id),
+            character_id=character.id,
+            item_key=item_key,
+            quantity=quantity,
+            event_type="room_storage_withdrawal",
+            note="Taken back from private room storage.",
+        )
     await session.send(f"Took {quantity} x {_item_label(item_key)} from your room chest.\r\n")
 
 
@@ -1153,6 +1188,13 @@ async def _display_item(session, text: str) -> None:
     if not _is_private_room(session):
         await session.send("Your display shelf is inside your rented room.\r\n")
         return
+    from mud.item_heritage import (
+        HeritageHolder,
+        ensure_item_heritage_schema,
+        ensure_special_inventory_item,
+        is_special_item,
+        move_owned_to_holder_in_connection,
+    )
     character = session.character
     rows = {int(row["slot_number"]): str(row["item_key"]) for row in _display_rows(session)}
     free = next((slot for slot in range(1, ROOM_DISPLAY_SLOTS + 1) if slot not in rows), None)
@@ -1172,6 +1214,9 @@ async def _display_item(session, text: str) -> None:
     if available < 1:
         await session.send(f"Unequip {_item_label(item_key)} before displaying it.\r\n")
         return
+    ensure_item_heritage_schema(session.database)
+    if is_special_item(item_key):
+        ensure_special_inventory_item(session.database, character.id, item_key)
     with session.database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute(
@@ -1197,6 +1242,16 @@ async def _display_item(session, text: str) -> None:
             "INSERT INTO living_room_display (character_id, slot_number, item_key) VALUES (?, ?, ?)",
             (character.id, free, item_key),
         )
+        move_owned_to_holder_in_connection(
+            db,
+            character_id=character.id,
+            item_key=item_key,
+            quantity=1,
+            destination=HeritageHolder.living_display(character.id, free),
+            event_type="displayed",
+            note=f"Placed on private display shelf slot {free}.",
+            keep_owner=True,
+        )
     await session.send(f"You place {_item_label(item_key)} on display shelf slot {free}.\r\n")
 
 
@@ -1204,10 +1259,16 @@ async def _take_display(session, slot: int) -> None:
     if not _is_private_room(session):
         await session.send("Your display shelf is inside your rented room.\r\n")
         return
+    from mud.item_heritage import (
+        HeritageHolder,
+        ensure_item_heritage_schema,
+        move_holder_to_owner_in_connection,
+    )
     character = session.character
     if slot < 1 or slot > ROOM_DISPLAY_SLOTS:
         await session.send("Display slots are numbered 1 through 5.\r\n")
         return
+    ensure_item_heritage_schema(session.database)
     with session.database.connect() as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute(
@@ -1230,6 +1291,15 @@ async def _take_display(session, slot: int) -> None:
             ON CONFLICT(character_id, item_key) DO UPDATE SET quantity = quantity + 1
             """,
             (character.id, item_key),
+        )
+        move_holder_to_owner_in_connection(
+            db,
+            source=HeritageHolder.living_display(character.id, slot),
+            character_id=character.id,
+            item_key=item_key,
+            quantity=1,
+            event_type="display_removed",
+            note=f"Taken down from private display shelf slot {slot}.",
         )
     await session.send(f"You take {_item_label(item_key)} down from the shelf.\r\n")
 

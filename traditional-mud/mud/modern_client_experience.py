@@ -126,13 +126,17 @@ def _room_snapshot(session, world) -> dict | None:
 
 
 def _inventory_snapshot(session) -> dict:
+    from mud.item_heritage import heritage_inventory_summaries
+
     character = session.character
     equipment = equipped_item_keys(session.database, character.id)
+    heritage_by_item = heritage_inventory_summaries(session.database, character.id)
     equipped_by_item = {item_key: slot for slot, item_key in equipment.items()}
     items = []
     for row in session.database.list_items(character.id):
         item_key = str(row["item_key"])
         definition = crafting.ITEMS_BY_KEY.get(item_key)
+        heritage = heritage_by_item.get(item_key)
         items.append(
             {
                 "key": item_key,
@@ -143,6 +147,7 @@ def _inventory_snapshot(session) -> dict:
                 "equipped": item_key in equipped_by_item,
                 "slot": equipped_by_item.get(item_key, ""),
                 "description": definition.description if definition is not None else "",
+                "heritage": heritage,
             }
         )
     items.sort(key=lambda value: (not value["equipped"], value["category"], value["name"].lower()))
