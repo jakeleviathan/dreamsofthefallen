@@ -1568,7 +1568,7 @@ class PlayerSession:
         verb = command.strip().lower()
         if verb in {"help", "?"}:
             await self.send(
-                "Commands: LOOK, EXITS, NORTH/SOUTH/EAST/WEST, SCORE, STATS, HEALTH, LORE, SKILLS, ABILITIES, ABILITIES ALL, "
+                "Commands: LOOK, EXITS, NORTH/SOUTH/EAST/WEST/NORTHEAST/NORTHWEST/SOUTHEAST/SOUTHWEST, SCORE, STATS, HEALTH, LORE, SKILLS, ABILITIES, ABILITIES ALL, "
                 "TARGET <name>, CLEAR TARGET, ATTACK/KILL <target>, USE/CAST <ability>, FLEE, BIND, ACCESS, INVENTORY, READ, QUESTS, TALK, "
                 "EXAMINE, TOUCH, LISTEN, "
                 "TRADES, PROFESSIONS, RECIPES, CRAFT, PERFUMERY, FOOD, EAT, POTIONS, DRINK, PERFUMES, SPRAY, MINE, HARVEST, HERBALISM, SOLS, SHOP, BUY, SELL, VALUE, MENU, QUIT\r\n"
@@ -1597,9 +1597,13 @@ class PlayerSession:
                 await self.send("No authored exits are available here yet.\r\n")
             return
 
-        direction_aliases = {"n": "north", "s": "south", "e": "east", "w": "west", "u": "up", "d": "down"}
+        direction_aliases = {
+            "n": "north", "s": "south", "e": "east", "w": "west",
+            "ne": "northeast", "nw": "northwest", "se": "southeast", "sw": "southwest",
+            "u": "up", "d": "down",
+        }
         direction = direction_aliases.get(verb, verb)
-        if direction in {"north", "south", "east", "west", "up", "down"}:
+        if direction in {"north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest", "up", "down"}:
             await self.move_character(direction)
             return
 
