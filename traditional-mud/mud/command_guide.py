@@ -46,6 +46,7 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("character", "UNEQUIP / REMOVE <slot or item>", "Remove combat equipment."),
     CommandEntry("character", "COMPARE <item>", "Compare carried equipment with the item occupying the same combat slot."),
     CommandEntry("character", "ITEM / INSPECT ITEM <item>", "Inspect carried equipment, fashion, or fragrance metadata."),
+    CommandEntry("character", "PROVENANCE / HERITAGE <item or serial>", "Read a tracked item's maker mark, craft record, special-item discovery edition, and ownership history. Ordinary anonymous items correctly report no individual heritage."),
     CommandEntry("character", "CLASS", "Show class role, known abilities, costs, cooldowns, and upcoming progression."),
     CommandEntry("character", "SKILLS / PROGRESS", "Show practiced ability mastery, skill levels, XP bars, uses, and the next three class unlocks."),
     CommandEntry("character", "ABILITIES", "Show only the class abilities you can use at your current level."),
@@ -195,7 +196,7 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("style", "APPLY FRAGRANCE <name> / APPLY PERFUME <name> / SPRAY <name>", "Consume one fragrance bottle and activate its authored real-time character-XP bonus. Only one scent is active at a time."),
     CommandEntry("style", "SCENT", "Show the fragrance currently worn, notes, remaining time, and bonus XP earned."),
     CommandEntry("style", "COLLECTION", "Show discovered fashion and fragrance counts by rarity; consumed bottles remain discovered."),
-    CommandEntry("style", "PROVENANCE <item>", "Read serialized origin and previous-owner history for a heritage fashion piece."),
+    CommandEntry("style", "PROVENANCE <fashion item>", "Read the serialized origin and previous-owner history of a collectible heritage fashion piece."),
     CommandEntry("style", "SEASONAL STYLE", "Show the current limited seasonal edition and how it is earned."),
 )
 
