@@ -18,7 +18,7 @@ from mud.quests import QUESTS_BY_KEY
 from mud.room_runtime import (
     WORLD as LIVE_WORLD,
     _context_for,
-    _puddle_here,
+    _reflection_sources_here,
     _render_business_status,
 )
 from mud.social_experience import install_social_experience_runtime
@@ -282,13 +282,18 @@ async def _render_room(session, world, previous_show_current_room) -> None:
     await session.send(view.description.replace("\n", "\r\n") + "\r\n")
 
     notable = [feature.name for feature in getattr(view, "features", ())]
-    if world is LIVE_WORLD and _puddle_here(session):
-        notable.append("Puddle")
+    reflection_sources = _reflection_sources_here(session) if world is LIVE_WORLD else ()
+    for source in reflection_sources:
+        if source.name not in notable:
+            notable.append(source.name)
     business = HUMAN_DISTRICT.business_in_room(view.key) if world is LIVE_WORLD else None
     if business is not None and business.name not in notable:
         notable.append(business.name)
     if notable:
         await session.send("\r\n" + style_text(session, "Notable:", "accent") + " " + ", ".join(notable) + ".\r\n")
+
+    for source in reflection_sources:
+        await session.send(source.room_text + "\r\n")
 
     people = _npc_lines(session, scene)
     if people:
