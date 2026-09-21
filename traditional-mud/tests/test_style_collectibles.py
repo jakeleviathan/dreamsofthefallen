@@ -8,6 +8,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import mud.command_guide as guide
 import mud.style_collectibles as style
@@ -97,6 +98,89 @@ class StyleCollectiblesTests(unittest.TestCase):
             self.assertEqual(db.item_quantity(first.id, "style_veyra_cutaway_coat"), 1)
             self.assertIn("changes appearance, not combat stats", "".join(session.messages))
 
+    def test_pavo_copies_regular_equipment_without_consuming_or_copying_power(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db, first, _ = self._characters(Path(temp))
+            db.add_sols(first.id, 100)
+            db.add_item(first.id, "cotton_hood", 1)
+            session = DummySession(db, first)
+
+            before = db.get_sols(first.id)
+            asyncio.run(
+                style._copy_style_from_equipment(
+                    session,
+                    "Cotton Hood AS back",
+                    world_service=None,
+                )
+            )
+
+            copies = style._copied_style_rows(db, first.id)
+            self.assertEqual(len(copies), 1)
+            self.assertEqual(str(copies[0]["source_item_key"]), "cotton_hood")
+            self.assertEqual(db.item_quantity(first.id, "cotton_hood"), 1)
+            expected_cost = style._style_copy_cost(style.crafting.ITEMS_BY_KEY["cotton_hood"])
+            self.assertEqual(db.get_sols(first.id), before - expected_cost)
+
+            token = style._copy_token(int(copies[0]["id"]))
+            worn = style._worn_style(db, first.id)
+            self.assertEqual(worn["back"], token)
+            entry = style._style_entry(db, first.id, token)
+            self.assertEqual(entry["source_kind"], "copied")
+            self.assertEqual(entry["name"], "Cotton Hood")
+
+            # The copied look is permanent wardrobe data. The physical source
+            # can leave inventory and the override remains valid.
+            self.assertTrue(db.consume_item(first.id, "cotton_hood", 1))
+            self.assertEqual(db.item_quantity(first.id, "cotton_hood"), 0)
+            self.assertEqual(style._worn_style(db, first.id)["back"], token)
+
+    def test_pavo_does_not_charge_twice_for_the_same_saved_silhouette(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db, first, _ = self._characters(Path(temp))
+            db.add_sols(first.id, 100)
+            db.add_item(first.id, "cotton_hood", 1)
+            session = DummySession(db, first)
+
+            asyncio.run(style._copy_style_from_equipment(session, "Cotton Hood", None))
+            after_first = db.get_sols(first.id)
+            asyncio.run(style._copy_style_from_equipment(session, "Cotton Hood AS face", None))
+
+            self.assertEqual(db.get_sols(first.id), after_first)
+            self.assertEqual(len(style._copied_style_rows(db, first.id)), 1)
+            token = style._copy_token(int(style._copied_style_rows(db, first.id)[0]["id"]))
+            self.assertEqual(style._worn_style(db, first.id)["face"], token)
+
+    def test_pavo_is_in_every_racial_start_and_recurs_in_public_hubs(self):
+        for loop in style.STARTER_RACE_LOOPS:
+            with self.subTest(room=loop.starting_room_key):
+                self.assertTrue(style.style_atelier_available(None, loop.starting_room_key))
+
+        class FakeWorld:
+            @staticmethod
+            def scene(_room_key):
+                return SimpleNamespace(
+                    name="Copper Exchange",
+                    tags=("trade", "safe"),
+                )
+
+        self.assertTrue(style.style_atelier_available(FakeWorld(), "some_future_exchange"))
+        self.assertFalse(style.style_atelier_available(FakeWorld(), ""))
+
+    def test_style_copy_can_override_weapon_and_clothing_slots_freely(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db, first, _ = self._characters(Path(temp))
+            db.add_sols(first.id, 100)
+            db.add_item(first.id, "cotton_hood", 1)
+            session = DummySession(db, first)
+
+            asyncio.run(style._copy_style_from_equipment(session, "Cotton Hood", None))
+            asyncio.run(style._wear_style(session, "Cotton Hood AS main hand"))
+            worn = style._worn_style(db, first.id)
+            self.assertIn("main_hand", worn)
+            entry = style._style_entry(db, first.id, worn["main_hand"])
+            self.assertEqual(entry["name"], "Cotton Hood")
+            self.assertIn("combat stats do not change", "".join(session.messages))
+
     def test_heritage_piece_has_serial_origin_and_direct_trade_history(self):
         with tempfile.TemporaryDirectory() as temp:
             db, first, second = self._characters(Path(temp))
@@ -135,6 +219,9 @@ class StyleCollectiblesTests(unittest.TestCase):
         style_rows = [entry for entry in guide.COMMANDS if entry.category == "style"]
         syntaxes = {entry.syntax for entry in style_rows}
         self.assertIn("STYLE / WARDROBE / OUTFIT / FASHION", syntaxes)
+        self.assertIn("ATELIER / STYLE SERVICE", syntaxes)
+        self.assertIn("STYLE COPY <equipment> [AS <slot>]", syntaxes)
+        self.assertIn("STYLE WEAR <look> [AS <slot>]", syntaxes)
         self.assertIn("APPLY FRAGRANCE <name> / APPLY PERFUME <name> / SPRAY <name>", syntaxes)
         self.assertIn("PROVENANCE <item>", syntaxes)
         self.assertGreaterEqual(len(guide.COMMANDS), 100)
