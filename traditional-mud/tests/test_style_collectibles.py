@@ -8,7 +8,6 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 
 import mud.command_guide as guide
 import mud.style_collectibles as style
@@ -150,21 +149,30 @@ class StyleCollectiblesTests(unittest.TestCase):
             token = style._copy_token(int(style._copied_style_rows(db, first.id)[0]["id"]))
             self.assertEqual(style._worn_style(db, first.id)["head"], token)
 
-    def test_pavo_is_in_every_racial_start_and_recurs_in_public_hubs(self):
-        for loop in style.STARTER_RACE_LOOPS:
-            with self.subTest(room=loop.starting_room_key):
-                self.assertTrue(style.style_atelier_available(None, loop.starting_room_key))
+    def test_pavo_is_spaced_one_per_homeland_plus_two_flagship_hubs(self):
+        starter_rooms = {loop.starting_room_key for loop in style.STARTER_RACE_LOOPS}
+        self.assertEqual(len(starter_rooms), 8)
+        self.assertEqual(
+            style.PAVO_ATELIER_ROOMS,
+            starter_rooms | {style.VEYRA_BRASSMARKET_KEY, style.WAYMEET_LANTERN_MARKET_KEY},
+        )
+        for room_key in style.PAVO_ATELIER_ROOMS:
+            with self.subTest(room=room_key):
+                self.assertTrue(style.style_atelier_available(None, room_key))
 
-        class FakeWorld:
-            @staticmethod
-            def scene(_room_key):
-                return SimpleNamespace(
-                    name="Copper Exchange",
-                    tags=("trade", "safe"),
-                )
+        # Nearby public rooms must not grow duplicate ateliers just because
+        # they are markets, exchanges, commonhouses, inns, or civic spaces.
+        for nearby_room in (
+            "waymeet_commonhouse_yard",
+            "waymeet_crossroads",
+            "veyra_exchange_arcade",
+            "veyra_guildhall_row",
+            "veyra_public_hearth",
+        ):
+            with self.subTest(nearby=nearby_room):
+                self.assertFalse(style.style_atelier_available(None, nearby_room))
 
-        self.assertTrue(style.style_atelier_available(FakeWorld(), "some_future_exchange"))
-        self.assertFalse(style.style_atelier_available(FakeWorld(), ""))
+        self.assertFalse(style.style_atelier_available(None, ""))
 
     def test_style_copy_respects_the_source_equipment_slot(self):
         with tempfile.TemporaryDirectory() as temp:

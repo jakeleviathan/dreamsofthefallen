@@ -52,17 +52,13 @@ STYLE_COPY_BASE_COST_SPARKS = 10
 STYLE_COPY_TIER_COST_SPARKS = 5
 COPIED_STYLE_PREFIX = "copy:"
 
-_ATELIER_FIXED_ROOMS = frozenset(
+# Pavo is recurring, not ubiquitous room furniture. Each homeland gets one
+# reliable atelier at its starter settlement, while the two largest shared
+# commercial hubs get one flagship counter each. Nearby markets, inns, civic
+# rooms, and exchanges do not automatically spawn duplicate Pavos.
+PAVO_ATELIER_ROOMS = frozenset(
     {loop.starting_room_key for loop in STARTER_RACE_LOOPS}
     | {VEYRA_BRASSMARKET_KEY, WAYMEET_LANTERN_MARKET_KEY}
-)
-_ATELIER_TAGS = frozenset({
-    "market", "merchant", "social_hub", "meeting_place", "trade", "bureaucracy",
-    "civic_work", "rail_hub", "commonhouse", "wayhouse",
-})
-_ATELIER_NAME_MARKERS = (
-    "market", "plaza", "concourse", "commonhouse", "wayhouse", "terminal",
-    "registry", "exchange", "guildhall", "bath", "inn", "tavern",
 )
 
 PAVO_DIALOGUE = (
@@ -344,27 +340,9 @@ def _sync_discoveries(session) -> None:
 
 
 def style_atelier_available(world_service, room_key: str) -> bool:
-    """Return whether one of Pavo's mysteriously ubiquitous atelier counters is here."""
-    if not room_key:
-        return False
-    if room_key in _ATELIER_FIXED_ROOMS:
-        return True
-    if world_service is None:
-        return False
-
-    scene_getter = getattr(world_service, "scene", None)
-    if callable(scene_getter):
-        room = scene_getter(room_key)
-    else:
-        room = getattr(world_service, "legacy_rooms", {}).get(room_key)
-    if room is None:
-        return False
-
-    tags = {str(tag).strip().lower() for tag in getattr(room, "tags", ())}
-    if tags & _ATELIER_TAGS:
-        return True
-    name = str(getattr(room, "name", "") or "").lower()
-    return any(marker in name for marker in _ATELIER_NAME_MARKERS)
+    """Return whether this room is one of Pavo's deliberately spaced atelier locations."""
+    del world_service
+    return bool(room_key and room_key in PAVO_ATELIER_ROOMS)
 
 
 def _is_pavo_target(target: str) -> bool:
@@ -777,8 +755,8 @@ async def _show_pavo(session, world_service) -> None:
         return
     if not style_atelier_available(world_service, session.character.current_room or ""):
         await session.send(
-            "Pavo Vellum is not here. His ateliers turn up in major markets, civic hubs, wayhouses, "
-            "and, for reasons nobody can explain, every racial starting settlement.\r\n"
+            "Pavo Vellum is not here. His ateliers are scattered across the major homelands, "
+            "with flagship counters in Waymeet and Veyra.\r\n"
         )
         return
     await session.send(
@@ -813,8 +791,8 @@ async def _show_atelier(session, world_service) -> None:
         return
     if not style_atelier_available(world_service, session.character.current_room or ""):
         await session.send(
-            "There is no Impossible Atelier here. Look for Pavo Vellum in major settlements, markets, "
-            "wayhouses, exchanges, and other suspiciously convenient places.\r\n"
+            "There is no Impossible Atelier here. Pavo keeps one reliable counter in each homeland "
+            "and flagship shops in Waymeet and Veyra.\r\n"
         )
         return
 
