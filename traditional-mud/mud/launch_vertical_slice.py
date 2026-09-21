@@ -280,7 +280,7 @@ def journey_stage_for(*, race_key: str, level: int, flags: frozenset[str] | set[
     if GREYWAKE_CHAIN_COMPLETE_FLAG not in flags:
         return (
             "The Greywake road",
-            "What came out of the Gloamworks points east. Greywake turns one dungeon discovery into a regional argument about roads, risk, trade, and public safety—and lets you choose whose approach you support.",
+            "What came out of the Gloamworks points east. Greywake turns one dungeon discovery into a regional argument about roads, risk, trade, and public safety-and lets you choose whose approach you support.",
         )
     if VEYRA_RESIDENT_FLAG not in flags:
         return (
@@ -442,7 +442,7 @@ async def _tavern_who(session) -> None:
         await session.send("The public hearths are quiet.\r\n")
         return
     for name, hub in people:
-        await session.send(f"{name} — {hub}\r\n")
+        await session.send(f"{name} - {hub}\r\n")
 
 
 async def _broadcast_tavern(session, message: str) -> None:
@@ -460,7 +460,7 @@ async def _broadcast_tavern(session, message: str) -> None:
         await session.send("Use TAVERN <message> or TAVERN WHO.\r\n")
         return
     source = SOCIAL_HUBS[character.current_room or ""]
-    line = f"[Tavern — {source}] {character.name}: {cleaned}\r\n"
+    line = f"[Tavern - {source}] {character.name}: {cleaned}\r\n"
     delivered = False
     for other in tuple(social._ACTIVE_SESSIONS):
         other_character = getattr(other, "character", None)

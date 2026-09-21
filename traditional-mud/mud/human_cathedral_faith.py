@@ -502,7 +502,7 @@ async def _talk_high_acolyte(session) -> bool:
             _finish_quest(session, HUMAN_OPEN_DOOR_QUEST.key, HUMAN_OPEN_DOOR_COMPLETE_FLAG)
             session.database.start_quest(session.character.id, quests.HUMAN_LOWER_WARDS_INVESTIGATION.key, "find_lower_wards")
             await session.send(
-                "\r\nThe High Acolyte listens to how the outsider answered—or did not answer.\r\n"
+                "\r\nThe High Acolyte listens to how the outsider answered-or did not answer.\r\n"
                 "'Sanctuary can be offered. Trust cannot be commanded. Remember the difference.'\r\n"
                 "Their attention shifts toward the nave doors. 'Now there is work in the Lower Wards. Sealed passages are being marked and scrubbed clean. Care for a city includes noticing what it is trying not to show you.'\r\n"
                 "\r\nQuest complete: An Open Door.\r\nNew quest: Marks in the Ash.\r\n"
@@ -538,7 +538,7 @@ async def _talk_high_acolyte(session) -> bool:
             _finish_quest(session, HUMAN_BELLS_QUEST.key, HUMAN_BELLS_COMPLETE_FLAG)
             await session.send(
                 "\r\nThe High Acolyte hears the last vibration of the vigil bell through the stone before you speak.\r\n"
-                "'That is what these walls are for. Not to prove the world wrong about us. To make sure fear—ours or theirs—does not decide what we become.'\r\n"
+                "'That is what these walls are for. Not to prove the world wrong about us. To make sure fear-ours or theirs-does not decide what we become.'\r\n"
                 "They incline their head. 'There will be more work. For now, remember the order: name the person, open the door, tell the truth, ring the bell when truth asks something of the living.'\r\n"
                 "\r\nQuest complete: What the Bells Are For.\r\n"
             )

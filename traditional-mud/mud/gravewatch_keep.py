@@ -486,7 +486,7 @@ def gravewatch_augmentations() -> dict[str, RoomAugmentation]:
                     "gravewatch_road_notice",
                     "Gravewatch Road Notice",
                     "a fresh watch notice naming an undead-held keep downriver",
-                    "GRAVEWATCH KEEP — ROAD HAZARD. Confirmed skeletal garrison, bone hounds, and at least two wight officers. Experienced travelers may report to Sergeant Toma Reed at the river-mile camp. This notice contains no mention of Gloam activity.",
+                    "GRAVEWATCH KEEP - ROAD HAZARD. Confirmed skeletal garrison, bone hounds, and at least two wight officers. Experienced travelers may report to Sergeant Toma Reed at the river-mile camp. This notice contains no mention of Gloam activity.",
                     ("notice", "gravewatch notice", "road notice", "gravewatch"),
                 ),
             ),

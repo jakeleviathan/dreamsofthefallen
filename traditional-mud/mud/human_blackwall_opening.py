@@ -643,7 +643,7 @@ async def _talk_orrin(session) -> bool:
     await session.send(
         "\r\nOrrin does not recognize the object immediately. That is somehow more unsettling than if he had. He brings out an old illustrated catalog, compares the proportions twice, then sits down.\r\n"
         "'Earth,' he says. 'A personal communications handset. Dead, obviously. The power system is gone, the network it expected is gone, and nobody living could make it speak again.'\r\n"
-        "He turns the black glass under the lamp. 'Our ancestors crossed intentionally. We know that much. They brought objects like this with them. What we do not have—after centuries of looking—is a road back.'\r\n"
+        "He turns the black glass under the lamp. 'Our ancestors crossed intentionally. We know that much. They brought objects like this with them. What we do not have-after centuries of looking-is a road back.'\r\n"
         "Orrin places the handset in a padded tray rather than trying to activate it. 'Useful? No. Important? Yes. It means the old story touched your hands.'\r\n"
         "\r\nQuest complete: The Wrong Kind of Old.\r\n"
         "New quest: Beyond the Blackwall. Go to the Demon Gate and TALK GATEWARDEN.\r\n"
@@ -902,7 +902,7 @@ def install_human_blackwall_runtime(player_session_class, world_service) -> None
         if origin == legacy_world.HUMAN_START_ROOM_KEY and normalized == "east" and self.character.current_room == HUMAN_OUTER_CARAVAN_ROAD_KEY:
             if complete_first_outside_step(self):
                 await self.send(
-                    "\r\nThe gate opens behind you with chain, wheel, and ordinary shouted traffic instructions—not ceremony. Then you are outside.\r\n"
+                    "\r\nThe gate opens behind you with chain, wheel, and ordinary shouted traffic instructions-not ceremony. Then you are outside.\r\n"
                     "A Dwarven teamster coming the other way glances up and calls, 'Morning, Demon,' as casually as Ketta did. Farther down the road, another traveler looks at the horned Blackwall skyline, then at you, and keeps a little more distance than the road requires.\r\n"
                     "Inside, the word was architecture. Out here, it belongs to other people's stories about you. Neither reaction tells you everything about the person having it.\r\n"
                     "You turn once and see Blackwall from the road: enormous, black, horned, and suddenly understandable as something a stranger might fear.\r\n"
