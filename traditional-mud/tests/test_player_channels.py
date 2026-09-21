@@ -125,10 +125,10 @@ class PlayerChannelTests(unittest.TestCase):
         alice.outputs.clear()
         asyncio.run(alice.playing_prompt())
         self.assertIn(
-            "[Raiders] Alice: Meet at Waymeet.", "".join(alice.outputs)
+            "Raiders | Alice: Meet at Waymeet.", "".join(alice.outputs)
         )
         self.assertIn(
-            "[Raiders] Alice: Meet at Waymeet.", "".join(bob.outputs)
+            "Raiders | Alice: Meet at Waymeet.", "".join(bob.outputs)
         )
 
     def test_invite_only_channels_remain_discoverable_without_private_details(self):
@@ -197,7 +197,7 @@ class PlayerChannelTests(unittest.TestCase):
         alice.outputs.clear()
         asyncio.run(bob.playing_prompt())
         self.assertIn(
-            "[Raiders] Bob: I am back.", "".join(alice.outputs)
+            "Raiders | Bob: I am back.", "".join(alice.outputs)
         )
 
         asyncio.run(alice.playing_prompt())
@@ -258,6 +258,41 @@ class PlayerChannelTests(unittest.TestCase):
         self.assertIn(
             f"already own {MAX_OWNED_CHANNELS}", output
         )
+
+
+    def test_channels_list_is_compact_and_owner_controls_live_in_info(self):
+        alice, bob, _ = self._sessions(
+            ["channel create Raiders", "channel info Raiders"],
+            ["channels"],
+        )
+        asyncio.run(alice.playing_prompt())
+        asyncio.run(bob.playing_prompt())
+        listing = "".join(bob.outputs)
+        self.assertIn("Name", listing)
+        self.assertIn("Members", listing)
+        self.assertIn("Access", listing)
+        self.assertIn("Raiders", listing)
+        self.assertNotIn("CHANNEL INVITE/KICK/MUTE", listing)
+
+        alice.outputs.clear()
+        asyncio.run(alice.playing_prompt())
+        info = "".join(alice.outputs)
+        self.assertIn("Owner controls:", info)
+        self.assertIn("CHANNEL INVITE Raiders <player>", info)
+        self.assertIn("CHANNEL RENAME Raiders <new-name>", info)
+
+    def test_hash_shortcut_sends_to_player_channel(self):
+        alice, bob, _ = self._sessions(
+            ["channel create Raiders", "#Raiders Meet at Waymeet."],
+            ["channel join Raiders"],
+        )
+        asyncio.run(alice.playing_prompt())
+        asyncio.run(bob.playing_prompt())
+        alice.outputs.clear()
+        bob.outputs.clear()
+        asyncio.run(alice.playing_prompt())
+        self.assertIn("Raiders | Alice: Meet at Waymeet.", "".join(alice.outputs))
+        self.assertIn("Raiders | Alice: Meet at Waymeet.", "".join(bob.outputs))
 
     def test_builtin_channel_settings_are_delegated_to_existing_social_owner(self):
         alice, _, _ = self._sessions(["channel chat off"])
