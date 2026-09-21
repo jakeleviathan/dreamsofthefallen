@@ -1033,8 +1033,8 @@ def render_provenance(database, character_id: int, item_key: str, *, serial: str
                 )
             else:
                 lines.append(
-                    f"Heritage registry: #{ordinal} of {total} known. This copy existed before exact "
-                    "discovery-order tracking, so its historical find position cannot be guaranteed."
+                    f"Heritage registry: #{ordinal} of {total} known. This copy predates exact discovery-order tracking, "
+                    "so its historical find position cannot be guaranteed."
                 )
         if row["origin_text"]:
             lines.append(f"Origin: {row['origin_text']}")
