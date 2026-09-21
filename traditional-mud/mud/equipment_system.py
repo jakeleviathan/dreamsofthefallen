@@ -848,6 +848,15 @@ async def _show_item_detail(session, target: str) -> None:
         if effect.effect_tags:
             await session.send("Effect tags: " + ", ".join(effect.effect_tags) + "\r\n")
 
+    from mud.item_heritage import compact_heritage_lines
+
+    for heritage_line in compact_heritage_lines(
+        session.database,
+        session.character.id,
+        definition.key,
+    ):
+        await session.send(heritage_line + "\r\n")
+
 
 async def _compare_item(session, target: str) -> None:
     assert session.character is not None
