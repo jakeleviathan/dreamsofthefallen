@@ -191,17 +191,46 @@ def clear_static_enemy_respawn(database, room_key: str, enemy_key: str) -> None:
         )
 
 
+def static_enemy_spawn_key(enemy_key: str, occurrence: int) -> str:
+    """Return the persistent key for one authored static spawn.
+
+    The first occurrence keeps the historical raw enemy key so existing death
+    rows remain valid. Additional copies get stable #2, #3, ... suffixes.
+    """
+    return enemy_key if occurrence <= 1 else f"{enemy_key}#{occurrence}"
+
+
+def iter_static_enemy_spawns(enemy_keys) -> tuple[tuple[str, str], ...]:
+    """Pair authored enemy definition keys with concrete persistent spawn keys."""
+    counts: dict[str, int] = {}
+    result: list[tuple[str, str]] = []
+    for enemy_key in enemy_keys:
+        counts[enemy_key] = counts.get(enemy_key, 0) + 1
+        result.append((enemy_key, static_enemy_spawn_key(enemy_key, counts[enemy_key])))
+    return tuple(result)
+
+
 def _static_enemy_keys_in_room(room_key: str) -> tuple[str, ...]:
     room = ROOMS_BY_KEY.get(room_key)
     return tuple(getattr(room, "enemy_keys", ())) if room is not None else ()
 
 
-def _unavailable_static_enemy_keys(room_key: str, database=None) -> set[str]:
-    return {
-        enemy_key
-        for enemy_key in _static_enemy_keys_in_room(room_key)
-        if not static_enemy_available(room_key, enemy_key, database=database)
-    }
+def _static_enemy_spawns_in_room(room_key: str) -> tuple[tuple[str, str], ...]:
+    return iter_static_enemy_spawns(_static_enemy_keys_in_room(room_key))
+
+
+def _enemy_definition_has_available_spawn(room_key: str, enemy_key: str, database=None) -> bool:
+    matches = [
+        spawn_key
+        for definition_key, spawn_key in _static_enemy_spawns_in_room(room_key)
+        if definition_key == enemy_key
+    ]
+    if not matches:
+        return False
+    return any(
+        static_enemy_available(room_key, spawn_key, database=database)
+        for spawn_key in matches
+    )
 
 
 def _install_presentation_filters() -> None:
@@ -219,9 +248,11 @@ def _install_presentation_filters() -> None:
                 if not room_key:
                     return original_enemy_lines(scene)
                 lines: list[str] = []
-                for enemy_key in getattr(scene, "enemy_keys", ()):
+                for enemy_key, spawn_key in iter_static_enemy_spawns(
+                    getattr(scene, "enemy_keys", ())
+                ):
                     enemy = ENEMIES_BY_KEY.get(enemy_key)
-                    if enemy is not None and static_enemy_available(room_key, enemy_key):
+                    if enemy is not None and static_enemy_available(room_key, spawn_key):
                         lines.append(enemy.name)
                 return lines
 
@@ -242,13 +273,19 @@ def _install_presentation_filters() -> None:
                 if character is None:
                     return actors
                 room_key = character.current_room or ""
-                dead = _unavailable_static_enemy_keys(room_key, getattr(session, "database", None))
-                if not dead:
-                    return actors
-                return tuple(
-                    actor for actor in actors
-                    if not (getattr(actor, "kind", "") == "enemy" and getattr(actor, "key", "") in dead)
-                )
+                database = getattr(session, "database", None)
+                static_keys = set(_static_enemy_keys_in_room(room_key))
+                occurrence: dict[str, int] = {}
+                filtered = []
+                for actor in actors:
+                    key = getattr(actor, "key", "")
+                    if getattr(actor, "kind", "") == "enemy" and key in static_keys:
+                        occurrence[key] = occurrence.get(key, 0) + 1
+                        spawn_key = static_enemy_spawn_key(key, occurrence[key])
+                        if not static_enemy_available(room_key, spawn_key, database=database):
+                            continue
+                    filtered.append(actor)
+                return tuple(filtered)
 
             actor_inspection.visible_actors = visible_actors
             actor_inspection._enemy_lifecycle_filter_installed = True
@@ -269,13 +306,19 @@ def _install_presentation_filters() -> None:
                 if character is None:
                     return candidates
                 room_key = character.current_room or ""
-                dead = _unavailable_static_enemy_keys(room_key, getattr(session, "database", None))
-                if not dead:
-                    return candidates
-                return tuple(
-                    candidate for candidate in candidates
-                    if not (getattr(candidate, "kind", "") == "enemy" and getattr(candidate, "key", "") in dead)
-                )
+                database = getattr(session, "database", None)
+                static_keys = set(_static_enemy_keys_in_room(room_key))
+                occurrence: dict[str, int] = {}
+                filtered = []
+                for candidate in candidates:
+                    key = getattr(candidate, "key", "")
+                    if getattr(candidate, "kind", "") == "enemy" and key in static_keys:
+                        occurrence[key] = occurrence.get(key, 0) + 1
+                        spawn_key = static_enemy_spawn_key(key, occurrence[key])
+                        if not static_enemy_available(room_key, spawn_key, database=database):
+                            continue
+                    filtered.append(candidate)
+                return tuple(filtered)
 
             partial_target_matching.visible_target_candidates = visible_target_candidates
             partial_target_matching._enemy_lifecycle_filter_installed = True
@@ -294,14 +337,17 @@ def _install_presentation_filters() -> None:
                 if character is None:
                     return payload
                 room_key = character.current_room or ""
-                dead = _unavailable_static_enemy_keys(room_key, getattr(session, "database", None))
-                if not dead:
-                    return payload
+                database = getattr(session, "database", None)
                 dead_names = {
                     ENEMIES_BY_KEY[key].name.lower()
-                    for key in dead
+                    for key in set(_static_enemy_keys_in_room(room_key))
                     if key in ENEMIES_BY_KEY
+                    and not _enemy_definition_has_available_spawn(
+                        room_key, key, database=database
+                    )
                 }
+                if not dead_names:
+                    return payload
                 actions = payload.get("actions") if isinstance(payload, dict) else None
                 if isinstance(actions, list):
                     payload["actions"] = [
@@ -339,20 +385,23 @@ def install_enemy_lifecycle_runtime(player_session_class) -> None:
     previous_enemy_in_room = getattr(player_session_class, "_enemy_in_current_room", None)
     if callable(previous_enemy_in_room):
         def _enemy_in_current_room(self, target_text: str):
-            enemy = previous_enemy_in_room(self, target_text)
-            if enemy is None:
-                return None
             character = getattr(self, "character", None)
             if character is None:
-                return enemy
+                return previous_enemy_in_room(self, target_text)
             room_key = character.current_room or ""
-            if not static_enemy_available(
-                room_key,
-                enemy.definition.key,
-                database=getattr(self, "database", None),
-            ):
+            database = getattr(self, "database", None)
+            matching_static = False
+            for enemy_key, spawn_key in _static_enemy_spawns_in_room(room_key):
+                definition = ENEMIES_BY_KEY.get(enemy_key)
+                if definition is None or not definition.matches(target_text):
+                    continue
+                matching_static = True
+                if static_enemy_available(room_key, spawn_key, database=database):
+                    from mud.combat import EnemyState
+                    return EnemyState(definition, spawn_key=spawn_key)
+            if matching_static:
                 return None
-            return enemy
+            return previous_enemy_in_room(self, target_text)
 
         player_session_class._enemy_in_current_room = _enemy_in_current_room
 
@@ -363,19 +412,27 @@ def install_enemy_lifecycle_runtime(player_session_class) -> None:
                 character = getattr(self, "character", None)
                 if character is not None:
                     room_key = character.current_room or ""
-                    for enemy_key in _static_enemy_keys_in_room(room_key):
-                        definition = ENEMIES_BY_KEY.get(enemy_key)
-                        if definition is None or not definition.matches(target_text):
-                            continue
-                        if not static_enemy_available(
+                    matching = [
+                        (enemy_key, spawn_key)
+                        for enemy_key, spawn_key in _static_enemy_spawns_in_room(room_key)
+                        if (
+                            ENEMIES_BY_KEY.get(enemy_key) is not None
+                            and ENEMIES_BY_KEY[enemy_key].matches(target_text)
+                        )
+                    ]
+                    if matching and not any(
+                        static_enemy_available(
                             room_key,
-                            enemy_key,
+                            spawn_key,
                             database=getattr(self, "database", None),
-                        ):
-                            await self.send(
-                                f"{definition.name} has already been defeated here and has not respawned yet.\r\n"
-                            )
-                            return
+                        )
+                        for _enemy_key, spawn_key in matching
+                    ):
+                        definition = ENEMIES_BY_KEY[matching[0][0]]
+                        await self.send(
+                            f"{definition.name} has already been defeated here and has not respawned yet.\r\n"
+                        )
+                        return
             await previous_start_combat(self, target_text)
 
         player_session_class.start_combat = start_combat
@@ -393,10 +450,11 @@ def install_enemy_lifecycle_runtime(player_session_class) -> None:
             database = getattr(self, "database", None)
             room_key = character.current_room if character is not None else ""
             enemy_key = enemy.definition.key
+            spawn_key = getattr(enemy, "spawn_key", None) or enemy_key
             claimed = mark_static_enemy_defeated(
                 database,
                 room_key or "",
-                enemy_key,
+                spawn_key,
                 respawn_seconds_for(enemy.definition),
             )
             if not claimed:
@@ -426,23 +484,27 @@ def install_enemy_lifecycle_runtime(player_session_class) -> None:
                 await previous_show_current_room(self)
                 return
             room_key = character.current_room or ""
-            dead = _unavailable_static_enemy_keys(room_key, getattr(self, "database", None))
-            if not dead:
-                await previous_show_current_room(self)
-                return
-
-            dead_names = {
-                ENEMIES_BY_KEY[key].name
-                for key in dead
-                if key in ENEMIES_BY_KEY
-            }
+            database = getattr(self, "database", None)
+            visibility_by_name: dict[str, list[bool]] = {}
+            for enemy_key, spawn_key in _static_enemy_spawns_in_room(room_key):
+                definition = ENEMIES_BY_KEY.get(enemy_key)
+                if definition is None:
+                    continue
+                visibility_by_name.setdefault(definition.name, []).append(
+                    static_enemy_available(room_key, spawn_key, database=database)
+                )
             original_send = self.send
+            seen_by_name: dict[str, int] = {}
 
             async def filtered_send(text: str):
                 stripped = text.strip()
-                for name in dead_names:
+                for name, visibility in visibility_by_name.items():
                     if stripped.startswith(f"{name} is here,"):
-                        return None
+                        index = seen_by_name.get(name, 0)
+                        seen_by_name[name] = index + 1
+                        if index < len(visibility) and not visibility[index]:
+                            return None
+                        break
                 return await original_send(text)
 
             self.send = filtered_send
