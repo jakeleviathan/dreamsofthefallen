@@ -1233,7 +1233,10 @@ def install_item_heritage_runtime(player_session_class, world_service=None) -> N
                     from mud.style_collectibles import STYLE_META_BY_KEY
 
                     if key in STYLE_META_BY_KEY and not owned_heritage_rows(self.database, self.character.id, key):
-                        await _delegate(self, previous_prompt, command)
+                        delegated = command
+                        if prefix == "heritage ":
+                            delegated = "PROVENANCE " + target
+                        await _delegate(self, previous_prompt, delegated)
                         return
                 except Exception:
                     pass
