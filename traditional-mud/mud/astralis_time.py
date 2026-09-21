@@ -113,6 +113,8 @@ class WeatherEvent:
     old_weather: str
     new_weather: str
     text: str
+    category: str = "weather_change"
+    phenomenon_key: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -233,8 +235,16 @@ def weather_change_text(region_name: str, old: str, new: str) -> str:
     return f"The weather across {region_name} shifts from {old} to {new}."
 
 
+RARE_STORMWAKE_CHANCE_PER_ASTRALIS_HOUR = 0.06
+
+
 class AstralisWeatherService:
-    """Low-volatility regional weather checked once per Astralis hour."""
+    """Low-volatility regional weather checked once per Astralis hour.
+
+    Ordinary fronts evolve slowly. Severe storms also have a small chance to
+    produce a Stormwake, a rare lightning event that the server can connect to
+    regional creature spawning without putting NPC concerns into the clock.
+    """
 
     def __init__(self, *, rng: random.Random | None = None) -> None:
         self.rng = rng or random.Random()
@@ -275,6 +285,30 @@ class AstralisWeatherService:
             text=weather_change_text(region_name, current, new_weather),
         )
 
+    def _roll_phenomenon(
+        self,
+        region_key: str,
+        region_name: str,
+        state: RoomStateStore,
+    ) -> WeatherEvent | None:
+        weather = state.weather_for(region_key)
+        if weather not in {"storm", "thunderstorm"}:
+            return None
+        if self.rng.random() >= RARE_STORMWAKE_CHANCE_PER_ASTRALIS_HOUR:
+            return None
+        return WeatherEvent(
+            region_key=region_key,
+            old_weather=weather,
+            new_weather=weather,
+            text=(
+                f"A white fork of lightning tears down over {region_name}. "
+                "The thunder that follows is close enough to shake the ground, "
+                "and something wild answers from beyond the settled paths."
+            ),
+            category="weather_phenomenon",
+            phenomenon_key="stormwake",
+        )
+
     def sync(self, moment: AstralisMoment, state: RoomStateStore) -> tuple[WeatherEvent, ...]:
         if self.last_total_hour is None:
             self.initialize(moment, state)
@@ -296,6 +330,9 @@ class AstralisWeatherService:
                 )
                 if event is not None:
                     events.append(event)
+                phenomenon = self._roll_phenomenon(region.key, region.name, state)
+                if phenomenon is not None:
+                    events.append(phenomenon)
         self.last_total_hour = moment.total_hours
         return tuple(events)
 
