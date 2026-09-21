@@ -825,6 +825,14 @@ async def _show_item_detail(session, target: str) -> None:
         if definition.equipment.scripted_effects:
             await session.send("Special effects: " + ", ".join(definition.equipment.scripted_effects) + "\r\n")
 
+    from mud.item_heritage import compact_heritage_lines
+    for line in compact_heritage_lines(
+        session.database,
+        session.character.id,
+        definition.key,
+    ):
+        await session.send(line + "\r\n")
+
     if definition.consumable is not None:
         effect = definition.consumable
         await session.send(f"Use: {effect.use_mode.upper()} {definition.name.upper()}\r\n")
