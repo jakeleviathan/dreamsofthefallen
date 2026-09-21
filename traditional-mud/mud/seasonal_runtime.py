@@ -45,7 +45,7 @@ def install_seasonal_runtime(player_session_class, world_service) -> None:
         anchor = active_anchor_for_region(region_key, moment.calendar)
         if anchor is None:
             return
-        await self.send(f"\r\nSeasonal — {anchor.title}: {anchor.ambient_text}\r\n")
+        await self.send(f"\r\nSeasonal - {anchor.title}: {anchor.ambient_text}\r\n")
         await self.send(f"Seasonal feature: {anchor.feature_name}. Try EXAMINE {anchor.feature_name.upper()} or USE {anchor.feature_name.upper()}.\r\n")
 
     async def playing_prompt(self) -> None:

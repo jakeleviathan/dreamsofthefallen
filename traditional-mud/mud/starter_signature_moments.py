@@ -424,7 +424,7 @@ async def _announce_if_ready(session) -> bool:
     data = {
         "human": (
             HUMAN_SIGNATURE_SEEN_FLAG,
-            "A foreign wagon driver glances at your Blackwall silhouette and starts with, 'Demon—' before the wagon shifts behind them. One rear wheel is beginning to move. EXAMINE WAGON or READ WAGON.\r\n",
+            "A foreign wagon driver glances at your Blackwall silhouette and starts with, 'Demon-' before the wagon shifts behind them. One rear wheel is beginning to move. EXAMINE WAGON or READ WAGON.\r\n",
         ),
         "moon_elf": (
             MOON_SIGNATURE_SEEN_FLAG,
@@ -516,7 +516,7 @@ async def _handle_moon_elf(session, normalized: str) -> bool:
         return False
     flags = _flags(session)
     await session.send(
-        "\r\nTHIRD CHAIR CASE — ORCHARD PATH\r\n"
+        "\r\nTHIRD CHAIR CASE - ORCHARD PATH\r\n"
         + _moon_result_text(flags)
         + "\r\n\r\nNo seal on the notice says CORRECT. It names the next work, the people responsible, and the date the decision will be looked at again.\r\n"
     )
@@ -733,7 +733,7 @@ async def _echo_sporekin_choice_if_ready(session) -> bool:
     session.database.grant_flag(session.character.id, SPOREKIN_SIGNATURE_ECHO_FLAG)
     route = "rainward" if SPOREKIN_SIGNATURE_RAIN_FLAG in flags else "stoneward"
     await session.send(
-        f"\r\nThe Memory Path brushes the Chorus more strongly here. Your earlier {route} choice returns as a shared memory now—not as an instruction, simply as something one Sporekin chose and the network remembers.\r\n"
+        f"\r\nThe Memory Path brushes the Chorus more strongly here. Your earlier {route} choice returns as a shared memory now-not as an instruction, simply as something one Sporekin chose and the network remembers.\r\n"
     )
     return True
 
