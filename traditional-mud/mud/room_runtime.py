@@ -187,8 +187,15 @@ async def _render_current_room(session, original_show_current_room) -> None:
                 await session.send(f"\r\n{enemy.name} is here, {enemy.description}.\r\n")
 
     if session.mobile_npcs is not None:
+        local_weather = WORLD.state.weather_for(scene.region_key) if scene is not None else "clear"
         for state in session.mobile_npcs.npcs_in_room(view.key):
-            await session.send(f"\r\n{state.definition.name} is here, {state.definition.short_description}.\r\n")
+            description = state.definition.short_description
+            if (
+                state.definition.weather_shelter_room_key == view.key
+                and local_weather in state.definition.shelter_weathers
+            ):
+                description += ", keeping deliberately under cover until the weather eases"
+            await session.send(f"\r\n{state.definition.name} is here, {description}.\r\n")
 
     if view.exits:
         await session.send("Exits: " + ", ".join(exit_view.direction for exit_view in view.exits) + "\r\n")
