@@ -553,19 +553,25 @@ def _recipe_line(session, recipe: CraftingRecipe, *, include_materials: bool = T
     status = _recipe_status_label(session, recipe)
     name = _recipe_paint(_RECIPE_NAME, _recipe_output_name(recipe))
     success_pct = int(round(float(state["success_chance"]) * 100))
+
+    # Telnet-first hierarchy: make the crafted item the visual anchor, then put
+    # station/difficulty and ingredients on their own indented lines. This is
+    # intentionally spacing/order/color only; it does not depend on font size
+    # or a graphical client.
     line = (
-        f"  {status:<28} {name}  {_recipe_paint(_RECIPE_LOCKED, station)}"
-        f"  Trivial {recipe.trivial_skill} | {success_pct}% success\r\n"
+        f"  {status:<28} {name}\r\n"
+        f"       {_recipe_paint(_RECIPE_LOCKED, station)}"
+        f"  |  Trivial {recipe.trivial_skill}  |  {success_pct}% success\r\n"
     )
     if include_materials:
         materials = ", ".join(
             _recipe_paint(
                 _RECIPE_OWNED_MATERIAL if owned > 0 else _RECIPE_MATERIAL,
-                f"{needed}x {name}",
+                f"{needed}x {material_name}",
             )
-            for owned, needed, name in state["materials"]
+            for owned, needed, material_name in state["materials"]
         )
-        line += f"       {materials}\r\n"
+        line += f"       Requires: {materials}\r\n"
     return line
 
 async def _show_recipe_help(session) -> None:
