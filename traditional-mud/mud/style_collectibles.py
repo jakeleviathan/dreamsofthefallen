@@ -1292,13 +1292,23 @@ async def _look_player(session, target_name: str) -> bool:
         await session.send("Styled outfit:\r\n")
         for slot in STYLE_SLOTS:
             key = worn.get(slot)
-            if key:
-                meta = STYLE_META_BY_KEY[key]
-                await session.send(f"  {STYLE_SLOT_LABELS[slot]}: {_item_name(key)} [{meta.rarity.upper()}]\r\n")
+            if not key:
+                continue
+            entry = _style_entry(target_session.database, target.id, key)
+            if entry is None:
+                continue
+            label = entry["rarity"].upper() if entry["source_kind"] == "fashion" else "COPIED LOOK"
+            await session.send(
+                f"  {STYLE_SLOT_LABELS[slot]}: {entry['name']} [{label}]\r\n"
+            )
     else:
-        await session.send("Styled outfit: no separate fashion pieces currently worn.\r\n")
+        await session.send("Styled outfit: no visual overrides currently worn.\r\n")
     gear = equipped_definitions(target_session.database, target.id)
-    visible_gear = [_item_name(definition.key) for slot, definition in gear.items() if slot not in worn]
+    visible_gear = [
+        _item_name(definition.key)
+        for slot, definition in gear.items()
+        if slot not in worn
+    ]
     if visible_gear:
         await session.send("Practical gear: " + ", ".join(visible_gear) + ".\r\n")
     scent_row = _active_fragrance(target_session.database, target.id)
@@ -1313,8 +1323,30 @@ async def _send_style_gmcp(session) -> None:
         return
     worn = _worn_style(session.database, session.character.id)
     effect = _active_fragrance(session.database, session.character.id)
+    outfit = {}
+    for slot, key in worn.items():
+        entry = _style_entry(session.database, session.character.id, key)
+        if entry is None:
+            continue
+        outfit[slot] = {
+            "item_key": key,
+            "source_item_key": entry["source_item_key"],
+            "name": entry["name"],
+            "rarity": entry["rarity"],
+            "source_kind": entry["source_kind"],
+            "collection": entry["collection"],
+        }
     payload = {
-        "outfit": {slot: {"item_key": key, "name": _item_name(key), "rarity": STYLE_META_BY_KEY[key].rarity} for slot, key in worn.items()},
+        "outfit": outfit,
+        "copied_looks": [
+            {
+                "style_key": _copy_token(int(row["id"])),
+                "source_item_key": str(row["source_item_key"]),
+                "name": str(row["source_name"]),
+                "default_slot": _style_slot_from_equipment_slot(str(row["source_equipment_slot"])),
+            }
+            for row in _copied_style_rows(session.database, session.character.id)
+        ],
         "fragrance": None,
     }
     if effect is not None:
