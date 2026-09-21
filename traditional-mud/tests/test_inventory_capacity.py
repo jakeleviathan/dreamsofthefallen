@@ -160,7 +160,7 @@ class InventoryCapacityTests(unittest.TestCase):
         asyncio.run(equipment._show_inventory(session))
         output = "".join(session.outputs)
         self.assertIn("Inventory:", output)
-        self.assertIn(f"/{BASE_INVENTORY_SLOTS} slots", output.replace(" ", ""))
+        self.assertIn(f"/{BASE_INVENTORY_SLOTS}slots", output.replace(" ", ""))
 
 
 if __name__ == "__main__":
