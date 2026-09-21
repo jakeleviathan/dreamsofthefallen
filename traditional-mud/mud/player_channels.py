@@ -668,13 +668,13 @@ async def _broadcast(session, channel_name: str, message: str) -> None:
         ):
             continue
         try:
-            await other.send(f"[{row['name']}] {sender.name}: {cleaned}\r\n")
+            await other.send(f"{row['name']} | {sender.name}: {cleaned}\r\n")
             if other is session:
                 delivered_to_self = True
         except (ConnectionError, RuntimeError):
             continue
     if not delivered_to_self:
-        await session.send(f"[{row['name']}] {sender.name}: {cleaned}\r\n")
+        await session.send(f"{row['name']} | {sender.name}: {cleaned}\r\n")
 
 
 async def _delegate_command(self, previous_playing_prompt, command: str) -> None:
