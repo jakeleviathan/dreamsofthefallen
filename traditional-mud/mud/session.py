@@ -6,6 +6,7 @@ import re
 from enum import Enum, auto
 
 import mud.ability_mastery as ability_mastery
+from mud.appearance import appearance_description, creation_preview_text, traits_for_race
 from mud.casting import interrupt_cast, spend_ability_mana
 
 from mud.character_options import (
@@ -2190,7 +2191,7 @@ class PlayerSession:
         await self.send("Unknown command. Type HELP.\r\n")
 
     async def character_creation_flow(self) -> None:
-        """Create a character in the agreed race -> class -> name order."""
+        """Create a character through race, appearance, class, stats, and name."""
         assert self.account is not None
 
         if not RACES:
@@ -2202,6 +2203,10 @@ class PlayerSession:
 
         race = await self.choose_creation_option("race", RACES)
         if race is None:
+            return
+
+        appearance_choices = await self.choose_creation_appearance(race.key, race.name)
+        if appearance_choices is None:
             return
 
         if not CLASSES:
@@ -2260,6 +2265,7 @@ class PlayerSession:
             + f"Name : {name}\r\n"
             f"Stats: Might {final_stats.might}, Grace {final_stats.grace}, Love {final_stats.love}, "
             f"Mind {final_stats.mind}, HP {final_stats.hp}\r\n"
+            f"Look : {appearance_description(name, race.key, appearance_choices)}\r\n"
         )
         confirm = await self.prompt("Create this character? (Y/N): ")
         if confirm is None:
@@ -2277,6 +2283,7 @@ class PlayerSession:
                 character_class=character_class.key,
                 stats=final_stats,
                 deity_key=deity_key,
+                appearance=appearance_choices,
             )
         except CharacterSlotLimitReached:
             await self.send(
@@ -2295,6 +2302,80 @@ class PlayerSession:
         await self.send(
             f"\r\n{character.name} has been created.\r\n"
         )
+
+    async def choose_creation_appearance(
+        self, race_key: str, race_name: str
+    ) -> dict[str, str] | None:
+        traits = traits_for_race(race_key)
+        while True:
+            choices: dict[str, str] = {}
+            index = 0
+            await self.send(
+                f"\r\n--- Shape Your {race_name} ---\r\n"
+                "These choices are physical and cultural details, not stat bonuses. "
+                "Other players can see them when they look at you.\r\n"
+                "Choose by number or type the option exactly. Press ENTER for the default. "
+                "Type BACK to revisit the previous choice or CANCEL to stop creation.\r\n"
+            )
+
+            while index < len(traits):
+                trait = traits[index]
+                await self.send(f"\r\n{trait.label}:\r\n")
+                for option_index, option in enumerate(trait.options, start=1):
+                    default_note = " (default)" if option == trait.default else ""
+                    await self.send(f"  {option_index}) {option}{default_note}\r\n")
+
+                answer = await self.prompt(f"{trait.label}: ")
+                if answer is None:
+                    self.state = SessionState.DISCONNECTED
+                    return None
+                lowered = answer.strip().lower()
+                if lowered in {"cancel", "quit", "q"}:
+                    await self.send("\r\nCharacter creation cancelled.\r\n")
+                    return None
+                if lowered == "back":
+                    if index == 0:
+                        await self.send("You are already at the first appearance choice.\r\n")
+                        continue
+                    index -= 1
+                    choices.pop(traits[index].key, None)
+                    continue
+
+                if lowered in {"", "default"}:
+                    selected = trait.default
+                elif lowered.isdigit() and 1 <= int(lowered) <= len(trait.options):
+                    selected = trait.options[int(lowered) - 1]
+                elif lowered in trait.options:
+                    selected = lowered
+                else:
+                    await self.send(
+                        f"Choose 1-{len(trait.options)}, type one of the listed options, BACK, or CANCEL.\r\n"
+                    )
+                    continue
+
+                choices[trait.key] = selected
+                index += 1
+
+            await self.send(
+                "\r\n--- Appearance Preview ---\r\n"
+                + creation_preview_text(race_key, choices)
+                + "\r\n"
+            )
+            while True:
+                answer = await self.prompt("Keep this appearance? (Y/N/CANCEL): ")
+                if answer is None:
+                    self.state = SessionState.DISCONNECTED
+                    return None
+                lowered = answer.strip().lower()
+                if lowered in {"y", "yes"}:
+                    return choices
+                if lowered in {"n", "no", "redo", "r"}:
+                    await self.send("\r\nLet's shape the appearance again.\r\n")
+                    break
+                if lowered in {"cancel", "quit", "q"}:
+                    await self.send("\r\nCharacter creation cancelled.\r\n")
+                    return None
+                await self.send("Choose Y to keep it, N to redo it, or CANCEL.\r\n")
 
     async def choose_priest_deity(self):
         await self.send("\r\n--- Choose Your Deity ---\r\n")
