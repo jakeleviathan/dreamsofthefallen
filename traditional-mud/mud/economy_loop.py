@@ -6,6 +6,7 @@ from time import monotonic
 
 import mud.crafting as crafting
 import mud.world as legacy_world
+from mud.ecology import ASTRALIS_ECOLOGY
 from mud.crafting import ItemDefinition, ResourceNodeDefinition, ResourceNodeState
 from mud.gear import CraftingRecipe, MaterialRequirement
 from mud.stats import CharacterStats, EquipmentItem
@@ -376,6 +377,14 @@ def _skill_label(skill_key: str | None) -> str:
     return skill.name if skill is not None else skill_key.replace("_", " ").title()
 
 
+def _ecology_region_key(session) -> str:
+    character = getattr(session, "character", None)
+    if character is None:
+        return ""
+    room = legacy_world.ROOMS_BY_KEY.get(character.current_room or "")
+    return str(getattr(room, "region_key", "") or "") if room is not None else ""
+
+
 async def _gather(session, target: str, skill_key: str | None = None) -> None:
     character = getattr(session, "character", None)
     if character is None:
@@ -392,6 +401,15 @@ async def _gather(session, target: str, skill_key: str | None = None) -> None:
     live.refresh()
     definition = live.state.definition
     skill_key = definition.gathering_skill_key
+    region_key = _ecology_region_key(session)
+    if region_key:
+        allowed, ecology_message = ASTRALIS_ECOLOGY.gathering_allowed(
+            region_key,
+            skill_key=skill_key,
+        )
+        if not allowed:
+            await session.send(ecology_message + "\r\n")
+            return
     if skill_key is not None:
         skill_value = crafting.trade_skill_value(session.database, character.id, skill_key)
         if skill_value < definition.minimum_skill:
@@ -420,6 +438,12 @@ async def _gather(session, target: str, skill_key: str | None = None) -> None:
         return
     output = crafting.ITEMS_BY_KEY.get(output_key)
     output_name = output.name if output is not None else output_key
+    if region_key:
+        ASTRALIS_ECOLOGY.record_harvest(
+            region_key,
+            skill_key=skill_key,
+            amount=1,
+        )
     if skill_key is None:
         await session.send(f"You collect 1x {output_name} from {definition.name}.\r\n")
     else:
@@ -433,6 +457,7 @@ async def _gather(session, target: str, skill_key: str | None = None) -> None:
 async def _show_resources(session) -> None:
     nodes = _nodes_here(session)
     stations = _stations_here(session)
+    region_key = _ecology_region_key(session)
     await session.send("\r\n--- Local Economy ---\r\n")
     if not nodes:
         await session.send("Resources: none in this room.\r\n")
@@ -442,6 +467,12 @@ async def _show_resources(session) -> None:
             live.refresh()
             definition = live.state.definition
             status = "depleted" if live.state.depleted else f"{live.state.remaining_uses} uses available"
+            if region_key:
+                ecological_status = ASTRALIS_ECOLOGY.resource_status(
+                    region_key,
+                    skill_key=definition.gathering_skill_key,
+                )
+                status += f"; land: {ecological_status}"
             requirement = (
                 _skill_label(definition.gathering_skill_key)
                 if definition.gathering_skill_key is None

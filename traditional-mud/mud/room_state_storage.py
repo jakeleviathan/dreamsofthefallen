@@ -57,6 +57,20 @@ def load_world_room_state(
             for region_key, value in weather.items()
             if isinstance(value, str)
         }
+
+    ecology = payload.get("region_ecology", {})
+    if isinstance(ecology, dict):
+        restored_ecology: dict[str, dict[str, float | int]] = {}
+        for region_key, values in ecology.items():
+            if not isinstance(values, dict):
+                continue
+            clean_values: dict[str, float | int] = {}
+            for key, value in values.items():
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    continue
+                clean_values[str(key)] = value
+            restored_ecology[str(region_key)] = clean_values
+        state.region_ecology = restored_ecology
     return True
 
 

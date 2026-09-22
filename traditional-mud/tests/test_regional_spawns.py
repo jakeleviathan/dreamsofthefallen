@@ -118,6 +118,36 @@ class RegionalPopulationTests(unittest.TestCase):
             manager._region_dynamic_cap(pool.region_key),
         )
 
+    def test_ecology_owns_carrying_capacity_and_records_hunting_pressure(self):
+        class FakeEcology:
+            def __init__(self):
+                self.kills = []
+
+            def creature_population_multiplier(self, region_key, definition):
+                self.last_region = region_key
+                self.last_definition = definition.key
+                return 0.55
+
+            def record_creature_kill(self, region_key, definition):
+                self.kills.append((region_key, definition.combat_enemy_key))
+
+        manager = self._manager()
+        ecology = FakeEcology()
+        manager.ecology = ecology
+        pool = next(iter(manager.regional_pools.values()))
+
+        # Active players no longer manufacture wildlife when ecology is enabled.
+        self.assertEqual(
+            manager.target_population(pool, ("wild_a", "wild_b", "wild_c")),
+            1,
+        )
+        self.assertEqual(ecology.last_region, "test_frontier")
+        self.assertEqual(ecology.last_definition, "field_jackal")
+
+        victim = manager._regional_states(pool.key, include_rare=False)[0]
+        manager.defeat(victim.definition.key)
+        self.assertEqual(ecology.kills, [("test_frontier", "field_jackal")])
+
     def test_kill_reduces_shared_count_then_refills_out_of_sight_after_cooldown(self):
         manager = self._manager()
         pool = next(iter(manager.regional_pools.values()))
