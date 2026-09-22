@@ -183,7 +183,7 @@ from mud.seasonal_runtime import install_seasonal_runtime
 from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
 import mud.npcs as mobile_registry
-from mud.waymeet_living_npcs import run_waymeet_chatter
+from mud.waymeet_living_npcs import WAYMEET_LIVING_NPCS, run_waymeet_chatter
 from mud.room_runtime import WORLD, install_room_runtime
 from mud.waymaps import install_waymap_runtime
 from mud.world import NPCS_BY_KEY, ROOMS_BY_KEY
@@ -343,7 +343,12 @@ class MudServer:
         # Tests and standalone managers can still omit ecology and keep the
         # historical fixed-population behavior.
         self.mobile_npcs = MobileNpcManager(
-            definitions=mobile_registry.MOBILE_NPC_DEFINITIONS,
+            definitions=tuple(
+                definition
+                for definition in mobile_registry.MOBILE_NPC_DEFINITIONS
+                if definition not in WAYMEET_LIVING_NPCS
+                or set(definition.allowed_room_keys).issubset(ROOMS_BY_KEY)
+            ),
             ecology=ASTRALIS_ECOLOGY,
         )
         # Scheduled business state wins over stale saved door state. Temporary
