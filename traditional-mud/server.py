@@ -92,6 +92,7 @@ from mud.modern_client_experience import install_modern_client_runtime
 from mud.production_hardening import install_production_hardening_runtime, install_production_server_runtime
 from mud.production_operator import install_production_operator_runtime
 from mud.room_presentation import install_room_presentation_runtime
+from mud.ecology import install_ecology_runtime
 from mud.npc_name_audit import validate_unique_npc_names
 from mud.quest_npc_audit import validate_quest_talk_references
 from mud.npc_conversation import validate_static_npc_talkability
@@ -340,6 +341,10 @@ install_universal_location_repair_runtime(PlayerSession, WORLD)
 # Keep room presentation outside the authored gameplay stack so every area gets
 # the same readable visual hierarchy without requiring per-room markup.
 install_room_presentation_runtime(PlayerSession, WORLD)
+# The ecology presentation layer sits outside room presentation so every outdoor
+# region can reveal changing tracks, growth, and resource pressure without
+# exposing simulation numbers. CONDITIONS or TRACKS gives a deeper local read.
+install_ecology_runtime(PlayerSession, WORLD)
 
 # Enemy targeting sits immediately outside the complete authored ability stack.
 # TARGET selects without aggro; an enemy-targeted hotbar ability promotes that
