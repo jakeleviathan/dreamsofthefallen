@@ -168,6 +168,7 @@ install_goblin_clan_followup_content()
 
 from mud.astralis_human_district import HUMAN_DISTRICT
 from mud.astralis_time import ASTRALIS_CLOCK, ASTRALIS_WEATHER, WeatherEvent
+from mud.ecology import ASTRALIS_ECOLOGY
 from mud.calendar_runtime import install_calendar_runtime
 from mud.database import Database
 from mud.goblin_runtime import install_goblin_runtime
@@ -322,13 +323,20 @@ class MudServer:
         self.port = port
         self.sessions: set[PlayerSession] = set()
         self.database = Database()
-        self.mobile_npcs = MobileNpcManager()
         load_world_room_state(WORLD.state)
 
         moment = ASTRALIS_CLOCK.now()
         # Regional weather is persistent shared state. Missing regions receive
         # biome-appropriate defaults before businesses inspect weather.
         ASTRALIS_WEATHER.initialize(moment, WORLD.state)
+        # Ecology is initialized against the fully assembled mutable world. It
+        # restores prior regional state, catches up bounded offline time, and
+        # discovers cross-region migration routes from the actual room graph.
+        ASTRALIS_ECOLOGY.initialize(moment, WORLD.state, ROOMS_BY_KEY)
+        # Regional mobile populations read their carrying capacity from ecology.
+        # Tests and standalone managers can still omit ecology and keep the
+        # historical fixed-population behavior.
+        self.mobile_npcs = MobileNpcManager(ecology=ASTRALIS_ECOLOGY)
         # Scheduled business state wins over stale saved door state. Temporary
         # rain shutters are rebuilt from the current weather on startup.
         HUMAN_DISTRICT.initialize(moment, WORLD.state)
@@ -470,6 +478,14 @@ class MudServer:
                 interval_seconds=5.0,
             )
         )
+        ecology_task = asyncio.create_task(
+            ASTRALIS_ECOLOGY.run(
+                WORLD.state,
+                clock=ASTRALIS_CLOCK,
+                interval_seconds=5.0,
+                persist=lambda: save_world_room_state(WORLD.state),
+            )
+        )
         district_task = asyncio.create_task(
             HUMAN_DISTRICT.run(
                 WORLD.state,
@@ -490,11 +506,13 @@ class MudServer:
         finally:
             npc_task.cancel()
             weather_task.cancel()
+            ecology_task.cancel()
             district_task.cancel()
             seasonal_task.cancel()
             await asyncio.gather(
                 npc_task,
                 weather_task,
+                ecology_task,
                 district_task,
                 seasonal_task,
                 return_exceptions=True,
