@@ -187,6 +187,100 @@ class RuntimeRewardTests(unittest.TestCase):
         self.assertEqual(session.mobile_npcs.pressure, 3)
         self.assertIn("Hunting chain 3: +1 bonus experience", "".join(session.outputs))
 
+    def test_party_members_build_momentum_from_their_actual_xp_share(self):
+        records = {
+            1: SimpleNamespace(
+                id=1,
+                name="Hunter",
+                level=1,
+                experience=0,
+                current_room=self.room_key,
+            ),
+            2: SimpleNamespace(
+                id=2,
+                name="Companion",
+                level=1,
+                experience=0,
+                current_room=self.room_key,
+            ),
+        }
+
+        class SharedDatabase:
+            def add_experience(self, character_id, amount):
+                record = records[int(character_id)]
+                record.experience += int(amount)
+                return record.level
+
+            def get_character_by_name(self, name):
+                return next(record for record in records.values() if record.name == name)
+
+        class FakeManager:
+            def __init__(self):
+                self.states = {}
+                self._regional_instance_to_pool = {}
+                self.pressure = 0
+
+            def is_hunting_room(self, room_key):
+                return room_key == self_room_key
+
+            def note_hunt_kill(self, region_key):
+                self.pressure += 1
+
+        self_room_key = self.room_key
+        shared_database = SharedDatabase()
+        shared_manager = FakeManager()
+
+        class PartySession:
+            def party_victory_sessions(self, enemy):
+                return tuple(self.participants)
+
+            async def _finish_enemy_defeat(self, enemy):
+                # Model the already-installed party runtime: both participants
+                # receive their real share before the outer hunting wrapper runs.
+                for member in self.participants:
+                    member.database.add_experience(member.character.id, 20)
+                    member.character = member.database.get_character_by_name(
+                        member.character.name
+                    )
+                    member.active_enemy = None
+
+        install_combat_grind_runtime(PartySession)
+
+        hunter = PartySession()
+        companion = PartySession()
+        hunter.character = records[1]
+        companion.character = records[2]
+        for member in (hunter, companion):
+            member.database = shared_database
+            member.mobile_npcs = shared_manager
+            member.active_mobile_npc_key = None
+            member.outputs = []
+
+            async def send(text, *, target=member):
+                target.outputs.append(text)
+
+            member.send = send
+        hunter.participants = [hunter, companion]
+        companion.participants = hunter.participants
+
+        definition = SimpleNamespace(
+            key="test_rat",
+            name="Test Rat",
+            xp_reward=40,
+            tutorial=False,
+        )
+        for _ in range(3):
+            enemy = SimpleNamespace(definition=definition)
+            hunter.active_enemy = enemy
+            companion.active_enemy = enemy
+            asyncio.run(hunter._finish_enemy_defeat(enemy))
+
+        self.assertEqual(records[1].experience, 61)
+        self.assertEqual(records[2].experience, 61)
+        self.assertEqual(shared_manager.pressure, 3)
+        self.assertIn("Hunting chain 3: +1 bonus experience", "".join(hunter.outputs))
+        self.assertIn("Hunting chain 3: +1 bonus experience", "".join(companion.outputs))
+
 
 if __name__ == "__main__":
     unittest.main()
