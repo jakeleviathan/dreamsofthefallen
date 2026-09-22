@@ -133,7 +133,7 @@ TOPICS: tuple[HelpTopic, ...] = (
                 "MAP shows only rooms your character has personally discovered. WAYMAPS are physical destination maps that can guide automated route travel.",
             )),
         ),
-        aliases=("explore", "movement", "navigation", "travel"),
+        aliases=("explore", "navigation", "travel"),
         see_also=("maps", "waymaps", "room-interactions", "secrets", "world"),
     ),
     HelpTopic(
