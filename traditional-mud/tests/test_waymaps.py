@@ -22,6 +22,7 @@ from mud.room_engine import (
     WorldService,
 )
 from mud.stats import CharacterStats
+from mud.trade_experience import exchange_items
 from mud.world import RoomDefinition
 
 
@@ -235,6 +236,47 @@ class WaymapTests(unittest.TestCase):
         self.assertEqual(waymaps.list_character_waymaps(database, first.id), ())
         buyer_maps = waymaps.list_character_waymaps(database, second.id)
         self.assertEqual([item.id for item in buyer_maps], [row.id])
+        self.assertEqual(waymaps.audit_waymaps(database), ())
+
+    def test_atomic_trade_can_select_the_exact_numbered_waymap(self):
+        temp, database, account, first = self._database()
+        self.addCleanup(temp.cleanup)
+        second = database.create_character(
+            account.id,
+            "Collector",
+            "dwarf",
+            "brute",
+            CharacterStats(might=5, grace=5, love=5, mind=5, hp=5),
+        )
+        database.add_item(first.id, waymaps.BLANK_WAYMAP_KEY, 2)
+        first_map = waymaps.mark_blank_waymap(
+            database,
+            character_id=first.id,
+            destination_room_key="human_demon_gate",
+            destination_name="The Demon Gate",
+        )
+        second_map = waymaps.mark_blank_waymap(
+            database,
+            character_id=first.id,
+            destination_room_key="human_grand_cathedral",
+            destination_name="The Grand Cathedral",
+        )
+        assert first_map is not None and second_map is not None
+
+        self.assertTrue(
+            exchange_items(
+                database,
+                first.id,
+                {waymaps.MARKED_WAYMAP_KEY: 1},
+                second.id,
+                {},
+                first_waymap_ids=(second_map.id,),
+            )
+        )
+        seller_ids = {row.id for row in waymaps.list_character_waymaps(database, first.id)}
+        buyer_ids = {row.id for row in waymaps.list_character_waymaps(database, second.id)}
+        self.assertEqual(seller_ids, {first_map.id})
+        self.assertEqual(buyer_ids, {second_map.id})
         self.assertEqual(waymaps.audit_waymaps(database), ())
 
     def test_shortest_route_uses_real_passability_and_reacts_to_closed_doors(self):
