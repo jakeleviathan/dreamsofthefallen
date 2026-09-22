@@ -12,6 +12,8 @@ from mud.contextual_command_routing import install_contextual_command_routing_gu
 from mud.corpse_decay import corpse_decay_label
 from mud.corpse_loot import list_corpses
 from mud.database import Database
+from mud.discovery_engine import discovery_tell
+from mud.faction_reputation import regional_reaction
 from mud.enemy_lifecycle import iter_static_enemy_spawns, static_enemy_available
 from mud.exploration_map import install_exploration_map_runtime
 from mud.exploration_map_gmcp import install_exploration_map_gmcp_runtime
@@ -129,6 +131,17 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         if feature.summary:
             detail += f" - {feature.summary}"
         notable.append(detail)
+
+    # Hidden systems should still leave fair physical clues. Only condition-driven
+    # discoveries produce this personalized tell, and the exact action/reward
+    # remains secret.
+    try:
+        subtle_tell = discovery_tell(session, world_service)
+    except Exception:
+        subtle_tell = None
+    if subtle_tell:
+        notable.append(f"  {_paint(FEATURE, 'Subtle Detail')} - {subtle_tell}")
+
     if has_puddle:
         notable.append(
             f"  {_paint(FEATURE, 'Puddle')} - fresh rainwater deep enough to hold your reflection"
@@ -179,6 +192,18 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
 
     if people:
         lines.extend(["", _section_header("People", NPC), *people])
+        try:
+            local_reaction = regional_reaction(
+                getattr(session, "database", None),
+                int(character.id),
+                scene.region_key,
+            )
+        except Exception:
+            local_reaction = ""
+        if local_reaction:
+            lines.append(
+                f"  {_paint(REGION, 'Local reception')} - {local_reaction}"
+            )
 
     # Authored room enemies do not auto-aggro merely because they can fight.
     # They therefore belong under Creatures. Only mobile definitions explicitly
