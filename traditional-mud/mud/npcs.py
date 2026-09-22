@@ -1051,10 +1051,17 @@ class MobileNpcManager:
             ):
                 continue
             hunt_pressure = self._regional_hunt_pressure.get(region_key, 0.0)
-            rare_chance = min(
+            # The authored/base roll keeps its literal meaning (so 1.0 really is
+            # guaranteed, which is useful for deterministic admin/tests). Hunting
+            # pressure contributes a separately capped bonus and can never push a
+            # production roll above certainty.
+            pressure_bonus = min(
                 0.12,
-                REGIONAL_RARE_ROLL_PER_TICK
-                + hunt_pressure * REGIONAL_RARE_PRESSURE_CHANCE_PER_POINT,
+                hunt_pressure * REGIONAL_RARE_PRESSURE_CHANCE_PER_POINT,
+            )
+            rare_chance = min(
+                1.0,
+                REGIONAL_RARE_ROLL_PER_TICK + pressure_bonus,
             )
             if rng.random() > rare_chance:
                 continue
