@@ -608,17 +608,24 @@ class MobileNpcManager:
             room = ROOMS_BY_KEY.get(room_key)
             if room is not None and room.region_key == pool.region_key:
                 player_count += 1
-        base_target = min(pool.max_population, pool.base_population + player_count)
+        legacy_target = min(pool.max_population, pool.base_population + player_count)
         if self.ecology is None:
-            return base_target
+            return legacy_target
         definition = combat.ENEMIES_BY_KEY.get(pool.enemy_key)
         if definition is None:
-            return base_target
+            return legacy_target
         multiplier = self.ecology.creature_population_multiplier(
             pool.region_key,
             definition,
         )
-        return max(1, min(pool.max_population, round(base_target * multiplier)))
+        # In ecology mode, online player count no longer creates animals out of
+        # thin air. Regional carrying capacity comes from habitat state instead.
+        # The existing max population remains the hard content/safety ceiling.
+        capacity_span = max(2, pool.max_population - pool.base_population)
+        ecological_target = pool.base_population + round(
+            (multiplier - 1.0) * capacity_span
+        )
+        return max(1, min(pool.max_population, ecological_target))
 
     def _regional_definition(
         self,
