@@ -100,7 +100,7 @@ def corrected_adventure_augmentations() -> dict[str, RoomAugmentation]:
             ),),
             features=(_feature(
                 "echo_ridge_marks", "Three Listening Marks", "three old marks that return footsteps with an extra answer",
-                "Three early expeditions elsewhere around Waymeet contain matching marks. The ridge opens only after all three dungeon clears and level 8.",
+                "Three older sites elsewhere around Waymeet carry matching marks. The ridge remains mute until all three have answered, and even then it seems to resist an inexperienced hand.",
                 ("marks", "echo marks", "listening marks"),
             ),),
         ),
@@ -129,7 +129,7 @@ def corrected_adventure_augmentations() -> dict[str, RoomAugmentation]:
         ),)),
         arc.BELL_NAVE: RoomAugmentation(features=(_feature(
             "three_pitches", "Three Returning Pitches", "rain notes repeating more regularly than rain should",
-            "LISTEN. The game tells you the usable clue rather than asking you to guess an audio verb.",
+            "LISTEN closely. The three returning notes are distinct enough to copy: low, high, low.",
             ("pitches", "rain", "sound"),
         ),)),
         arc.BELL_EAST_GALLERY: RoomAugmentation(features=(_feature(
@@ -165,12 +165,12 @@ def corrected_adventure_augmentations() -> dict[str, RoomAugmentation]:
         ),
         arc.SCAR_LIFT: RoomAugmentation(features=(_feature(
             "inspection_gantry", "Inspection Gantry", "a narrow maintenance walk above the dead lift",
-            "CLIMB GANTRY. The command demonstrates vertical exploration before the quarry asks you to rely on it.",
+            "CLIMB GANTRY. From above, the dead lift, survey cuts, and deeper quarry route are much easier to read.",
             ("gantry", "lift", "walk"),
         ),)),
         arc.SCAR_DEEP_FACE: RoomAugmentation(features=(_feature(
             "survey_marks", "Old Survey Marks", "a nearly erased cluster among newer chalk",
-            "SEARCH SURVEY MARKS if you care about the older history. It is optional and gives no power reward.",
+            "SEARCH SURVEY MARKS to separate the nearly erased older cuts from the newer survey chalk.",
             ("marks", "survey marks", "chalk"),
         ),)),
         arc.SCAR_WINCH: RoomAugmentation(
@@ -183,7 +183,7 @@ def corrected_adventure_augmentations() -> dict[str, RoomAugmentation]:
             ),),
             features=(_feature(
                 "freight_brake", "Freight Brake", "a rusted but intact geared brake lever",
-                "PULL BRAKE to release the bridge. This is an environmental action, not a hidden parser trick.",
+                "PULL BRAKE to release the bridge. The lever is stiff but intact, and the geared linkage still reaches the bridge.",
                 ("brake", "lever", "winch"),
             ),),
         ),
