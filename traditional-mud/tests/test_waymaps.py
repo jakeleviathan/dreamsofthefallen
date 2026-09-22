@@ -106,12 +106,15 @@ class WaymapTests(unittest.TestCase):
         )
         return temp, database, account, character
 
-    def test_cartography_recipe_and_common_vendor_stock_create_blank_maps(self):
+    def test_tailoring_recipe_and_common_vendor_stock_create_blank_maps(self):
         temp, database, _account, character = self._database()
         self.addCleanup(temp.cleanup)
 
-        self.assertIn("cartography", crafting.PROFESSIONS_BY_KEY)
-        self.assertIn("prepare_blank_waymap", crafting.RECIPES_BY_KEY)
+        self.assertIn("tailoring", crafting.PROFESSIONS_BY_KEY)
+        self.assertEqual(
+            crafting.RECIPES_BY_KEY["prepare_blank_waymap"].trade_skill_key,
+            "tailoring",
+        )
         self.assertIn(waymaps.BLANK_WAYMAP_KEY, COMMON_MERCHANT_STOCK_BY_KEY)
         self.assertEqual(
             COMMON_MERCHANT_STOCK_BY_KEY[waymaps.BLANK_WAYMAP_KEY].price_units,
