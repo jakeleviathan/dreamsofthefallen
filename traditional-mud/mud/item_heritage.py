@@ -534,9 +534,9 @@ def record_equipped_boss_victory(
 ) -> int:
     """Write a named-boss milestone onto equipped tracked items exactly once.
 
-    Equipment stores item keys rather than serials, so when duplicate copies of
-    one key are equipped we deterministically mark the first carried instances
-    up to the number of occupied equipment slots.
+    Equipment stores item keys rather than serials. If a character carries more
+    tracked copies of one key than are equipped, the exact serial is ambiguous,
+    so this function deliberately skips that key rather than inventing history.
     """
     from collections import Counter
     from mud.equipment_system import equipped_item_keys
@@ -560,15 +560,17 @@ def record_equipped_boss_victory(
                   AND holder_kind = 'character'
                   AND holder_key = ?
                 ORDER BY id
-                LIMIT ?
                 """,
                 (
                     int(character_id),
                     str(item_key),
                     str(int(character_id)),
-                    max(0, int(equipped_count)),
                 ),
             ).fetchall()
+            if len(rows) > int(equipped_count):
+                # There is no serial-level equipment reservation yet. Refuse to
+                # guess which one of several identical serialized copies is worn.
+                continue
             for row in rows:
                 existing = db.execute(
                     """
