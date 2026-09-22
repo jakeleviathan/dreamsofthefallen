@@ -1364,7 +1364,7 @@ async def _show_search(session, query: str) -> None:
     if topics:
         await session.send("\r\nTopics:\r\n")
         for topic in topics[:12]:
-            await session.send(f"  HELP {topic.key.upper():<22} {topic.summary}\r\n")
+            await session.send(f"  HELP {topic.key.upper():<22} {topic.title} - {topic.summary}\r\n")
     if commands:
         await session.send("\r\nCommands:\r\n")
         for entry in commands[:20]:
