@@ -37,6 +37,10 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("basics", "COMMANDS ALL", "Print the complete searchable player command catalog."),
     CommandEntry("basics", "COMMAND SEARCH <word>", "Search command syntax and descriptions by word."),
     CommandEntry("basics", "JOURNEY", "Show a spoiler-light sense of the current progression path."),
+    CommandEntry("basics", "WAYMAPS", "List the Blank Waymaps and individually numbered Marked Waymaps you carry."),
+    CommandEntry("basics", "MARK WAYMAP / USE BLANK WAYMAP", "Bind one carried Blank Waymap to the room you are currently standing in."),
+    CommandEntry("basics", "USE WAYMAP #<number>", "Follow that physical map room by room along the shortest route that is actually passable right now."),
+    CommandEntry("basics", "STOP TRAVEL", "Interrupt automatic Waymap travel immediately."),
     CommandEntry("basics", "QUIT", "Leave the current game session safely."),
 
     CommandEntry("character", "SCORE / STATUS / SHEET / STATS", "Show level, XP, base stats, equipment bonuses, and derived values."),
