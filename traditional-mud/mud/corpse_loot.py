@@ -8,6 +8,7 @@ from time import time
 import mud.crafting as crafting
 import mud.economy_balance as economy_balance
 import mud.economy_loop as economy
+from mud.room_scene_actors import record_combat_trace
 import mud.enemy_lifecycle as enemy_lifecycle
 from mud.item_locations import (
     ItemLocation,
@@ -780,6 +781,12 @@ async def _commit_defeat_corpse(session, enemy, context: _DefeatLootContext) -> 
             drop.quantity,
             drop.reserved_character_id,
         )
+
+    try:
+        record_combat_trace(session.database, context.room_key, context.enemy_key, context.enemy_name)
+    except Exception:
+        # Environmental traces are atmosphere, never a reason to fail a kill.
+        pass
 
     session._last_defeat_corpse_id = corpse_id
     session._last_defeat_corpse_enemy_key = context.enemy_key
