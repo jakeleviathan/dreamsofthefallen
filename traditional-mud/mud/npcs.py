@@ -799,12 +799,20 @@ class MobileNpcManager:
         for region_key, pools in sorted(by_region.items()):
             cap = self._region_dynamic_cap(region_key)
             created = 0
+            targets = {
+                pool.key: self.target_population(pool, ())
+                for pool in pools
+            }
             # Round-robin seeding prevents the first species alphabetically from
-            # consuming an entire small-region cap.
-            for _round in range(REGIONAL_BASE_POPULATION):
+            # consuming an entire small-region cap. Ecology-aware targets also
+            # mean a restart does not briefly repopulate an overhunted habitat.
+            max_target = max(targets.values(), default=0)
+            for _round in range(max_target):
                 for pool in sorted(pools, key=lambda value: value.key):
                     if created >= cap:
                         break
+                    if _round >= targets.get(pool.key, 0):
+                        continue
                     if self._spawn_regional_instance(
                         pool,
                         player_room_keys=(),
