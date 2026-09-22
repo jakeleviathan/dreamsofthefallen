@@ -96,6 +96,7 @@ from mud.room_presentation import install_room_presentation_runtime
 from mud.ground_items import install_ground_items_runtime
 from mud.room_scene_actors import install_room_scene_runtime
 from mud.ecology import install_ecology_runtime
+from mud.combat_grind import install_combat_grind_runtime
 from mud.discovery_engine import install_discovery_runtime
 from mud.npc_name_audit import validate_unique_npc_names
 from mud.quest_npc_audit import validate_quest_talk_references
@@ -374,6 +375,11 @@ install_enemy_targeting_runtime(PlayerSession, WORLD)
 # owns the eventual spell effect. Because targeting is installed first, cast-time
 # spells retain the selected enemy and engage it when the cast completes.
 install_casting_runtime(PlayerSession)
+
+# Sustained combat is a real progression path in wilderness hunting grounds:
+# small packs, regional ecology, chain XP, extra material milestones, and
+# pressure-driven rare predators all share the same live combat/corpse stack.
+install_combat_grind_runtime(PlayerSession, WORLD)
 
 # Post is intentionally the final command wrapper. Its subject/body editor and
 # destructive-action confirmations are modal input: they must see the player's
