@@ -474,11 +474,11 @@ def adventure_augmentations() -> dict[str, RoomAugmentation]:
         WAYMEET_HIGH_ROAD_KEY: RoomAugmentation(extra_exits=(ExitDefinition("east", ECHO_RIDGE, "Echo Ridge", "You climb a bare side ridge where the wind returns footsteps strangely.", ViewCondition(min_level=2)),)),
         OLD_TOLL_ROAD: RoomAugmentation(
             extra_exits=(ExitDefinition("down", TOLL_ENTRY, "Tollhouse Cellar", "You descend through the newer cellar doors.", ViewCondition(min_level=2)),),
-            features=(_feature("toll_cellar_doors", "Cellar Doors", "freshly repaired doors beneath a ruined tollhouse", "The doors are not locked. Fresh boot marks go down. DOWN enters the dungeon.", ("doors", "cellar", "tollhouse")),),
+            features=(_feature("toll_cellar_doors", "Cellar Doors", "freshly repaired doors beneath a ruined tollhouse", "The doors are not locked. Fresh boot marks descend the stairs beyond them. DOWN follows the stair into the old cellar.", ("doors", "cellar", "tollhouse")),),
         ),
         BRIARWOOD_EDGE: RoomAugmentation(
             extra_exits=(ExitDefinition("north", BELL_GATE, "Crooked Bell Chapel", "You push north through the briars toward the cracked bell.", ViewCondition(min_level=3)),),
-            features=(_feature("crooked_bell_sound", "Crooked Bell", "one dull bell-note arriving at the wrong interval", "The bell is north. This dungeon rewards LISTEN before PULL.", ("bell", "sound", "chapel")),),
+            features=(_feature("crooked_bell_sound", "Crooked Bell", "one dull bell-note arriving at the wrong interval", "The bell is north. Its returning note keeps falling into a pattern; LISTEN before you touch the ropes.", ("bell", "sound", "chapel")),),
         ),
         KINGS_SCAR_APPROACH: RoomAugmentation(
             extra_exits=(ExitDefinition("north", SCAR_GATE, "King's Scar Quarry", "You pass the survey flags north into the abandoned quarry.", ViewCondition(min_level=5)),),
@@ -489,7 +489,7 @@ def adventure_augmentations() -> dict[str, RoomAugmentation]:
                 "down", ECHO_THRESHOLD, "Vault Stair", "The three marks answer together and a seam in the ridge opens onto a descending stair.",
                 ViewCondition(required_flags=(TOLL_COMPLETE, BELL_COMPLETE, SCAR_COMPLETE), min_level=8), hidden_when_unavailable=True,
             ),),
-            features=(_feature("echo_ridge_marks", "Three Listening Marks", "three old marks that return footsteps with an extra answer", "Three early expeditions elsewhere around Waymeet contain matching marks. The ridge opens only after all three dungeon clears and level 8.", ("marks", "echo marks", "listening marks")),),
+            features=(_feature("echo_ridge_marks", "Three Listening Marks", "three old marks that return footsteps with an extra answer", "Three older sites elsewhere around Waymeet carry matching marks. The ridge remains mute until all three have answered, and even then it seems to resist an inexperienced hand.", ("marks", "echo marks", "listening marks")),),
         ),
         TOLL_LEDGER: RoomAugmentation(features=(_feature("recent_ledger", "Recent Ledger", "a thief's ledger naming stolen wagons and payments", "SEARCH LEDGER to compare entries and identify who is running the cellar.", ("ledger", "book", "accounts")),)),
         TOLL_COUNTING: RoomAugmentation(
@@ -497,7 +497,7 @@ def adventure_augmentations() -> dict[str, RoomAugmentation]:
             features=(_feature("clean_wall", "Clean Wall", "one suspiciously clean cellar wall", "After Tollmaster Vesk is down, SEARCH WALL can reveal whether the clean stone hides anything.", ("wall", "clean wall", "stone")),),
         ),
         TOLL_CARVED_SUBLEVEL: RoomAugmentation(features=(_feature("carved_wall", "Carved Wall", "wave-like lines surrounding one open shape", "EXAMINE CARVED WALL. The pattern will matter much later, but the cellar itself does not explain it.", ("wall", "carving", "carved wall", "marks")),)),
-        BELL_NAVE: RoomAugmentation(features=(_feature("three_pitches", "Three Returning Pitches", "rain notes repeating more regularly than rain should", "LISTEN. The game tells you the usable clue rather than asking you to guess an audio verb.", ("pitches", "rain", "sound")),)),
+        BELL_NAVE: RoomAugmentation(features=(_feature("three_pitches", "Three Returning Pitches", "rain notes repeating more regularly than rain should", "LISTEN closely. The three returning notes are distinct enough to copy: low, high, low.", ("pitches", "rain", "sound")),)),
         BELL_EAST_GALLERY: RoomAugmentation(features=(_feature("bronze_plates", "Cracked Bronze Plates", "low, high, and low plates touched by wind", "LISTEN here after the nave. The rope order becomes explicit.", ("plates", "bronze plates", "sound")),)),
         BELL_ROPE_ROOM: RoomAugmentation(
             extra_exits=(ExitDefinition("up", BELL_BELFRY, "Belfry Latch", "The solved rope latch releases and the upper door swings inward.", ViewCondition(required_flags=(BELL_ROPES_SOLVED,), min_level=3), hidden_when_unavailable=True),),
@@ -507,11 +507,11 @@ def adventure_augmentations() -> dict[str, RoomAugmentation]:
             extra_exits=(ExitDefinition("up", BELL_ECHO_LOFT, "Echo Loft", "You climb into the crawlspace above the bell.", ViewCondition(required_flags=(BELL_SECRET,), min_level=3), hidden_when_unavailable=True),),
             features=(_feature("bell_rafters", "Split Rafters", "old rafters disappearing above the bell frame", "After the Bellkeeper falls, SEARCH RAFTERS may reveal a place the old caretaker used for listening tests.", ("rafters", "loft", "beams")),),
         ),
-        SCAR_LIFT: RoomAugmentation(features=(_feature("inspection_gantry", "Inspection Gantry", "a narrow maintenance walk above the dead lift", "CLIMB GANTRY. The command demonstrates vertical exploration before the quarry asks you to rely on it.", ("gantry", "lift", "walk")),)),
-        SCAR_DEEP_FACE: RoomAugmentation(features=(_feature("survey_marks", "Old Survey Marks", "a nearly erased cluster among newer chalk", "SEARCH SURVEY MARKS if you care about the older history. It is optional and gives no power reward.", ("marks", "survey marks", "chalk")),)),
+        SCAR_LIFT: RoomAugmentation(features=(_feature("inspection_gantry", "Inspection Gantry", "a narrow maintenance walk above the dead lift", "CLIMB GANTRY. From above, the dead lift, survey cuts, and deeper quarry route are much easier to read.", ("gantry", "lift", "walk")),)),
+        SCAR_DEEP_FACE: RoomAugmentation(features=(_feature("survey_marks", "Old Survey Marks", "a nearly erased cluster among newer chalk", "SEARCH SURVEY MARKS to separate the nearly erased older cuts from the newer survey chalk.", ("marks", "survey marks", "chalk")),)),
         SCAR_WINCH: RoomAugmentation(
             extra_exits=(ExitDefinition("east", SCAR_BREAKER_PIT, "Restored Freight Bridge", "The released brake lets the freight bridge settle across the gap to the breaker pit.", ViewCondition(required_flags=(SCAR_BRAKE_RELEASED,), min_level=5), hidden_when_unavailable=True),),
-            features=(_feature("freight_brake", "Freight Brake", "a rusted but intact geared brake lever", "PULL BRAKE to release the bridge. This is an environmental action, not a hidden parser trick.", ("brake", "lever", "winch")),),
+            features=(_feature("freight_brake", "Freight Brake", "a rusted but intact geared brake lever", "PULL BRAKE to release the bridge. The lever is stiff but intact, and the geared linkage still reaches the bridge.", ("brake", "lever", "winch")),),
         ),
         ECHO_PLATE_WEST: RoomAugmentation(features=(_feature("west_plate", "Resonance Plate", "a worn black plate", "TOUCH PLATE.", ("plate", "stone", "resonance plate")),)),
         ECHO_PLATE_EAST: RoomAugmentation(features=(_feature("east_plate", "Resonance Plate", "a ringed black plate", "TOUCH PLATE.", ("plate", "stone", "resonance plate")),)),
@@ -676,12 +676,12 @@ def adventure_progress(flags: set[str], level: int) -> tuple[str, ...]:
 async def _show_explore(session) -> None:
     flags = _flags(session)
     await session.send("\r\n--- Waymeet Outer Roads ---\r\n")
-    await session.send("The roads around Waymeet form a connected adventure ring rather than four menu-selected instances. Explore south of the Broken Mile, east of Briarcut, north of the quarry, and along Echo Ridge.\r\n")
+    await session.send("The roads around Waymeet form one connected outer circuit. Explore south of the Broken Mile, east of Briarcut, north of the quarry, and along Echo Ridge.\r\n")
     for row in adventure_progress(flags, session.character.level):
         await session.send(f"- {row}\r\n")
     secret_count = len({TOLL_SECRET, BELL_SECRET, SCAR_SECRET} & flags)
-    await session.send(f"Optional outer secrets noticed: {secret_count}/3. The game will not name the missing locations.\r\n")
-    await session.send("Useful exploration verbs are written into room features when relevant: SEARCH, LISTEN, CLIMB, PULL, TOUCH. CLASS shows the combat kit you already have for real-time fights.\r\n")
+    await session.send(f"Optional outer signs understood: {secret_count}/3. Any remaining signs will have to be found on the roads themselves.\r\n")
+    await session.send("Room details call out relevant actions when needed: SEARCH, LISTEN, CLIMB, PULL, TOUCH. CLASS reviews your current combat techniques.\r\n")
 
 
 async def _talk_brin(session) -> bool:
