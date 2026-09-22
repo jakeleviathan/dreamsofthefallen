@@ -75,6 +75,7 @@ WAYMEET_SEVRA_MERCHANT = MerchantDefinition(
     additional_stock=(
         MerchantStockEntry("iron_ingot", price_units=8),
         MerchantStockEntry("cotton_thread", price_units=8),
+        MerchantStockEntry("blank_waymap", price_units=8),
         MerchantStockEntry("bag_waymeet_caravan_pack", price_units=45),
     ),
     uses_common_stock=False,
