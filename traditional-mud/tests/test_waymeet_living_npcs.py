@@ -8,7 +8,10 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+from mud.astralis_time import AstralisClock, AstralisWeatherService, REAL_EPOCH_SECONDS
 from mud.npcs import BEHAVIOR_ROUTINE, MobileNpcManager
+from mud.room_engine import RoomStateStore
+from mud.world_data import REGIONS_BY_KEY
 from mud.waymeet_frontier import (
     WAYMEET_COMMONHOUSE_KEY,
     WAYMEET_CROSSROADS_KEY,
@@ -54,6 +57,13 @@ class WaymeetLivingNpcTests(unittest.TestCase):
             self.assertTrue(all(stop.room_key in npc.allowed_room_keys for stop in npc.routine_schedule))
         register_waymeet_living_npcs()  # repeat registration never creates duplicates
         self.assertEqual(len({npc.key for npc in WAYMEET_LIVING_NPCS}), 4)
+
+    def test_waymeet_has_real_regional_weather_for_sheltering(self):
+        self.assertIn("waymeet_frontier", REGIONS_BY_KEY)
+        state = RoomStateStore()
+        weather = AstralisWeatherService(rng=random.Random(7))
+        weather.initialize(AstralisClock().now(REAL_EPOCH_SECONDS), state)
+        self.assertEqual(state.weather_for("waymeet_frontier"), "clear")
 
     def test_world_hour_moves_a_dispatcher_along_existing_exits(self):
         manager = self._manager(EDRIN)
