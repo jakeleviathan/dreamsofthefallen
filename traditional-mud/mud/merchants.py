@@ -20,6 +20,7 @@ class MerchantStockEntry:
 # locked out of its defining pet because of rare catalyst availability.
 COMMON_MERCHANT_STOCK: tuple[MerchantStockEntry, ...] = (
     MerchantStockEntry("bone_chips", common_stock=True, price_units=3),
+    MerchantStockEntry("blank_waymap", common_stock=True, price_units=8),
 )
 COMMON_MERCHANT_STOCK_BY_KEY = {entry.item_key: entry for entry in COMMON_MERCHANT_STOCK}
 
