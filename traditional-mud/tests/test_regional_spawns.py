@@ -101,7 +101,10 @@ class RegionalPopulationTests(unittest.TestCase):
     def test_population_scales_gently_with_multiple_players_and_respects_cap(self):
         manager = self._manager()
         pool = next(iter(manager.regional_pools.values()))
-        self.assertEqual(manager.target_population(pool, ("wild_a", "wild_b")), 5)
+        self.assertEqual(
+            manager.target_population(pool, ("wild_a", "wild_b")),
+            min(pool.max_population, npcs.REGIONAL_BASE_POPULATION + 2),
+        )
 
         with patch.object(npcs, "REGIONAL_RARE_ROLL_PER_TICK", 0.0):
             for tick in range(1, 8):
@@ -112,7 +115,10 @@ class RegionalPopulationTests(unittest.TestCase):
                 )
 
         common = manager._regional_states(pool.key, include_rare=False)
-        self.assertEqual(len(common), 5)
+        self.assertEqual(
+            len(common),
+            min(pool.max_population, npcs.REGIONAL_BASE_POPULATION + 2),
+        )
         self.assertLessEqual(
             len(manager._regional_states(pool.key)),
             manager._region_dynamic_cap(pool.region_key),
@@ -155,7 +161,10 @@ class RegionalPopulationTests(unittest.TestCase):
         old_keys = set(manager.states)
 
         manager.defeat(victim.definition.key)
-        self.assertEqual(len(manager._regional_states(pool.key, include_rare=False)), 2)
+        self.assertEqual(
+            len(manager._regional_states(pool.key, include_rare=False)),
+            npcs.REGIONAL_BASE_POPULATION - 1,
+        )
 
         with patch.object(npcs, "REGIONAL_RARE_ROLL_PER_TICK", 0.0):
             for tick in range(1, npcs.REGIONAL_REFILL_TICKS):
@@ -164,7 +173,10 @@ class RegionalPopulationTests(unittest.TestCase):
                     player_room_keys=("wild_a",),
                     hour=12,
                 )
-        self.assertEqual(len(manager._regional_states(pool.key, include_rare=False)), 2)
+        self.assertEqual(
+            len(manager._regional_states(pool.key, include_rare=False)),
+            npcs.REGIONAL_BASE_POPULATION - 1,
+        )
 
         manager.tick(
             random.Random(999),
