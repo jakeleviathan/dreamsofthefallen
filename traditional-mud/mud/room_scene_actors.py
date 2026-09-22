@@ -7,7 +7,7 @@ from time import time
 import mud.crafting as crafting
 from mud.astralis_time import ASTRALIS_CLOCK
 from mud.ecology import ASTRALIS_ECOLOGY
-from mud.ground_items import list_ground_items
+from mud.item_locations import ItemLocation, list_location_items
 
 
 SCENE_SCHEMA = """
@@ -149,7 +149,7 @@ def scene_lines(session, world_service, room_key: str, region_key: str) -> tuple
 
     # Dropped objects are first-class room contents. The underlying transfer
     # system preserves heritage serials, maker marks, and discovery identity.
-    for item in list_ground_items(database, room_key):
+    for item in list_location_items(database, ItemLocation.room(room_key)):
         key, qty = str(item["item_key"]), int(item["quantity"])
         definition = crafting.ITEMS_BY_KEY.get(key)
         name = definition.name if definition is not None else key.replace("_", " ").title()
