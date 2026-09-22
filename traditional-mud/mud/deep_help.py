@@ -1232,7 +1232,7 @@ def _topic_command_rows(topic: HelpTopic) -> list[CommandEntry]:
 
 async def _show_home(session) -> None:
     await session.send("\r\n=== Dreams of the Fallen Help Library ===\r\n")
-    await session.send("A deep in-game manual. Browse by system, search by idea, or open one command directly.\r\n\r\n")
+    await session.send("A deep in-game manual. The same command catalog powers HELP and COMMANDS; this library adds deeper concept pages around it. Browse by system, search by idea, or open one command directly.\r\n\r\n")
     for key, (title, summary) in CATEGORY_INFO.items():
         topics = CATEGORY_TOPIC_ORDER.get(key, ())
         await session.send(f"{title:<28} HELP {key.upper():<12} {len(topics):>2} topic(s) - {summary}\r\n")
@@ -1261,7 +1261,7 @@ async def _show_category(session, category: str) -> None:
         await session.send("\r\nTopics:\r\n")
         for topic_key in topics:
             topic = TOPICS_BY_KEY[topic_key]
-            await session.send(f"  HELP {topic.key.upper():<22} {topic.summary}\r\n")
+            await session.send(f"  HELP {topic.key.upper():<22} {topic.title} - {topic.summary}\r\n")
 
     command_categories = CATEGORY_COMMAND_MAP.get(key, ())
     rows = [entry for entry in command_guide.COMMANDS if entry.category in command_categories]
