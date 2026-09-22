@@ -290,7 +290,7 @@ def _full_help_text(session) -> str:
             "TRADES / PROFESSIONS - trade-skill information",
             "RECIPES - known crafting recipes",
             "CRAFT <recipe> - craft when the required station and materials are available",
-            "Cartography: PREPARE BLANK WAYMAP is craftable from cotton cloth; marked waymaps retain their destination when transferred",
+            "Tailoring: PREPARE BLANK WAYMAP turns cotton cloth into a reusable blank destination map; marked waymaps retain their destination when transferred",
             "MINE / HARVEST / HERBALISM - use supported gathering content",
             "SOLS / COINS / MONEY - show your Sol balance (sparks, embers, flames)",
             "SHOP / LIST / WARES - inspect nearby merchant stock and Sol prices",
