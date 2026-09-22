@@ -242,10 +242,18 @@ def build_discovery_catalog(world_service) -> tuple[DiscoveryDefinition, ...]:
     def scene_at(index: int, stride: int = 1, offset: int = 0):
         return scenes[(offset + index * stride) % len(scenes)]
 
-    # 95 quiet environmental discoveries.
+    # 82 quiet environmental discoveries, starting with one anchor per region.
     verbs = ("search", "examine", "listen", "look")
-    for index in range(95):
-        scene = scene_at(index, stride=7, offset=3)
+    first_by_region: dict[str, object] = {}
+    for scene in scenes:
+        first_by_region.setdefault(str(scene.region_key), scene)
+    region_anchors = [first_by_region[key] for key in sorted(first_by_region)]
+    for index in range(82):
+        scene = (
+            region_anchors[index]
+            if index < len(region_anchors)
+            else scene_at(index - len(region_anchors), stride=7, offset=3)
+        )
         target = _targets(scene, index)
         verb = verbs[index % len(verbs)]
         targets = ("",) if verb == "listen" and index % 3 == 0 else target
@@ -259,6 +267,62 @@ def build_discovery_catalog(world_service) -> tuple[DiscoveryDefinition, ...]:
                 text=_environmental_text(scene, index),
                 condition=DiscoveryCondition(room_keys=(scene.key,)),
                 internal_name=f"Environmental trace {index + 1}",
+            )
+        )
+
+    # Eight race-specific perceptions. These are not stat bonuses; they are
+    # pieces of cultural/world knowledge that another ancestry can walk past.
+    racial_clues = (
+        ("human", "civic emblem", "You read the severe ornament as civic shorthand rather than menace. One tiny variation marks a municipal repair crew whose records supposedly vanished generations ago."),
+        ("forest_elf", "living edge", "The growth pattern is legible to you as maintenance, not wilderness. Someone has been tending this edge according to an old Druidic convention without admitting it."),
+        ("moon_elf", "moon angle", "The geometry is wrong for decoration and right for lunar sighting. A line that means nothing from ground level points cleanly toward the moon's seasonal path."),
+        ("dwarf", "tool chatter", "The tool marks tell a work story: two crews, two shifts, and one deliberate interruption where the official job should have continued."),
+        ("goblin", "repair logic", "You recognize the ugly little repair as excellent work. More importantly, it was designed to be reopened quickly by someone who knew which scrap piece was load-bearing."),
+        ("troll", "old trail", "The scuffs are not random wear. They preserve the age and direction of a trail in the same practical grammar used by hunters who expect snow or leaf-fall to erase tracks."),
+        ("undead", "burial layer", "You recognize a funerary sequence under the later decoration. The living reused this place without realizing which part was meant to face the dead."),
+        ("sporekin", "quiet pulse", "A faint biological rhythm sits beneath the obvious sounds. It resembles a colony memory that has been cut off from whatever network once answered it."),
+    )
+    for index, (race, target, text_value) in enumerate(racial_clues):
+        scene = scene_at(index, stride=41, offset=11)
+        definitions.append(
+            DiscoveryDefinition(
+                key=f"racial_perception:{race}:{scene.key}",
+                kind="racial",
+                trigger="command",
+                verbs=("examine", "listen"),
+                targets=(target, "details", "surroundings"),
+                text=text_value,
+                condition=DiscoveryCondition(
+                    room_keys=(scene.key,),
+                    races=(race,),
+                ),
+                internal_name=f"{race} cultural perception",
+            )
+        )
+
+    # Five class-specific readings of the same physical world.
+    class_clues = (
+        ("necromancer", "death trace", "What others might call age reads to you as a sequence of death practices. One part of the sequence was interrupted intentionally."),
+        ("brute", "impact marks", "Weight, angle, and repeated impact tell you more than the inscription does. Someone trained here for a fight with a very specific reach."),
+        ("wizard", "residue", "A weak magical residue survives in the material, not the air. It was built into the work rather than cast over it later."),
+        ("druid", "growth pattern", "The plants are responding to something below the visible surface. Their spacing sketches the hidden shape better than any survey line."),
+        ("priest", "votive wear", "The wear pattern is devotional but unofficial. Generations of private gestures have polished a place the public rite never mentions."),
+    )
+    for index, (class_key, target, text_value) in enumerate(class_clues):
+        scene = scene_at(index, stride=53, offset=19)
+        definitions.append(
+            DiscoveryDefinition(
+                key=f"class_perception:{class_key}:{scene.key}",
+                kind="class",
+                trigger="command",
+                verbs=("examine",),
+                targets=(target, "marks", "details"),
+                text=text_value,
+                condition=DiscoveryCondition(
+                    room_keys=(scene.key,),
+                    classes=(class_key,),
+                ),
+                internal_name=f"{class_key} professional perception",
             )
         )
 
