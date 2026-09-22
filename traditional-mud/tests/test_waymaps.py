@@ -15,6 +15,11 @@ from mud.ground_items import (
     transfer_inventory_to_ground,
 )
 from mud.merchants import COMMON_MERCHANT_STOCK_BY_KEY
+from mud.item_heritage import (
+    HeritageHolder,
+    move_holder_to_owner_in_connection,
+    move_owned_to_holder_in_connection,
+)
 from mud.room_engine import (
     ExitDefinition,
     PlayerRoomContext,
@@ -279,6 +284,69 @@ class WaymapTests(unittest.TestCase):
         buyer_ids = {row.id for row in waymaps.list_character_waymaps(database, second.id)}
         self.assertEqual(seller_ids, {first_map.id})
         self.assertEqual(buyer_ids, {second_map.id})
+        self.assertEqual(waymaps.audit_waymaps(database), ())
+
+    def test_waymap_identity_follows_shared_market_holder_round_trip(self):
+        temp, database, _account, character = self._database()
+        self.addCleanup(temp.cleanup)
+        database.add_item(character.id, waymaps.BLANK_WAYMAP_KEY, 1)
+        row = waymaps.mark_blank_waymap(
+            database,
+            character_id=character.id,
+            destination_room_key="human_demon_gate",
+            destination_name="The Demon Gate",
+        )
+        assert row is not None
+
+        market_holder = HeritageHolder.veyra_market(77)
+        with database.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute(
+                "DELETE FROM character_items WHERE character_id = ? AND item_key = ?",
+                (character.id, waymaps.MARKED_WAYMAP_KEY),
+            )
+            move_owned_to_holder_in_connection(
+                db,
+                character_id=character.id,
+                item_key=waymaps.MARKED_WAYMAP_KEY,
+                quantity=1,
+                destination=market_holder,
+                event_type="market_escrow",
+                note="Waymap escrow test.",
+                keep_owner=True,
+            )
+
+        self.assertEqual(waymaps.list_character_waymaps(database, character.id), ())
+        with database.connect() as db:
+            held = db.execute(
+                "SELECT holder_kind, holder_key FROM waymap_instances WHERE id = ?",
+                (row.id,),
+            ).fetchone()
+        self.assertEqual((held["holder_kind"], held["holder_key"]), ("veyra_market", "77"))
+
+        with database.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute(
+                """
+                INSERT INTO character_items (character_id, item_key, quantity)
+                VALUES (?, ?, 1)
+                ON CONFLICT(character_id, item_key) DO UPDATE SET quantity = quantity + 1
+                """,
+                (character.id, waymaps.MARKED_WAYMAP_KEY),
+            )
+            move_holder_to_owner_in_connection(
+                db,
+                source=market_holder,
+                character_id=character.id,
+                item_key=waymaps.MARKED_WAYMAP_KEY,
+                quantity=1,
+                event_type="market_cancel",
+                note="Waymap escrow return test.",
+            )
+
+        returned = waymaps.list_character_waymaps(database, character.id)
+        self.assertEqual([item.id for item in returned], [row.id])
+        self.assertEqual(returned[0].destination_name, "The Demon Gate")
         self.assertEqual(waymaps.audit_waymaps(database), ())
 
     def test_shortest_route_uses_real_passability_and_reacts_to_closed_doors(self):
