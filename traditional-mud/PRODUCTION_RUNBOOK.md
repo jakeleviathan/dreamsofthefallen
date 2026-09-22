@@ -31,7 +31,35 @@ MUD_LOG_FILES=5
 MUD_OWNER_ACCOUNT=<owner account name>
 DREAMS_DISCORD_APPLICATION_ID=<Discord application snowflake>
 DREAMS_DISCORD_INVITE_URL=https://discord.gg/<invite-code>
+DOTF_VOTE_REWARDS_ENABLED=0
+MUDVERSE_LISTING_ID=606
+MUDVERSE_API_KEY=<server-side API key from MUDVerse>
+MUDVERSE_VOTE_URL=https://www.mudverse.com/vote/606
 ```
+
+## MUDVerse vote rewards
+
+The vote-reward integration is deliberately shipped behind a feature flag. Leave `DOTF_VOTE_REWARDS_ENABLED=0` until the MUDVerse API key is present and an operator has verified a manual sync.
+
+MUDVerse's API is read-only. Dreams reads listing 606's current monthly vote total and never submits a vote on a player's behalf. A player must type `VOTE` before visiting MUDVerse; that snapshots the aggregate count and opens one two-hour account-wide pending claim. New vote-count increments are converted into immutable local events and matched FIFO to pending claims. Because MUDVerse exposes an aggregate count rather than voter identity, the game is explicit about that limitation in the claim UI.
+
+The daily reward is:
+
+- 1 Echo of Favour on the account;
+- 6 Sparks on the character that armed the claim;
+- 5 percent of that character level's XP requirement, capped at 250 XP.
+
+The account reward cooldown is 24 hours. Streaks use a forgiving 54-hour continuation window. Echoes purchase account-wide presentation unlocks only. Titles, auras, and sigils have no combat stats and do not occupy equipment or fashion slots.
+
+Before enabling rewards:
+
+1. Sign in to MUDVerse, create an API key from its API account tab, and store it only as `MUDVERSE_API_KEY` in the service environment.
+2. Restart with `DOTF_VOTE_REWARDS_ENABLED=0` and use `VOTE ADMIN STATUS` while on staff duty to confirm schema health and configuration.
+3. Temporarily enable the flag, restart, and run `VOTE ADMIN SYNC`. Confirm the displayed count agrees with the public listing.
+4. Arm a real test claim with `VOTE`, cast one legitimate vote yourself, and use `VOTE CLAIM`. Confirm exactly one local event and exactly one reward are recorded.
+5. Check `VOTE ADMIN HISTORY` and the account's Echo balance before opening the feature to players.
+
+Staff inspection commands are `VOTE ADMIN STATUS`, `PENDING`, `HISTORY [n]`, `ACCOUNT <account>`, and `SYNC`. ADMIN and OWNER may use audited manual grants when a legitimate reward needs correction. Every manual grant requires a written reason.
 
 ## Discord Rich Presence
 

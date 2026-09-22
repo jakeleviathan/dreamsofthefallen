@@ -76,6 +76,7 @@ from mud.crownfire_tuning import apply_crownfire_room_field_tuning
 from mud.roadside_discoveries import install_roadside_discoveries_runtime
 from mud.style_collectibles import install_style_collectibles_runtime
 from mud.style_collectibles_tuning import apply_style_collectibles_tuning
+from mud.vote_rewards import install_vote_rewards_runtime
 from mud.iconic_items import install_iconic_items
 from mud.content_foundry import install_content_foundry_runtime
 from mud.content_density import install_content_density_runtime
@@ -227,6 +228,9 @@ apply_crownfire_room_field_tuning(WORLD)
 install_roadside_discoveries_runtime(PlayerSession, WORLD)
 install_style_collectibles_runtime(PlayerSession, WORLD)
 apply_style_collectibles_tuning()
+# MUDVerse support is account-wide and intentionally separate from the Sol economy.
+# The feature flag can keep vote matching disabled until the production API key is set.
+install_vote_rewards_runtime(PlayerSession, MudServer, Database)
 
 # The large content pass is layered rather than monolithic. The 90-item identity
 # catalog establishes objects worth talking about; the foundry adds the first
