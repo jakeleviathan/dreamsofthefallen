@@ -1315,6 +1315,9 @@ async def _vote_admin(session, stripped: str) -> None:
     if not _staff_at_least(session, "gm"):
         await session.send("That command is restricted to staff.\r\n")
         return
+    if not bool(getattr(session, "_staff_mode", False)):
+        await session.send("Use STAFF ON before using vote administration commands.\r\n")
+        return
     ensure_vote_schema(session.database)
     parts = stripped.split()
     sub = parts[2].lower() if len(parts) >= 3 else "status"
