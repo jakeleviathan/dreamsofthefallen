@@ -183,6 +183,7 @@ from mud.seasonal_runtime import install_seasonal_runtime
 from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
 from mud.room_runtime import WORLD, install_room_runtime
+from mud.waymaps import install_waymap_runtime
 from mud.world import NPCS_BY_KEY, ROOMS_BY_KEY
 from mud.npc_conversation import install_generic_npc_conversation_runtime
 from mud.room_state_storage import load_world_room_state, save_world_room_state
@@ -311,6 +312,9 @@ install_social_experience_runtime(PlayerSession)
 install_player_channels_runtime(PlayerSession)
 # The room/prompt layer keeps ordinary play readable in both Telnet and Mudlet.
 install_room_prompt_experience_runtime(PlayerSession, WORLD)
+# Physical waymaps sit outside presentation so their automatic movement always
+# passes through the complete live movement stack rather than bypassing it.
+install_waymap_runtime(PlayerSession, WORLD)
 # Staff controls sit outermost so staff commands never leak into normal player
 # command handling. Access is role-gated, disruptive actions require confirmation,
 # and every staff action is written to the persistent audit log.
