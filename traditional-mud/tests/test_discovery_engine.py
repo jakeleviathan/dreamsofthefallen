@@ -256,7 +256,7 @@ class DiscoveryEngineTests(unittest.TestCase):
         self.assertEqual(validate_discovery_catalog(WORLD, definitions), TARGET_CATALOG_SIZE)
 
         counts = catalog_kind_counts(definitions)
-        self.assertEqual(counts["environmental"], 110)
+        self.assertEqual(counts["environmental"], 95)\n        self.assertEqual(counts["reputation"], 10)\n        self.assertEqual(counts["inventory"], 5)
         self.assertEqual(counts["interaction"], 60)\n        self.assertEqual(counts["rumor"], 10)
         self.assertEqual(counts["hidden_quest"], 50)
         self.assertEqual(counts["calendar"], 35)
