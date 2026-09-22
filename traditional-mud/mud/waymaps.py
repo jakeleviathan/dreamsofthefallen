@@ -682,34 +682,41 @@ def audit_waymaps(database) -> tuple[str, ...]:
 
         container_rows = db.execute(
             """
-            WITH buckets AS (
+            WITH stack AS (
                 SELECT CAST(container_id AS TEXT) AS holder_key,
-                       reserved_character_id AS reservation
+                       reserved_character_id AS reservation,
+                       SUM(quantity) AS quantity
                 FROM world_container_items
                 WHERE item_key = ?
-                UNION
+                GROUP BY container_id, reserved_character_id
+            ),
+            instances AS (
                 SELECT holder_key,
-                       COALESCE(holder_reservation, 0) AS reservation
+                       COALESCE(holder_reservation, 0) AS reservation,
+                       COUNT(*) AS quantity
                 FROM waymap_instances
                 WHERE holder_kind = 'container'
+                GROUP BY holder_key, COALESCE(holder_reservation, 0)
+            ),
+            buckets AS (
+                SELECT holder_key, reservation FROM stack
+                UNION
+                SELECT holder_key, reservation FROM instances
             )
             SELECT b.holder_key,
                    b.reservation,
-                   COALESCE(SUM(i.quantity), 0) AS stack_quantity,
-                   COUNT(DISTINCT w.id) AS instance_quantity
+                   COALESCE(s.quantity, 0) AS stack_quantity,
+                   COALESCE(i.quantity, 0) AS instance_quantity
             FROM buckets b
-            LEFT JOIN world_container_items i
-              ON CAST(i.container_id AS TEXT) = b.holder_key
-             AND i.reserved_character_id = b.reservation
-             AND i.item_key = ?
-            LEFT JOIN waymap_instances w
-              ON w.holder_kind = 'container'
-             AND w.holder_key = b.holder_key
-             AND COALESCE(w.holder_reservation, 0) = b.reservation
-            GROUP BY b.holder_key, b.reservation
-            HAVING COALESCE(SUM(i.quantity), 0) != COUNT(DISTINCT w.id)
+            LEFT JOIN stack s
+              ON s.holder_key = b.holder_key
+             AND s.reservation = b.reservation
+            LEFT JOIN instances i
+              ON i.holder_key = b.holder_key
+             AND i.reservation = b.reservation
+            WHERE COALESCE(s.quantity, 0) != COALESCE(i.quantity, 0)
             """,
-            (MARKED_WAYMAP_KEY, MARKED_WAYMAP_KEY),
+            (MARKED_WAYMAP_KEY,),
         ).fetchall()
         for row in container_rows:
             problems.append(
