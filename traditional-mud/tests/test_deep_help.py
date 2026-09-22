@@ -75,6 +75,11 @@ class DeepHelpLibraryTests(unittest.TestCase):
             "ECHOES / ECHOES SHOP / ECHOES BUY <name>",
             "TITLES / TITLE SET <name> / TITLE CLEAR",
             "COSMETICS / COSMETIC SET <name> / COSMETIC CLEAR AURA|SIGIL",
+            "HUNT / HUNT STATUS",
+            "RACIAL",
+            "SETTINGS / PREFERENCES / ACCESSIBILITY",
+            "BUG [note] / FEEDBACK [note] / STUCK [note]",
+            "HELP <topic> / HELP CATEGORIES / HELP INDEX",
         }
         self.assertTrue(required.issubset(syntaxes), required - syntaxes)
 
