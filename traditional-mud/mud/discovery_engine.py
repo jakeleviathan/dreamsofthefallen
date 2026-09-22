@@ -528,6 +528,83 @@ async def attempt_entry_discovery(
     return DiscoveryResult(False, False)
 
 
+_GENERIC_TELL_TARGETS = frozenset({
+    "air", "area", "clue", "clues", "crowd", "details", "gossip", "locals",
+    "marks", "pattern", "rumor", "rumors", "signs", "silence", "surroundings",
+    "traveler", "travelers",
+})
+
+
+def _has_living_condition(condition: DiscoveryCondition) -> bool:
+    return bool(
+        condition.time_buckets
+        or condition.weather
+        or condition.seasons
+        or condition.moon_phases
+        or condition.day_modulus
+        or condition.min_region_standing is not None
+        or condition.min_region_renown is not None
+        or condition.ecology_min
+        or condition.ecology_max
+        or condition.requires_heritage_item
+    )
+
+
+def discovery_tell(
+    session,
+    world_service,
+    *,
+    registry: DiscoveryRegistry | None = None,
+) -> str | None:
+    """Expose one subtle affordance when living-world conditions unlock a secret.
+
+    The tell names only an inspectable detail. It never reveals the discovery
+    result, exact command, reward, internal name, or any completion count.
+    """
+    character = getattr(session, "character", None)
+    database = getattr(session, "database", None)
+    if (
+        character is None
+        or database is None
+        or not callable(getattr(database, "connect", None))
+        or world_service is None
+    ):
+        return None
+
+    room_key = str(getattr(character, "current_room", "") or "")
+    if not room_key:
+        return None
+
+    active_registry = registry or _registry_for_world(world_service)
+    known = discovered_keys(database, int(character.id))
+    for definition in active_registry.candidates(room_key):
+        if (
+            definition.key in known
+            or definition.trigger != "command"
+            or not _has_living_condition(definition.condition)
+        ):
+            continue
+        if not _condition_matches(
+            session,
+            world_service,
+            definition,
+            known_discoveries=known,
+        ):
+            continue
+
+        for raw_target in definition.targets:
+            target = _normalize(raw_target)
+            if (
+                not target
+                or target in _GENERIC_TELL_TARGETS
+                or len(target) > 48
+                or target.startswith("old business")
+            ):
+                continue
+            return f"The {target} catches your attention under the current conditions."
+    return None
+
+
 def discovery_catalog_problems(
     world_service,
     definitions: Iterable[DiscoveryDefinition],

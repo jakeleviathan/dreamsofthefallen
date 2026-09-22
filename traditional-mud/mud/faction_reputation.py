@@ -30,6 +30,20 @@ REGION_FACTION = {
     for region in faction.home_regions
 }
 
+# Race-specific quest keys predate the faction system and therefore use cultural
+# prefixes rather than later faction names. Keep that old content meaningful
+# without forcing hundreds of stable quest keys to be renamed.
+QUEST_KEY_FACTION_PREFIXES: tuple[tuple[str, str], ...] = (
+    ("human_", "blackglass_crown"),
+    ("forest_elf_", "green_circle"),
+    ("moon_elf_", "moon_courts"),
+    ("dwarf_", "chainmark_houses"),
+    ("goblin_", "brassgut_clans"),
+    ("troll_", "troll_tribes"),
+    ("undead_", "pale_houses"),
+    ("sporekin_", "rainroot_chorus"),
+)
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS character_faction_reputation (
     character_id INTEGER NOT NULL,
@@ -173,6 +187,19 @@ def faction_for_region(region_key: str | None) -> str | None:
     return REGION_FACTION.get(str(region_key or ""))
 
 
+def regional_reaction(database, character_id: int, region_key: str | None) -> str:
+    """Return a diegetic local-reputation cue for a faction-controlled region."""
+    faction_key = faction_for_region(region_key)
+    if faction_key is None or database is None or not callable(getattr(database, "connect", None)):
+        return ""
+    standing, renown = get_reputation(database, character_id, faction_key)
+    reaction = npc_reaction(standing, renown)
+    if not reaction:
+        return ""
+    faction = FACTIONS_BY_KEY[faction_key]
+    return f"Word has spread through {faction.name}; a nearby local {reaction}."
+
+
 def render_reputation(database, character_id: int) -> str:
     ensure_schema(database)
     lines = ["--- Reputation ---"]
@@ -190,7 +217,24 @@ def render_reputation(database, character_id: int) -> str:
 
 
 def _quest_faction(quest) -> str | None:
-    key = str(getattr(quest, "key", "") or "")
+    key = str(getattr(quest, "key", "") or "").casefold()
+
+    # Newer authored quests may opt into a faction directly without changing the
+    # shared QuestDefinition contract.
+    explicit = str(
+        getattr(quest, "faction_key", "")
+        or getattr(quest, "reputation_faction", "")
+        or ""
+    )
+    if explicit in FACTIONS_BY_KEY:
+        return explicit
+
+    for prefix, faction_key in QUEST_KEY_FACTION_PREFIXES:
+        if key.startswith(prefix):
+            return faction_key
+
+    # Preserve support for content whose stable key already contains the faction
+    # name itself.
     for faction_key in FACTIONS_BY_KEY:
         token = faction_key.split("_")[0]
         if token and token in key:
