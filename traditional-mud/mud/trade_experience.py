@@ -13,6 +13,7 @@ _ACTIVE_SESSIONS: WeakSet = WeakSet()
 _PENDING_INVITES: dict[int, int] = {}
 _TRADES_BY_CHARACTER: dict[int, "TradeSession"] = {}
 _INTEGER = re.compile(r"^[+-]?\d+$")
+_WAYMAP_SELECTOR = re.compile(r"^(?:marked\s+)?(?:waymap|map)\s+#?(\d+)$")
 
 
 @dataclass(slots=True)
@@ -374,15 +375,25 @@ def exchange_items(
         db.close()
 
 
-def _format_offer(offer: dict[str, int]) -> str:
+def _format_offer(
+    offer: dict[str, int],
+    *,
+    waymap_rows: tuple[object, ...] = (),
+) -> str:
     if not offer:
         return "nothing"
     parts: list[str] = []
+    waymaps_by_id = {int(getattr(row, "id")): row for row in waymap_rows}
     for item_key, quantity in sorted(offer.items()):
+        if item_key == "marked_waymap" and waymaps_by_id:
+            continue
         definition = crafting.ITEMS_BY_KEY.get(item_key)
         name = definition.name if definition is not None else item_key
         parts.append(f"{quantity}x {name}")
-    return ", ".join(parts)
+    for waymap_id in sorted(waymaps_by_id):
+        row = waymaps_by_id[waymap_id]
+        parts.append(f"Waymap #{waymap_id} -> {getattr(row, 'destination_name')}")
+    return ", ".join(parts) if parts else "nothing"
 
 
 async def _show_trade_status(session, trade: TradeSession) -> None:
@@ -393,13 +404,26 @@ async def _show_trade_status(session, trade: TradeSession) -> None:
     partner_session = _session_for_character_id(partner_id)
     partner = _character(partner_session)
     partner_name = partner.name if partner is not None else "the other player"
+    from mud.waymaps import list_character_waymaps
+
+    my_selected = set(trade.waymap_offers.get(character.id, ()))
+    partner_selected = set(trade.waymap_offers.get(partner_id, ()))
+    my_waymaps = tuple(
+        row for row in list_character_waymaps(session.database, character.id)
+        if row.id in my_selected
+    )
+    partner_waymaps = tuple(
+        row for row in list_character_waymaps(session.database, partner_id)
+        if row.id in partner_selected
+    )
     await session.send(
         "\r\n--- Trade ---\r\n"
-        f"You offer: {_format_offer(trade.offers[character.id])}\r\n"
-        f"{partner_name} offers: {_format_offer(trade.offers[partner_id])}\r\n"
+        f"You offer: {_format_offer(trade.offers[character.id], waymap_rows=my_waymaps)}\r\n"
+        f"{partner_name} offers: {_format_offer(trade.offers[partner_id], waymap_rows=partner_waymaps)}\r\n"
         f"Confirmed: you {'YES' if character.id in trade.confirmed else 'NO'} | "
         f"{partner_name} {'YES' if partner_id in trade.confirmed else 'NO'}\r\n"
-        "Commands: TRADE ADD [qty] <item>, TRADE REMOVE [qty] <item>, TRADE CONFIRM, TRADE CANCEL.\r\n"
+        "Commands: TRADE ADD [qty] <item>, TRADE ADD WAYMAP #<number>, "
+        "TRADE REMOVE [qty] <item>, TRADE CONFIRM, TRADE CANCEL.\r\n"
     )
 
 
