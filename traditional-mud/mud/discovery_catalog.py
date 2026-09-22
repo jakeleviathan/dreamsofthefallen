@@ -96,6 +96,23 @@ def _targets(scene, index: int) -> tuple[str, ...]:
     return options[index % len(options)]
 
 
+def _event_weather_for(scene, index: int) -> str:
+    region = str(getattr(scene, "region_key", "") or "").casefold()
+    tags = " ".join(getattr(scene, "tags", ()) or ()).casefold()
+    combined = region + " " + tags
+    if "desert" in combined or "salt" in combined:
+        values = ("clear", "windy", "duststorm", "rain")
+    elif "swamp" in combined or "marsh" in combined:
+        values = ("humid", "mist", "rain", "storm")
+    elif any(word in combined for word in ("mountain", "tundra", "snow")):
+        values = ("clear", "cloudy", "mist", "snow", "storm")
+    elif any(word in combined for word in ("cavern", "underground", "underway")):
+        values = ("damp", "mist", "clear", "rain")
+    else:
+        values = ("clear", "cloudy", "mist", "rain", "storm")
+    return values[index % len(values)]
+
+
 def _room_scenes(world_service) -> list[object]:
     scenes = []
     for room_key in sorted(getattr(world_service, "legacy_rooms", {})):
@@ -225,9 +242,9 @@ def build_discovery_catalog(world_service) -> tuple[DiscoveryDefinition, ...]:
     def scene_at(index: int, stride: int = 1, offset: int = 0):
         return scenes[(offset + index * stride) % len(scenes)]
 
-    # 110 quiet environmental discoveries.
+    # 95 quiet environmental discoveries.
     verbs = ("search", "examine", "listen", "look")
-    for index in range(110):
+    for index in range(95):
         scene = scene_at(index, stride=7, offset=3)
         target = _targets(scene, index)
         verb = verbs[index % len(verbs)]
@@ -242,6 +259,68 @@ def build_discovery_catalog(world_service) -> tuple[DiscoveryDefinition, ...]:
                 text=_environmental_text(scene, index),
                 condition=DiscoveryCondition(room_keys=(scene.key,)),
                 internal_name=f"Environmental trace {index + 1}",
+            )
+        )
+
+    # 10 reputation-gated confidences. A faction must actually control the
+    # region; otherwise the room is not selected for this family.
+    try:
+        from mud.faction_reputation import faction_for_region
+        faction_scenes = [
+            scene for scene in scenes
+            if faction_for_region(getattr(scene, "region_key", None))
+        ]
+    except Exception:
+        faction_scenes = []
+    for index in range(10):
+        scene = (faction_scenes or scenes)[(index * 7 + 2) % len(faction_scenes or scenes)]
+        condition = DiscoveryCondition(room_keys=(scene.key,))
+        if faction_scenes:
+            condition = DiscoveryCondition(
+                room_keys=(scene.key,),
+                min_region_standing=120 + (index % 3) * 115,
+                min_region_renown=80 if index % 2 else None,
+            )
+        definitions.append(
+            DiscoveryDefinition(
+                key=f"reputation_confidence:{scene.key}:{index:02d}",
+                kind="reputation",
+                trigger="command",
+                verbs=("listen", "talk"),
+                targets=("locals", "quiet talk", "trusted rumor", "old business"),
+                text=(
+                    f"Because people here know how the local faction regards you, a conversation does not stop when you approach. "
+                    f"You hear a detail about {scene.name} that strangers are normally allowed to misunderstand: an old route, obligation, or warning still shapes how locals use the place."
+                ),
+                condition=condition,
+                internal_name=f"Faction confidence {index + 1}",
+            )
+        )
+
+    # Five inventory-keyed clues. These make physical possessions part of the
+    # secret grammar instead of treating inventory as a separate minigame.
+    item_clues = (
+        ("starter_weapon", "old nicks", "The wear on your plain weapon matches practice cuts here that everyone else reads as random damage."),
+        ("wildflower", "pressed hollow", "The flower you carry fits a tiny pressed hollow exactly; someone once used the same bloom as a temporary sign."),
+        ("blank_waymap", "survey mark", "Your blank waymap makes the spacing obvious: these shallow marks are survey intervals for a route no current map records."),
+        ("sealed_cathedral_note", "hooked sign", "Beside the sealed note, the hooked sign stops looking ornamental. The same hand taught both systems of marks."),
+        ("bone_chips", "bone tally", "The bone chips you carry make the little tally suddenly legible as anatomy rather than arithmetic."),
+    )
+    for index, (item_key, target, text_value) in enumerate(item_clues):
+        scene = scene_at(index, stride=47, offset=61)
+        definitions.append(
+            DiscoveryDefinition(
+                key=f"inventory_clue:{scene.key}:{item_key}",
+                kind="inventory",
+                trigger="command",
+                verbs=("examine", "compare"),
+                targets=(target, "marks", "clue"),
+                text=text_value,
+                condition=DiscoveryCondition(
+                    room_keys=(scene.key,),
+                    required_items=(item_key,),
+                ),
+                internal_name=f"Inventory-bound clue {index + 1}",
             )
         )
 
@@ -385,12 +464,11 @@ def build_discovery_catalog(world_service) -> tuple[DiscoveryDefinition, ...]:
     # 20 transient world-event discoveries. These are passive and diegetic:
     # entering at the right time is enough. Nothing announces that an event is
     # active elsewhere.
-    event_weather = ("rain", "storm", "mist", "snow", "clear")
     for index in range(20):
         scene = scene_at(index, stride=23, offset=67)
         condition = DiscoveryCondition(
             room_keys=(scene.key,),
-            weather=(event_weather[index % len(event_weather)],) if index % 2 == 0 else (),
+            weather=(_event_weather_for(scene, index),) if index % 2 == 0 else (),
             day_modulus=(17 + (index % 5) * 4) if index % 2 else 0,
             day_remainder=(index * 3 + 2),
             time_buckets=(("night",) if index % 4 == 1 else ()),
