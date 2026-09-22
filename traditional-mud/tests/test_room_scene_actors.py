@@ -28,3 +28,8 @@ def test_ecology_flora_requires_healthy_growth(monkeypatch):
         resource_stock = 0.9
     monkeypatch.setattr(scenes.ASTRALIS_ECOLOGY, "state_for", lambda _region: State())
     assert scenes._ecology_flora("room", "region") == ()
+
+
+def test_scene_targets_accept_natural_look_aliases():
+    assert scenes._target_matches("at wildflower", "wildflowers", "Wildflowers")
+    assert scenes._target_matches("blood", "blood:wolf", "Pool of Blood", "blood")
