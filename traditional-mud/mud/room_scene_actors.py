@@ -165,6 +165,22 @@ def scene_lines(session, world_service, room_key: str, region_key: str) -> tuple
     return tuple(lines)
 
 
+def _normalize_target(target: str) -> str:
+    wanted = " ".join(target.lower().replace("_", " ").split())
+    return wanted[3:] if wanted.startswith("at ") else wanted
+
+
+def _target_matches(target: str, key: str, name: str, *extra_aliases: str) -> bool:
+    wanted = _normalize_target(target)
+    aliases = {
+        key.lower().replace("_", " "),
+        name.lower(),
+        name.lower().rstrip("s"),
+        *(alias.lower().replace("_", " ") for alias in extra_aliases if alias),
+    }
+    return wanted in aliases or any(wanted and wanted in alias for alias in aliases)
+
+
 def _flora_target(session, world_service, target: str):
     character = getattr(session, "character", None)
     if character is None:
@@ -172,11 +188,25 @@ def _flora_target(session, world_service, target: str):
     scene = world_service.scene(character.current_room or "")
     if scene is None:
         return None
-    wanted = " ".join(target.lower().split())
     for key, name, description in _ecology_flora(scene.key, scene.region_key):
-        aliases = {key.replace("_", " "), name.lower(), name.lower().rstrip("s")}
-        if wanted in aliases or any(wanted and wanted in alias for alias in aliases):
+        if _target_matches(target, key, name):
             return key, name, description, scene
+    return None
+
+
+def _scene_actor_target(session, world_service, target: str):
+    character = getattr(session, "character", None)
+    database = getattr(session, "database", None)
+    if character is None or database is None or not callable(getattr(database, "connect", None)):
+        return None
+    scene = world_service.scene(character.current_room or "")
+    if scene is None:
+        return None
+    weather = world_service.state.weather_for(scene.region_key)
+    for actor in list_scene_actors(database, scene.key, weather=weather):
+        aliases = [actor.kind, actor.actor_key.split(":", 1)[0]]
+        if _target_matches(target, actor.actor_key, actor.name, *aliases):
+            return actor, scene
     return None
 
 
@@ -184,7 +214,13 @@ async def _handle_flora(session, world_service, verb: str, target: str) -> bool:
     match = _flora_target(session, world_service, target)
     if match is None:
         return False
-    key, name, _description, scene = match
+    key, name, description, scene = match
+    if verb in {"look", "examine", "inspect", "search"}:
+        await session.send(
+            f"\r\n{name}\r\n{description}\r\n"
+            f"You can SMELL the {name.lower()} or PICK one.\r\n"
+        )
+        return True
     if verb in {"smell", "sniff"}:
         scent = "earthy and faintly sweet" if key != "glowcap" else "cool, damp, and mushroom-rich"
         await session.send(f"You smell the {name.lower()}. They smell {scent}.\r\n")
@@ -201,6 +237,20 @@ async def _handle_flora(session, world_service, verb: str, target: str) -> bool:
             state.vegetation = max(0.0, state.vegetation - 0.006)
             ASTRALIS_ECOLOGY._write(scene.region_key, state)
         await session.send(f"You pick one of the {name.lower()}, leaving the rest of the patch intact.\r\n")
+        return True
+    return False
+
+
+async def _handle_scene_actor(session, world_service, verb: str, target: str) -> bool:
+    match = _scene_actor_target(session, world_service, target)
+    if match is None:
+        return False
+    actor, _scene = match
+    if verb in {"look", "examine", "inspect", "search"}:
+        await session.send(f"\r\n{actor.name}\r\n{actor.description}\r\n")
+        return True
+    if verb in {"smell", "sniff"} and actor.kind == "blood":
+        await session.send("The blood has a sharp, metallic smell.\r\n")
         return True
     return False
 
@@ -235,9 +285,14 @@ def install_room_scene_runtime(player_session_class, world_service) -> None:
             return
         normalized = " ".join(command.strip().lower().split())
         parts = normalized.split(maxsplit=1)
-        if len(parts) == 2 and parts[0] in {"smell", "sniff", "pick", "pluck"}:
-            if await _handle_flora(self, world_service, parts[0], parts[1]):
-                return
+        if len(parts) == 2:
+            verb, target = parts
+            if verb in {"look", "examine", "inspect", "search", "smell", "sniff", "pick", "pluck"}:
+                if await _handle_flora(self, world_service, verb, target):
+                    return
+            if verb in {"look", "examine", "inspect", "search", "smell", "sniff"}:
+                if await _handle_scene_actor(self, world_service, verb, target):
+                    return
         await _delegate(self, previous, command)
 
     player_session_class.playing_prompt = playing_prompt
