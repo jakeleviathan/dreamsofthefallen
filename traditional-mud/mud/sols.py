@@ -90,6 +90,7 @@ def item_list_price(item_key: str) -> int:
         "fashion",
         "cosmetic",
         "fragrance",
+        "flora",
     }:
         return 0
 
