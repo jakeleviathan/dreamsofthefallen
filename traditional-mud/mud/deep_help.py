@@ -323,7 +323,7 @@ TOPICS: tuple[HelpTopic, ...] = (
             )),
         ),
         aliases=("hp", "regeneration", "regen", "healing"),
-        see_also=("resting", "death", "racial-abilities", "combat-basics"),
+        see_also=("movement-points", "death", "racial-abilities", "combat-basics"),
     ),
     HelpTopic(
         "mana",
