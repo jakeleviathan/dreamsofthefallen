@@ -146,17 +146,19 @@ def scene_lines(session, world_service, room_key: str, region_key: str) -> tuple
     database = session.database
     weather = world_service.state.weather_for(region_key)
     lines: list[str] = []
+    usable_database = database is not None and callable(getattr(database, "connect", None))
 
     # Dropped objects are first-class room contents. The underlying transfer
     # system preserves heritage serials, maker marks, and discovery identity.
-    for item in list_location_items(database, ItemLocation.room(room_key)):
-        key, qty = str(item["item_key"]), int(item["quantity"])
-        definition = crafting.ITEMS_BY_KEY.get(key)
-        name = definition.name if definition is not None else key.replace("_", " ").title()
-        lines.append(f"{qty}x {name}" if qty > 1 else name)
+    if usable_database:
+        for item in list_location_items(database, ItemLocation.room(room_key)):
+            key, qty = str(item["item_key"]), int(item["quantity"])
+            definition = crafting.ITEMS_BY_KEY.get(key)
+            name = definition.name if definition is not None else key.replace("_", " ").title()
+            lines.append(f"{qty}x {name}" if qty > 1 else name)
 
-    for actor in list_scene_actors(database, room_key, weather=weather):
-        lines.append(f"{actor.name} - {actor.description}")
+        for actor in list_scene_actors(database, room_key, weather=weather):
+            lines.append(f"{actor.name} - {actor.description}")
 
     for _key, name, description in _ecology_flora(room_key, region_key):
         lines.append(f"{name} - {description}")
