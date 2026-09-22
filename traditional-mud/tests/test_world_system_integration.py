@@ -14,7 +14,7 @@ from mud.discovery_engine import (
     discovery_tell,
 )
 from mud.equipment_system import ensure_equipment_storage, set_equipped_item
-from mud.faction_reputation import adjust_reputation, regional_reaction
+from mud.faction_reputation import _quest_faction, adjust_reputation, regional_reaction
 from mud.item_heritage import (
     HeritageHolder,
     _insert_instance_in_connection,
@@ -55,6 +55,25 @@ class WorldSystemIntegrationTests(unittest.TestCase):
             "human",
             "priest",
         )
+
+    def test_legacy_cultural_quests_map_to_their_home_factions(self) -> None:
+        expectations = {
+            "human_cathedral_summons": "blackglass_crown",
+            "forest_elf_first_walk": "green_circle",
+            "moon_elf_third_chair": "moon_courts",
+            "dwarf_first_shift": "chainmark_houses",
+            "goblin_salvage": "brassgut_clans",
+            "troll_raid": "troll_tribes",
+            "undead_first_rites": "pale_houses",
+            "sporekin_first_call": "rainroot_chorus",
+        }
+        for quest_key, faction_key in expectations.items():
+            with self.subTest(quest_key=quest_key):
+                self.assertEqual(
+                    _quest_faction(SimpleNamespace(key=quest_key)),
+                    faction_key,
+                )
+        self.assertIsNone(_quest_faction(SimpleNamespace(key="waymeet_shared_errand")))
 
     def test_faction_reputation_produces_a_local_world_reaction(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
