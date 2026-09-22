@@ -411,6 +411,33 @@ def _ingest_observation(database, month_key: str, count: int, now: int) -> int:
         ).fetchone()
         created = 0
         if row is None:
+            # Ordinarily the first observation of a calendar month is a baseline:
+            # old votes must never become free reward events. The one exception is
+            # a still-live claim armed before the UTC month rollover. In that narrow
+            # case, seed at most one fresh-month event per waiting claim so a real
+            # vote cast across midnight can still be matched instead of disappearing.
+            waiting = db.execute(
+                """
+                SELECT COUNT(*) AS n
+                FROM mudverse_vote_claims
+                WHERE status = 'pending'
+                  AND started_at_epoch <= ?
+                  AND expires_at_epoch > ?
+                  AND month_key != ?
+                """,
+                (now, now, month_key),
+            ).fetchone()
+            seed = min(count, int(waiting["n"])) if waiting is not None else 0
+            for ordinal in range(1, seed + 1):
+                cursor = db.execute(
+                    """
+                    INSERT OR IGNORE INTO mudverse_vote_events
+                        (month_key, ordinal, observed_at_epoch)
+                    VALUES (?, ?, ?)
+                    """,
+                    (month_key, ordinal, now),
+                )
+                created += int(cursor.rowcount or 0)
             db.execute(
                 """
                 INSERT INTO mudverse_vote_sync_state
@@ -419,7 +446,7 @@ def _ingest_observation(database, month_key: str, count: int, now: int) -> int:
                 """,
                 (month_key, count, count, now),
             )
-            return 0
+            return created
 
         high = int(row["high_watermark"])
         if count > high:
@@ -478,6 +505,7 @@ async def sync_mudverse(database, client: MudVerseClient | None = None) -> tuple
 def _account_status(database, account_id: int) -> dict:
     ensure_vote_schema(database)
     with database.connect() as db:
+        _expire_claims_tx(db, int(time.time()))
         row = db.execute(
             """
             SELECT echoes_of_favour, vote_lifetime, vote_streak, vote_best_streak,
