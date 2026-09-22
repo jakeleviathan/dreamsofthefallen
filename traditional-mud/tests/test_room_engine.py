@@ -1,12 +1,14 @@
 import unittest
 
 from mud.room_engine import (
+    FeatureDefinition,
     PersistenceScope,
     PlayerRoomContext,
+    RoomAugmentation,
     RoomStateStore,
     WorldService,
 )
-from mud.world import HUMAN_START_ROOM_KEY, SPOREKIN_FORGOTTEN_GROVE_ROOM_KEY
+from mud.world import HUMAN_START_ROOM_KEY, SPOREKIN_FORGOTTEN_GROVE_ROOM_KEY, RoomDefinition
 
 
 class AdvancedRoomEngineTests(unittest.TestCase):
@@ -59,6 +61,68 @@ class AdvancedRoomEngineTests(unittest.TestCase):
         self.assertIn("maker's seal", search.text)
         self.assertTrue(listen.handled)
         self.assertIn("cathedral bell", listen.text)
+
+    def test_unique_feature_shorthand_and_look_at_resolve_naturally(self):
+        room = RoomDefinition(
+            key="test_notable_room",
+            name="Test Notable Room",
+            description="A room with an old chapel and a cracked marker.",
+            region_key="test_region",
+        )
+        world = WorldService(
+            rooms={room.key: room},
+            augmentations={
+                room.key: RoomAugmentation(
+                    features=(
+                        FeatureDefinition(
+                            key="small_saint_entrance",
+                            name="Chapel of the Small Saint",
+                            aliases=("small saint", "entrance"),
+                            examine_text="The chapel route is usable.",
+                        ),
+                        FeatureDefinition(
+                            key="cracked_marker",
+                            name="Cracked Road Marker",
+                            examine_text="The marker is weathered.",
+                        ),
+                    )
+                )
+            },
+        )
+
+        chapel = world.interact(room.key, "examine", "chapel", self.context())
+        look_at = world.interact(room.key, "look", "at chapel", self.context())
+
+        self.assertTrue(chapel.handled)
+        self.assertIn("route is usable", chapel.text)
+        self.assertTrue(look_at.handled)
+        self.assertIn("route is usable", look_at.text)
+
+    def test_ambiguous_feature_shorthand_does_not_guess(self):
+        room = RoomDefinition(
+            key="test_ambiguous_room",
+            name="Test Ambiguous Room",
+            description="Two old stone features stand here.",
+            region_key="test_region",
+        )
+        world = WorldService(
+            rooms={room.key: room},
+            augmentations={
+                room.key: RoomAugmentation(
+                    features=(
+                        FeatureDefinition(key="north_stone", name="North Stone"),
+                        FeatureDefinition(key="south_stone", name="South Stone"),
+                    )
+                )
+            },
+        )
+
+        result = world.interact(room.key, "examine", "stone", self.context())
+
+        self.assertTrue(result.handled)
+        self.assertIn("more than one", result.text.lower())
+        self.assertIn("North Stone", result.text)
+        self.assertIn("South Stone", result.text)
 
     def test_door_state_can_block_travel_without_changing_room_definition(self):
         context = self.context()
