@@ -9,8 +9,10 @@ from mud.command_help import _full_help_text, _quick_help_text
 from mud.database import Database
 from mud.equipment_system import equipped_item_keys, set_equipped_item
 from mud.ground_items import (
+    _item_detail_lines,
     _show_ground_items,
     drop_item_command,
+    inspect_ground_item_command,
     ground_item_quantity,
     list_ground_items,
     take_item_command,
@@ -153,6 +155,27 @@ class GroundItemTests(unittest.TestCase):
         output = "".join(session.outputs)
         self.assertIn("On the ground:", output)
         self.assertIn("2x Bone Chips", output)
+
+    def test_dropped_items_can_be_looked_at_by_partial_name(self):
+        temp, database, session = self._session("InspectGround")
+        self.addCleanup(temp.cleanup)
+        room_key = session.character.current_room
+        self.assertIsNotNone(room_key)
+        assert room_key is not None
+        database.add_item(session.character.id, "cotton_hood", 1)
+        transfer_inventory_to_ground(database, session.character.id, room_key, "cotton_hood", 1)
+
+        handled = asyncio.run(inspect_ground_item_command(session, "hood"))
+        self.assertTrue(handled)
+        output = "".join(session.outputs)
+        self.assertIn("Cotton Hood", output)
+        self.assertIn("hood sewn from cotton cloth", output)
+        self.assertIn("Slot: Head", output)
+        self.assertIn("AC +1", output)
+
+    def test_ground_item_detail_reports_stack_quantity(self):
+        rendered = "\n".join(_item_detail_lines("bone_chips", 3))
+        self.assertIn("Quantity here: 3", rendered)
 
     def test_missing_ground_item_defers_to_older_contextual_take_handlers(self):
         temp, _database, session = self._session("ContextSafe")
