@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import wraps
 from typing import Mapping
 
 
@@ -252,23 +253,28 @@ def install_starter_room_database_hook(database_class) -> None:
 
     previous_create_character = database_class.create_character
 
+    @wraps(previous_create_character)
     def create_character(
         self,
         account_id: int,
         name: str,
         race: str,
         character_class: str,
-        stats=None,
-        deity_key: str | None = None,
+        *args,
+        **kwargs,
     ):
+        # This hook decorates character creation; it must remain transparent to
+        # the underlying Database API. Forward every current and future optional
+        # argument (including creation appearance) instead of duplicating a
+        # signature that can drift as character creation grows.
         character = previous_create_character(
             self,
             account_id,
             name,
             race,
             character_class,
-            stats=stats,
-            deity_key=deity_key,
+            *args,
+            **kwargs,
         )
         desired_room = starting_room_for_race(race)
         if desired_room is None:
