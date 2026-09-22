@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 from mud.character_options import RACES_BY_KEY
 from mud.database import Database
+from mud.appearance_storage import get_appearance
 from mud.location_safety import (
     live_rooms_for_world,
     repair_invalid_character_location,
@@ -84,6 +85,32 @@ class StarterRaceLoopTests(unittest.TestCase):
                     )
                     self.assertEqual(character.current_room, loop.starting_room_key)
                     self.assertEqual(character.bind_room, loop.starting_room_key)
+
+    def test_starter_room_hook_preserves_creation_appearance_arguments(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            database = HookedDatabase(Path(tempdir) / "starter-appearance.db")
+            account = database.create_account("starterappearance", "hash")
+            appearance = {
+                "build": "broad",
+                "skin_tone": "blue-green",
+                "hair_style": "braided",
+                "hair_color": "white",
+                "tusks": "none",
+                "eye_color": "ice-blue",
+                "scars": "ritual cuts",
+            }
+
+            character = database.create_character(
+                account.id,
+                "Versace",
+                "troll",
+                "necromancer",
+                appearance=appearance,
+            )
+
+            self.assertEqual(character.current_room, "troll_frostroot_camp")
+            self.assertEqual(character.bind_room, "troll_frostroot_camp")
+            self.assertEqual(get_appearance(database, character.id), appearance)
 
     def test_starting_room_lookup_covers_every_race(self):
         for race_key in RACES_BY_KEY:
