@@ -31,6 +31,7 @@ from mud.starter_signature_moments import install_signature_moment_runtime
 from mud.starter_class_moments import install_starter_class_moment_runtime
 from mud.starter_matrix_quality import validate_starter_matrix_contract
 from mud.waymeet_frontier import install_waymeet_runtime
+from mud.waymeet_living_npcs import install_waymeet_living_talk_runtime
 from mud.gloamworks_dungeon import install_gloamworks_runtime
 from mud.greywake_march import install_greywake_runtime
 from mud.blackreed_holdfast import install_blackreed_runtime
@@ -382,6 +383,9 @@ install_casting_runtime(PlayerSession)
 # small packs, regional ecology, chain XP, extra material milestones, and
 # pressure-driven rare predators all share the same live combat/corpse stack.
 install_combat_grind_runtime(PlayerSession, WORLD)
+# Route TALK to visible Waymeet residents while leaving quest-giver dialogue
+# and every other authored NPC conversation in their existing handlers.
+install_waymeet_living_talk_runtime(PlayerSession)
 
 # Post is intentionally the final command wrapper. Its subject/body editor and
 # destructive-action confirmations are modal input: they must see the player's
