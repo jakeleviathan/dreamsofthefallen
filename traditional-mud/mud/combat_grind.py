@@ -69,6 +69,36 @@ def _chain_state(session) -> HuntChainState:
     return state
 
 
+def _victory_sessions(session, enemy) -> tuple:
+    """Capture everyone who will actually receive credit before party cleanup.
+
+    Party encounters remove their transient encounter record while resolving a
+    kill. Capturing participants here lets hunting momentum follow each hunter's
+    own XP share rather than rewarding only whichever player landed the final hit.
+    """
+    resolver = getattr(session, "party_victory_sessions", None)
+    if callable(resolver):
+        try:
+            candidates = tuple(resolver(enemy))
+        except Exception:
+            candidates = (session,)
+    else:
+        candidates = (session,)
+
+    result = []
+    seen_character_ids: set[int] = set()
+    for member in candidates or (session,):
+        character = getattr(member, "character", None)
+        if character is None:
+            continue
+        character_id = int(character.id)
+        if character_id in seen_character_ids:
+            continue
+        seen_character_ids.add(character_id)
+        result.append(member)
+    return tuple(result)
+
+
 def _current_hunt_context(session, enemy) -> tuple[str, str, bool, bool] | None:
     character = getattr(session, "character", None)
     manager = getattr(session, "mobile_npcs", None)
@@ -240,88 +270,136 @@ def install_combat_grind_runtime(player_session_class, world_service=None) -> No
     previous_finish_enemy = getattr(player_session_class, "_finish_enemy_defeat", None)
     if callable(previous_finish_enemy):
         async def _finish_enemy_defeat(self, enemy) -> None:
-            character = getattr(self, "character", None)
             eligible = getattr(self, "active_enemy", None) is enemy
-            hunt_context = (
-                _current_hunt_context(self, enemy)
-                if eligible and character is not None
-                else None
-            )
-            before_experience = int(getattr(character, "experience", 0) or 0) if character is not None else 0
-            prior_corpse_id = getattr(self, "_last_defeat_corpse_id", None)
+            reward_candidates: list[tuple[object, tuple[str, str, bool, bool], int]] = []
+            if eligible:
+                for member in _victory_sessions(self, enemy):
+                    member_character = getattr(member, "character", None)
+                    hunt_context = (
+                        _current_hunt_context(member, enemy)
+                        if member_character is not None
+                        else None
+                    )
+                    if hunt_context is None or member_character is None:
+                        continue
+                    reward_candidates.append(
+                        (
+                            member,
+                            hunt_context,
+                            int(getattr(member_character, "experience", 0) or 0),
+                        )
+                    )
 
+            prior_corpse_id = getattr(self, "_last_defeat_corpse_id", None)
             await previous_finish_enemy(self, enemy)
 
-            if hunt_context is None or character is None:
+            if not reward_candidates:
                 return
 
-            refreshed = getattr(self, "character", None)
-            if refreshed is None:
-                return
-            gained = int(getattr(refreshed, "experience", 0) or 0) - before_experience
-            # Shared static-spawn lifecycle can reject a duplicate simultaneous
-            # claim. No base XP gain means this wrapper must not invent chain XP
-            # or bonus loot for the rejected kill.
-            if gained <= 0:
-                return
-
-            room_key, region_key, was_mobile, is_rare = hunt_context
             now = monotonic()
-            state = _chain_state(self)
-            kills = state.record(int(refreshed.id), region_key, now)
-            percent = chain_bonus_percent(kills)
+            rewarded: list[tuple[object, object, int, tuple[str, str, bool, bool]]] = []
+            for member, hunt_context, before_experience in reward_candidates:
+                refreshed = getattr(member, "character", None)
+                if refreshed is None:
+                    continue
+                gained = (
+                    int(getattr(refreshed, "experience", 0) or 0)
+                    - before_experience
+                )
+                # Shared lifecycle and party systems remain authoritative. A
+                # hunter only builds momentum from XP they actually received.
+                if gained <= 0:
+                    continue
 
-            if not was_mobile:
+                _room_key, region_key, was_mobile, is_rare = hunt_context
+                state = _chain_state(member)
+                kills = state.record(int(refreshed.id), region_key, now)
+                percent = chain_bonus_percent(kills)
+
+                if percent > 0:
+                    # Base the bonus on the player's real award, not the monster's
+                    # nominal XP. Party shares and any other progression modifiers
+                    # therefore scale cleanly instead of being bypassed.
+                    requested_bonus = max(0, round(gained * percent / 100.0))
+                    if requested_bonus > 0:
+                        level_before_bonus = int(getattr(refreshed, "level", 1) or 1)
+                        experience_before_bonus = int(
+                            getattr(refreshed, "experience", 0) or 0
+                        )
+                        new_level = member.database.add_experience(
+                            int(refreshed.id),
+                            requested_bonus,
+                        )
+                        latest = member.database.get_character_by_name(refreshed.name)
+                        if latest is not None:
+                            member.character = latest
+                            refreshed = latest
+                        actual_bonus = max(
+                            0,
+                            int(
+                                getattr(
+                                    refreshed,
+                                    "experience",
+                                    experience_before_bonus,
+                                )
+                                or 0
+                            )
+                            - experience_before_bonus,
+                        )
+                        await member.send(
+                            f"Hunting chain {kills}: +{actual_bonus} bonus experience "
+                            f"({percent}% momentum).\r\n"
+                        )
+                        if new_level > level_before_bonus:
+                            await member.send(
+                                f"*** You have reached level {new_level}! ***\r\n"
+                            )
+
+                rewarded.append((member, refreshed, kills, hunt_context))
+
+            if not rewarded:
+                return
+
+            # One defeated creature creates one unit of regional pressure even
+            # when a party shares the kill. Roaming regional NPCs already record
+            # this inside MobileNpcManager.defeat, so only static hunting prey
+            # needs the explicit bridge here.
+            if not rewarded[0][3][2]:
                 manager = getattr(self, "mobile_npcs", None)
                 if manager is not None:
-                    manager.note_hunt_kill(region_key)
-
-            if percent > 0:
-                requested_bonus = max(
-                    1,
-                    round(int(getattr(enemy.definition, "xp_reward", 0) or 0) * percent / 100.0),
-                )
-                level_before_bonus = int(getattr(refreshed, "level", 1) or 1)
-                experience_before_bonus = int(getattr(refreshed, "experience", 0) or 0)
-                new_level = self.database.add_experience(int(refreshed.id), requested_bonus)
-                latest = self.database.get_character_by_name(refreshed.name)
-                if latest is not None:
-                    self.character = latest
-                    refreshed = latest
-                actual_bonus = max(
-                    0,
-                    int(getattr(refreshed, "experience", experience_before_bonus) or 0)
-                    - experience_before_bonus,
-                )
-                await self.send(
-                    f"Hunting chain {kills}: +{actual_bonus} bonus experience ({percent}% momentum).\r\n"
-                )
-                if new_level > level_before_bonus:
-                    await self.send(f"*** You have reached level {new_level}! ***\r\n")
+                    manager.note_hunt_kill(rewarded[0][3][1])
 
             new_corpse_id = getattr(self, "_last_defeat_corpse_id", None)
-            bonus_loot_due = kills % HUNT_LOOT_MILESTONE == 0 or is_rare
-            if (
-                bonus_loot_due
-                and new_corpse_id is not None
+            corpse_matches = bool(
+                new_corpse_id is not None
                 and new_corpse_id != prior_corpse_id
                 and getattr(self, "_last_defeat_corpse_enemy_key", None)
                 == str(getattr(enemy.definition, "key", ""))
-            ):
+            )
+            if not corpse_matches:
+                return
+
+            for member, refreshed, kills, hunt_context in rewarded:
+                _room_key, _region_key, _was_mobile, is_rare = hunt_context
+                bonus_loot_due = kills % HUNT_LOOT_MILESTONE == 0 or is_rare
+                if not bonus_loot_due:
+                    continue
                 bonus = _bonus_material(enemy)
-                if bonus is not None:
-                    item_key, quantity = bonus
-                    add_corpse_item(
-                        self.database,
-                        int(new_corpse_id),
-                        item_key,
-                        quantity,
-                        int(refreshed.id),
-                    )
-                    reason = "rare prey" if is_rare else "your hunting momentum"
-                    await self.send(
-                        f"{reason.capitalize()} yields extra salvage: {quantity}x {_item_name(item_key)} in the corpse.\r\n"
-                    )
+                if bonus is None:
+                    continue
+                item_key, quantity = bonus
+                add_corpse_item(
+                    self.database,
+                    int(new_corpse_id),
+                    item_key,
+                    quantity,
+                    int(refreshed.id),
+                )
+                reason = "rare prey" if is_rare else "your hunting momentum"
+                await member.send(
+                    f"{reason.capitalize()} yields extra salvage: "
+                    f"{quantity}x {_item_name(item_key)} in the corpse.\r\n"
+                )
 
         player_session_class._finish_enemy_defeat = _finish_enemy_defeat
 
