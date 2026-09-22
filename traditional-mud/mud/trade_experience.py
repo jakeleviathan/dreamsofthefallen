@@ -209,6 +209,15 @@ def exchange_items(
     )
 
     ensure_item_heritage_schema(database)
+    carries_waymaps = any(
+        "marked_waymap" in offer and int(offer.get("marked_waymap", 0)) > 0
+        for offer in (first_offer, second_offer)
+    )
+    if carries_waymaps:
+        from mud.waymaps import ensure_waymap_schema
+
+        ensure_waymap_schema(database)
+
     for character_id, offer in (
         (first_character_id, first_offer),
         (second_character_id, second_offer),
@@ -267,6 +276,32 @@ def exchange_items(
         debit(second_character_id, second_offer)
         credit(second_character_id, first_offer)
         credit(first_character_id, second_offer)
+
+        if carries_waymaps:
+            from mud.waymaps import transfer_owned_waymaps_in_connection
+
+            first_waymaps = int(first_offer.get("marked_waymap", 0))
+            if first_waymaps and not transfer_owned_waymaps_in_connection(
+                db,
+                from_character_id=first_character_id,
+                to_character_id=second_character_id,
+                quantity=first_waymaps,
+                event_type="trade",
+                note="Transferred through a direct player exchange.",
+            ):
+                db.rollback()
+                return False
+            second_waymaps = int(second_offer.get("marked_waymap", 0))
+            if second_waymaps and not transfer_owned_waymaps_in_connection(
+                db,
+                from_character_id=second_character_id,
+                to_character_id=first_character_id,
+                quantity=second_waymaps,
+                event_type="trade",
+                note="Transferred through a direct player exchange.",
+            ):
+                db.rollback()
+                return False
 
         for item_key, quantity in first_offer.items():
             transfer_owned_instances_in_connection(
@@ -375,6 +410,56 @@ async def _give(session, target_name: str, quantity: int, item_text: str) -> Non
         return
     if not social_allows_message_from(target_session, sender.name):
         await session.send(f"{target.name} is not accepting transfers from you.\r\n")
+        return
+
+    waymap_selector = re.fullmatch(
+        r"(?:marked\s+)?(?:waymap|map)\s+(#?\d+)",
+        _normalize_item_text(item_text),
+    )
+    if waymap_selector is not None:
+        if quantity != 1:
+            await session.send("Give one numbered waymap at a time.\r\n")
+            return
+        from mud.inventory_capacity import can_receive_item
+        from mud.waymaps import (
+            MARKED_WAYMAP_KEY,
+            resolve_character_waymap,
+            transfer_specific_waymap_between_characters,
+        )
+
+        waymap, waymap_error = resolve_character_waymap(
+            session.database,
+            sender.id,
+            waymap_selector.group(1),
+        )
+        if waymap is None:
+            await session.send((waymap_error or "You are not carrying that waymap.") + "\r\n")
+            return
+        if not can_receive_item(session.database, target.id, MARKED_WAYMAP_KEY, 1):
+            await session.send(
+                f"{target.name} has no free inventory slot for that waymap. Nothing was moved.\r\n"
+            )
+            await _safe_send(
+                target_session,
+                f"{sender.name} tried to give you a waymap, but your inventory is full.\r\n",
+            )
+            return
+        moved_waymap = transfer_specific_waymap_between_characters(
+            session.database,
+            waymap_id=waymap.id,
+            from_character_id=sender.id,
+            to_character_id=target.id,
+        )
+        if moved_waymap is None:
+            await session.send("The waymap transfer could not be completed safely. Nothing was moved.\r\n")
+            return
+        await session.send(
+            f"You give {target.name} Waymap #{moved_waymap.id} to {moved_waymap.destination_name}.\r\n"
+        )
+        await _safe_send(
+            target_session,
+            f"{sender.name} gives you Waymap #{moved_waymap.id} to {moved_waymap.destination_name}.\r\n",
+        )
         return
 
     item_key, error = _resolve_owned_item(session, item_text)
