@@ -56,6 +56,7 @@ class RegionEcologyState:
     predators: float
     carrion: float
     resource_stock: float
+    mineral_stock: float
     disturbance: float
     last_total_hour: int
 
@@ -70,6 +71,7 @@ class RegionEcologyState:
             "predators": round(_clamp(self.predators), 6),
             "carrion": round(_clamp(self.carrion), 6),
             "resource_stock": round(_clamp(self.resource_stock), 6),
+            "mineral_stock": round(_clamp(self.mineral_stock), 6),
             "disturbance": round(_clamp(self.disturbance), 6),
             "last_total_hour": int(self.last_total_hour),
         }
@@ -98,6 +100,7 @@ class RegionEcologyState:
             predators=number("predators", fallback.predators),
             carrion=number("carrion", fallback.carrion),
             resource_stock=number("resource_stock", fallback.resource_stock),
+            mineral_stock=number("mineral_stock", fallback.mineral_stock),
             disturbance=number("disturbance", fallback.disturbance),
             last_total_hour=max(0, last_hour),
         )
@@ -176,28 +179,36 @@ class RegionalEcologyService:
         prey = 0.52
         predators = 0.32
         resource_stock = 0.72
+        mineral_stock = 0.72
 
         if "desert" in biome:
             moisture, temperature, vegetation, insects = 0.16, 0.78, 0.20, 0.18
             prey, predators, resource_stock = 0.32, 0.24, 0.58
+            mineral_stock = 0.80
         elif any(token in biome for token in ("swamp", "marsh", "mire", "fen", "bog")):
             moisture, temperature, vegetation, insects = 0.84, 0.64, 0.82, 0.78
             prey, predators, resource_stock = 0.67, 0.43, 0.82
+            mineral_stock = 0.62
         elif "forest" in biome:
             moisture, temperature, vegetation, insects = 0.66, 0.50, 0.86, 0.64
             prey, predators, resource_stock = 0.70, 0.42, 0.84
+            mineral_stock = 0.66
         elif "tundra" in biome:
             moisture, temperature, vegetation, insects = 0.38, 0.18, 0.34, 0.18
             prey, predators, resource_stock = 0.48, 0.36, 0.58
+            mineral_stock = 0.76
         elif "mountain" in biome:
             moisture, temperature, vegetation, insects = 0.45, 0.28, 0.38, 0.26
             prey, predators, resource_stock = 0.46, 0.33, 0.62
+            mineral_stock = 0.88
         elif any(token in biome for token in ("cavern", "underground", "underway")):
             moisture, temperature, vegetation, insects = 0.72, 0.46, 0.48, 0.54
             prey, predators, resource_stock = 0.50, 0.31, 0.72
+            mineral_stock = 0.82
         elif any(token in biome for token in ("river", "coast", "shore")):
             moisture, temperature, vegetation, insects = 0.68, 0.52, 0.68, 0.62
             prey, predators, resource_stock = 0.62, 0.37, 0.78
+            mineral_stock = 0.64
 
         return RegionEcologyState(
             moisture=moisture,
@@ -208,6 +219,7 @@ class RegionalEcologyService:
             predators=predators,
             carrion=0.10,
             resource_stock=resource_stock,
+            mineral_stock=mineral_stock,
             disturbance=0.08,
             last_total_hour=max(0, int(total_hour)),
         )
@@ -327,6 +339,9 @@ class RegionalEcologyService:
             + state.moisture * 0.14
         )
         state.resource_stock = _approach(state.resource_stock, renewable_target, 0.035)
+        # Geological deposits recover on a deliberately much slower horizon
+        # than plants and fungi. This is extraction pressure, not plant ecology.
+        state.mineral_stock = _approach(state.mineral_stock, baseline.mineral_stock, 0.003)
         state.disturbance = _clamp(state.disturbance * 0.955)
 
     def _migration_score(self, state: RegionEcologyState, *, predator: bool) -> float:
@@ -479,15 +494,14 @@ class RegionalEcologyService:
             return
         units = max(1, int(amount))
         if skill_key == "mining":
-            pressure = 0.008 * units
+            state.mineral_stock = _clamp(state.mineral_stock - 0.012 * units)
             vegetation_loss = 0.001 * units
         elif skill_key is None:
-            pressure = 0.002 * units
+            state.resource_stock = _clamp(state.resource_stock - 0.002 * units)
             vegetation_loss = 0.0
         else:
-            pressure = 0.022 * units
+            state.resource_stock = _clamp(state.resource_stock - 0.022 * units)
             vegetation_loss = 0.006 * units
-        state.resource_stock = _clamp(state.resource_stock - pressure)
         state.vegetation = _clamp(state.vegetation - vegetation_loss)
         state.disturbance = _clamp(state.disturbance + 0.006 * units)
         self._write(region_key, state)
@@ -497,7 +511,7 @@ class RegionalEcologyService:
         if state is None or skill_key is None:
             return True, ""
         if skill_key == "mining":
-            if state.resource_stock < 0.07:
+            if state.mineral_stock < 0.07:
                 return False, "The workable material here has been picked thin. The site needs time before it will yield useful ore again."
             return True, ""
 
@@ -511,7 +525,7 @@ class RegionalEcologyService:
         if state is None:
             return "normal"
         if skill_key == "mining":
-            value = state.resource_stock
+            value = state.mineral_stock
         elif skill_key is None:
             value = max(0.55, state.moisture)
         else:
