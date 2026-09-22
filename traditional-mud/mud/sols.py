@@ -362,6 +362,16 @@ async def _buy(session, target: str) -> bool:
 
     merchant_name, _merchant, stock = match
     unit_price = _stock_price(stock)
+    try:
+        from mud.faction_reputation import faction_for_region, get_reputation, merchant_price_multiplier
+        from mud.world import ROOMS_BY_KEY
+        room = ROOMS_BY_KEY.get(str(getattr(session.character, "current_room", "") or ""))
+        faction_key = faction_for_region(getattr(room, "region_key", None))
+        if faction_key:
+            standing, _renown = get_reputation(session.database, session.character.id, faction_key)
+            unit_price = max(1, int(round(unit_price * merchant_price_multiplier(standing))))
+    except Exception:
+        pass
     total = unit_price * quantity
     if total <= 0:
         await session.send(f"{merchant_name} is not offering that item for sale right now.\r\n")
@@ -414,6 +424,17 @@ async def _sell(session, target: str) -> bool:
         return True
 
     unit_price = merchant_buyback_price(item_key)
+    try:
+        from mud.faction_reputation import faction_for_region, get_reputation, merchant_price_multiplier
+        from mud.world import ROOMS_BY_KEY
+        room = ROOMS_BY_KEY.get(str(getattr(session.character, "current_room", "") or ""))
+        faction_key = faction_for_region(getattr(room, "region_key", None))
+        if faction_key and unit_price > 0:
+            standing, _renown = get_reputation(session.database, session.character.id, faction_key)
+            buy_mult = merchant_price_multiplier(standing)
+            unit_price = max(1, int(round(unit_price * (2.0 - buy_mult))))
+    except Exception:
+        pass
     if unit_price <= 0:
         item = crafting.ITEMS_BY_KEY.get(item_key)
         name = item.name if item is not None else item_key.replace("_", " ").title()
