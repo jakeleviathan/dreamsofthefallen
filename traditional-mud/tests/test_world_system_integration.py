@@ -26,7 +26,9 @@ from mud.item_heritage import (
     ensure_item_heritage_schema,
     record_equipped_boss_victory,
 )
+from mud.merchants import MerchantDefinition, MerchantStockEntry
 from mud.room_presentation import render_room_lines
+from mud.sols import _local_sale_price, _merchant_wares_lines, _regional_price_multiplier
 from mud.world_data import REGIONS
 
 
@@ -97,6 +99,44 @@ class WorldSystemIntegrationTests(unittest.TestCase):
                     faction_key,
                 )
         self.assertIsNone(_quest_faction(SimpleNamespace(key="waymeet_shared_errand")))
+
+    def test_shop_display_and_purchase_math_share_the_same_faction_price(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Database(Path(tmp) / "mud.db")
+            stored = self._character(database, "Pricing")
+            database.set_character_room(stored.id, "human_ashen_way")
+            character = database.get_character_by_name(stored.name)
+            self.assertIsNotNone(character)
+            adjust_reputation(
+                database,
+                stored.id,
+                "blackglass_crown",
+                standing=400,
+                renown=100,
+                reason="integration test",
+                propagate=False,
+            )
+            session = SimpleNamespace(database=database, character=character)
+            stock = MerchantStockEntry(
+                "integration_test_trade_good",
+                price_units=100,
+            )
+            merchant = MerchantDefinition(
+                "integration_test_merchant",
+                additional_stock=(stock,),
+                uses_common_stock=False,
+            )
+
+            self.assertEqual(_regional_price_multiplier(session), 0.92)
+            self.assertEqual(_local_sale_price(session, stock), 92)
+            lines = _merchant_wares_lines(
+                (("Test Merchant", merchant),),
+                balance=0,
+                session=session,
+            )
+            rendered = "\n".join(lines)
+            self.assertIn("Integration Test Trade Good - 9 embers, 2 sparks", rendered)
+            self.assertNotIn("Integration Test Trade Good - 1 flame", rendered)
 
     def test_faction_reputation_produces_a_local_world_reaction(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
