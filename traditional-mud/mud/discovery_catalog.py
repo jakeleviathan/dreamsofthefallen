@@ -245,10 +245,10 @@ def build_discovery_catalog(world_service) -> tuple[DiscoveryDefinition, ...]:
             )
         )
 
-    # 70 direct object/room interactions. Some are deliberately odd verbs; they
+    # 60 direct object/room interactions. Some are deliberately odd verbs; they
     # only become meaningful where the hidden content exists.
     interaction_verbs = ("touch", "read", "knock", "examine", "pray")
-    for index in range(70):
+    for index in range(60):
         scene = scene_at(index, stride=11, offset=17)
         target = _targets(scene, index + 2)
         condition = DiscoveryCondition(room_keys=(scene.key,))
@@ -272,6 +272,39 @@ def build_discovery_catalog(world_service) -> tuple[DiscoveryDefinition, ...]:
                 text=_interaction_text(scene, index),
                 condition=condition,
                 internal_name=f"Hidden interaction {index + 1}",
+            )
+        )
+
+    # 10 rumor discoveries. These are deliberately not all reliable. Some point
+    # toward real chains, some preserve local prejudice, and some are simply the
+    # kind of story travelers repeat because it is memorable.
+    rumor_texts = (
+        "Two travelers lower their voices over the same claim: a bell can sometimes be heard where no tower stands. One swears it marks a road; the other says following it killed a friend.",
+        "Someone insists that certain old road repairs hide messages between couriers. A second voice laughs and says the marks are only lazy masonry.",
+        "A market story claims a burned ledger survived because the ash itself remembers the names. Nobody telling the story agrees on what that means.",
+        "You catch a warning about an erased name that appears only after rain. The speaker refuses to say whether the name belongs to a saint, criminal, or city.",
+        "A hunter describes finding four sets of prints where only three people walked. The listeners call it drink-talk, but nobody jokes very loudly.",
+        "A quiet argument concerns a star that appears in reflections before it appears in the sky. One person calls it an omen; another calls it bad glass.",
+        "A gardener tells someone that glass sometimes grows roots underground. The answer is immediate: 'That is not what the story means.'",
+        "You hear of a door that never opens but somehow remembers everyone who touches it. The storyteller cannot say where it is.",
+        "A child repeats a rhyme about a white moth that only lands on places people have forgotten on purpose. An adult sharply tells them to stop.",
+        "A road-worker mutters that some bells have a ninth toll, too quiet to hear unless you already know the first eight were wrong.",
+    )
+    for index in range(10):
+        scene = scene_at(index, stride=43, offset=73)
+        definitions.append(
+            DiscoveryDefinition(
+                key=f"rumor:{scene.key}:{index:02d}",
+                kind="rumor",
+                trigger="command",
+                verbs=(("listen", "talk")[index % 2],),
+                targets=(("rumors", "gossip", "crowd") if index % 2 == 0 else ("rumor", "traveler", "locals")),
+                text=rumor_texts[index],
+                condition=DiscoveryCondition(
+                    room_keys=(scene.key,),
+                    time_buckets=("dusk", "night") if index in {3, 7} else (),
+                ),
+                internal_name=f"Unverified rumor {index + 1}",
             )
         )
 
