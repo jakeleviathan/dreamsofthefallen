@@ -249,11 +249,11 @@ class DiscoveryEngineTests(unittest.TestCase):
         self.assertEqual(int(count["n"]), 1)
 
     def test_full_catalog_has_hundreds_of_mixed_discoveries(self):
-        from mud.server import WORLD
+        world = WorldService()
 
-        definitions = build_discovery_catalog(WORLD)
+        definitions = build_discovery_catalog(world)
         self.assertEqual(len(definitions), TARGET_CATALOG_SIZE)
-        self.assertEqual(validate_discovery_catalog(WORLD, definitions), TARGET_CATALOG_SIZE)
+        self.assertEqual(validate_discovery_catalog(world, definitions), TARGET_CATALOG_SIZE)
 
         counts = catalog_kind_counts(definitions)
         self.assertEqual(counts["environmental"], 82)
@@ -272,9 +272,9 @@ class DiscoveryEngineTests(unittest.TestCase):
         self.assertEqual(counts["ultra_secret"], 5)
 
         room_regions = {
-            room_key: WORLD.scene(room_key).region_key
-            for room_key in WORLD.legacy_rooms
-            if WORLD.scene(room_key) is not None
+            room_key: world.scene(room_key).region_key
+            for room_key in world.legacy_rooms
+            if world.scene(room_key) is not None
         }
         covered_regions = {
             room_regions[room_key]
