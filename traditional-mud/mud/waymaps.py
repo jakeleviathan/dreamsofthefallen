@@ -57,6 +57,18 @@ CREATE TABLE IF NOT EXISTS waymap_events (
 
 CREATE INDEX IF NOT EXISTS idx_waymap_events_waymap
 ON waymap_events(waymap_id, id);
+
+CREATE TRIGGER IF NOT EXISTS trg_waymap_retire_deleted_character
+AFTER DELETE ON characters
+BEGIN
+    UPDATE waymap_instances
+    SET holder_kind = 'retired',
+        holder_key = 'character_deleted',
+        holder_reservation = NULL,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE holder_kind = 'character'
+      AND holder_key = CAST(OLD.id AS TEXT);
+END;
 """
 
 
@@ -605,12 +617,15 @@ def shortest_route(world_service, session, start_room_key: str, destination_room
 
 
 def audit_waymaps(database) -> tuple[str, ...]:
-    """Find marked-waymap stack/instance mismatches before they become silent item loss."""
+    """Find stack/instance mismatches anywhere physical waymaps can exist."""
+
+    from mud.item_locations import ensure_item_location_storage
 
     ensure_waymap_schema(database)
+    ensure_item_location_storage(database)
     problems: list[str] = []
     with database.connect() as db:
-        characters = db.execute(
+        character_rows = db.execute(
             """
             SELECT c.id,
                    COALESCE(i.quantity, 0) AS stack_quantity,
@@ -619,18 +634,105 @@ def audit_waymaps(database) -> tuple[str, ...]:
             LEFT JOIN character_items i
               ON i.character_id = c.id AND i.item_key = ?
             LEFT JOIN waymap_instances w
-              ON w.holder_kind = 'character' AND w.holder_key = CAST(c.id AS TEXT)
-                 AND w.holder_reservation IS NULL
+              ON w.holder_kind = 'character'
+             AND w.holder_key = CAST(c.id AS TEXT)
+             AND w.holder_reservation IS NULL
             GROUP BY c.id, i.quantity
             HAVING COALESCE(i.quantity, 0) != COUNT(w.id)
             """,
             (MARKED_WAYMAP_KEY,),
         ).fetchall()
-        for row in characters:
+        for row in character_rows:
             problems.append(
                 f"character {int(row['id'])}: stack {int(row['stack_quantity'])}, "
                 f"instances {int(row['instance_quantity'])}"
             )
+
+        room_rows = db.execute(
+            """
+            WITH room_keys AS (
+                SELECT room_key AS key
+                FROM room_ground_items
+                WHERE item_key = ?
+                UNION
+                SELECT holder_key AS key
+                FROM waymap_instances
+                WHERE holder_kind = 'room'
+            )
+            SELECT r.key AS room_key,
+                   COALESCE(g.quantity, 0) AS stack_quantity,
+                   COUNT(w.id) AS instance_quantity
+            FROM room_keys r
+            LEFT JOIN room_ground_items g
+              ON g.room_key = r.key AND g.item_key = ?
+            LEFT JOIN waymap_instances w
+              ON w.holder_kind = 'room'
+             AND w.holder_key = r.key
+             AND w.holder_reservation IS NULL
+            GROUP BY r.key, g.quantity
+            HAVING COALESCE(g.quantity, 0) != COUNT(w.id)
+            """,
+            (MARKED_WAYMAP_KEY, MARKED_WAYMAP_KEY),
+        ).fetchall()
+        for row in room_rows:
+            problems.append(
+                f"room {row['room_key']}: stack {int(row['stack_quantity'])}, "
+                f"instances {int(row['instance_quantity'])}"
+            )
+
+        container_rows = db.execute(
+            """
+            WITH buckets AS (
+                SELECT CAST(container_id AS TEXT) AS holder_key,
+                       reserved_character_id AS reservation
+                FROM world_container_items
+                WHERE item_key = ?
+                UNION
+                SELECT holder_key,
+                       COALESCE(holder_reservation, 0) AS reservation
+                FROM waymap_instances
+                WHERE holder_kind = 'container'
+            )
+            SELECT b.holder_key,
+                   b.reservation,
+                   COALESCE(SUM(i.quantity), 0) AS stack_quantity,
+                   COUNT(DISTINCT w.id) AS instance_quantity
+            FROM buckets b
+            LEFT JOIN world_container_items i
+              ON CAST(i.container_id AS TEXT) = b.holder_key
+             AND i.reserved_character_id = b.reservation
+             AND i.item_key = ?
+            LEFT JOIN waymap_instances w
+              ON w.holder_kind = 'container'
+             AND w.holder_key = b.holder_key
+             AND COALESCE(w.holder_reservation, 0) = b.reservation
+            GROUP BY b.holder_key, b.reservation
+            HAVING COALESCE(SUM(i.quantity), 0) != COUNT(DISTINCT w.id)
+            """,
+            (MARKED_WAYMAP_KEY, MARKED_WAYMAP_KEY),
+        ).fetchall()
+        for row in container_rows:
+            problems.append(
+                f"container {row['holder_key']} reservation {int(row['reservation'])}: "
+                f"stack {int(row['stack_quantity'])}, instances {int(row['instance_quantity'])}"
+            )
+
+        orphan_rows = db.execute(
+            """
+            SELECT w.id, w.holder_key
+            FROM waymap_instances w
+            LEFT JOIN characters c
+              ON w.holder_kind = 'character'
+             AND w.holder_key = CAST(c.id AS TEXT)
+            WHERE w.holder_kind = 'character' AND c.id IS NULL
+            ORDER BY w.id
+            """
+        ).fetchall()
+        for row in orphan_rows:
+            problems.append(
+                f"waymap #{int(row['id'])}: orphan character holder {row['holder_key']}"
+            )
+
     return tuple(problems)
 
 
