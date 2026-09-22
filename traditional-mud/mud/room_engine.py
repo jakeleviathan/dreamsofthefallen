@@ -144,6 +144,9 @@ class RoomStateStore:
     temporary_flags: dict[str, set[str]] = field(default_factory=dict)
     doors: dict[str, DoorState] = field(default_factory=dict)
     region_weather: dict[str, str] = field(default_factory=dict)
+    # JSON-safe persistent regional ecology payloads. Ecology owns the schema;
+    # RoomStateStore only carries the shared world state across restarts.
+    region_ecology: dict[str, dict[str, float | int]] = field(default_factory=dict)
 
     def flags_for(self, room_key: str, scope: PersistenceScope) -> frozenset[str]:
         source = self.world_flags if scope is PersistenceScope.WORLD else self.temporary_flags
@@ -185,6 +188,10 @@ class RoomStateStore:
                 for key, state in self.doors.items()
             },
             "region_weather": dict(self.region_weather),
+            "region_ecology": {
+                region_key: dict(values)
+                for region_key, values in self.region_ecology.items()
+            },
         }
 
 
