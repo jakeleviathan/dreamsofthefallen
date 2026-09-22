@@ -151,6 +151,14 @@ _REGION_WEATHER_AMBIENCE: dict[str, dict[str, str]] = {
         "rain": "Water filters down from the surface in new threads, waking small glints all along the living network.",
         "clear": "The deeper air is unusually still and clean, with only the slow pulse of the living network around it.",
     },
+    "waymeet_frontier": {
+        "rain": "Rain beads on the crossroads stone and sends dispatch runners under the market awnings.",
+        "storm": "Hard rain darkens the road signs while caravan crews pull their canvas tight against the wind.",
+        "thunderstorm": "Thunder shakes the basin as wagons shelter by the commonhouse and loose awnings snap above the market.",
+        "mist": "River mist rolls up the four roads, reducing distant travelers to silhouettes beyond the marker stone.",
+        "cloudy": "Cloud shadow moves over the four roads and dulls the market's patched canvas roofs.",
+        "snow": "Snow gathers along the roadside stones while workers clear a narrow line toward the commonhouse.",
+    },
     "central_trade_city": {
         "rain": "Rain stipples the river and sends travelers crowding beneath arcades, bridge roofs, and market awnings.",
         "storm": "Thunder rolls over the crossroads while ferries shorten their runs and awnings snap in the wind.",

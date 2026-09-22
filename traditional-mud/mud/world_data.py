@@ -125,6 +125,19 @@ REGIONS: tuple[RegionDefinition, ...] = (
         is_major_start=True,
     ),
     RegionDefinition(
+        key="waymeet_frontier",
+        name="The Waymeet Frontier",
+        biome="temperate river crossroads and trade roads",
+        description=(
+            "Four busy roads connect this mixed frontier settlement to the homelands. "
+            "Caravans, wardens, craftspeople and couriers share a river basin where wet "
+            "weather can disrupt trade, road repairs and daily travel."
+        ),
+        primary_races=("human", "forest_elf", "moon_elf", "dwarf", "goblin", "troll", "undead", "sporekin"),
+        adjacent_regions=("central_trade_city",),
+        is_major_start=False,
+    ),
+    RegionDefinition(
         key="central_trade_city",
         name="The Central Trade City",
         biome="river crossroads",

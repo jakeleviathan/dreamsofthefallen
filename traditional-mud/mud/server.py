@@ -182,6 +182,8 @@ from mud.seasonal_cultures import SEASONAL_CULTURES, SeasonalCultureEvent
 from mud.seasonal_runtime import install_seasonal_runtime
 from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
+import mud.npcs as mobile_registry
+from mud.waymeet_living_npcs import WAYMEET_LIVING_NPCS, run_waymeet_chatter
 from mud.room_runtime import WORLD, install_room_runtime
 from mud.waymaps import install_waymap_runtime
 from mud.world import NPCS_BY_KEY, ROOMS_BY_KEY
@@ -340,7 +342,15 @@ class MudServer:
         # Regional mobile populations read their carrying capacity from ecology.
         # Tests and standalone managers can still omit ecology and keep the
         # historical fixed-population behavior.
-        self.mobile_npcs = MobileNpcManager(ecology=ASTRALIS_ECOLOGY)
+        self.mobile_npcs = MobileNpcManager(
+            definitions=tuple(
+                definition
+                for definition in mobile_registry.MOBILE_NPC_DEFINITIONS
+                if definition not in WAYMEET_LIVING_NPCS
+                or set(definition.allowed_room_keys).issubset(ROOMS_BY_KEY)
+            ),
+            ecology=ASTRALIS_ECOLOGY,
+        )
         # Scheduled business state wins over stale saved door state. Temporary
         # rain shutters are rebuilt from the current weather on startup.
         HUMAN_DISTRICT.initialize(moment, WORLD.state)
@@ -413,6 +423,13 @@ class MudServer:
         for session in destination_sessions:
             await session.check_mobile_npc_aggression(movement.npc_key)
 
+    async def broadcast_waymeet_chatter(self, room_key: str, text: str) -> None:
+        for session in tuple(self.sessions):
+            if session.state is not SessionState.PLAYING or session.character is None:
+                continue
+            if session.character.current_room == room_key:
+                await session.send(f"\r\n{text}\r\n> ")
+
     async def broadcast_district_event(self, event: DistrictEvent) -> None:
         room_keys = set(event.room_keys)
         for session in tuple(self.sessions):
@@ -474,6 +491,16 @@ class MudServer:
                 weather_provider=lambda region_key: WORLD.state.weather_for(region_key),
             )
         )
+        # Shared local chatter is throttled per occupied room; NPC positions and
+        # movement continue to be owned by the existing mobile NPC manager.
+        chatter_task = asyncio.create_task(
+            run_waymeet_chatter(
+                self.mobile_npcs,
+                self.player_room_keys,
+                self.broadcast_waymeet_chatter,
+                WORLD.state.weather_for,
+            )
+        )
         weather_task = asyncio.create_task(
             ASTRALIS_WEATHER.run(
                 WORLD.state,
@@ -509,12 +536,14 @@ class MudServer:
                 await server.serve_forever()
         finally:
             npc_task.cancel()
+            chatter_task.cancel()
             weather_task.cancel()
             ecology_task.cancel()
             district_task.cancel()
             seasonal_task.cancel()
             await asyncio.gather(
                 npc_task,
+                chatter_task,
                 weather_task,
                 ecology_task,
                 district_task,
