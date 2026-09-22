@@ -1026,6 +1026,10 @@ EXTRA_COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("settings", "CLIENT / UI / HUD / MODERN UI / CLIENT STATUS", "Show modern-client integration status and available interface state.", ("mudlet", "gmcp", "client")),
     CommandEntry("reference", "GUIDE / NEW PLAYER / NEXT / WHAT NEXT", "Show a short next-step guide based on early player progress.", ("onboarding", "new player")),
     CommandEntry("reference", "BUG [note] / FEEDBACK [note] / STUCK [note]", "Submit an alpha playtest report or request a stuck-state breadcrumb.", ("report", "playtest", "support")),
+    CommandEntry("reference", "BASICS / NEW PLAYER HELP / HOW DO I PLAY / CONTROLS", "Show the compact beginner controls refresher.", ("new player", "onboarding", "controls")),
+    CommandEntry("reference", "HELP <topic> / HELP CATEGORIES / HELP INDEX", "Browse the navigable help library by topic, category, or alphabetical index.", ("manual", "help library")),
+    CommandEntry("reference", "HELP COMMAND <command> / HELP SEARCH <words>", "Open one command family directly or search both concepts and commands.", ("manual", "search")),
+    CommandEntry("reference", "HELP CATALOG / HELP ALL", "Print the complete categorized command-family catalog.", ("manual", "commands", "catalog")),
 )
 
 
@@ -1472,6 +1476,9 @@ def install_deep_help_runtime(player_session_class) -> None:
         stripped = command.strip()
         normalized = _normalize(stripped)
 
+        if normalized in {"help here", "suggest", "suggestions", "what can i do", "what can i do here"}:
+            await _delegate(self, previous_prompt, command)
+            return
         if normalized in {"help", "?", "help home", "help menu", "manual"}:
             await _show_home(self)
             return
