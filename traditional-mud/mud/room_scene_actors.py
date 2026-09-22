@@ -39,7 +39,6 @@ ON room_flora_harvest(astralis_day, room_key);
 """
 
 
-@dataclass(frozen=True, slots=True)
 FLORA_DAILY_PICK_LIMIT = 3
 FLORA_ITEM_BY_KEY = {
     "wildflowers": "wildflower",
@@ -48,6 +47,7 @@ FLORA_ITEM_BY_KEY = {
 }
 
 
+@dataclass(frozen=True, slots=True)
 class SceneActor:
     id: int
     room_key: str
