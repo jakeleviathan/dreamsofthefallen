@@ -98,6 +98,19 @@ class ExitDefinition:
         return normalized == self.direction or normalized in self.aliases
 
 
+_FEATURE_STOPWORDS = {"a", "an", "and", "at", "in", "of", "on", "the", "to"}
+_FEATURE_PREPOSITIONS = ("at ", "to ", "on ", "in ")
+
+
+def _normalize_feature_target(value: str) -> str:
+    normalized = " ".join((value or "").strip().lower().replace("_", " ").split())
+    for prefix in _FEATURE_PREPOSITIONS:
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix):].strip()
+            break
+    return normalized
+
+
 @dataclass(frozen=True, slots=True)
 class FeatureDefinition:
     key: str
@@ -110,10 +123,56 @@ class FeatureDefinition:
     listen_text: str = ""
     condition: ViewCondition = field(default_factory=ViewCondition)
 
+    def _match_phrases(self) -> tuple[str, ...]:
+        values = (
+            self.key.replace("_", " "),
+            self.name,
+            *self.aliases,
+        )
+        return tuple(
+            normalized
+            for value in values
+            if (normalized := _normalize_feature_target(value))
+        )
+
     def matches(self, value: str) -> bool:
-        normalized = value.strip().lower()
-        names = {self.key.replace("_", " "), self.name.lower(), *(alias.lower() for alias in self.aliases)}
-        return normalized in names
+        normalized = _normalize_feature_target(value)
+        return bool(normalized and normalized in set(self._match_phrases()))
+
+    def matches_shorthand(self, value: str) -> bool:
+        """Match natural shorthand; caller must still enforce uniqueness.
+
+        Exact aliases remain authoritative. Shorthand deliberately accepts a
+        substantial whole word such as CHAPEL from "Chapel of the Small Saint"
+        and phrase prefixes such as CROOKED BELL. Generic stopwords and tiny
+        fragments never qualify on their own.
+        """
+        normalized = _normalize_feature_target(value)
+        if not normalized:
+            return False
+        if self.matches(normalized):
+            return True
+
+        query_words = tuple(normalized.split())
+        if not query_words:
+            return False
+        if len(query_words) == 1:
+            token = query_words[0]
+            if token in _FEATURE_STOPWORDS or len(token) < 3:
+                return False
+            return any(token in phrase.split() for phrase in self._match_phrases())
+
+        for phrase in self._match_phrases():
+            if phrase.startswith(normalized):
+                return True
+            phrase_words = phrase.split()
+            width = len(query_words)
+            if any(
+                tuple(phrase_words[index:index + width]) == query_words
+                for index in range(max(0, len(phrase_words) - width + 1))
+            ):
+                return True
+        return False
 
 
 @dataclass(frozen=True, slots=True)
@@ -973,15 +1032,32 @@ class WorldService:
         if scene is None:
             return InteractionResult(False)
         context = self.context_with_world(context, room_key)
-        feature = next(
-            (
-                value for value in scene.features
-                if value.condition.matches(context) and value.matches(target)
-            ),
-            None,
+        visible_features = tuple(
+            value for value in scene.features
+            if value.condition.matches(context)
         )
-        if feature is None:
-            return InteractionResult(False)
+
+        exact = tuple(value for value in visible_features if value.matches(target))
+        if len(exact) == 1:
+            feature = exact[0]
+        elif len(exact) > 1:
+            names = ", ".join(value.name for value in exact)
+            return InteractionResult(True, text=f"Be more specific: {names}.")
+        else:
+            shorthand = tuple(
+                value for value in visible_features
+                if value.matches_shorthand(target)
+            )
+            if len(shorthand) == 1:
+                feature = shorthand[0]
+            elif len(shorthand) > 1:
+                names = ", ".join(value.name for value in shorthand)
+                return InteractionResult(
+                    True,
+                    text=f"That shorthand could mean more than one notable feature: {names}. Be more specific.",
+                )
+            else:
+                return InteractionResult(False)
 
         verb = verb.strip().lower()
         text = ""
