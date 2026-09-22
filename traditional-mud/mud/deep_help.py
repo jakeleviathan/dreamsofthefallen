@@ -340,7 +340,7 @@ TOPICS: tuple[HelpTopic, ...] = (
             )),
         ),
         aliases=("mp", "magic points"),
-        see_also=("abilities", "stats", "resting"),
+        see_also=("abilities", "stats", "movement-points"),
     ),
     HelpTopic(
         "movement-points",
