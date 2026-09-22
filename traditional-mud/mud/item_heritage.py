@@ -525,6 +525,84 @@ def record_notable_event(
     return True
 
 
+def record_equipped_boss_victory(
+    database,
+    *,
+    character_id: int,
+    enemy_key: str,
+    enemy_name: str,
+) -> int:
+    """Write a named-boss milestone onto equipped tracked items exactly once.
+
+    Equipment stores item keys rather than serials, so when duplicate copies of
+    one key are equipped we deterministically mark the first carried instances
+    up to the number of occupied equipment slots.
+    """
+    from collections import Counter
+    from mud.equipment_system import equipped_item_keys
+
+    key_counts = Counter(equipped_item_keys(database, int(character_id)).values())
+    if not key_counts:
+        return 0
+
+    ensure_item_heritage_schema(database)
+    marker = f"[boss:{enemy_key}]"
+    recorded = 0
+    with database.connect() as db:
+        db.execute("BEGIN IMMEDIATE")
+        for item_key, equipped_count in sorted(key_counts.items()):
+            rows = db.execute(
+                """
+                SELECT *
+                FROM item_heritage_instances
+                WHERE current_owner_character_id = ?
+                  AND item_key = ?
+                  AND holder_kind = 'character'
+                  AND holder_key = ?
+                ORDER BY id
+                LIMIT ?
+                """,
+                (
+                    int(character_id),
+                    str(item_key),
+                    str(int(character_id)),
+                    max(0, int(equipped_count)),
+                ),
+            ).fetchall()
+            for row in rows:
+                existing = db.execute(
+                    """
+                    SELECT 1
+                    FROM item_heritage_events
+                    WHERE instance_id = ?
+                      AND event_type = 'boss_victory'
+                      AND instr(note, ?) > 0
+                    LIMIT 1
+                    """,
+                    (int(row["id"]), marker),
+                ).fetchone()
+                if existing is not None:
+                    continue
+                holder = HeritageHolder(
+                    str(row["holder_kind"]),
+                    str(row["holder_key"]),
+                    None if row["holder_reservation"] is None else int(row["holder_reservation"]),
+                )
+                _event_in_connection(
+                    db,
+                    instance_id=int(row["id"]),
+                    event_type="boss_victory",
+                    actor_character_id=int(character_id),
+                    from_owner_character_id=int(character_id),
+                    to_owner_character_id=int(character_id),
+                    from_holder=holder,
+                    to_holder=holder,
+                    note=f"Carried in the defeat of {enemy_name}. {marker}",
+                )
+                recorded += 1
+    return recorded
+
+
 def provenance_by_serial(database, serial: str) -> dict[str, object] | None:
     """Return one heritage identity even after the physical item is gone."""
     ensure_item_heritage_schema(database)
