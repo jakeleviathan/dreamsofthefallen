@@ -436,6 +436,32 @@ def _normalize(text: str) -> str:
     return " ".join(text.strip().lower().replace("_", " ").split())
 
 
+_DUNGEON_TARGET_STOPWORDS = {"a", "an", "and", "of", "the"}
+
+
+def _dungeon_target_matches(seed: DungeonSeed, target: str) -> bool:
+    """Accept exact dungeon names plus natural unique shorthand at its anchor."""
+    wanted = _normalize(target)
+    if not wanted:
+        return False
+    phrases = (_normalize(seed.name), _normalize(seed.key))
+    if wanted in phrases:
+        return True
+
+    words = wanted.split()
+    if len(words) == 1:
+        token = words[0]
+        if token in _DUNGEON_TARGET_STOPWORDS or len(token) < 3:
+            return False
+        return any(token in phrase.split() for phrase in phrases)
+
+    return any(
+        phrase.startswith(wanted)
+        or f" {wanted} " in f" {phrase} "
+        for phrase in phrases
+    )
+
+
 def _refresh_character(session) -> None:
     if session.character is None:
         return
@@ -567,7 +593,13 @@ def install_content_density_runtime(player_session_class, world_service) -> None
 
         if norm.startswith("enter "):
             target = norm[6:]
-            seed = next((s for s in DUNGEON_SEEDS if room == s.anchor and target in {_normalize(s.name), _normalize(s.key)}), None)
+            seed = next(
+                (
+                    s for s in DUNGEON_SEEDS
+                    if room == s.anchor and _dungeon_target_matches(s, target)
+                ),
+                None,
+            )
             if seed:
                 self.database.set_character_room(self.character.id, DUNGEON_ROOM_KEYS[seed.key][0]); _refresh_character(self)
                 await self.send(f"You enter {seed.name}. RETREAT will return you to the road if you decide this was a bad idea.\r\n")
