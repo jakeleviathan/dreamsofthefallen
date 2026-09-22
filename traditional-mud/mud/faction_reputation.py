@@ -173,6 +173,19 @@ def faction_for_region(region_key: str | None) -> str | None:
     return REGION_FACTION.get(str(region_key or ""))
 
 
+def regional_reaction(database, character_id: int, region_key: str | None) -> str:
+    """Return a diegetic local-reputation cue for a faction-controlled region."""
+    faction_key = faction_for_region(region_key)
+    if faction_key is None or database is None or not callable(getattr(database, "connect", None)):
+        return ""
+    standing, renown = get_reputation(database, character_id, faction_key)
+    reaction = npc_reaction(standing, renown)
+    if not reaction:
+        return ""
+    faction = FACTIONS_BY_KEY[faction_key]
+    return f"Word has spread through {faction.name}; a nearby local {reaction}."
+
+
 def render_reputation(database, character_id: int) -> str:
     ensure_schema(database)
     lines = ["--- Reputation ---"]
