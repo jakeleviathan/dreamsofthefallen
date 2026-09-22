@@ -141,8 +141,9 @@ class TradeExperienceTests(unittest.TestCase):
         asyncio.run(alice.playing_prompt())
         asyncio.run(bob.playing_prompt())
 
-        self.assertEqual(self.db.item_quantity(self.alice_character.id, "iron_ore"), 0)
-        self.assertEqual(self.db.item_quantity(self.bob_character.id, "iron_ore"), 2)
+        diagnostic = "\nALICE:\n" + "".join(alice.outputs) + "\nBOB:\n" + "".join(bob.outputs)
+        self.assertEqual(self.db.item_quantity(self.alice_character.id, "iron_ore"), 0, diagnostic)
+        self.assertEqual(self.db.item_quantity(self.bob_character.id, "iron_ore"), 2, diagnostic)
         self.assertEqual(self.db.item_quantity(self.alice_character.id, "raw_cotton"), 3)
         self.assertEqual(self.db.item_quantity(self.bob_character.id, "raw_cotton"), 0)
         self.assertIn("Trade complete", "".join(alice.outputs))
@@ -168,8 +169,9 @@ class TradeExperienceTests(unittest.TestCase):
         self.assertEqual(self.db.item_quantity(self.bob_character.id, "raw_cotton"), 1)
 
         asyncio.run(alice.playing_prompt())
-        self.assertEqual(self.db.item_quantity(self.alice_character.id, "raw_cotton"), 1)
-        self.assertEqual(self.db.item_quantity(self.bob_character.id, "iron_ore"), 1)
+        diagnostic = "\nALICE:\n" + "".join(alice.outputs) + "\nBOB:\n" + "".join(bob.outputs)
+        self.assertEqual(self.db.item_quantity(self.alice_character.id, "raw_cotton"), 1, diagnostic)
+        self.assertEqual(self.db.item_quantity(self.bob_character.id, "iron_ore"), 1, diagnostic)
 
     def test_moving_away_cancels_trade_without_moving_items(self):
         self.db.add_item(self.alice_character.id, "iron_ore", 1)

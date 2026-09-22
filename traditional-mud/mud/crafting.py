@@ -678,6 +678,20 @@ _MATERIAL_ITEMS: tuple[ItemDefinition, ...] = (
         "quest_item",
         tier=0,
     ),
+    ItemDefinition(
+        "blank_waymap",
+        "Blank Waymap",
+        "A folded sheet of durable mapcloth prepared for a traveler to mark one room as a destination.",
+        "waymap",
+        tier=1,
+    ),
+    ItemDefinition(
+        "marked_waymap",
+        "Marked Waymap",
+        "A destination-bearing waymap. Use WAYMAPS to see where each carried copy leads.",
+        "waymap",
+        tier=1,
+    ),
     ItemDefinition("raw_cotton", "Raw Cotton", "Soft plant fiber gathered from cotton patches.", "material", tier=1),
     ItemDefinition("cotton_thread", "Cotton Thread", "Spun cotton thread ready for weaving and sewing.", "material", tier=1),
     ItemDefinition("cotton_cloth", "Cotton Cloth", "Simple woven cotton cloth used for beginner tailoring.", "material", tier=1),
@@ -992,6 +1006,22 @@ TAILORING_RECIPES: tuple[CraftingRecipe, ...] = tuple(
 )
 TAILORING_RECIPES_BY_KEY = {recipe.key: recipe for recipe in TAILORING_RECIPES}
 
+CARTOGRAPHY_RECIPES: tuple[CraftingRecipe, ...] = (
+    CraftingRecipe(
+        key="prepare_blank_waymap",
+        trade_skill_key="tailoring",
+        output_item_key="blank_waymap",
+        minimum_skill=0,
+        high_skill_quality_threshold=25,
+        materials=(MaterialRequirement("cotton_cloth", 1),),
+        output_quantity=1,
+        station_key=None,
+        description="Cut, edge, fold, and prepare sturdy cotton mapcloth into a blank waymap.",
+        design_status="locked_waymap_system",
+    ),
+)
+CARTOGRAPHY_RECIPES_BY_KEY = {recipe.key: recipe for recipe in CARTOGRAPHY_RECIPES}
+
 # Early Alchemy is herb-first and intentionally broad: healing, poison care,
 # tinctures, aromatic extraction, and perfume all share the same profession.
 # Costs, thresholds, and effect strengths are provisional balance values.
@@ -1066,7 +1096,7 @@ ALCHEMY_RECIPES: tuple[CraftingRecipe, ...] = (
 )
 ALCHEMY_RECIPES_BY_KEY = {recipe.key: recipe for recipe in ALCHEMY_RECIPES}
 
-ALL_RECIPES = BLACKSMITHING_RECIPES + TAILORING_RECIPES + ALCHEMY_RECIPES
+ALL_RECIPES = BLACKSMITHING_RECIPES + TAILORING_RECIPES + CARTOGRAPHY_RECIPES + ALCHEMY_RECIPES
 RECIPES_BY_KEY = {recipe.key: recipe for recipe in ALL_RECIPES}
 
 

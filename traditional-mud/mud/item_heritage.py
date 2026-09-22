@@ -583,6 +583,62 @@ def _holder_where(holder: HeritageHolder) -> tuple[str, tuple[object, ...]]:
     )
 
 
+def _move_waymap_sidecar_in_connection(
+    db,
+    *,
+    source: HeritageHolder,
+    destination: HeritageHolder,
+    item_key: str,
+    quantity: int,
+    actor_character_id: int | None,
+    event_type: str,
+    note: str,
+) -> None:
+    """Keep destination-bearing Waymap identity beside every existing item transfer path.
+
+    Marked Waymaps are individually meaningful even though ordinary inventory is
+    stack-based. HeritageHolder is already the game's common physical-location
+    vocabulary, so the Waymap ledger mirrors the same move for vaults, markets,
+    room storage, direct trades, ground items, and retirement without teaching
+    every feature its own special-case transfer code.
+    """
+    if item_key != "marked_waymap" or quantity <= 0:
+        return
+
+    # A few older core transfer paths already mirror Waymap identity directly.
+    # Keep those paths authoritative while this shared hook covers the richer
+    # holder types (Veyra vault/market and living storage/display). This makes
+    # the sidecar safe during the migration without moving one map twice.
+    if event_type in {"dropped", "picked_up", "looted", "transferred", "trade"}:
+        if source.kind in {"character", "room", "container"} and destination.kind in {
+            "character", "room", "container"
+        }:
+            return
+    if (
+        source.kind == "character"
+        and destination.kind == "retired"
+        and event_type in {"merchant_sale", "consumed"}
+    ):
+        return
+
+    from mud.waymaps import move_location_instances_in_connection as move_waymap_instances
+
+    moved = move_waymap_instances(
+        db,
+        source=source,
+        destination=destination,
+        quantity=int(quantity),
+        actor_character_id=actor_character_id,
+        event_type=event_type,
+        note=note,
+    )
+    if not moved:
+        raise RuntimeError(
+            "Marked Waymap stack has no matching persistent Waymap identity; "
+            "the containing transaction was aborted to prevent item corruption."
+        )
+
+
 def _instances_at_holder_in_connection(
     db,
     *,
@@ -675,6 +731,23 @@ def move_location_instances_in_connection(
         return []
     from_owner = int(source.key) if source.kind == "character" and source.key.isdigit() else None
     to_owner = int(destination.key) if destination.kind == "character" and destination.key.isdigit() else None
+    event_type = "transferred"
+    if source.kind == "character" and destination.kind == "room":
+        event_type = "dropped"
+    elif source.kind == "room" and destination.kind == "character":
+        event_type = "picked_up"
+    elif source.kind == "container" and destination.kind == "character":
+        event_type = "looted"
+    _move_waymap_sidecar_in_connection(
+        db,
+        source=source,
+        destination=destination,
+        item_key=item_key,
+        quantity=quantity,
+        actor_character_id=to_owner if to_owner is not None else from_owner,
+        event_type=event_type,
+        note=f"{item_name(item_key)} moved from {source.kind} to {destination.kind}.",
+    )
     rows = _instances_at_holder_in_connection(
         db,
         holder=source,
@@ -700,13 +773,6 @@ def move_location_instances_in_connection(
                 int(row["id"]),
             ),
         )
-        event_type = "transferred"
-        if source.kind == "character" and destination.kind == "room":
-            event_type = "dropped"
-        elif source.kind == "room" and destination.kind == "character":
-            event_type = "picked_up"
-        elif source.kind == "container" and destination.kind == "character":
-            event_type = "looted"
         _event_in_connection(
             db,
             instance_id=int(row["id"]),
@@ -760,6 +826,16 @@ def transfer_owned_instances_in_connection(
         return []
     source = HeritageHolder.character(from_character_id)
     destination = HeritageHolder.character(to_character_id)
+    _move_waymap_sidecar_in_connection(
+        db,
+        source=source,
+        destination=destination,
+        item_key=item_key,
+        quantity=quantity,
+        actor_character_id=from_character_id,
+        event_type=event_type,
+        note=note or f"Transferred from one player to another by {event_type}.",
+    )
     rows = _instances_at_holder_in_connection(
         db,
         holder=source,
@@ -803,6 +879,16 @@ def move_owned_to_holder_in_connection(
     keep_owner: bool = True,
 ) -> list[int]:
     source = HeritageHolder.character(character_id)
+    _move_waymap_sidecar_in_connection(
+        db,
+        source=source,
+        destination=destination,
+        item_key=item_key,
+        quantity=quantity,
+        actor_character_id=character_id,
+        event_type=event_type,
+        note=note,
+    )
     rows = _instances_at_holder_in_connection(
         db,
         holder=source,
@@ -845,8 +931,18 @@ def move_holder_to_owner_in_connection(
     event_type: str,
     note: str,
 ) -> list[int]:
-    rows = _instances_at_holder_in_connection(db, holder=source, item_key=item_key)[: int(quantity)]
     destination = HeritageHolder.character(character_id)
+    _move_waymap_sidecar_in_connection(
+        db,
+        source=source,
+        destination=destination,
+        item_key=item_key,
+        quantity=quantity,
+        actor_character_id=character_id,
+        event_type=event_type,
+        note=note,
+    )
+    rows = _instances_at_holder_in_connection(db, holder=source, item_key=item_key)[: int(quantity)]
     moved: list[int] = []
     for row in rows:
         previous_owner = row["current_owner_character_id"]
@@ -883,6 +979,17 @@ def retire_owned_instances_in_connection(
     note: str,
 ) -> list[int]:
     source = HeritageHolder.character(character_id)
+    destination = HeritageHolder.retired(event_type)
+    _move_waymap_sidecar_in_connection(
+        db,
+        source=source,
+        destination=destination,
+        item_key=item_key,
+        quantity=quantity,
+        actor_character_id=character_id,
+        event_type=event_type,
+        note=note,
+    )
     rows = _instances_at_holder_in_connection(
         db,
         holder=source,
@@ -890,7 +997,6 @@ def retire_owned_instances_in_connection(
         owner_character_id=character_id,
     )[: int(quantity)]
     retired: list[int] = []
-    destination = HeritageHolder.retired(event_type)
     for row in rows:
         db.execute(
             """

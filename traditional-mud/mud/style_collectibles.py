@@ -1429,12 +1429,26 @@ def _patch_trade_for_provenance() -> None:
             return f"Remove {_item_name(item_key)} from your styled outfit before transferring it."
         return None
 
-    def exchange_items(database, first_character_id: int, first_offer: dict[str, int], second_character_id: int, second_offer: dict[str, int]) -> bool:
+    def exchange_items(
+        database,
+        first_character_id: int,
+        first_offer: dict[str, int],
+        second_character_id: int,
+        second_offer: dict[str, int],
+        **exchange_options,
+    ) -> bool:
         for source_id, offer in ((first_character_id, first_offer), (second_character_id, second_offer)):
             for item_key in offer:
                 if STYLE_META_BY_KEY.get(item_key) and STYLE_META_BY_KEY[item_key].provenance_track:
                     _ensure_instances_for_inventory(database, source_id, item_key)
-        moved = original_exchange(database, first_character_id, first_offer, second_character_id, second_offer)
+        moved = original_exchange(
+            database,
+            first_character_id,
+            first_offer,
+            second_character_id,
+            second_offer,
+            **exchange_options,
+        )
         if not moved:
             return False
         for item_key, quantity in first_offer.items():

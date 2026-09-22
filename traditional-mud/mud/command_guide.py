@@ -37,6 +37,10 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("basics", "COMMANDS ALL", "Print the complete searchable player command catalog."),
     CommandEntry("basics", "COMMAND SEARCH <word>", "Search command syntax and descriptions by word."),
     CommandEntry("basics", "JOURNEY", "Show a spoiler-light sense of the current progression path."),
+    CommandEntry("basics", "WAYMAPS", "List the Blank Waymaps and individually numbered Marked Waymaps you carry."),
+    CommandEntry("basics", "MARK WAYMAP / USE BLANK WAYMAP", "Bind one carried Blank Waymap to the room you are currently standing in."),
+    CommandEntry("basics", "USE WAYMAP #<number>", "Follow that physical map room by room along the shortest route that is actually passable right now."),
+    CommandEntry("basics", "STOP TRAVEL", "Interrupt automatic Waymap travel immediately."),
     CommandEntry("basics", "QUIT", "Leave the current game session safely."),
 
     CommandEntry("character", "SCORE / STATUS / SHEET / STATS", "Show level, XP, base stats, equipment bonuses, and derived values."),
@@ -272,6 +276,15 @@ async def _show_help_here(session, world_service) -> None:
         suggestions.extend((("CLASS", "review your combat kit"), ("FLEE", "try to break combat"), ("PARTY HUD", "check nearby party state")))
     else:
         suggestions.append(("EXAMINE <feature>", "inspect something named in the room text"))
+        database = getattr(session, "database", None)
+        if database is not None:
+            try:
+                if database.item_quantity(character.id, "blank_waymap") > 0:
+                    suggestions.append(("MARK WAYMAP", "bind one of your Blank Waymaps to this room"))
+                if database.item_quantity(character.id, "marked_waymap") > 0:
+                    suggestions.append(("WAYMAPS", "review your marked destinations and their map numbers"))
+            except Exception:
+                pass
 
     hidden_verbs = hidden_feature_verbs(room_key)
     for verb in _feature_command_hints(world_service, room_key):

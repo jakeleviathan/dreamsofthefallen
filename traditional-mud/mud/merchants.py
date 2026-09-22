@@ -20,6 +20,7 @@ class MerchantStockEntry:
 # locked out of its defining pet because of rare catalyst availability.
 COMMON_MERCHANT_STOCK: tuple[MerchantStockEntry, ...] = (
     MerchantStockEntry("bone_chips", common_stock=True, price_units=3),
+    MerchantStockEntry("blank_waymap", common_stock=True, price_units=8),
 )
 COMMON_MERCHANT_STOCK_BY_KEY = {entry.item_key: entry for entry in COMMON_MERCHANT_STOCK}
 
@@ -74,6 +75,7 @@ WAYMEET_SEVRA_MERCHANT = MerchantDefinition(
     additional_stock=(
         MerchantStockEntry("iron_ingot", price_units=8),
         MerchantStockEntry("cotton_thread", price_units=8),
+        MerchantStockEntry("blank_waymap", price_units=8),
         MerchantStockEntry("bag_waymeet_caravan_pack", price_units=45),
     ),
     uses_common_stock=False,

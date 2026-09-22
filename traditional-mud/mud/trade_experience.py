@@ -13,6 +13,7 @@ _ACTIVE_SESSIONS: WeakSet = WeakSet()
 _PENDING_INVITES: dict[int, int] = {}
 _TRADES_BY_CHARACTER: dict[int, "TradeSession"] = {}
 _INTEGER = re.compile(r"^[+-]?\d+$")
+_WAYMAP_SELECTOR = re.compile(r"^(?:marked\s+)?(?:waymap|map)\s+#?(\d+)$")
 
 
 @dataclass(slots=True)
@@ -20,11 +21,14 @@ class TradeSession:
     first_character_id: int
     second_character_id: int
     offers: dict[int, dict[str, int]] = field(default_factory=dict)
+    waymap_offers: dict[int, list[int]] = field(default_factory=dict)
     confirmed: set[int] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         self.offers.setdefault(self.first_character_id, {})
         self.offers.setdefault(self.second_character_id, {})
+        self.waymap_offers.setdefault(self.first_character_id, [])
+        self.waymap_offers.setdefault(self.second_character_id, [])
 
     def partner_id(self, character_id: int) -> int:
         if character_id == self.first_character_id:
@@ -193,6 +197,9 @@ def exchange_items(
     first_offer: dict[str, int],
     second_character_id: int,
     second_offer: dict[str, int],
+    *,
+    first_waymap_ids: tuple[int, ...] = (),
+    second_waymap_ids: tuple[int, ...] = (),
 ) -> bool:
     """Atomically exchange two inventory offers under a SQLite write lock."""
     if first_character_id == second_character_id:
@@ -209,6 +216,15 @@ def exchange_items(
     )
 
     ensure_item_heritage_schema(database)
+    carries_waymaps = any(
+        "marked_waymap" in offer and int(offer.get("marked_waymap", 0)) > 0
+        for offer in (first_offer, second_offer)
+    )
+    if carries_waymaps:
+        from mud.waymaps import ensure_waymap_schema
+
+        ensure_waymap_schema(database)
+
     for character_id, offer in (
         (first_character_id, first_offer),
         (second_character_id, second_offer),
@@ -268,6 +284,68 @@ def exchange_items(
         credit(second_character_id, first_offer)
         credit(first_character_id, second_offer)
 
+        if carries_waymaps:
+            from mud.waymaps import (
+                transfer_owned_waymaps_in_connection,
+                transfer_selected_waymaps_in_connection,
+            )
+
+            first_waymaps = int(first_offer.get("marked_waymap", 0))
+            if first_waymap_ids and len(first_waymap_ids) != first_waymaps:
+                db.rollback()
+                return False
+            if first_waymaps:
+                moved = (
+                    transfer_selected_waymaps_in_connection(
+                        db,
+                        from_character_id=first_character_id,
+                        to_character_id=second_character_id,
+                        waymap_ids=first_waymap_ids,
+                        event_type="trade",
+                        note="Transferred through a direct player exchange.",
+                    )
+                    if first_waymap_ids
+                    else transfer_owned_waymaps_in_connection(
+                        db,
+                        from_character_id=first_character_id,
+                        to_character_id=second_character_id,
+                        quantity=first_waymaps,
+                        event_type="trade",
+                        note="Transferred through a direct player exchange.",
+                    )
+                )
+                if not moved:
+                    db.rollback()
+                    return False
+
+            second_waymaps = int(second_offer.get("marked_waymap", 0))
+            if second_waymap_ids and len(second_waymap_ids) != second_waymaps:
+                db.rollback()
+                return False
+            if second_waymaps:
+                moved = (
+                    transfer_selected_waymaps_in_connection(
+                        db,
+                        from_character_id=second_character_id,
+                        to_character_id=first_character_id,
+                        waymap_ids=second_waymap_ids,
+                        event_type="trade",
+                        note="Transferred through a direct player exchange.",
+                    )
+                    if second_waymap_ids
+                    else transfer_owned_waymaps_in_connection(
+                        db,
+                        from_character_id=second_character_id,
+                        to_character_id=first_character_id,
+                        quantity=second_waymaps,
+                        event_type="trade",
+                        note="Transferred through a direct player exchange.",
+                    )
+                )
+                if not moved:
+                    db.rollback()
+                    return False
+
         for item_key, quantity in first_offer.items():
             transfer_owned_instances_in_connection(
                 db,
@@ -297,15 +375,25 @@ def exchange_items(
         db.close()
 
 
-def _format_offer(offer: dict[str, int]) -> str:
+def _format_offer(
+    offer: dict[str, int],
+    *,
+    waymap_rows: tuple[object, ...] = (),
+) -> str:
     if not offer:
         return "nothing"
     parts: list[str] = []
+    waymaps_by_id = {int(getattr(row, "id")): row for row in waymap_rows}
     for item_key, quantity in sorted(offer.items()):
+        if item_key == "marked_waymap" and waymaps_by_id:
+            continue
         definition = crafting.ITEMS_BY_KEY.get(item_key)
         name = definition.name if definition is not None else item_key
         parts.append(f"{quantity}x {name}")
-    return ", ".join(parts)
+    for waymap_id in sorted(waymaps_by_id):
+        row = waymaps_by_id[waymap_id]
+        parts.append(f"Waymap #{waymap_id} -> {getattr(row, 'destination_name')}")
+    return ", ".join(parts) if parts else "nothing"
 
 
 async def _show_trade_status(session, trade: TradeSession) -> None:
@@ -316,13 +404,26 @@ async def _show_trade_status(session, trade: TradeSession) -> None:
     partner_session = _session_for_character_id(partner_id)
     partner = _character(partner_session)
     partner_name = partner.name if partner is not None else "the other player"
+    from mud.waymaps import list_character_waymaps
+
+    my_selected = set(trade.waymap_offers.get(character.id, ()))
+    partner_selected = set(trade.waymap_offers.get(partner_id, ()))
+    my_waymaps = tuple(
+        row for row in list_character_waymaps(session.database, character.id)
+        if row.id in my_selected
+    )
+    partner_waymaps = tuple(
+        row for row in list_character_waymaps(session.database, partner_id)
+        if row.id in partner_selected
+    )
     await session.send(
         "\r\n--- Trade ---\r\n"
-        f"You offer: {_format_offer(trade.offers[character.id])}\r\n"
-        f"{partner_name} offers: {_format_offer(trade.offers[partner_id])}\r\n"
+        f"You offer: {_format_offer(trade.offers[character.id], waymap_rows=my_waymaps)}\r\n"
+        f"{partner_name} offers: {_format_offer(trade.offers[partner_id], waymap_rows=partner_waymaps)}\r\n"
         f"Confirmed: you {'YES' if character.id in trade.confirmed else 'NO'} | "
         f"{partner_name} {'YES' if partner_id in trade.confirmed else 'NO'}\r\n"
-        "Commands: TRADE ADD [qty] <item>, TRADE REMOVE [qty] <item>, TRADE CONFIRM, TRADE CANCEL.\r\n"
+        "Commands: TRADE ADD [qty] <item>, TRADE ADD WAYMAP #<number>, "
+        "TRADE REMOVE [qty] <item>, TRADE CONFIRM, TRADE CANCEL.\r\n"
     )
 
 
@@ -375,6 +476,56 @@ async def _give(session, target_name: str, quantity: int, item_text: str) -> Non
         return
     if not social_allows_message_from(target_session, sender.name):
         await session.send(f"{target.name} is not accepting transfers from you.\r\n")
+        return
+
+    waymap_selector = re.fullmatch(
+        r"(?:marked\s+)?(?:waymap|map)\s+(#?\d+)",
+        _normalize_item_text(item_text),
+    )
+    if waymap_selector is not None:
+        if quantity != 1:
+            await session.send("Give one numbered waymap at a time.\r\n")
+            return
+        from mud.inventory_capacity import can_receive_item
+        from mud.waymaps import (
+            MARKED_WAYMAP_KEY,
+            resolve_character_waymap,
+            transfer_specific_waymap_between_characters,
+        )
+
+        waymap, waymap_error = resolve_character_waymap(
+            session.database,
+            sender.id,
+            waymap_selector.group(1),
+        )
+        if waymap is None:
+            await session.send((waymap_error or "You are not carrying that waymap.") + "\r\n")
+            return
+        if not can_receive_item(session.database, target.id, MARKED_WAYMAP_KEY, 1):
+            await session.send(
+                f"{target.name} has no free inventory slot for that waymap. Nothing was moved.\r\n"
+            )
+            await _safe_send(
+                target_session,
+                f"{sender.name} tried to give you a waymap, but your inventory is full.\r\n",
+            )
+            return
+        moved_waymap = transfer_specific_waymap_between_characters(
+            session.database,
+            waymap_id=waymap.id,
+            from_character_id=sender.id,
+            to_character_id=target.id,
+        )
+        if moved_waymap is None:
+            await session.send("The waymap transfer could not be completed safely. Nothing was moved.\r\n")
+            return
+        await session.send(
+            f"You give {target.name} Waymap #{moved_waymap.id} to {moved_waymap.destination_name}.\r\n"
+        )
+        await _safe_send(
+            target_session,
+            f"{sender.name} gives you Waymap #{moved_waymap.id} to {moved_waymap.destination_name}.\r\n",
+        )
         return
 
     item_key, error = _resolve_owned_item(session, item_text)
@@ -521,36 +672,127 @@ async def _change_offer(session, *, add: bool, quantity: int, item_text: str) ->
         await _cancel_trade_for(character.id, f"Trade canceled: {pair_error}")
         return
 
+    normalized_item = _normalize_item_text(item_text)
+    waymap_match = _WAYMAP_SELECTOR.fullmatch(normalized_item)
+    selected_waymaps = trade.waymap_offers[character.id]
+    waymap_row = None
+
     if add:
-        item_key, error = _resolve_owned_item(session, item_text)
-        if error:
-            await session.send(error + "\r\n")
-            return
-        assert item_key is not None
-        new_quantity = trade.offers[character.id].get(item_key, 0) + quantity
-        error = _transferability_error(session, item_key, new_quantity)
-        if error:
-            await session.send(error + "\r\n")
-            return
-        trade.offers[character.id][item_key] = new_quantity
-    else:
-        item_key, error = _resolve_offered_item(trade, character.id, item_text)
-        if error:
-            await session.send(error + "\r\n")
-            return
-        assert item_key is not None
-        current = trade.offers[character.id][item_key]
-        if quantity >= current:
-            trade.offers[character.id].pop(item_key, None)
+        if waymap_match is not None:
+            if quantity != 1:
+                await session.send("Add numbered waymaps one at a time.\r\n")
+                return
+            from mud.waymaps import MARKED_WAYMAP_KEY, resolve_character_waymap
+
+            waymap_row, error = resolve_character_waymap(
+                session.database,
+                character.id,
+                waymap_match.group(1),
+            )
+            if error or waymap_row is None:
+                await session.send((error or "You are not carrying that waymap.") + "\r\n")
+                return
+            if waymap_row.id in selected_waymaps:
+                await session.send(f"Waymap #{waymap_row.id} is already in your offer.\r\n")
+                return
+            item_key = MARKED_WAYMAP_KEY
+            new_quantity = trade.offers[character.id].get(item_key, 0) + 1
+            error = _transferability_error(session, item_key, new_quantity)
+            if error:
+                await session.send(error + "\r\n")
+                return
+            selected_waymaps.append(waymap_row.id)
+            trade.offers[character.id][item_key] = new_quantity
         else:
-            trade.offers[character.id][item_key] = current - quantity
+            item_key, error = _resolve_owned_item(session, item_text)
+            if error:
+                await session.send(error + "\r\n")
+                return
+            assert item_key is not None
+            if item_key == "marked_waymap":
+                await session.send(
+                    "Marked Waymaps are unique. Use WAYMAPS, then TRADE ADD WAYMAP #<number>.\r\n"
+                )
+                return
+            new_quantity = trade.offers[character.id].get(item_key, 0) + quantity
+            error = _transferability_error(session, item_key, new_quantity)
+            if error:
+                await session.send(error + "\r\n")
+                return
+            trade.offers[character.id][item_key] = new_quantity
+    else:
+        if waymap_match is not None:
+            if quantity != 1:
+                await session.send("Remove numbered waymaps one at a time.\r\n")
+                return
+            waymap_id = int(waymap_match.group(1).lstrip("#") or 0)
+            if waymap_id not in selected_waymaps:
+                await session.send(f"Waymap #{waymap_id} is not in your offer.\r\n")
+                return
+            from mud.waymaps import MARKED_WAYMAP_KEY, resolve_character_waymap
+
+            waymap_row, _error = resolve_character_waymap(
+                session.database,
+                character.id,
+                str(waymap_id),
+            )
+            item_key = MARKED_WAYMAP_KEY
+            selected_waymaps.remove(waymap_id)
+            current = trade.offers[character.id].get(item_key, 0)
+            if current <= 1:
+                trade.offers[character.id].pop(item_key, None)
+            else:
+                trade.offers[character.id][item_key] = current - 1
+        else:
+            item_key, error = _resolve_offered_item(trade, character.id, item_text)
+            if error:
+                await session.send(error + "\r\n")
+                return
+            assert item_key is not None
+            if item_key == "marked_waymap":
+                if len(selected_waymaps) > 1:
+                    await session.send(
+                        "More than one Waymap is in your offer. Use TRADE REMOVE WAYMAP #<number>.\r\n"
+                    )
+                    return
+                if len(selected_waymaps) == 1:
+                    waymap_id = selected_waymaps.pop()
+                    from mud.waymaps import resolve_character_waymap
+
+                    waymap_row, _error = resolve_character_waymap(
+                        session.database,
+                        character.id,
+                        str(waymap_id),
+                    )
+                    current = trade.offers[character.id].get(item_key, 0)
+                    if current <= 1:
+                        trade.offers[character.id].pop(item_key, None)
+                    else:
+                        trade.offers[character.id][item_key] = current - 1
+                else:
+                    current = trade.offers[character.id][item_key]
+                    if quantity >= current:
+                        trade.offers[character.id].pop(item_key, None)
+                    else:
+                        trade.offers[character.id][item_key] = current - quantity
+            else:
+                current = trade.offers[character.id][item_key]
+                if quantity >= current:
+                    trade.offers[character.id].pop(item_key, None)
+                else:
+                    trade.offers[character.id][item_key] = current - quantity
 
     had_confirmations = bool(trade.confirmed)
     trade.confirmed.clear()
     action = "added to" if add else "removed from"
-    definition = crafting.ITEMS_BY_KEY.get(item_key)
-    name = definition.name if definition is not None else item_key
-    await session.send(f"{quantity}x {name} {action} your offer.\r\n")
+    if item_key == "marked_waymap" and waymap_row is not None:
+        await session.send(
+            f"Waymap #{waymap_row.id} to {waymap_row.destination_name} {action} your offer.\r\n"
+        )
+    else:
+        definition = crafting.ITEMS_BY_KEY.get(item_key)
+        name = definition.name if definition is not None else item_key
+        await session.send(f"{quantity}x {name} {action} your offer.\r\n")
     if had_confirmations:
         await session.send("The offer changed, so both confirmations were reset.\r\n")
         await _safe_send(partner_session, "The trade offer changed; both confirmations were reset.\r\n")
@@ -577,6 +819,30 @@ async def _confirm_trade(session) -> None:
         if participant is None:
             await _cancel_trade_for(character.id, "Trade canceled: a player disconnected.")
             return
+
+        selected_waymaps = tuple(trade.waymap_offers.get(participant_id, ()))
+        offered_waymap_count = int(trade.offers[participant_id].get("marked_waymap", 0))
+        if selected_waymaps or offered_waymap_count:
+            from mud.waymaps import list_character_waymaps
+
+            held_waymap_ids = {
+                row.id for row in list_character_waymaps(session.database, participant_id)
+            }
+            if offered_waymap_count != len(selected_waymaps):
+                trade.confirmed.clear()
+                await session.send(
+                    "Trade cannot be confirmed: a Waymap offer no longer matches its numbered selections. "
+                    "Remove it and add the intended Waymap again.\r\n"
+                )
+                return
+            if any(waymap_id not in held_waymap_ids for waymap_id in selected_waymaps):
+                trade.confirmed.clear()
+                await session.send(
+                    "Trade cannot be confirmed: one of the numbered Waymaps is no longer carried by its owner. "
+                    "Review the offer and confirm again.\r\n"
+                )
+                return
+
         for item_key, quantity in trade.offers[participant_id].items():
             error = _transferability_error(participant, item_key, quantity)
             if error:
@@ -621,11 +887,14 @@ async def _confirm_trade(session) -> None:
             first_offer,
             trade.second_character_id,
             second_offer,
+            first_waymap_ids=tuple(trade.waymap_offers[trade.first_character_id]),
+            second_waymap_ids=tuple(trade.waymap_offers[trade.second_character_id]),
         )
-    except Exception:
+    except Exception as exc:
         trade.confirmed.clear()
-        await _safe_send(session, "The trade could not be committed safely. Nothing was moved.\r\n")
-        await _safe_send(partner_session, "The trade could not be committed safely. Nothing was moved.\r\n")
+        detail = f" [{type(exc).__name__}: {exc}]"
+        await _safe_send(session, "The trade could not be committed safely. Nothing was moved." + detail + "\r\n")
+        await _safe_send(partner_session, "The trade could not be committed safely. Nothing was moved." + detail + "\r\n")
         return
 
     if not success:
@@ -647,6 +916,7 @@ async def _trade_help(session) -> None:
         "TRADE <player> - invite someone in your room\r\n"
         "TRADE ACCEPT / TRADE DECLINE - answer an invitation\r\n"
         "TRADE ADD [qty] <item> / TRADE REMOVE [qty] <item> - edit your offer\r\n"
+        "TRADE ADD WAYMAP #<number> / TRADE REMOVE WAYMAP #<number> - choose an exact destination map from WAYMAPS\r\n"
         "TRADE STATUS - review both offers and confirmations\r\n"
         "TRADE CONFIRM - approve the current offer\r\n"
         "TRADE CANCEL - abort with nothing moved\r\n"

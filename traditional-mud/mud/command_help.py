@@ -169,7 +169,7 @@ def _culture_commands(session) -> tuple[str, ...]:
 def _quick_help_text(session) -> str:
     lines = [
         "\r\n--- Help ---",
-        "LOOK and EXITS show where you are; MAP shows the nearby rooms this character has personally discovered. Move with NORTH/SOUTH/EAST/WEST/UP/DOWN (or N/S/E/W/U/D).",
+        "LOOK and EXITS show where you are; MAP shows nearby rooms this character has personally discovered. WAYMAPS lists physical destination maps you can mark and follow. Move with NORTH/SOUTH/EAST/WEST/UP/DOWN (or N/S/E/W/U/D).",
         "EXAMINE <thing>, SEARCH <thing>, TOUCH <thing>, LISTEN, READ <thing>, and TALK <person> interact with the world.",
         "SAY <message> speaks in the room. CHAT, OOC, TELL, and REPLY handle broader player communication; CHANNELS explains them.",
         "SETTINGS controls prompt style, color/contrast, hint level, Mudlet enhancements, and screen-reader mode.",
@@ -204,6 +204,10 @@ def _full_help_text(session) -> str:
         "LOOK (L) - show the current room",
         "EXITS - show available routes",
         "MAP / MAP 1..4 - show your persistent discovered-room map at a local radius",
+        "WAYMAPS - list blank and marked physical waymaps you carry",
+        "MARK WAYMAP / USE BLANK WAYMAP - bind one blank waymap to your current room",
+        "USE WAYMAP #<number> - automatically follow the real room route to that marked destination",
+        "STOP TRAVEL - stop following a waymap without moving another step",
         "NORTH/SOUTH/EAST/WEST/UP/DOWN (N/S/E/W/U/D) - travel",
         "EXAMINE <thing> - inspect a room feature, object, or clue",
         "SEARCH <thing> - search an authored feature when supported",
@@ -286,6 +290,7 @@ def _full_help_text(session) -> str:
             "TRADES / PROFESSIONS - trade-skill information",
             "RECIPES - known crafting recipes",
             "CRAFT <recipe> - craft when the required station and materials are available",
+            "Tailoring: PREPARE BLANK WAYMAP turns cotton cloth into a reusable blank destination map; marked waymaps retain their destination when transferred",
             "MINE / HARVEST / HERBALISM - use supported gathering content",
             "SOLS / COINS / MONEY - show your Sol balance (sparks, embers, flames)",
             "SHOP / LIST / WARES - inspect nearby merchant stock and Sol prices",
