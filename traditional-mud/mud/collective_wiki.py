@@ -591,7 +591,7 @@ def record_hidden_discovery(session, world_service, definition, *, trigger: str 
         database,
         category="discovery",
         entry_key=_clean(getattr(definition, "key", "")),
-        title=f"{kind} — {room_name}",
+        title=f"{kind} - {room_name}",
         summary=f"A communal discovery first recorded near {room_name}.",
         region_key=region_key,
         room_key=room_key,
@@ -720,7 +720,7 @@ WIKI_HTML = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b0b0d">
-<title>Dreams of the Fallen — Living Wiki</title>
+<title>Dreams of the Fallen - Living Wiki</title>
 <style>
 :root{--bg:#09090b;--panel:#111114;--panel2:#16161a;--line:#29292f;--text:#f2efe6;--muted:#9b9890;--gold:#d5ad62;--soft:#d9d3c5;--shadow:0 24px 80px rgba(0,0,0,.38)}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% -10%,#222027 0,transparent 34%),var(--bg);color:var(--text);font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
