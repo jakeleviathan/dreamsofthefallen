@@ -346,6 +346,109 @@ def record_character_known_state(session) -> None:
     if character_id is None:
         return
 
+    # Race and class identity are already exposed during character creation, so
+    # the community can safely gain those overview pages when somebody actually
+    # enters the world with that choice. Deeper lore is not copied wholesale.
+    try:
+        from mud.character_options import CLASSES_BY_KEY, RACES_BY_KEY
+
+        race_key = _clean(getattr(character, "race", ""))
+        race = RACES_BY_KEY.get(race_key)
+        if race is not None:
+            race_facts = [
+                WikiFact("description", "Overview", race.description, "character_identity")
+            ]
+            if getattr(race, "passive_name", None) and getattr(race, "passive_description", None):
+                race_facts.append(
+                    WikiFact(
+                        "passive",
+                        str(race.passive_name),
+                        str(race.passive_description),
+                        "character_identity",
+                    )
+                )
+            record_wiki_entry(
+                database,
+                category="race",
+                entry_key=race_key,
+                title=race.name,
+                summary="A playable people encountered through the community.",
+                facts=race_facts,
+                character_id=character_id,
+                character_name=character_name,
+            )
+
+        class_key = _clean(getattr(character, "character_class", ""))
+        character_class = CLASSES_BY_KEY.get(class_key)
+        if character_class is not None:
+            class_facts = [
+                WikiFact(
+                    "description",
+                    "Overview",
+                    character_class.description,
+                    "character_identity",
+                )
+            ]
+            record_wiki_entry(
+                database,
+                category="class",
+                entry_key=class_key,
+                title=character_class.name,
+                summary="A playable class represented by at least one traveler.",
+                facts=class_facts,
+                character_id=character_id,
+                character_name=character_name,
+            )
+    except Exception:
+        pass
+
+    # Abilities become communal knowledge after somebody has actually practiced
+    # them. This avoids turning the wiki into an automatic dump of future class
+    # progression names that nobody has reached yet.
+    try:
+        from mud.mechanics import FIXED_CLASS_ABILITIES, PRIEST_DEITY_ABILITIES
+
+        ability_catalog = {}
+        for ability_group in tuple(FIXED_CLASS_ABILITIES.values()) + tuple(PRIEST_DEITY_ABILITIES.values()):
+            for ability in ability_group:
+                ability_catalog.setdefault(ability.key, ability)
+        with database.connect() as db:
+            ability_rows = db.execute(
+                """
+                SELECT ability_key, uses, skill_xp
+                FROM character_abilities
+                WHERE character_id = ? AND (uses > 0 OR skill_xp > 0)
+                """,
+                (character_id,),
+            ).fetchall()
+        for row in ability_rows:
+            ability_key = str(row["ability_key"])
+            ability = ability_catalog.get(ability_key)
+            title = _clean(getattr(ability, "name", "")) if ability is not None else _humanize(ability_key)
+            description = str(getattr(ability, "description", "") or "").strip() if ability is not None else ""
+            facts = [
+                WikiFact(
+                    "practiced",
+                    "Known Technique",
+                    "At least one traveler has used this ability in play.",
+                    "ability_use",
+                )
+            ]
+            if description:
+                facts.append(WikiFact("description", "Description", description, "ability_use"))
+            record_wiki_entry(
+                database,
+                category="ability",
+                entry_key=ability_key,
+                title=title or _humanize(ability_key),
+                summary="An ability practiced by the player community.",
+                facts=facts,
+                character_id=character_id,
+                character_name=character_name,
+            )
+    except Exception:
+        pass
+
     try:
         from mud.crafting import ITEMS_BY_KEY
         with database.connect() as db:
