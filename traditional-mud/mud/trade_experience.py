@@ -890,10 +890,11 @@ async def _confirm_trade(session) -> None:
             first_waymap_ids=tuple(trade.waymap_offers[trade.first_character_id]),
             second_waymap_ids=tuple(trade.waymap_offers[trade.second_character_id]),
         )
-    except Exception:
+    except Exception as exc:
         trade.confirmed.clear()
-        await _safe_send(session, "The trade could not be committed safely. Nothing was moved.\r\n")
-        await _safe_send(partner_session, "The trade could not be committed safely. Nothing was moved.\r\n")
+        detail = f" [{type(exc).__name__}: {exc}]"
+        await _safe_send(session, "The trade could not be committed safely. Nothing was moved." + detail + "\r\n")
+        await _safe_send(partner_session, "The trade could not be committed safely. Nothing was moved." + detail + "\r\n")
         return
 
     if not success:
