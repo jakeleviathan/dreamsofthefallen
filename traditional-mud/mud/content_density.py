@@ -129,7 +129,7 @@ def _ordinary_gear() -> tuple[ItemDefinition, ...]:
             result.append(ItemDefinition(
                 f"density_gear_{family_key}_{pattern_key}",
                 name,
-                f"A practical {pattern_name.lower()} made in the {family_name} tradition. It is useful, recognizable, and meant to live in the economy rather than wait for a perfect build.",
+                f"A practical {pattern_name.lower()} made in the {family_name} tradition. It is sturdy, recognizable, and built for ordinary hard use rather than ceremony.",
                 "equipment",
                 equipment=EquipmentItem(name, slot, armor_class=tier if is_armor else 0, stat_bonuses=stats),
                 tier=tier,
@@ -259,12 +259,12 @@ def _build_rooms(seed: DungeonSeed) -> tuple[RoomDefinition, ...]:
     mini_key = f"density_{seed.key}_miniboss"
     boss_key = f"density_{seed.key}_boss"
     descriptions = (
-        f"The threshold of {seed.name} feels used rather than staged. Scuffs, discarded tools, and old repairs show that ordinary people once had reasons to come here. The route back outside remains open behind you; OUT or RETREAT returns to the entrance road.",
-        f"A working passage inside {seed.name} has become dangerous in a very local way; nothing here suggests the world is ending, only that this place has gone wrong.",
+        f"The threshold of {seed.name} feels long used rather than abandoned. Scuffs, discarded tools, and old repairs show that ordinary people once had reasons to come here. The route back outside remains open behind you.",
+        f"A working passage inside {seed.name} has fallen into dangerous disuse. Old repairs, fresh damage, and disturbed debris show that whatever went wrong here never spread far beyond these walls.",
         f"The route narrows into a defended chamber. {seed.miniboss_name} has made this part of the ruin its own.",
-        f"The dungeon finally explains its trick in physical terms. {seed.mechanic_text} The useful command is written into the scene: {seed.mechanic_command}.",
-        f"Beyond the solved mechanism, the final approach to {seed.boss_name} is strangely calm. This is the last place to prepare before the room stops being forgiving.",
-        f"The heart of {seed.name}. {seed.boss_name} waits among the objects and damage that made the place famous.",
+        f"Here the workings of {seed.name} become legible. {seed.mechanic_text} Someone has scratched a terse instruction beside the mechanism: {seed.mechanic_command}.",
+        f"Beyond the solved mechanism, the approach to {seed.boss_name} is strangely calm. The air is still, the floor comparatively clear, and the deeper chamber waits ahead.",
+        f"At the heart of {seed.name}, {seed.boss_name} waits among the oldest damage, abandoned tools, and relics of whatever happened here.",
     )
     result = []
     for i, key in enumerate(keys):
@@ -290,9 +290,9 @@ def _build_dungeon_enemies() -> tuple[EnemyDefinition, ...]:
     for i, seed in enumerate(DUNGEON_SEEDS):
         base = 78 + i * 12
         result.extend((
-            EnemyDefinition(f"density_{seed.key}_mob", seed.mob_name, (seed.mob_name.lower(), "denizen"), f"a characteristic denizen of {seed.name}, dangerous because it belongs here and knows the ground", base, 8 + i, 7 + i, 3.0, 48 + i * 8),
-            EnemyDefinition(f"density_{seed.key}_miniboss", seed.miniboss_name, (seed.miniboss_name.lower(), "keeper"), f"{seed.miniboss_name}, a local power that teaches the dungeon's tone before the final chamber", base + 90, 12 + i, 10 + i, 3.0, 110 + i * 12),
-            EnemyDefinition(f"density_{seed.key}_boss", seed.boss_name, (seed.boss_name.lower(), "boss"), f"{seed.boss_name}, the figure players will remember when they remember {seed.name}", base + 220, 15 + i, 13 + i, 2.9, 220 + i * 18),
+            EnemyDefinition(f"density_{seed.key}_mob", seed.mob_name, (seed.mob_name.lower(), "denizen"), f"a hardened inhabitant of {seed.name}, moving with the confidence of something that knows every hazard here", base, 8 + i, 7 + i, 3.0, 48 + i * 8),
+            EnemyDefinition(f"density_{seed.key}_miniboss", seed.miniboss_name, (seed.miniboss_name.lower(), "keeper"), f"{seed.miniboss_name}, an entrenched guardian of the deeper passages of {seed.name}", base + 90, 12 + i, 10 + i, 3.0, 110 + i * 12),
+            EnemyDefinition(f"density_{seed.key}_boss", seed.boss_name, (seed.boss_name.lower(), "boss"), f"{seed.boss_name}, the dominant presence at the heart of {seed.name}", base + 220, 15 + i, 13 + i, 2.9, 220 + i * 18),
         ))
     return tuple(result)
 
@@ -346,7 +346,7 @@ ODDJOB_DESTS = tuple(RARE_HOSTS[(i + 3) % len(RARE_HOSTS)] for i in range(20))
 ODDJOBS = tuple(
     QuestDefinition(
         key=f"density_oddjob_{i:02d}", name=name, style="discovery", minimum_level=2,
-        description=f"A tiny piece of local life: {name.lower()}. It is intentionally smaller than an adventure and may end with more personality than reward.",
+        description=f"A small local errand: {name.lower()}. It matters mostly to the people nearby, which is reason enough for them to ask.",
         objective_steps=(("travel", f"Carry the errand to {ODDJOB_DESTS[i - 1].replace('_', ' ')} and use FINISH ODDJOB."), ("complete", "The errand is finished.")),
     )
     for i, name in enumerate(ODDJOB_NAMES, 1)
@@ -548,7 +548,7 @@ def _notable_trade_patch() -> None:
             with database.connect() as db:
                 names = {int(row["id"]): str(row["name"]) for row in db.execute("SELECT id, name FROM characters WHERE id IN (?, ?)", (first_id, second_id)).fetchall()}
             label = crafting.ITEMS_BY_KEY.get(notable).name if notable in crafting.ITEMS_BY_KEY else notable
-            _chronicle_insert(database, event_key=f"first_notable_trade:{notable}", day=ASTRALIS_CLOCK.now().day_number, category="trade", text=f"{names.get(first_id, 'Someone')} and {names.get(second_id, 'someone')} made the first recorded player trade involving {label}.")
+            _chronicle_insert(database, event_key=f"first_notable_trade:{notable}", day=ASTRALIS_CLOCK.now().day_number, category="trade", text=f"{names.get(first_id, 'Someone')} and {names.get(second_id, 'someone')} made the first recorded trade involving {label}.")
         return True
 
     trade_experience.exchange_items = exchange
@@ -601,7 +601,7 @@ def install_content_density_runtime(player_session_class, world_service) -> None
         iconic = iconic or WORLD_BOSS_ICONICS.get(key)
         if iconic and random.random() < 0.05 and iconic in crafting.ITEMS_BY_KEY:
             self.database.add_item(self.character.id, iconic, 1)
-            await self.send(f"\r\nA genuinely rare object survived the fight: {crafting.ITEMS_BY_KEY[iconic].name}. Nothing in the game labels it special. Its name and usefulness will have to earn that reputation.\r\n")
+            await self.send(f"\r\nA strange object survived the fight: {crafting.ITEMS_BY_KEY[iconic].name}. Nothing about it announces its importance; its workmanship and history will have to speak for themselves.\r\n")
             _chronicle_insert(self.database, event_key=f"density_first_item:{iconic}", day=day, character_id=self.character.id, character_name=self.character.name, category="discovery", text=f"{self.character.name} became the first recorded owner of {crafting.ITEMS_BY_KEY[iconic].name}.")
 
     async def playing_prompt(self) -> None:

@@ -482,7 +482,7 @@ async def _show_adventure_heritage(session) -> None:
     c = session.character
     arc = first_ten.RACE_FIRST_TEN_ARCS.get(c.race or "")
     if arc is None:
-        await session.send("Your origin does not have a first-ten racial arc yet.\r\n")
+        await session.send("No heritage path is available for your origin yet.\r\n")
         return
     loop = STARTER_RACE_LOOPS_BY_RACE[arc.race_key]
     contact = ORIGIN_CONTACTS[arc.race_key]
@@ -515,10 +515,10 @@ async def _show_adventure_heritage(session) -> None:
             f"Next action: {step.objective}\r\n"
         )
         if beat.key == "wider_world":
-            await session.send("This act deliberately crosses into Waymeet so your homeland story collides with people who do not share its assumptions.\r\n")
+            await session.send("This path crosses into Waymeet, where your homeland's assumptions meet people who do not share them.\r\n")
         break
 
-    await session.send("Your heritage story is woven through the same Waymeet, dungeon, faction, crafting, and Veyra world used by everyone else.\r\n")
+    await session.send("Your heritage path continues through Waymeet, the surrounding delves, faction work, crafting, and the roads toward Veyra.\r\n")
 
 
 def _refresh_character(session) -> int:
@@ -553,7 +553,7 @@ async def _finish_adventure(session, arc, beat, route: AdventureRoute, step: Adv
             await session.send(line + "\r\n")
         await session.send(
             "Your homeland now has a reason to remember you, and people on the shared roads have seen what your culture looks like under pressure. "
-            "Your level 1-10 origin story is complete. JOURNEY now points into Veyra, class commissions, dungeons, factions, and the roads toward level 12+.\r\n"
+            "The opening chapter of your heritage path is complete. JOURNEY now points into Veyra, class commissions, delves, factions, and the wider roads ahead.\r\n"
         )
 
 
