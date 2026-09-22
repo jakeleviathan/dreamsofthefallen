@@ -164,11 +164,44 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         notable.append(
             f"  {_paint(BUSINESS, business.name)} - {business.storefront_description}"
         )
+        try:
+            record_actor_discovery(
+                session,
+                category="business",
+                entry_key=business.key,
+                name=business.name,
+                description=business.storefront_description,
+                room_key=view.key,
+                region_key=scene.region_key,
+            )
+        except Exception:
+            pass
     if has_style_atelier:
         notable.append(
             f"  {_paint(BUSINESS, PAVO_ATELIER_NAME)} - mirrors, draped garment forms, "
             "and a brass placard offering permanent STYLE COPY service"
         )
+        try:
+            record_actor_discovery(
+                session,
+                category="business",
+                entry_key="pavos_impossible_atelier",
+                name=PAVO_ATELIER_NAME,
+                description="Mirrors, draped garment forms, and a brass placard offering permanent STYLE COPY service.",
+                room_key=view.key,
+                region_key=scene.region_key,
+            )
+            record_actor_discovery(
+                session,
+                category="person",
+                entry_key="pavo",
+                name=PAVO_NAME,
+                description=PAVO_SHORT_DESCRIPTION,
+                room_key=view.key,
+                region_key=scene.region_key,
+            )
+        except Exception:
+            pass
 
     if notable:
         lines.extend(["", _section_header("Notable", FEATURE), *notable])
