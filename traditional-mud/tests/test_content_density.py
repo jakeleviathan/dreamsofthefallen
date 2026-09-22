@@ -119,12 +119,12 @@ class ContentDensityTests(unittest.TestCase):
         self.assertTrue(_dungeon_leave_command_matches(chapel, "leave chapel of the small saint"))
         self.assertFalse(_dungeon_leave_command_matches(chapel, "exit"))
 
-    def test_every_density_threshold_advertises_the_way_back_out(self):
+    def test_every_density_threshold_makes_the_way_back_out_obvious_in_world(self):
         rooms_by_key = {room.key: room for room in DENSITY_ROOMS}
         for seed in DUNGEON_SEEDS:
             threshold = rooms_by_key[f"density_{seed.key}_1"]
-            self.assertIn("OUT or RETREAT", threshold.description)
             self.assertIn("route back outside", threshold.description.lower())
+            self.assertNotIn("OUT or RETREAT", threshold.description)
 
     def test_production_server_assembles_foundry_density_before_presentation(self):
         root = Path(__file__).resolve().parents[1]
