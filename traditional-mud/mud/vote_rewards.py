@@ -1618,7 +1618,7 @@ def install_vote_rewards_runtime(player_session_class, mud_server_class, databas
     previous_prompt = player_session_class.playing_prompt
 
     async def playing_prompt(self) -> None:
-        if self.character is None or self.account is None:
+        if getattr(self, "character", None) is None or getattr(self, "account", None) is None:
             await previous_prompt(self)
             return
         command = await self.prompt("\r\n> ")
