@@ -256,7 +256,11 @@ class DiscoveryEngineTests(unittest.TestCase):
         self.assertEqual(validate_discovery_catalog(WORLD, definitions), TARGET_CATALOG_SIZE)
 
         counts = catalog_kind_counts(definitions)
-        self.assertEqual(counts["environmental"], 95)\n        self.assertEqual(counts["reputation"], 10)\n        self.assertEqual(counts["inventory"], 5)
+        self.assertEqual(counts["environmental"], 82)
+        self.assertEqual(counts["racial"], 8)
+        self.assertEqual(counts["class"], 5)
+        self.assertEqual(counts["reputation"], 10)
+        self.assertEqual(counts["inventory"], 5)
         self.assertEqual(counts["interaction"], 60)\n        self.assertEqual(counts["rumor"], 10)
         self.assertEqual(counts["hidden_quest"], 50)
         self.assertEqual(counts["calendar"], 35)
@@ -265,6 +269,19 @@ class DiscoveryEngineTests(unittest.TestCase):
         self.assertEqual(counts["world_event"], 20)
         self.assertEqual(counts["mystery"], 20)
         self.assertEqual(counts["ultra_secret"], 5)
+
+        room_regions = {
+            room_key: WORLD.scene(room_key).region_key
+            for room_key in WORLD.legacy_rooms
+            if WORLD.scene(room_key) is not None
+        }
+        covered_regions = {
+            room_regions[room_key]
+            for definition in definitions
+            for room_key in definition.condition.room_keys
+            if room_key in room_regions
+        }
+        self.assertEqual(covered_regions, set(room_regions.values()))
 
     def test_production_server_installs_private_discovery_runtime(self):
         root = Path(__file__).resolve().parents[1]
