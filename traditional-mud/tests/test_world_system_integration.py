@@ -14,7 +14,12 @@ from mud.discovery_engine import (
     discovery_tell,
 )
 from mud.equipment_system import ensure_equipment_storage, set_equipped_item
-from mud.faction_reputation import _quest_faction, adjust_reputation, regional_reaction
+from mud.faction_reputation import (
+    _quest_faction,
+    adjust_reputation,
+    faction_for_region,
+    regional_reaction,
+)
 from mud.item_heritage import (
     HeritageHolder,
     _insert_instance_in_connection,
@@ -22,6 +27,7 @@ from mud.item_heritage import (
     record_equipped_boss_victory,
 )
 from mud.room_presentation import render_room_lines
+from mud.world_data import REGIONS
 
 
 class _WeatherState:
@@ -55,6 +61,23 @@ class WorldSystemIntegrationTests(unittest.TestCase):
             "human",
             "priest",
         )
+
+    def test_every_major_start_region_is_connected_to_a_faction(self) -> None:
+        expected = {
+            "human_kingdom": "blackglass_crown",
+            "great_elf_forest": "green_circle",
+            "moon_peaks": "moon_courts",
+            "dwarven_mountain_industry": "chainmark_houses",
+            "junk_city_and_swamps": "brassgut_clans",
+            "troll_strongholds": "troll_tribes",
+            "desert_necropolis": "pale_houses",
+            "sporekin_underways": "rainroot_chorus",
+        }
+        major_regions = {region.key for region in REGIONS if region.is_major_start}
+        self.assertEqual(major_regions, set(expected))
+        for region_key, faction_key in expected.items():
+            with self.subTest(region_key=region_key):
+                self.assertEqual(faction_for_region(region_key), faction_key)
 
     def test_legacy_cultural_quests_map_to_their_home_factions(self) -> None:
         expectations = {
