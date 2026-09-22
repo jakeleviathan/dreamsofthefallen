@@ -146,18 +146,123 @@ def record_combat_trace(database, room_key: str, enemy_key: str, enemy_name: str
     return True
 
 
-def _ecology_flora(room_key: str, region_key: str) -> tuple[tuple[str, str, str], ...]:
+_SURFACE_GROWTH_TAGS = (
+    "wilderness", "wild", "frontier", "field", "meadow", "grassland",
+    "plains", "forest", "grove", "trail", "path", "roadside", "reach",
+    "river", "riverbank", "shore", "coast", "garden", "orchard",
+)
+_WETLAND_GROWTH_TAGS = ("swamp", "marsh", "mire", "fen", "bog", "wetland", "reeds")
+_SUBTERRANEAN_TAGS = ("cave", "cavern", "underground", "underway", "grotto")
+_FUNGAL_GROWTH_TAGS = (
+    "fungus", "fungal", "mushroom", "mushrooms", "spore", "spores",
+    "mycel", "mycelial", "glowcap", "damp_grotto",
+)
+_BUILT_OR_ENCLOSED_TAGS = (
+    "interior", "indoors", "indoor", "market", "shop", "workshop",
+    "cathedral", "crypt", "tunnel", "city", "urban", "house", "inn",
+    "tavern", "hall", "chamber", "cellar", "vault", "archive", "forge",
+    "foundry", "dungeon", "temple", "warehouse", "station", "office",
+)
+
+
+def _room_flora_habitat(
+    room_key: str,
+    region_key: str,
+    *,
+    tags=(),
+) -> str | None:
+    """Classify ambient flora from the room itself, never the region alone.
+
+    Region ecology controls whether growth is healthy enough to appear, but a
+    healthy frontier region must not make flowers materialize inside every cave,
+    crypt, shop, dungeon room, or workshop within that region.
+    """
+
+    normalized_tags = tuple(str(tag).strip().lower() for tag in (tags or ()))
+    tag_text = " ".join(normalized_tags)
+    biome = str(
+        getattr(ASTRALIS_ECOLOGY, "_region_biomes", {}).get(region_key, "")
+    ).lower()
+
+    built_or_enclosed = any(
+        token in tag
+        for tag in normalized_tags
+        for token in _BUILT_OR_ENCLOSED_TAGS
+    )
+    subterranean = any(
+        token in tag
+        for tag in normalized_tags
+        for token in _SUBTERRANEAN_TAGS
+    )
+
+    # Ordinary constructed/enclosed rooms never inherit surface vegetation from
+    # their surrounding region. A cave is likewise not a grassland simply
+    # because its entrance happens to be in one.
+    if built_or_enclosed:
+        return None
+
+    # Subterranean flora is opt-in. Natural caves only show glowcaps when the
+    # room is explicitly fungal/damp enough, or when the entire authored biome
+    # is a fungal underworld such as the Sporekin underways.
+    if subterranean:
+        fungal_room = any(token in tag_text for token in _FUNGAL_GROWTH_TAGS)
+        fungal_region = any(
+            token in biome
+            for token in ("fung", "spore", "mycel", "underway")
+        )
+        return "fungal" if fungal_room or fungal_region else None
+
+    wetland = any(
+        token in tag
+        for tag in normalized_tags
+        for token in _WETLAND_GROWTH_TAGS
+    )
+    if wetland:
+        return "wetland"
+
+    surface = any(
+        token in tag
+        for tag in normalized_tags
+        for token in _SURFACE_GROWTH_TAGS
+    )
+    if not surface:
+        return None
+
+    if any(word in biome for word in ("desert", "tundra")):
+        return None
+    return "surface"
+
+
+def _ecology_flora(
+    room_key: str,
+    region_key: str,
+    *,
+    tags=(),
+) -> tuple[tuple[str, str, str], ...]:
     state = ASTRALIS_ECOLOGY.state_for(region_key)
     if state is None or state.vegetation < 0.48 or state.resource_stock < 0.38:
         return ()
-    biome = str(getattr(ASTRALIS_ECOLOGY, "_region_biomes", {}).get(region_key, "")).lower()
-    if any(word in biome for word in ("desert", "tundra")):
-        return ()
-    if any(word in biome for word in ("swamp", "marsh", "fen", "bog")):
-        return (("marsh_bloom", "Marsh Blooms", "Small pale flowers push up between the wet reeds."),)
-    if any(word in biome for word in ("cavern", "underground", "underway")):
-        return (("glowcap", "Glowcaps", "A small cluster of dim fungal caps grows along the damp stone."),)
-    return (("wildflowers", "Wildflowers", "A few hardy wildflowers grow here among the grass."),)
+
+    habitat = _room_flora_habitat(room_key, region_key, tags=tags)
+    if habitat == "wetland":
+        return ((
+            "marsh_bloom",
+            "Marsh Blooms",
+            "Small pale flowers push up between the wet reeds.",
+        ),)
+    if habitat == "fungal":
+        return ((
+            "glowcap",
+            "Glowcaps",
+            "A small cluster of dim fungal caps grows along the damp stone.",
+        ),)
+    if habitat == "surface":
+        return ((
+            "wildflowers",
+            "Wildflowers",
+            "A few hardy wildflowers grow here among the grass.",
+        ),)
+    return ()
 
 
 def _flora_picked_today(database, room_key: str, flora_key: str, astralis_day: int) -> int:
@@ -223,7 +328,13 @@ def scene_lines(session, world_service, room_key: str, region_key: str) -> tuple
             lines.append(f"{actor.name} - {actor.description}")
 
     day = ASTRALIS_CLOCK.now().day_number
-    for flora_key, name, description in _ecology_flora(room_key, region_key):
+    scene = world_service.scene(room_key)
+    tags = getattr(scene, "tags", ()) if scene is not None else ()
+    for flora_key, name, description in _ecology_flora(
+        room_key,
+        region_key,
+        tags=tags,
+    ):
         if usable_database and _flora_picked_today(database, room_key, flora_key, day) >= FLORA_DAILY_PICK_LIMIT:
             continue
         lines.append(f"{name} - {description}")
@@ -253,7 +364,11 @@ def _flora_target(session, world_service, target: str):
     scene = world_service.scene(character.current_room or "")
     if scene is None:
         return None
-    for key, name, description in _ecology_flora(scene.key, scene.region_key):
+    for key, name, description in _ecology_flora(
+        scene.key,
+        scene.region_key,
+        tags=getattr(scene, "tags", ()),
+    ):
         if _target_matches(target, key, name):
             return key, name, description, scene
     return None
