@@ -359,8 +359,14 @@ class MobileNpcManager:
     through rooms authored in their allowed-room set.
     """
 
-    def __init__(self, definitions: tuple[MobileNpcDefinition, ...] = MOBILE_NPC_DEFINITIONS) -> None:
+    def __init__(
+        self,
+        definitions: tuple[MobileNpcDefinition, ...] = MOBILE_NPC_DEFINITIONS,
+        *,
+        ecology=None,
+    ) -> None:
         self.definitions = definitions
+        self.ecology = ecology
         self.states: dict[str, MobileNpcState] = {}
         self.regional_pools: dict[str, RegionalSpawnDefinition] = {}
         self._regional_instance_to_pool: dict[str, str] = {}
@@ -602,7 +608,17 @@ class MobileNpcManager:
             room = ROOMS_BY_KEY.get(room_key)
             if room is not None and room.region_key == pool.region_key:
                 player_count += 1
-        return min(pool.max_population, pool.base_population + player_count)
+        base_target = min(pool.max_population, pool.base_population + player_count)
+        if self.ecology is None:
+            return base_target
+        definition = combat.ENEMIES_BY_KEY.get(pool.enemy_key)
+        if definition is None:
+            return base_target
+        multiplier = self.ecology.creature_population_multiplier(
+            pool.region_key,
+            definition,
+        )
+        return max(1, min(pool.max_population, round(base_target * multiplier)))
 
     def _regional_definition(
         self,
@@ -833,10 +849,7 @@ class MobileNpcManager:
 
         for pool in sorted(self.regional_pools.values(), key=lambda value: value.key):
             common_states = self._regional_states(pool.key, include_rare=False)
-            target = min(
-                pool.max_population,
-                pool.base_population + player_counts.get(pool.region_key, 0),
-            )
+            target = self.target_population(pool, player_rooms)
 
             if len(common_states) > target:
                 removable = [
@@ -961,6 +974,12 @@ class MobileNpcManager:
 
         pool_key = self._regional_instance_to_pool.get(npc_key)
         if pool_key is not None:
+            # A regional kill feeds back into the persistent ecology before the
+            # individual is removed. Hunting therefore changes future carrying
+            # capacity instead of being an isolated respawn timer.
+            pool = self.regional_pools.get(pool_key)
+            if self.ecology is not None and pool is not None:
+                self.ecology.record_creature_kill(pool.region_key, state.definition)
             # The population manager, not this instance, owns replacement. This
             # makes a kill reduce the real regional count and guarantees refill
             # observes its cooldown and out-of-sight placement rules.
