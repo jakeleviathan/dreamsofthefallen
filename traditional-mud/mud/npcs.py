@@ -27,13 +27,20 @@ NPC_TICK_SECONDS = 5.0
 # keeps a modest shared population alive across a habitat, increases it gently
 # when more players are hunting there, and refills kills out of sight instead of
 # popping a replacement into the room where a creature just died.
-REGIONAL_BASE_POPULATION = 3
-REGIONAL_MAX_POPULATION = 8
-REGIONAL_REFILL_TICKS = 6  # 30 real seconds at the default five-second NPC tick.
-REGIONAL_HABITAT_DEPTH = 3
+# Ordinary wilderness is now deliberately huntable rather than a collection of
+# isolated one-creature rooms. A healthy regional species supports a small
+# population, while room-level density is allowed to form real packs deeper in
+# the habitat. Ecology still owns the final carrying capacity.
+REGIONAL_BASE_POPULATION = 5
+REGIONAL_MAX_POPULATION = 14
+REGIONAL_REFILL_TICKS = 4  # 20 real seconds; replacements still arrive out of sight.
+REGIONAL_HABITAT_DEPTH = 4
 REGIONAL_RARE_ROLL_PER_TICK = 0.0025
 REGIONAL_RARE_TTL_TICKS = 72  # Six minutes before an unseen rare moves on.
-REGIONAL_MAX_DYNAMIC_PER_ROOM = 2
+REGIONAL_MAX_DYNAMIC_PER_ROOM = 6
+REGIONAL_HUNT_PRESSURE_CAP = 20.0
+REGIONAL_HUNT_PRESSURE_DECAY_PER_TICK = 0.25
+REGIONAL_RARE_PRESSURE_CHANCE_PER_POINT = 0.006
 
 _REGIONAL_BLOCKED_TAG_TOKENS = (
     "tutorial",
@@ -372,11 +379,22 @@ class MobileNpcManager:
         self._regional_instance_to_pool: dict[str, str] = {}
         self._regional_next_spawn_tick: dict[str, int] = {}
         self._rare_expiry_tick: dict[str, int] = {}
+        # Depth is measured inward from a habitat edge. It lets the same regional
+        # population read as scattered wildlife near roads and 2-6 creature packs
+        # deeper in dedicated hunting country.
+        self._regional_room_depths: dict[str, dict[str, int]] = {}
+        # Sustained hunting makes unusual regional predators more likely without
+        # spawning one directly in front of a player.
+        self._regional_hunt_pressure: dict[str, float] = {}
         self._regional_serial = 0
         self._tick_index = 0
         self.reset()
         self.validate_definitions()
         self.regional_pools = self._build_regional_spawn_definitions()
+        self._regional_room_depths = {
+            key: self._build_regional_room_depths(pool)
+            for key, pool in self.regional_pools.items()
+        }
         self._regional_next_spawn_tick = {key: 0 for key in self.regional_pools}
         self._seed_regional_population()
 
@@ -397,8 +415,13 @@ class MobileNpcManager:
                 current_room_key=definition.spawn_room_key,
                 patrol_index=patrol_index,
             )
+        self._regional_hunt_pressure.clear()
         if self.regional_pools:
             self._regional_next_spawn_tick = {key: 0 for key in self.regional_pools}
+            self._regional_room_depths = {
+                key: self._build_regional_room_depths(pool)
+                for key, pool in self.regional_pools.items()
+            }
             self._seed_regional_population()
 
     def validate_definitions(self) -> None:
@@ -569,6 +592,92 @@ class MobileNpcManager:
             )
         return pools
 
+    def _build_regional_room_depths(
+        self,
+        pool: RegionalSpawnDefinition,
+    ) -> dict[str, int]:
+        """Measure how far each habitat room sits from the regional fringe.
+
+        A fringe room is any habitat room with an exit beyond this particular
+        habitat. Breadth-first distance from that fringe becomes a simple,
+        deterministic "deeper hunting ground" signal without requiring every
+        authored room to gain new metadata.
+        """
+        habitat = set(pool.room_keys)
+        if not habitat:
+            return {}
+
+        fringe = {
+            room_key
+            for room_key in habitat
+            if any(
+                destination not in habitat
+                for destination in getattr(ROOMS_BY_KEY.get(room_key), "exits", {}).values()
+            )
+        }
+        if not fringe:
+            fringe = set(pool.source_room_keys).intersection(habitat)
+        if not fringe:
+            fringe = {min(habitat)}
+
+        depths = {room_key: 0 for room_key in fringe}
+        queue: deque[str] = deque(sorted(fringe))
+        while queue:
+            room_key = queue.popleft()
+            room = ROOMS_BY_KEY.get(room_key)
+            if room is None:
+                continue
+            next_depth = depths[room_key] + 1
+            for destination in room.exits.values():
+                if destination not in habitat or destination in depths:
+                    continue
+                depths[destination] = next_depth
+                queue.append(destination)
+
+        return {
+            room_key: min(REGIONAL_HABITAT_DEPTH, depths.get(room_key, 0))
+            for room_key in habitat
+        }
+
+    def _pool_room_capacity(self, pool_key: str, room_key: str) -> int:
+        depth = self._regional_room_depths.get(pool_key, {}).get(room_key, 0)
+        # The fringe remains readable at two roaming threats. Every step inward
+        # adds room for another creature until deep hunting rooms can hold six.
+        return max(2, min(REGIONAL_MAX_DYNAMIC_PER_ROOM, 2 + depth))
+
+    def hunting_room_depth(self, room_key: str) -> int:
+        return max(
+            (
+                self._regional_room_depths.get(pool.key, {}).get(room_key, 0)
+                for pool in self.regional_pools.values()
+                if room_key in pool.room_keys
+            ),
+            default=0,
+        )
+
+    def hunting_room_capacity(self, room_key: str) -> int:
+        return max(
+            (
+                self._pool_room_capacity(pool.key, room_key)
+                for pool in self.regional_pools.values()
+                if room_key in pool.room_keys
+            ),
+            default=0,
+        )
+
+    def is_hunting_room(self, room_key: str) -> bool:
+        return any(room_key in pool.room_keys for pool in self.regional_pools.values())
+
+    def note_hunt_kill(self, region_key: str, amount: float = 1.0) -> None:
+        """Build short-lived regional pressure from sustained combat grinding."""
+        if not region_key:
+            return
+        current = self._regional_hunt_pressure.get(region_key, 0.0)
+        self._regional_hunt_pressure[region_key] = min(
+            REGIONAL_HUNT_PRESSURE_CAP,
+            current + max(0.0, float(amount)),
+        )
+
     def _regional_states(
         self,
         pool_key: str,
@@ -594,9 +703,21 @@ class MobileNpcManager:
             if pool.region_key == region_key
             for room_key in pool.room_keys
         }
-        # Roughly two mobile threats per useful habitat room, with hard global
-        # bounds so dense authored regions never turn into a CPU or combat flood.
-        return max(6, min(24, len(habitat_rooms) * 2))
+        # Capacity follows the room-by-room hunt profile, but a hard regional
+        # ceiling keeps a very large authored wilderness from becoming a CPU or
+        # combat flood. Deep rooms may concentrate several of these creatures.
+        room_capacity = sum(
+            max(
+                (
+                    self._pool_room_capacity(pool.key, room_key)
+                    for pool in self.regional_pools.values()
+                    if pool.region_key == region_key and room_key in pool.room_keys
+                ),
+                default=2,
+            )
+            for room_key in habitat_rooms
+        )
+        return max(8, min(48, room_capacity))
 
     def target_population(
         self,
@@ -750,20 +871,36 @@ class MobileNpcManager:
         if not hidden:
             return None
 
-        counts: dict[str, int] = {room_key: 0 for room_key in hidden}
-        for state in self._regional_states(pool.key):
-            if state.current_room_key in counts:
-                counts[state.current_room_key] += 1
+        same_pool_counts = {room_key: 0 for room_key in hidden}
+        total_counts = {room_key: 0 for room_key in hidden}
+        for state in self.states.values():
+            if not state.active or state.current_room_key not in total_counts:
+                continue
+            if state.definition.key in self._regional_instance_to_pool:
+                total_counts[state.current_room_key] += 1
+            if self._regional_instance_to_pool.get(state.definition.key) == pool.key:
+                same_pool_counts[state.current_room_key] += 1
 
-        below_soft_cap = [
+        candidates = [
             room_key
             for room_key in hidden
-            if counts[room_key] < REGIONAL_MAX_DYNAMIC_PER_ROOM
+            if total_counts[room_key] < self._pool_room_capacity(pool.key, room_key)
         ]
-        candidates = below_soft_cap or hidden
-        lowest = min(counts[room_key] for room_key in candidates)
-        least_crowded = [room_key for room_key in candidates if counts[room_key] == lowest]
-        return rng.choice(least_crowded)
+        if not candidates:
+            return None
+
+        # Prefer deeper habitat and modest same-species clusters. Unlike the old
+        # "always choose the emptiest room" rule, this creates recognizable
+        # hunting pockets while the per-room cap prevents unreadable swarms.
+        weights: list[float] = []
+        for room_key in candidates:
+            depth = self._regional_room_depths.get(pool.key, {}).get(room_key, 0)
+            pack_size = same_pool_counts[room_key]
+            weights.append(
+                (1.0 + depth * 1.35)
+                * (1.0 + min(3, pack_size) * 0.70)
+            )
+        return rng.choices(candidates, weights=weights, k=1)[0]
 
     def _spawn_regional_instance(
         self,
@@ -913,7 +1050,20 @@ class MobileNpcManager:
                 if state.active
             ):
                 continue
-            if rng.random() > REGIONAL_RARE_ROLL_PER_TICK:
+            hunt_pressure = self._regional_hunt_pressure.get(region_key, 0.0)
+            # The authored/base roll keeps its literal meaning (so 1.0 really is
+            # guaranteed, which is useful for deterministic admin/tests). Hunting
+            # pressure contributes a separately capped bonus and can never push a
+            # production roll above certainty.
+            pressure_bonus = min(
+                0.12,
+                hunt_pressure * REGIONAL_RARE_PRESSURE_CHANCE_PER_POINT,
+            )
+            rare_chance = min(
+                1.0,
+                REGIONAL_RARE_ROLL_PER_TICK + pressure_bonus,
+            )
+            if rng.random() > rare_chance:
                 continue
             region_pools = [
                 pool for pool in self.regional_pools.values()
@@ -933,12 +1083,19 @@ class MobileNpcManager:
             )
             if current_region_population >= self._region_dynamic_cap(region_key):
                 continue
-            self._spawn_regional_instance(
+            spawned_rare = self._spawn_regional_instance(
                 rng.choice(region_pools),
                 player_room_keys=player_rooms,
                 rng=rng,
                 rare=True,
             )
+            if spawned_rare is not None:
+                # Finding a rare relieves some of the accumulated pressure while
+                # leaving enough momentum for a long hunt to stay interesting.
+                self._regional_hunt_pressure[region_key] = max(
+                    0.0,
+                    hunt_pressure - 8.0,
+                )
 
     def npcs_in_room(self, room_key: str) -> tuple[MobileNpcState, ...]:
         return tuple(
@@ -993,6 +1150,8 @@ class MobileNpcManager:
             # individual is removed. Hunting therefore changes future carrying
             # capacity instead of being an isolated respawn timer.
             pool = self.regional_pools.get(pool_key)
+            if pool is not None:
+                self.note_hunt_kill(pool.region_key)
             if self.ecology is not None and pool is not None:
                 self.ecology.record_creature_kill(pool.region_key, state.definition)
             # The population manager, not this instance, owns replacement. This
@@ -1063,21 +1222,27 @@ class MobileNpcManager:
         if state.definition.key not in self._regional_instance_to_pool:
             return legal
 
-        canonical_key = state.definition.combat_enemy_key
-        if canonical_key is None:
+        pool_key = self._regional_instance_to_pool.get(state.definition.key)
+        if pool_key is None:
             return legal
-        occupied_by_same_species = {
-            other.current_room_key
-            for other in self.states.values()
-            if other is not state
-            and other.active
-            and other.definition.combat_enemy_key == canonical_key
-        }
-        uncrowded = [
-            move for move in legal
-            if move[1] not in occupied_by_same_species
+
+        # Regional creatures are allowed to form packs now, but no move may push
+        # a room beyond the depth-sensitive hunting capacity.
+        destination_counts: dict[str, int] = {}
+        for other in self.states.values():
+            if not other.active:
+                continue
+            if other.definition.key not in self._regional_instance_to_pool:
+                continue
+            destination_counts[other.current_room_key] = (
+                destination_counts.get(other.current_room_key, 0) + 1
+            )
+        return [
+            move
+            for move in legal
+            if destination_counts.get(move[1], 0)
+            < self._pool_room_capacity(pool_key, move[1])
         ]
-        return uncrowded or legal
 
     @staticmethod
     def _shortest_path(origin: str, destination: str, allowed: set[str]) -> list[str] | None:
@@ -1138,6 +1303,61 @@ class MobileNpcManager:
             return None
         direction, destination = rng.choice(legal)
         return direction, destination, "prowling"
+
+    def _choose_regional_roam_move(
+        self,
+        state: MobileNpcState,
+        rng: random.Random,
+    ) -> tuple[str, str, str] | None:
+        pool_key = self._regional_instance_to_pool.get(state.definition.key)
+        if pool_key is None:
+            return None
+
+        current_same_pool = sum(
+            1
+            for other in self.states.values()
+            if other.active
+            and other.current_room_key == state.current_room_key
+            and self._regional_instance_to_pool.get(other.definition.key) == pool_key
+        )
+        current_total = sum(
+            1
+            for other in self.states.values()
+            if other.active
+            and other.current_room_key == state.current_room_key
+            and other.definition.key in self._regional_instance_to_pool
+        )
+        current_capacity = self._pool_room_capacity(pool_key, state.current_room_key)
+
+        # A small group tends to remain together instead of immediately diffusing
+        # back into one-creature rooms. Overfull rooms never receive this pause.
+        if (
+            2 <= current_same_pool <= 4
+            and current_total < current_capacity
+            and rng.random() < 0.55
+        ):
+            return None
+
+        legal = self._legal_moves(state)
+        if not legal:
+            return None
+
+        weights: list[float] = []
+        for _direction, destination in legal:
+            depth = self._regional_room_depths.get(pool_key, {}).get(destination, 0)
+            same_pool = sum(
+                1
+                for other in self.states.values()
+                if other.active
+                and other.current_room_key == destination
+                and self._regional_instance_to_pool.get(other.definition.key) == pool_key
+            )
+            weights.append(
+                (1.0 + depth * 1.10)
+                * (1.0 + min(3, same_pool) * 0.55)
+            )
+        direction, destination = rng.choices(legal, weights=weights, k=1)[0]
+        return direction, destination, "roaming"
 
     def _choose_return_move(self, state: MobileNpcState, hour: int) -> tuple[str, str, str] | None:
         definition = state.definition
@@ -1209,6 +1429,15 @@ class MobileNpcManager:
         self._tick_index += 1
         self._reconcile_regional_populations(player_rooms, rng)
 
+        # Hunting pressure is temporary. A region settles back toward its normal
+        # rare-spawn rate if players stop fighting there.
+        for region_key, pressure in tuple(self._regional_hunt_pressure.items()):
+            remaining = max(0.0, pressure - REGIONAL_HUNT_PRESSURE_DECAY_PER_TICK)
+            if remaining <= 0.0:
+                self._regional_hunt_pressure.pop(region_key, None)
+            else:
+                self._regional_hunt_pressure[region_key] = remaining
+
         for state in tuple(self.states.values()):
             definition = state.definition
 
@@ -1261,12 +1490,15 @@ class MobileNpcManager:
                 elif definition.behavior == BEHAVIOR_ROUTINE:
                     selected = self._choose_routine_move(state, current_hour)
                 else:
-                    legal = self._legal_moves(state)
-                    if legal:
-                        direction, destination = rng.choice(legal)
-                        selected = direction, destination, "roaming"
+                    if definition.key in self._regional_instance_to_pool:
+                        selected = self._choose_regional_roam_move(state, rng)
                     else:
-                        selected = None
+                        legal = self._legal_moves(state)
+                        if legal:
+                            direction, destination = rng.choice(legal)
+                            selected = direction, destination, "roaming"
+                        else:
+                            selected = None
 
             if selected is None:
                 continue
