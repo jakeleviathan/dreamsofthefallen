@@ -110,6 +110,38 @@ class VoteRewardTests(unittest.TestCase):
         self.assertEqual(state, "cooldown")
         self.assertGreater(details["remaining"], 0)
 
+    def test_live_claim_can_cross_utc_month_rollover_without_losing_first_new_month_vote(self):
+        temp, db, _admin, first, _second, first_char, _alt, _second_char = self._world()
+        self.addCleanup(temp.cleanup)
+
+        # Use a realistic September 30 UTC epoch so the claim is tagged 2026-09.
+        armed_at = 1790812740
+        _ingest_observation(db, "2026-09", 12, armed_at - 10)
+        state, _ = _create_pending_claim(db, first.id, first_char.id, 12, now=armed_at)
+        self.assertEqual(state, "created")
+
+        # The first October observation would normally be only a baseline. Because
+        # a still-live September claim exists, one new-month vote is retained.
+        created = _ingest_observation(db, "2026-10", 1, armed_at + 120)
+        self.assertEqual(created, 1)
+        awards = allocate_pending_claims(db, now=armed_at + 121)
+        self.assertEqual(len(awards), 1)
+        self.assertEqual(awards[0]["account_id"], first.id)
+
+    def test_expired_pending_claim_is_not_reported_as_active(self):
+        temp, db, _admin, first, _second, first_char, _alt, _second_char = self._world()
+        self.addCleanup(temp.cleanup)
+
+        _ingest_observation(db, "1970-01", 4, 100)
+        state, _ = _create_pending_claim(db, first.id, first_char.id, 4, now=100)
+        self.assertEqual(state, "created")
+        with db.connect() as conn:
+            conn.execute(
+                "UPDATE mudverse_vote_claims SET expires_at_epoch = ? WHERE account_id = ?",
+                (1, first.id),
+            )
+        self.assertIsNone(_account_status(db, first.id)["pending"])
+
     def test_vote_count_correction_never_reissues_old_ordinals(self):
         temp, db, *_ = self._world()
         self.addCleanup(temp.cleanup)
