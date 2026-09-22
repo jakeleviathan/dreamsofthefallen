@@ -819,6 +819,30 @@ async def _confirm_trade(session) -> None:
         if participant is None:
             await _cancel_trade_for(character.id, "Trade canceled: a player disconnected.")
             return
+
+        selected_waymaps = tuple(trade.waymap_offers.get(participant_id, ()))
+        offered_waymap_count = int(trade.offers[participant_id].get("marked_waymap", 0))
+        if selected_waymaps or offered_waymap_count:
+            from mud.waymaps import list_character_waymaps
+
+            held_waymap_ids = {
+                row.id for row in list_character_waymaps(session.database, participant_id)
+            }
+            if offered_waymap_count != len(selected_waymaps):
+                trade.confirmed.clear()
+                await session.send(
+                    "Trade cannot be confirmed: a Waymap offer no longer matches its numbered selections. "
+                    "Remove it and add the intended Waymap again.\r\n"
+                )
+                return
+            if any(waymap_id not in held_waymap_ids for waymap_id in selected_waymaps):
+                trade.confirmed.clear()
+                await session.send(
+                    "Trade cannot be confirmed: one of the numbered Waymaps is no longer carried by its owner. "
+                    "Review the offer and confirm again.\r\n"
+                )
+                return
+
         for item_key, quantity in trade.offers[participant_id].items():
             error = _transferability_error(participant, item_key, quantity)
             if error:
