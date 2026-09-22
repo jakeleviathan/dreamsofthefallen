@@ -35,6 +35,69 @@ def test_ecology_flora_requires_healthy_growth(monkeypatch):
     assert scenes._ecology_flora("room", "region") == ()
 
 
+def test_surface_flora_requires_a_surface_habitat(monkeypatch):
+    class State:
+        vegetation = 0.9
+        resource_stock = 0.9
+
+    monkeypatch.setattr(scenes.ASTRALIS_ECOLOGY, "state_for", lambda _region: State())
+    monkeypatch.setattr(
+        scenes.ASTRALIS_ECOLOGY,
+        "_region_biomes",
+        {"waymeet_frontier": "temperate grassland"},
+    )
+
+    outdoor = scenes._ecology_flora(
+        "briarcut_fields",
+        "waymeet_frontier",
+        tags=("field", "frontier"),
+    )
+    cave = scenes._ecology_flora(
+        "broken_lantern_cave",
+        "waymeet_frontier",
+        tags=("cave",),
+    )
+    interior = scenes._ecology_flora(
+        "frontier_storehouse",
+        "waymeet_frontier",
+        tags=("interior", "field"),
+    )
+
+    assert outdoor and outdoor[0][0] == "wildflowers"
+    assert cave == ()
+    assert interior == ()
+
+
+def test_wetlands_and_explicit_fungal_caves_get_the_right_flora(monkeypatch):
+    class State:
+        vegetation = 0.9
+        resource_stock = 0.9
+
+    monkeypatch.setattr(scenes.ASTRALIS_ECOLOGY, "state_for", lambda _region: State())
+    monkeypatch.setattr(
+        scenes.ASTRALIS_ECOLOGY,
+        "_region_biomes",
+        {
+            "swamp_region": "swamp",
+            "cave_region": "temperate hills",
+        },
+    )
+
+    marsh = scenes._ecology_flora(
+        "reed_bank",
+        "swamp_region",
+        tags=("marsh", "wilderness"),
+    )
+    fungal_cave = scenes._ecology_flora(
+        "damp_grotto",
+        "cave_region",
+        tags=("cave", "fungal"),
+    )
+
+    assert marsh and marsh[0][0] == "marsh_bloom"
+    assert fungal_cave and fungal_cave[0][0] == "glowcap"
+
+
 def test_scene_targets_accept_natural_look_aliases():
     assert scenes._target_matches("at wildflower", "wildflowers", "Wildflowers")
     assert scenes._target_matches("blood", "blood:wolf", "Pool of Blood", "blood")
@@ -71,7 +134,11 @@ def test_picking_wildflowers_creates_inventory_and_depletes_local_patch(tmp_path
         def scene(self, room_key):
             if room_key != "flora_room":
                 return None
-            return SimpleNamespace(key="flora_room", region_key="flora_region")
+            return SimpleNamespace(
+                key="flora_room",
+                region_key="flora_region",
+                tags=("field", "wilderness"),
+            )
 
     session = Session()
     world = World()
