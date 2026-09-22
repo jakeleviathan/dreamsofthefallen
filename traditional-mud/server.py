@@ -86,6 +86,7 @@ from mud.profession_expansion import install_profession_expansion_content, insta
 from mud.planar_realms import install_planar_realms_runtime
 from mud.item_naming import install_authored_item_names
 from mud.item_heritage import install_item_heritage_runtime
+from mud.faction_reputation import install_faction_reputation_runtime
 from mud.command_guide import install_command_guide_runtime
 from mud.alpha_ux import install_alpha_ux_runtime
 from mud.modern_client_experience import install_modern_client_runtime
@@ -302,6 +303,11 @@ install_corpse_loot_runtime(PlayerSession)
 # physical corpse loot, so crafted maker marks, special discovery editions, and
 # ownership chains all share one persistent registry.
 install_item_heritage_runtime(PlayerSession, WORLD)
+# Faction memory sits outside individual quest scripts. Standing records whether
+# a faction likes or distrusts a character; renown records how widely their name
+# is known. Quest deeds, allied/rival word-of-mouth, NPC tone, and local merchant
+# treatment all share this persistent layer.
+install_faction_reputation_runtime(PlayerSession, Database, WORLD)
 
 # Discovery/help, alpha friction telemetry, and modern-client presentation sit
 # outside the assembled content stack. The alpha layer wraps the command guide so
