@@ -568,7 +568,7 @@ def install_content_foundry_runtime(player_session_class, world_service):
                 return
             _grant_flag(self, flag)
             self.database.add_item(self.character.id, MOONWORK_TOKEN, 1)
-            await self.send("The mechanism completes one perfect orbit. A tiny silver disk drops from a hidden slot: a Clockwork Moon Token. No quest updates. No fanfare.\r\n")
+            await self.send("The mechanism completes one perfect orbit. A tiny silver disk drops from a hidden slot: a Clockwork Moon Token. Then the little sphere goes still again.\r\n")
             return
 
         if room == WAYMEET_BROKEN_MILE_KEY and verb in {"search ditch", "search roadside ditch"}:
@@ -585,10 +585,10 @@ def install_content_foundry_runtime(player_session_class, world_service):
             return
 
         if verb in {"content", "delves", "dungeons nearby"}:
-            await self.send("\r\n--- New Delves ---\r\n")
+            await self.send("\r\n--- Nearby Delves ---\r\n")
             for dungeon in DUNGEONS:
                 await self.send(f"{dungeon.name} (levels {dungeon.level_band[0]}-{dungeon.level_band[1]}) - {dungeon.hook}\r\n")
-            await self.send("These are places, not a daily checklist. Their entrances are in the existing Greywake/Veyra world.\r\n")
+            await self.send("Their entrances lie out in Greywake and Veyra; they remain where they are whether or not anyone visits them today.\r\n")
             return
 
         async def one_shot_prompt(_text=""):
