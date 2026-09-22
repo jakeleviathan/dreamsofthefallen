@@ -274,6 +274,14 @@ def transfer_item(
 
     ensure_item_location_storage(database)
     ensure_item_heritage_schema(database)
+
+    move_waymaps = None
+    if item_key == "marked_waymap":
+        from mud.waymaps import ensure_waymap_schema, move_location_instances_in_connection
+
+        ensure_waymap_schema(database)
+        move_waymaps = move_location_instances_in_connection
+
     if source.kind == "character" and is_special_item(item_key):
         ensure_special_inventory_item(database, int(source.key), item_key)
 
@@ -292,6 +300,29 @@ def transfer_item(
         available = location_item_quantity_in_connection(db, source, item_key)
         if available < quantity:
             return False
+
+        if move_waymaps is not None:
+            actor_character_id = None
+            if source.kind == "character":
+                actor_character_id = int(source.key)
+            elif destination.kind == "character":
+                actor_character_id = int(destination.key)
+            if source.kind == "character" and destination.kind == "room":
+                waymap_event = "dropped"
+            elif source.kind == "room" and destination.kind == "character":
+                waymap_event = "picked_up"
+            else:
+                waymap_event = "location_transfer"
+            if not move_waymaps(
+                db,
+                source=source,
+                destination=destination,
+                quantity=quantity,
+                actor_character_id=actor_character_id,
+                event_type=waymap_event,
+                note="Moved with the physical marked waymap.",
+            ):
+                return False
 
         _write_quantity(db, source, item_key, available - quantity)
         current = location_item_quantity_in_connection(db, destination, item_key)
