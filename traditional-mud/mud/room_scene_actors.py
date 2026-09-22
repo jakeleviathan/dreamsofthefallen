@@ -26,10 +26,28 @@ CREATE TABLE IF NOT EXISTS room_scene_actors (
 );
 CREATE INDEX IF NOT EXISTS idx_room_scene_actors_room
 ON room_scene_actors(room_key, expires_at_epoch);
+
+CREATE TABLE IF NOT EXISTS room_flora_harvest (
+    room_key TEXT NOT NULL,
+    flora_key TEXT NOT NULL,
+    astralis_day INTEGER NOT NULL,
+    picked_count INTEGER NOT NULL DEFAULT 0 CHECK (picked_count >= 0),
+    PRIMARY KEY (room_key, flora_key, astralis_day)
+);
+CREATE INDEX IF NOT EXISTS idx_room_flora_harvest_day
+ON room_flora_harvest(astralis_day, room_key);
 """
 
 
 @dataclass(frozen=True, slots=True)
+FLORA_DAILY_PICK_LIMIT = 3
+FLORA_ITEM_BY_KEY = {
+    "wildflowers": "wildflower",
+    "marsh_bloom": "marsh_bloom",
+    "glowcap": "glowcap",
+}
+
+
 class SceneActor:
     id: int
     room_key: str
@@ -142,6 +160,50 @@ def _ecology_flora(room_key: str, region_key: str) -> tuple[tuple[str, str, str]
     return (("wildflowers", "Wildflowers", "A few hardy wildflowers grow here among the grass."),)
 
 
+def _flora_picked_today(database, room_key: str, flora_key: str, astralis_day: int) -> int:
+    ensure_scene_storage(database)
+    with database.connect() as db:
+        row = db.execute(
+            """
+            SELECT picked_count
+            FROM room_flora_harvest
+            WHERE room_key = ? AND flora_key = ? AND astralis_day = ?
+            """,
+            (room_key, flora_key, int(astralis_day)),
+        ).fetchone()
+    return 0 if row is None else int(row["picked_count"])
+
+
+def _claim_flora_pick(database, room_key: str, flora_key: str, astralis_day: int) -> int | None:
+    """Atomically reserve one pick from a room's daily ambient-flora allowance."""
+
+    ensure_scene_storage(database)
+    with database.connect() as db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute(
+            """
+            SELECT picked_count
+            FROM room_flora_harvest
+            WHERE room_key = ? AND flora_key = ? AND astralis_day = ?
+            """,
+            (room_key, flora_key, int(astralis_day)),
+        ).fetchone()
+        current = 0 if row is None else int(row["picked_count"])
+        if current >= FLORA_DAILY_PICK_LIMIT:
+            return None
+        updated = current + 1
+        db.execute(
+            """
+            INSERT INTO room_flora_harvest (room_key, flora_key, astralis_day, picked_count)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(room_key, flora_key, astralis_day) DO UPDATE SET
+                picked_count = excluded.picked_count
+            """,
+            (room_key, flora_key, int(astralis_day), updated),
+        )
+    return updated
+
+
 def scene_lines(session, world_service, room_key: str, region_key: str) -> tuple[str, ...]:
     database = session.database
     weather = world_service.state.weather_for(region_key)
@@ -160,7 +222,10 @@ def scene_lines(session, world_service, room_key: str, region_key: str) -> tuple
         for actor in list_scene_actors(database, room_key, weather=weather):
             lines.append(f"{actor.name} - {actor.description}")
 
-    for _key, name, description in _ecology_flora(room_key, region_key):
+    day = ASTRALIS_CLOCK.now().day_number
+    for flora_key, name, description in _ecology_flora(room_key, region_key):
+        if usable_database and _flora_picked_today(database, room_key, flora_key, day) >= FLORA_DAILY_PICK_LIMIT:
+            continue
         lines.append(f"{name} - {description}")
     return tuple(lines)
 
@@ -230,13 +295,47 @@ async def _handle_flora(session, world_service, verb: str, target: str) -> bool:
         if state is not None and state.resource_stock < 0.30:
             await session.send(f"The {name.lower()} here are too sparse to pick without stripping the patch.\r\n")
             return True
-        # Picking is intentionally an ecological interaction, not free inventory
-        # duplication. Existing gathering remains authoritative for valuable goods.
+
+        database = getattr(session, "database", None)
+        character = getattr(session, "character", None)
+        item_key = FLORA_ITEM_BY_KEY.get(key)
+        if database is None or character is None or item_key is None:
+            await session.send("You cannot gather that safely right now.\r\n")
+            return True
+
+        from mud.inventory_capacity import can_receive_item
+
+        if not can_receive_item(database, character.id, item_key, 1):
+            await session.send(
+                f"You leave the {name.lower()} where they are; your inventory has no room for another picked item.\r\n"
+            )
+            return True
+
+        day = ASTRALIS_CLOCK.now().day_number
+        picked_count = _claim_flora_pick(database, scene.key, key, day)
+        if picked_count is None:
+            await session.send(
+                f"The {name.lower()} patch has been picked enough for today. You leave the remaining growth to recover.\r\n"
+            )
+            return True
+
+        database.add_item(character.id, item_key, 1)
         if state is not None:
             state.resource_stock = max(0.0, state.resource_stock - 0.012)
             state.vegetation = max(0.0, state.vegetation - 0.006)
             ASTRALIS_ECOLOGY._write(scene.region_key, state)
-        await session.send(f"You pick one of the {name.lower()}, leaving the rest of the patch intact.\r\n")
+
+        item = crafting.ITEMS_BY_KEY.get(item_key)
+        item_name = item.name if item is not None else name.rstrip("s")
+        if picked_count >= FLORA_DAILY_PICK_LIMIT:
+            await session.send(
+                f"You pick one {item_name} and add it to your inventory. "
+                "That is all this patch can spare today, so you leave the rest to recover.\r\n"
+            )
+        else:
+            await session.send(
+                f"You pick one {item_name} and add it to your inventory, leaving the rest of the patch intact.\r\n"
+            )
         return True
     return False
 
