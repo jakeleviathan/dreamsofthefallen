@@ -13,6 +13,11 @@ from mud.corpse_decay import corpse_decay_label
 from mud.corpse_loot import list_corpses
 from mud.database import Database
 from mud.discovery_engine import discovery_tell
+from mud.collective_wiki import (
+    record_actor_discovery,
+    record_character_known_state,
+    record_room_view,
+)
 from mud.faction_reputation import regional_reaction
 from mud.enemy_lifecycle import iter_static_enemy_spawns, static_enemy_available
 from mud.exploration_map import install_exploration_map_runtime
@@ -109,6 +114,15 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     if scene is None:
         return ()
 
+    # A room enters the communal wiki only when a real player receives its
+    # rendered view. Inventory and quest knowledge are sampled here too, so
+    # things acquired through any subsystem can join the same discovery ledger.
+    try:
+        record_room_view(session, world_service, view=view, scene=scene)
+        record_character_known_state(session)
+    except Exception:
+        pass
+
     lines: list[str] = [
         "",
         _paint(TITLE, view.name),
@@ -150,11 +164,44 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         notable.append(
             f"  {_paint(BUSINESS, business.name)} - {business.storefront_description}"
         )
+        try:
+            record_actor_discovery(
+                session,
+                category="business",
+                entry_key=business.key,
+                name=business.name,
+                description=business.storefront_description,
+                room_key=view.key,
+                region_key=scene.region_key,
+            )
+        except Exception:
+            pass
     if has_style_atelier:
         notable.append(
             f"  {_paint(BUSINESS, PAVO_ATELIER_NAME)} - mirrors, draped garment forms, "
             "and a brass placard offering permanent STYLE COPY service"
         )
+        try:
+            record_actor_discovery(
+                session,
+                category="business",
+                entry_key="pavos_impossible_atelier",
+                name=PAVO_ATELIER_NAME,
+                description="Mirrors, draped garment forms, and a brass placard offering permanent STYLE COPY service.",
+                room_key=view.key,
+                region_key=scene.region_key,
+            )
+            record_actor_discovery(
+                session,
+                category="person",
+                entry_key="pavo",
+                name=PAVO_NAME,
+                description=PAVO_SHORT_DESCRIPTION,
+                room_key=view.key,
+                region_key=scene.region_key,
+            )
+        except Exception:
+            pass
 
     if notable:
         lines.extend(["", _section_header("Notable", FEATURE), *notable])
@@ -171,6 +218,18 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         npc = NPCS_BY_KEY.get(npc_key)
         if npc is not None:
             people.append(f"  {_paint(NPC, npc.name)} - {npc.short_description}")
+            try:
+                record_actor_discovery(
+                    session,
+                    category="person",
+                    entry_key=npc_key,
+                    name=npc.name,
+                    description=npc.short_description,
+                    room_key=view.key,
+                    region_key=scene.region_key,
+                )
+            except Exception:
+                pass
     if has_style_atelier:
         people.append(f"  {_paint(NPC, PAVO_NAME)} - {PAVO_SHORT_DESCRIPTION}")
 
@@ -181,14 +240,31 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             definition = state.definition
             aggressive = bool(getattr(definition, "aggressive", False))
             attackable = bool(getattr(definition, "attackable", False))
+            actor_key = str(getattr(definition, "key", "") or definition.name).strip().casefold().replace(" ", "_")
             if aggressive:
                 hostile_records.append((definition.name, definition.short_description))
+                actor_category = "creature"
             elif attackable:
                 creature_records.append((definition.name, definition.short_description))
-            elif definition.name not in static_names:
-                people.append(
-                    f"  {_paint(NPC, definition.name)} - {definition.short_description}"
+                actor_category = "creature"
+            else:
+                actor_category = "person"
+                if definition.name not in static_names:
+                    people.append(
+                        f"  {_paint(NPC, definition.name)} - {definition.short_description}"
+                    )
+            try:
+                record_actor_discovery(
+                    session,
+                    category=actor_category,
+                    entry_key=actor_key,
+                    name=definition.name,
+                    description=definition.short_description,
+                    room_key=view.key,
+                    region_key=scene.region_key,
                 )
+            except Exception:
+                pass
 
     if people:
         lines.extend(["", _section_header("People", NPC), *people])
@@ -216,6 +292,18 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             database=getattr(session, "database", None),
         ):
             creature_records.append((enemy.name, enemy.description))
+            try:
+                record_actor_discovery(
+                    session,
+                    category="creature",
+                    entry_key=enemy_key,
+                    name=enemy.name,
+                    description=enemy.description,
+                    room_key=view.key,
+                    region_key=scene.region_key,
+                )
+            except Exception:
+                pass
 
     def append_actor_section(label: str, color: str, records: list[tuple[str, str]]) -> None:
         if not records:

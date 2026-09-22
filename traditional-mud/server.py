@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 # Compatibility for an older Dwarf first-shift symbol typo that only appears
 # when the fully assembled live WORLD is passed back through that installer.
@@ -107,6 +108,7 @@ from mud.enemy_targeting import install_enemy_targeting_runtime
 from mud.health_regeneration import install_health_regeneration_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
+from mud.collective_wiki import start_collective_wiki_server
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
 from mud.world import ROOMS_BY_KEY
@@ -388,10 +390,29 @@ install_player_mail_runtime(PlayerSession)
 
 HOST = "0.0.0.0"
 PORT = 4000
+WIKI_HOST = os.environ.get("DOTF_WIKI_HOST", "0.0.0.0")
+try:
+    WIKI_PORT = int(os.environ.get("DOTF_WIKI_PORT", "8080"))
+except ValueError:
+    WIKI_PORT = 8080
+WIKI_ENABLED = os.environ.get("DOTF_WIKI_ENABLED", "1").strip().casefold() not in {"0", "false", "no", "off"}
 
 async def main() -> None:
+    wiki = None
+    if WIKI_ENABLED:
+        try:
+            wiki = start_collective_wiki_server(Database(), host=WIKI_HOST, port=WIKI_PORT)
+            print(f"Living wiki listening on http://{WIKI_HOST}:{WIKI_PORT}")
+        except OSError as exc:
+            # A web-port problem must never take the Telnet game down with it.
+            print(f"Living wiki could not bind {WIKI_HOST}:{WIKI_PORT}: {exc}")
+
     mud = MudServer(host=HOST, port=PORT)
-    await mud.run()
+    try:
+        await mud.run()
+    finally:
+        if wiki is not None:
+            wiki.close()
 
 if __name__ == "__main__":
     try:
