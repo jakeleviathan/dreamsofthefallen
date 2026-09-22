@@ -1488,6 +1488,20 @@ def install_living_world_runtime(player_session_class) -> None:
             metadata = getattr(self, "_living_event_enemy", None)
             enemy_key = enemy.definition.key
             await previous_finish_enemy(self, enemy)
+            if enemy_key in BOSS_FIRSTS:
+                try:
+                    from mud.item_heritage import record_equipped_boss_victory
+
+                    record_equipped_boss_victory(
+                        self.database,
+                        character_id=int(self.character.id),
+                        enemy_key=enemy_key,
+                        enemy_name=BOSS_FIRSTS[enemy_key],
+                    )
+                except Exception:
+                    # Item history is a narrative enhancement. A provenance
+                    # write must never invalidate an otherwise completed kill.
+                    pass
             await _record_boss_first(self, enemy_key)
             await _record_daily_threat_completion(self, enemy, metadata)
             if metadata is not None and metadata[0] == id(enemy):
