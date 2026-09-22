@@ -145,6 +145,18 @@ def resolve_mobile_talk_target(session, target: str):
 
 
 async def _speak_generic(session, npc) -> None:
+    try:
+        from mud.faction_reputation import faction_for_region, get_reputation, npc_reaction
+        from mud.world import ROOMS_BY_KEY
+        room = ROOMS_BY_KEY.get(str(getattr(npc, "room_key", "") or ""))
+        faction_key = faction_for_region(getattr(room, "region_key", None))
+        if faction_key and getattr(session, "character", None) is not None:
+            standing, renown = get_reputation(session.database, session.character.id, faction_key)
+            reaction = npc_reaction(standing, renown)
+            if reaction:
+                await session.send(f"\r\n{npc.name} {reaction}.\r\n")
+    except Exception:
+        pass
     dialogue = tuple(getattr(npc, "dialogue", ()) or ())
     await session.send("\r\n")
     if dialogue:
