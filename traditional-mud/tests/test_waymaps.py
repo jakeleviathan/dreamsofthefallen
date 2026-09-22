@@ -17,6 +17,7 @@ from mud.ground_items import (
 from mud.merchants import COMMON_MERCHANT_STOCK_BY_KEY
 from mud.item_heritage import (
     HeritageHolder,
+    ensure_item_heritage_schema,
     move_holder_to_owner_in_connection,
     move_owned_to_holder_in_connection,
 )
@@ -326,6 +327,7 @@ class WaymapTests(unittest.TestCase):
         assert row is not None
 
         market_holder = HeritageHolder.veyra_market(77)
+        ensure_item_heritage_schema(database)
         with database.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             db.execute(
