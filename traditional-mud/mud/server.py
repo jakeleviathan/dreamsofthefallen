@@ -183,7 +183,7 @@ from mud.seasonal_runtime import install_seasonal_runtime
 from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
 from mud.room_runtime import WORLD, install_room_runtime
-from mud.world import NPCS_BY_KEY
+from mud.world import NPCS_BY_KEY, ROOMS_BY_KEY
 from mud.npc_conversation import install_generic_npc_conversation_runtime
 from mud.room_state_storage import load_world_room_state, save_world_room_state
 
