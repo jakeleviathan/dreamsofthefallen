@@ -24,6 +24,7 @@ from mud.goblin_swamp import (
     _handle_swamp_gathering,
 )
 from mud.inventory_inspection import install_inventory_inspection_runtime
+from mud.room_scene_actors import scene_lines
 from mud.mana_regeneration import install_mana_regeneration_runtime
 from mud.movement_system import install_movement_runtime
 from mud.partial_target_matching import install_partial_target_matching_runtime
@@ -144,6 +145,11 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
 
     if notable:
         lines.extend(["", _section_header("Notable", FEATURE), *notable])
+
+    scene_contents = scene_lines(session, world_service, view.key, scene.region_key)
+    if scene_contents:
+        lines.extend(["", _section_header("On the Ground", CORPSE)])
+        lines.extend(f"  {_paint(CORPSE, detail)}" for detail in scene_contents)
 
     people: list[str] = []
     creature_records: list[tuple[str, str]] = []
