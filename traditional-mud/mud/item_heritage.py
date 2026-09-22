@@ -604,6 +604,23 @@ def _move_waymap_sidecar_in_connection(
     """
     if item_key != "marked_waymap" or quantity <= 0:
         return
+
+    # A few older core transfer paths already mirror Waymap identity directly.
+    # Keep those paths authoritative while this shared hook covers the richer
+    # holder types (Veyra vault/market and living storage/display). This makes
+    # the sidecar safe during the migration without moving one map twice.
+    if event_type in {"dropped", "picked_up", "looted", "transferred", "trade"}:
+        if source.kind in {"character", "room", "container"} and destination.kind in {
+            "character", "room", "container"
+        }:
+            return
+    if (
+        source.kind == "character"
+        and destination.kind == "retired"
+        and event_type in {"merchant_sale", "consumed"}
+    ):
+        return
+
     from mud.waymaps import move_location_instances_in_connection as move_waymap_instances
 
     moved = move_waymap_instances(
