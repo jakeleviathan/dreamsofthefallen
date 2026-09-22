@@ -20,6 +20,7 @@ from mud.content_density import (
     ODDJOBS,
     RARE_CREATURES,
     WORLD_BOSSES,
+    _dungeon_target_matches,
 )
 from mud.iconic_items import ICONIC_ITEMS
 
@@ -93,6 +94,18 @@ class ContentDensityTests(unittest.TestCase):
         self.assertEqual(len({item.key for item in ICONIC_ITEMS}), 90)
         self.assertEqual({item.level_band for item in ICONIC_ITEMS}, {"early", "mid", "deep"})
         self.assertFalse(any("iconic" in item.name.lower() for item in ICONIC_ITEMS))
+
+    def test_density_dungeon_entrances_accept_obvious_short_names(self):
+        by_key = {seed.key: seed for seed in DUNGEON_SEEDS}
+
+        self.assertTrue(_dungeon_target_matches(by_key["small_saint"], "chapel"))
+        self.assertTrue(_dungeon_target_matches(by_key["small_saint"], "small saint"))
+        self.assertTrue(_dungeon_target_matches(by_key["salt_king"], "larder"))
+        self.assertTrue(_dungeon_target_matches(by_key["red_door"], "red door"))
+        self.assertTrue(_dungeon_target_matches(by_key["broken_observatory"], "observatory"))
+        self.assertTrue(_dungeon_target_matches(by_key["rootcourt"], "warrens"))
+        self.assertTrue(_dungeon_target_matches(by_key["brass_lung"], "foundry"))
+        self.assertTrue(_dungeon_target_matches(by_key["white_room"], "annex"))
 
     def test_production_server_assembles_foundry_density_before_presentation(self):
         root = Path(__file__).resolve().parents[1]
