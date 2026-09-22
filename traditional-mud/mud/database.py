@@ -577,6 +577,12 @@ class Database:
         ensure_item_heritage_schema(self)
         if is_special_item(item_key):
             ensure_special_inventory_item(self, character_id, item_key)
+        retire_waymaps = None
+        if item_key == "marked_waymap":
+            from mud.waymaps import ensure_waymap_schema, retire_owned_waymaps_in_connection
+
+            ensure_waymap_schema(self)
+            retire_waymaps = retire_owned_waymaps_in_connection
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -584,6 +590,14 @@ class Database:
                 (character_id, item_key),
             ).fetchone()
             if row is None or int(row["quantity"]) < quantity:
+                return False
+            if retire_waymaps is not None and not retire_waymaps(
+                db,
+                character_id=character_id,
+                quantity=quantity,
+                event_type="merchant_sale",
+                note="Sold to an ordinary merchant.",
+            ):
                 return False
             remaining = int(row["quantity"]) - quantity
             if remaining:
@@ -781,6 +795,12 @@ class Database:
         ensure_item_heritage_schema(self)
         if is_special_item(item_key):
             ensure_special_inventory_item(self, character_id, item_key)
+        retire_waymaps = None
+        if item_key == "marked_waymap":
+            from mud.waymaps import ensure_waymap_schema, retire_owned_waymaps_in_connection
+
+            ensure_waymap_schema(self)
+            retire_waymaps = retire_owned_waymaps_in_connection
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -788,6 +808,14 @@ class Database:
                 (character_id, item_key),
             ).fetchone()
             if row is None or int(row["quantity"]) < quantity:
+                return False
+            if retire_waymaps is not None and not retire_waymaps(
+                db,
+                character_id=character_id,
+                quantity=quantity,
+                event_type="consumed",
+                note="Consumed or expended by its owner.",
+            ):
                 return False
             new_quantity = int(row["quantity"]) - quantity
             if new_quantity == 0:
