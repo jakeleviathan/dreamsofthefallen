@@ -28,6 +28,7 @@ from mud.item_heritage import (
 )
 from mud.merchants import MerchantDefinition, MerchantStockEntry
 from mud.room_presentation import render_room_lines
+from mud.room_scene_actors import _handle_flora
 from mud.sols import _local_sale_price, _merchant_wares_lines, _regional_price_multiplier
 from mud.world_data import REGIONS
 
@@ -267,6 +268,11 @@ class WorldSystemIntegrationTests(unittest.TestCase):
             self.assertEqual(str(equipped_events[0]["event_type"]), "boss_victory")
             self.assertIn("[boss:integration_boss]", str(equipped_events[0]["note"]))
             self.assertEqual(spare_events, [])
+
+    def test_ambient_flora_uses_the_shared_ecology_accounting(self) -> None:
+        source = inspect.getsource(_handle_flora)
+        self.assertIn("ASTRALIS_ECOLOGY.record_harvest", source)
+        self.assertNotIn("ASTRALIS_ECOLOGY._write", source)
 
     def test_room_renderer_keeps_the_cross_system_bridges(self) -> None:
         source = inspect.getsource(render_room_lines)
