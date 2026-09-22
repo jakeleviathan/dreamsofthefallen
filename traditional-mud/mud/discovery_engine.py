@@ -385,6 +385,20 @@ async def _apply_discovery(
 
     await session.send("\r\n" + definition.text.rstrip() + "\r\n")
 
+    # The public wiki learns only what a player has actually uncovered. Keep
+    # this downstream of the successful discovery write so source definitions
+    # never leak undiscovered secrets into the web surface.
+    try:
+        from mud.collective_wiki import record_hidden_discovery
+        record_hidden_discovery(
+            session,
+            getattr(session, "_discovery_world_service", None),
+            definition,
+            trigger=trigger,
+        )
+    except Exception:
+        pass
+
     reward = max(0, int(definition.experience_reward))
     if reward:
         try:
