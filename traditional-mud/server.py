@@ -96,6 +96,7 @@ from mud.room_presentation import install_room_presentation_runtime
 from mud.ground_items import install_ground_items_runtime
 from mud.room_scene_actors import install_room_scene_runtime
 from mud.ecology import install_ecology_runtime
+from mud.discovery_engine import install_discovery_runtime
 from mud.npc_name_audit import validate_unique_npc_names
 from mud.quest_npc_audit import validate_quest_talk_references
 from mud.npc_conversation import validate_static_npc_talkability
@@ -358,6 +359,10 @@ install_room_scene_runtime(PlayerSession, WORLD)
 # region can reveal changing tracks, growth, and resource pressure without
 # exposing simulation numbers. CONDITIONS or TRACKS gives a deeper local read.
 install_ecology_runtime(PlayerSession, WORLD)
+# Hidden discoveries are deliberately outside room/ecology presentation. The
+# engine sees the fully assembled Astralis world, but exposes no completion
+# counter or checklist; secrets surface only through play and world conditions.
+install_discovery_runtime(PlayerSession, WORLD)
 
 # Enemy targeting sits immediately outside the complete authored ability stack.
 # TARGET selects without aggro; an enemy-targeted hotbar ability promotes that
