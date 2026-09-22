@@ -269,7 +269,7 @@ def transfer_item(
         ensure_item_heritage_schema,
         ensure_special_inventory_item,
         is_special_item,
-        move_location_instances_in_connection,
+        move_location_instances_in_connection as move_heritage_instances_in_connection,
     )
 
     ensure_item_location_storage(database)
@@ -277,10 +277,13 @@ def transfer_item(
 
     move_waymaps = None
     if item_key == "marked_waymap":
-        from mud.waymaps import ensure_waymap_schema, move_location_instances_in_connection
+        from mud.waymaps import (
+            ensure_waymap_schema,
+            move_location_instances_in_connection as move_waymap_instances_in_connection,
+        )
 
         ensure_waymap_schema(database)
-        move_waymaps = move_location_instances_in_connection
+        move_waymaps = move_waymap_instances_in_connection
 
     if source.kind == "character" and is_special_item(item_key):
         ensure_special_inventory_item(database, int(source.key), item_key)
@@ -327,7 +330,7 @@ def transfer_item(
         _write_quantity(db, source, item_key, available - quantity)
         current = location_item_quantity_in_connection(db, destination, item_key)
         _write_quantity(db, destination, item_key, current + quantity)
-        changed_heritage = move_location_instances_in_connection(
+        changed_heritage = move_heritage_instances_in_connection(
             db,
             source=heritage_holder(source),
             destination=heritage_holder(destination),
