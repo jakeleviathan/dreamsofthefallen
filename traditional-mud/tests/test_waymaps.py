@@ -245,6 +245,33 @@ class WaymapTests(unittest.TestCase):
         self.assertEqual([item.id for item in buyer_maps], [row.id])
         self.assertEqual(waymaps.audit_waymaps(database), ())
 
+    def test_generic_atomic_exchange_still_works_with_waymap_extension_loaded(self):
+        temp, database, account, first = self._database()
+        self.addCleanup(temp.cleanup)
+        second = database.create_character(
+            account.id,
+            "GenericBuyer",
+            "dwarf",
+            "brute",
+            CharacterStats(might=5, grace=5, love=5, mind=5, hp=5),
+        )
+        database.add_item(first.id, "iron_ore", 2)
+        database.add_item(second.id, "raw_cotton", 3)
+
+        self.assertTrue(
+            exchange_items(
+                database,
+                first.id,
+                {"iron_ore": 2},
+                second.id,
+                {"raw_cotton": 3},
+            )
+        )
+        self.assertEqual(database.item_quantity(first.id, "iron_ore"), 0)
+        self.assertEqual(database.item_quantity(second.id, "iron_ore"), 2)
+        self.assertEqual(database.item_quantity(first.id, "raw_cotton"), 3)
+        self.assertEqual(database.item_quantity(second.id, "raw_cotton"), 0)
+
     def test_atomic_trade_can_select_the_exact_numbered_waymap(self):
         temp, database, account, first = self._database()
         self.addCleanup(temp.cleanup)
