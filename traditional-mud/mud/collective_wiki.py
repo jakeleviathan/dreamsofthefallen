@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 from dataclasses import dataclass
@@ -263,7 +264,15 @@ def record_room_view(session, world_service, *, view=None, scene=None) -> bool:
     facts: list[WikiFact] = []
     description = str(getattr(view, "description", "") or "").strip()
     if description:
-        facts.append(WikiFact("description", "Description", description, "room_view"))
+        description_id = hashlib.sha1(description.encode("utf-8")).hexdigest()[:12]
+        facts.append(
+            WikiFact(
+                f"description:{description_id}",
+                "Observed Description",
+                description,
+                "room_view",
+            )
+        )
 
     for feature in tuple(getattr(view, "features", ()) or ()):
         feature_key = _clean(getattr(feature, "key", "")) or _clean(getattr(feature, "name", ""))
@@ -287,7 +296,15 @@ def record_room_view(session, world_service, *, view=None, scene=None) -> bool:
         text = f"An exit leads {direction.upper()}."
         if destination_name:
             text = f"The {direction.upper()} exit leads toward {destination_name}."
-        facts.append(WikiFact(f"exit:{direction.casefold()}", f"Exit: {direction.upper()}", text, "room_exit"))
+        route_id = hashlib.sha1((direction.casefold() + "|" + destination_name).encode("utf-8")).hexdigest()[:10]
+        facts.append(
+            WikiFact(
+                f"exit:{direction.casefold()}:{route_id}",
+                f"Exit: {direction.upper()}",
+                text,
+                "room_exit",
+            )
+        )
 
     region_key = _clean(getattr(scene, "region_key", ""))
     return record_wiki_entry(
