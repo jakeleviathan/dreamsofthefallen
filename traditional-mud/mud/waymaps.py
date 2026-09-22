@@ -553,9 +553,13 @@ def resolve_character_waymap(
     return unique[0], None
 
 
-def _route_context(session) -> PlayerRoomContext:
+def _route_context(session, world_service, room_key: str) -> PlayerRoomContext:
     character = session.character
     moment = ASTRALIS_CLOCK.now()
+    weather = "clear"
+    scene = world_service.scene(room_key)
+    if scene is not None:
+        weather = world_service.state.weather_for(scene.region_key)
     return PlayerRoomContext(
         character_id=int(character.id),
         race_key=character.race or "",
@@ -563,6 +567,7 @@ def _route_context(session) -> PlayerRoomContext:
         level=int(character.level),
         character_flags=frozenset(session.database.list_flags(character.id)),
         hour=int(moment.hour),
+        weather=weather,
     )
 
 
@@ -578,7 +583,6 @@ def shortest_route(world_service, session, start_room_key: str, destination_room
     if world_service.scene(start) is None or world_service.scene(goal) is None:
         return None
 
-    context = _route_context(session)
     queue: deque[str] = deque((start,))
     previous: dict[str, tuple[str, str] | None] = {start: None}
 
@@ -587,6 +591,7 @@ def shortest_route(world_service, session, start_room_key: str, destination_room
         scene = world_service.scene(room_key)
         if scene is None:
             continue
+        context = _route_context(session, world_service, room_key)
         for exit_definition in scene.exits:
             resolution = world_service.resolve_exit(room_key, exit_definition.direction, context)
             if not resolution.allowed or resolution.exit is None:
