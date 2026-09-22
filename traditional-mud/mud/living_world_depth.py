@@ -619,7 +619,7 @@ async def _pin_note(session, text: str) -> None:
     if character is None:
         return
     if character.current_room not in living.SOCIAL_HUBS:
-        await session.send("Player notes can only be pinned at the Waymeet Commonhouse or Veyra Public Hearth.\r\n")
+        await session.send("Traveler notes can only be pinned at the Waymeet Commonhouse or Veyra Public Hearth.\r\n")
         return
     moment = ASTRALIS_CLOCK.now()
     clean = _clean_note(text)
@@ -686,7 +686,7 @@ async def _remove_note(session, note_id: int) -> None:
 async def _show_player_notes(session) -> None:
     character = getattr(session, "character", None)
     if character is None or character.current_room not in living.SOCIAL_HUBS:
-        await session.send("Player notes are read at the Waymeet Commonhouse or Veyra Public Hearth.\r\n")
+        await session.send("Traveler notes are read at the Waymeet Commonhouse or Veyra Public Hearth.\r\n")
         return
     moment = ASTRALIS_CLOCK.now()
     rows = _active_notes(session, character.current_room, moment.day_number)
