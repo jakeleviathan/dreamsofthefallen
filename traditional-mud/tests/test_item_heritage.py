@@ -15,6 +15,9 @@ from mud.item_heritage import (
     ensure_special_inventory_item,
     owned_heritage_rows,
     render_provenance,
+    render_serial_history,
+    record_notable_event,
+    provenance_by_serial,
     special_found_total,
 )
 from mud.item_locations import (
@@ -242,6 +245,51 @@ class ItemHeritageTests(unittest.TestCase):
         text = "".join(session.outputs)
         self.assertIn("Maker's mark: Prime's #1 Cotton Hood", text)
         self.assertIn("Use PROVENANCE <item> for the full heritage record.", text)
+
+    def test_destroyed_special_item_keeps_permanent_identity_and_history(self):
+        temp, database, prime, _ = self._database()
+        self.addCleanup(temp.cleanup)
+        SPECIAL_ITEM_KEYS.add("iron_ore")
+        database.add_item(prime.id, "iron_ore", 1)
+        row = owned_heritage_rows(database, prime.id, "iron_ore", carried_only=True)[0]
+        serial = str(row["serial"])
+
+        self.assertTrue(database.consume_item(prime.id, "iron_ore", 1))
+
+        data = provenance_by_serial(database, serial)
+        self.assertIsNotNone(data)
+        self.assertEqual(data["holder_kind"], "retired")
+        self.assertEqual(int(data["discovery_ordinal"]), 1)
+        self.assertEqual(special_found_total(database, "iron_ore"), 1)
+
+        text = render_serial_history(database, serial)
+        self.assertIn("no longer in circulation", text)
+        self.assertIn("consumed", text.lower())
+        self.assertIn("Discovery: #1 of 1 ever found.", text)
+
+    def test_significant_events_can_be_appended_without_changing_identity(self):
+        temp, database, prime, _ = self._database()
+        self.addCleanup(temp.cleanup)
+        self._craft_cotton_hood(database, prime.id)
+        row = owned_heritage_rows(database, prime.id, "cotton_hood", carried_only=True)[0]
+        serial = str(row["serial"])
+
+        self.assertTrue(
+            record_notable_event(
+                database,
+                serial=serial,
+                event_type="world boss victory",
+                actor_character_id=prime.id,
+                note="Worn when the Stagheart Saint fell.",
+            )
+        )
+
+        data = provenance_by_serial(database, serial)
+        self.assertEqual(str(data["serial"]), serial)
+        text = render_serial_history(database, serial)
+        self.assertIn("world boss victory", text.lower())
+        self.assertIn("Stagheart Saint", text)
+        self.assertIn("Prime's #1 Cotton Hood", text)
 
     def test_ordinary_found_items_do_not_get_instance_provenance(self):
         temp, database, prime, _ = self._database()

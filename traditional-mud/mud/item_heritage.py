@@ -475,6 +475,91 @@ def chronicle_first_discoveries(database, entries: Iterable[dict[str, object]]) 
         )
 
 
+def record_notable_event(
+    database,
+    *,
+    serial: str,
+    event_type: str,
+    actor_character_id: int | None = None,
+    note: str = "",
+) -> bool:
+    """Append a significant story event to an existing item's permanent ledger.
+
+    This is intentionally not a generic pickup log. Callers should use it for
+    events worth remembering, such as reforging, named-boss kills, exhibitions,
+    museum donations, awards, or other authored milestones.
+    """
+    ensure_item_heritage_schema(database)
+    normalized_type = _normalize(event_type).replace(" ", "_")
+    if not normalized_type:
+        raise ValueError("A provenance event type is required.")
+    with database.connect() as db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute(
+            """
+            SELECT *
+            FROM item_heritage_instances
+            WHERE UPPER(serial) = UPPER(?)
+            """,
+            (serial.strip(),),
+        ).fetchone()
+        if row is None:
+            return False
+        holder = HeritageHolder(
+            str(row["holder_kind"]),
+            str(row["holder_key"]),
+            None if row["holder_reservation"] is None else int(row["holder_reservation"]),
+        )
+        owner = None if row["current_owner_character_id"] is None else int(row["current_owner_character_id"])
+        _event_in_connection(
+            db,
+            instance_id=int(row["id"]),
+            event_type=normalized_type,
+            actor_character_id=actor_character_id,
+            from_owner_character_id=owner,
+            to_owner_character_id=owner,
+            from_holder=holder,
+            to_holder=holder,
+            note=note.strip(),
+        )
+    return True
+
+
+def provenance_by_serial(database, serial: str) -> dict[str, object] | None:
+    """Return one heritage identity even after the physical item is gone."""
+    ensure_item_heritage_schema(database)
+    with database.connect() as db:
+        row = db.execute(
+            "SELECT * FROM item_heritage_instances WHERE UPPER(serial) = UPPER(?)",
+            (serial.strip(),),
+        ).fetchone()
+        if row is None:
+            return None
+        events = db.execute(
+            """
+            SELECT * FROM item_heritage_events
+            WHERE instance_id = ?
+            ORDER BY id
+            """,
+            (int(row["id"]),),
+        ).fetchall()
+    return {
+        "id": int(row["id"]),
+        "serial": str(row["serial"]),
+        "item_key": str(row["item_key"]),
+        "holder_kind": str(row["holder_kind"]),
+        "holder_key": str(row["holder_key"]),
+        "owner_character_id": row["current_owner_character_id"],
+        "maker_character_id": row["maker_character_id"],
+        "maker_name": row["maker_name"],
+        "maker_sequence": row["maker_sequence"],
+        "discovery_ordinal": row["discovery_ordinal"],
+        "discovery_exact": bool(row["discovery_exact"]),
+        "origin_text": str(row["origin_text"] or ""),
+        "events": [dict(event) for event in events],
+    }
+
+
 def special_found_total(database, item_key: str) -> int:
     ensure_item_heritage_schema(database)
     with database.connect() as db:
@@ -1083,6 +1168,59 @@ def resolve_inventory_item(session, target: str) -> tuple[str | None, str | None
     return matches[0], None
 
 
+def render_serial_history(database, serial: str) -> str:
+    """Render a ledger by permanent serial, including retired/destroyed items."""
+    data = provenance_by_serial(database, serial)
+    if data is None:
+        return "No item with that provenance serial exists in the registry."
+
+    lines = [f"--- Item History: {item_name(str(data['item_key']))} ---"]
+    lines.append(f"Serial: {data['serial']}")
+    if data["maker_sequence"] is not None:
+        lines.append(
+            f"Maker's mark: {data['maker_name']}'s #{int(data['maker_sequence'])} "
+            f"{item_name(str(data['item_key']))}"
+        )
+    if data["discovery_ordinal"] is not None:
+        total = special_found_total(database, str(data["item_key"]))
+        if bool(data["discovery_exact"]):
+            lines.append(
+                f"Discovery: #{int(data['discovery_ordinal'])} of {total} ever found."
+            )
+        else:
+            lines.append(
+                f"Registry position: #{int(data['discovery_ordinal'])} of {total} known; "
+                "exact original discovery order predates the registry."
+            )
+    if data["origin_text"]:
+        lines.append(f"Origin: {data['origin_text']}")
+
+    holder_kind = str(data["holder_kind"])
+    if holder_kind == "retired":
+        lines.append(
+            "Current state: no longer in circulation. Its identity and history remain permanently recorded."
+        )
+    else:
+        lines.append(f"Current custody: {holder_kind.replace('_', ' ')}.")
+
+    events = data["events"]
+    if events:
+        lines.append("History:")
+        for event in events:
+            from_name = event.get("from_owner_name") or "unowned"
+            to_name = event.get("to_owner_name") or "unowned"
+            ownership = ""
+            if from_name != to_name:
+                ownership = f" {from_name} -> {to_name}."
+            note = str(event.get("note") or "").strip()
+            lines.append(
+                f"  Day {int(event['astralis_day'])}: "
+                f"{str(event['event_type']).replace('_', ' ')}."
+                f"{ownership}" + (f" {note}" if note else "")
+            )
+    return "\r\n".join(lines)
+
+
 def resolve_owned_serial(database, character_id: int, target: str) -> tuple[str, str] | None:
     ensure_item_heritage_schema(database)
     wanted = target.strip().upper()
@@ -1265,6 +1403,12 @@ def install_item_heritage_runtime(player_session_class, world_service=None) -> N
                 for issue in issues[:100]:
                     await self.send(" - " + issue + "\r\n")
             return
+
+        if normalized.startswith("history "):
+            target = stripped[len("history "):].strip()
+            if target:
+                await self.send("\r\n" + render_serial_history(self.database, target) + "\r\n")
+                return
 
         prefix = None
         if normalized.startswith("provenance "):
