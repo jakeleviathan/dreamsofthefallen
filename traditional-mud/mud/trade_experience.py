@@ -891,6 +891,7 @@ async def _trade_help(session) -> None:
         "TRADE <player> - invite someone in your room\r\n"
         "TRADE ACCEPT / TRADE DECLINE - answer an invitation\r\n"
         "TRADE ADD [qty] <item> / TRADE REMOVE [qty] <item> - edit your offer\r\n"
+        "TRADE ADD WAYMAP #<number> / TRADE REMOVE WAYMAP #<number> - choose an exact destination map from WAYMAPS\r\n"
         "TRADE STATUS - review both offers and confirmations\r\n"
         "TRADE CONFIRM - approve the current offer\r\n"
         "TRADE CANCEL - abort with nothing moved\r\n"
