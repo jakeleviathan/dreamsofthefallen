@@ -19,6 +19,7 @@ from mud.room_engine import (
     ExitDefinition,
     PlayerRoomContext,
     RoomAugmentation,
+    ViewCondition,
     WorldService,
 )
 from mud.stats import CharacterStats
@@ -85,6 +86,7 @@ def simple_world() -> WorldService:
                     destination_key="c",
                     name="C",
                     door_key="b_to_c",
+                    condition=ViewCondition(weather=("clear",)),
                     failure_text="The test gate is closed.",
                 ),
             ),
@@ -298,6 +300,25 @@ class WaymapTests(unittest.TestCase):
         self.assertIsNone(waymaps.shortest_route(world, session, "a", "c"))
 
         world.state.set_door("b_to_c", open=True, locked=True)
+        self.assertIsNone(waymaps.shortest_route(world, session, "a", "c"))
+
+    def test_shortest_route_respects_live_weather_conditions(self):
+        temp, database, _account, character = self._database()
+        self.addCleanup(temp.cleanup)
+        world = simple_world()
+        fake_character = SimpleNamespace(
+            id=character.id,
+            race="human",
+            character_class="wizard",
+            level=1,
+            current_room="a",
+        )
+        session = WaymapSession(database, fake_character, world)
+
+        world.state.set_weather("test", "clear")
+        self.assertEqual(waymaps.shortest_route(world, session, "a", "c"), ("east", "east"))
+
+        world.state.set_weather("test", "storm")
         self.assertIsNone(waymaps.shortest_route(world, session, "a", "c"))
 
     def test_autowalk_moves_room_by_room_and_records_completed_journey(self):
