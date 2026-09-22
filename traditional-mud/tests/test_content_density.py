@@ -20,6 +20,7 @@ from mud.content_density import (
     ODDJOBS,
     RARE_CREATURES,
     WORLD_BOSSES,
+    _dungeon_leave_command_matches,
     _dungeon_target_matches,
 )
 from mud.iconic_items import ICONIC_ITEMS
@@ -106,6 +107,24 @@ class ContentDensityTests(unittest.TestCase):
         self.assertTrue(_dungeon_target_matches(by_key["rootcourt"], "warrens"))
         self.assertTrue(_dungeon_target_matches(by_key["brass_lung"], "foundry"))
         self.assertTrue(_dungeon_target_matches(by_key["white_room"], "annex"))
+
+    def test_density_dungeon_leave_commands_are_obvious_and_do_not_steal_exit_listing(self):
+        chapel = next(seed for seed in DUNGEON_SEEDS if seed.key == "small_saint")
+
+        self.assertTrue(_dungeon_leave_command_matches(chapel, "retreat"))
+        self.assertTrue(_dungeon_leave_command_matches(chapel, "out"))
+        self.assertTrue(_dungeon_leave_command_matches(chapel, "leave"))
+        self.assertTrue(_dungeon_leave_command_matches(chapel, "leave chapel"))
+        self.assertTrue(_dungeon_leave_command_matches(chapel, "exit chapel"))
+        self.assertTrue(_dungeon_leave_command_matches(chapel, "leave chapel of the small saint"))
+        self.assertFalse(_dungeon_leave_command_matches(chapel, "exit"))
+
+    def test_every_density_threshold_advertises_the_way_back_out(self):
+        rooms_by_key = {room.key: room for room in DENSITY_ROOMS}
+        for seed in DUNGEON_SEEDS:
+            threshold = rooms_by_key[f"density_{seed.key}_1"]
+            self.assertIn("OUT or RETREAT", threshold.description)
+            self.assertIn("route back outside", threshold.description.lower())
 
     def test_production_server_assembles_foundry_density_before_presentation(self):
         root = Path(__file__).resolve().parents[1]

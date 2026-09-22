@@ -259,7 +259,7 @@ def _build_rooms(seed: DungeonSeed) -> tuple[RoomDefinition, ...]:
     mini_key = f"density_{seed.key}_miniboss"
     boss_key = f"density_{seed.key}_boss"
     descriptions = (
-        f"The threshold of {seed.name} feels used rather than staged. Scuffs, discarded tools, and old repairs show that ordinary people once had reasons to come here.",
+        f"The threshold of {seed.name} feels used rather than staged. Scuffs, discarded tools, and old repairs show that ordinary people once had reasons to come here. The route back outside remains open behind you; OUT or RETREAT returns to the entrance road.",
         f"A working passage inside {seed.name} has become dangerous in a very local way; nothing here suggests the world is ending, only that this place has gone wrong.",
         f"The route narrows into a defended chamber. {seed.miniboss_name} has made this part of the ruin its own.",
         f"The dungeon finally explains its trick in physical terms. {seed.mechanic_text} The useful command is written into the scene: {seed.mechanic_command}.",
@@ -462,6 +462,27 @@ def _dungeon_target_matches(seed: DungeonSeed, target: str) -> bool:
     )
 
 
+def _dungeon_seed_for_room(room_key: str) -> DungeonSeed | None:
+    return next(
+        (seed for seed in DUNGEON_SEEDS if room_key in DUNGEON_ROOM_KEYS[seed.key]),
+        None,
+    )
+
+
+def _dungeon_leave_command_matches(seed: DungeonSeed, command: str) -> bool:
+    """Recognize obvious escape verbs without stealing bare EXIT from exit-listing."""
+
+    normalized = _normalize(command)
+    if normalized in {"retreat", "out", "leave", "leave dungeon", "exit dungeon"}:
+        return True
+
+    for prefix in ("leave ", "exit ", "retreat "):
+        if normalized.startswith(prefix):
+            target = normalized[len(prefix):].strip()
+            return _dungeon_target_matches(seed, target)
+    return False
+
+
 def _refresh_character(session) -> None:
     if session.character is None:
         return
@@ -602,13 +623,27 @@ def install_content_density_runtime(player_session_class, world_service) -> None
             )
             if seed:
                 self.database.set_character_room(self.character.id, DUNGEON_ROOM_KEYS[seed.key][0]); _refresh_character(self)
-                await self.send(f"You enter {seed.name}. RETREAT will return you to the road if you decide this was a bad idea.\r\n")
+                await self.send(
+                    f"You enter {seed.name}. OUT or RETREAT returns to the entrance road; "
+                    f"LEAVE {seed.name.upper()} works too.\r\n"
+                )
                 await self.show_current_room(); return
-        if norm == "retreat":
-            seed = next((s for s in DUNGEON_SEEDS if room in DUNGEON_ROOM_KEYS[s.key]), None)
-            if seed and self.active_enemy is None:
-                self.database.set_character_room(self.character.id, seed.anchor); _refresh_character(self)
-                await self.send("You retrace the route to familiar ground.\r\n"); await self.show_current_room(); return
+
+        dungeon_seed = _dungeon_seed_for_room(room)
+        if dungeon_seed and _dungeon_leave_command_matches(dungeon_seed, norm):
+            if self.active_enemy is not None:
+                await self.send(
+                    "You cannot safely leave the dungeon while you are actively fighting. "
+                    "Break combat first, then OUT or RETREAT.\r\n"
+                )
+                return
+            self.database.set_character_room(self.character.id, dungeon_seed.anchor)
+            _refresh_character(self)
+            await self.send(
+                f"You retrace the route out of {dungeon_seed.name} to familiar ground.\r\n"
+            )
+            await self.show_current_room()
+            return
         for seed in DUNGEON_SEEDS:
             if room == DUNGEON_ROOM_KEYS[seed.key][3] and norm == _normalize(seed.mechanic_command):
                 flag = f"density_solved_{seed.key}"
