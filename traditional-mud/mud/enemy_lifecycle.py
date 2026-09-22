@@ -3,6 +3,7 @@ from __future__ import annotations
 from time import time
 
 from mud.combat import ENEMIES_BY_KEY
+from mud.ecology import ASTRALIS_ECOLOGY
 from mud.world import ROOMS_BY_KEY
 
 
@@ -468,6 +469,16 @@ def install_enemy_lifecycle_runtime(player_session_class) -> None:
                 if callable(send_state):
                     await send_state()
                 return
+
+            room = ROOMS_BY_KEY.get(room_key or "")
+            if (
+                room is not None
+                and ASTRALIS_ECOLOGY.room_is_ecological(getattr(room, "tags", ()))
+            ):
+                ASTRALIS_ECOLOGY.record_creature_kill(
+                    str(getattr(room, "region_key", "") or ""),
+                    enemy.definition,
+                )
 
             await previous_finish_enemy_defeat(self, enemy)
 
