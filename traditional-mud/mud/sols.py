@@ -238,6 +238,7 @@ def _merchant_wares_lines(
     *,
     balance: int,
     target: str = "",
+    session=None,
 ) -> tuple[str, ...]:
     selected = merchants
     heading = "--- Merchant Wares ---"
@@ -258,7 +259,7 @@ def _merchant_wares_lines(
         for stock in merchant.stock:
             item = crafting.ITEMS_BY_KEY.get(stock.item_key)
             name = item.name if item is not None else stock.item_key.replace("_", " ").title()
-            lines.append(f"  {name} - {format_sols(_stock_price(stock))}")
+            lines.append(f"  {name} - {format_sols(_local_sale_price(session, stock))}")
 
     lines.extend(
         (
@@ -275,6 +276,45 @@ def _stock_price(stock: MerchantStockEntry) -> int:
     if stock.price_units is not None:
         return max(0, int(stock.price_units))
     return item_list_price(stock.item_key)
+
+
+def _regional_price_multiplier(session) -> float:
+    if session is None:
+        return 1.0
+    character = getattr(session, "character", None)
+    database = getattr(session, "database", None)
+    if character is None or database is None:
+        return 1.0
+    try:
+        from mud.faction_reputation import (
+            faction_for_region,
+            get_reputation,
+            merchant_price_multiplier,
+        )
+
+        room = legacy_world.ROOMS_BY_KEY.get(str(character.current_room or ""))
+        faction_key = faction_for_region(getattr(room, "region_key", None))
+        if not faction_key:
+            return 1.0
+        standing, _renown = get_reputation(database, character.id, faction_key)
+        return float(merchant_price_multiplier(standing))
+    except Exception:
+        return 1.0
+
+
+def _local_sale_price(session, stock: MerchantStockEntry) -> int:
+    base = _stock_price(stock)
+    if base <= 0:
+        return base
+    return max(1, int(round(base * _regional_price_multiplier(session))))
+
+
+def _local_buyback_price(session, item_key: str) -> int:
+    base = merchant_buyback_price(item_key)
+    if base <= 0:
+        return 0
+    multiplier = 2.0 - _regional_price_multiplier(session)
+    return max(1, int(round(base * multiplier)))
 
 
 def _stock_matches(
@@ -345,6 +385,7 @@ async def _show_shop(session, target: str = "") -> bool:
         merchants,
         balance=session.database.get_sols(session.character.id),
         target=target,
+        session=session,
     )
     await session.send("\r\n".join(lines) + "\r\n")
     return True
@@ -362,17 +403,7 @@ async def _buy(session, target: str) -> bool:
         return True
 
     merchant_name, _merchant, stock = match
-    unit_price = _stock_price(stock)
-    try:
-        from mud.faction_reputation import faction_for_region, get_reputation, merchant_price_multiplier
-        from mud.world import ROOMS_BY_KEY
-        room = ROOMS_BY_KEY.get(str(getattr(session.character, "current_room", "") or ""))
-        faction_key = faction_for_region(getattr(room, "region_key", None))
-        if faction_key:
-            standing, _renown = get_reputation(session.database, session.character.id, faction_key)
-            unit_price = max(1, int(round(unit_price * merchant_price_multiplier(standing))))
-    except Exception:
-        pass
+    unit_price = _local_sale_price(session, stock)
     total = unit_price * quantity
     if total <= 0:
         await session.send(f"{merchant_name} is not offering that item for sale right now.\r\n")
@@ -424,18 +455,7 @@ async def _sell(session, target: str) -> bool:
         await session.send((error or "You are not carrying that.") + "\r\n")
         return True
 
-    unit_price = merchant_buyback_price(item_key)
-    try:
-        from mud.faction_reputation import faction_for_region, get_reputation, merchant_price_multiplier
-        from mud.world import ROOMS_BY_KEY
-        room = ROOMS_BY_KEY.get(str(getattr(session.character, "current_room", "") or ""))
-        faction_key = faction_for_region(getattr(room, "region_key", None))
-        if faction_key and unit_price > 0:
-            standing, _renown = get_reputation(session.database, session.character.id, faction_key)
-            buy_mult = merchant_price_multiplier(standing)
-            unit_price = max(1, int(round(unit_price * (2.0 - buy_mult))))
-    except Exception:
-        pass
+    unit_price = _local_buyback_price(session, item_key)
     if unit_price <= 0:
         item = crafting.ITEMS_BY_KEY.get(item_key)
         name = item.name if item is not None else item_key.replace("_", " ").title()
@@ -480,11 +500,17 @@ async def _value(session, target: str) -> bool:
     if item_key is None:
         await session.send((error or "You are not carrying that.") + "\r\n")
         return True
-    price = merchant_buyback_price(item_key)
+    baseline_price = merchant_buyback_price(item_key)
+    price = _local_buyback_price(session, item_key)
     item = crafting.ITEMS_BY_KEY.get(item_key)
     name = item.name if item is not None else item_key.replace("_", " ").title()
     if price <= 0:
         await session.send(f"{name} has no ordinary merchant buyback value.\r\n")
+    elif price != baseline_price:
+        await session.send(
+            f"{name}: local merchant value {format_sols(price)} each. "
+            f"Your standing here adjusts the ordinary {format_sols(baseline_price)} buyback value.\r\n"
+        )
     else:
         await session.send(
             f"{name}: merchant value {format_sols(price)} each "

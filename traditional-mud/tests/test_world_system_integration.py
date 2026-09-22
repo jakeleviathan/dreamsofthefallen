@@ -14,14 +14,23 @@ from mud.discovery_engine import (
     discovery_tell,
 )
 from mud.equipment_system import ensure_equipment_storage, set_equipped_item
-from mud.faction_reputation import _quest_faction, adjust_reputation, regional_reaction
+from mud.faction_reputation import (
+    _quest_faction,
+    adjust_reputation,
+    faction_for_region,
+    regional_reaction,
+)
 from mud.item_heritage import (
     HeritageHolder,
     _insert_instance_in_connection,
     ensure_item_heritage_schema,
     record_equipped_boss_victory,
 )
+from mud.merchants import MerchantDefinition, MerchantStockEntry
 from mud.room_presentation import render_room_lines
+from mud.room_scene_actors import _handle_flora
+from mud.sols import _local_sale_price, _merchant_wares_lines, _regional_price_multiplier
+from mud.world_data import REGIONS
 
 
 class _WeatherState:
@@ -56,6 +65,23 @@ class WorldSystemIntegrationTests(unittest.TestCase):
             "priest",
         )
 
+    def test_every_major_start_region_is_connected_to_a_faction(self) -> None:
+        expected = {
+            "human_kingdom": "blackglass_crown",
+            "great_elf_forest": "green_circle",
+            "moon_peaks": "moon_courts",
+            "dwarven_mountain_industry": "chainmark_houses",
+            "junk_city_and_swamps": "brassgut_clans",
+            "troll_strongholds": "troll_tribes",
+            "desert_necropolis": "pale_houses",
+            "sporekin_underways": "rainroot_chorus",
+        }
+        major_regions = {region.key for region in REGIONS if region.is_major_start}
+        self.assertEqual(major_regions, set(expected))
+        for region_key, faction_key in expected.items():
+            with self.subTest(region_key=region_key):
+                self.assertEqual(faction_for_region(region_key), faction_key)
+
     def test_legacy_cultural_quests_map_to_their_home_factions(self) -> None:
         expectations = {
             "human_cathedral_summons": "blackglass_crown",
@@ -74,6 +100,44 @@ class WorldSystemIntegrationTests(unittest.TestCase):
                     faction_key,
                 )
         self.assertIsNone(_quest_faction(SimpleNamespace(key="waymeet_shared_errand")))
+
+    def test_shop_display_and_purchase_math_share_the_same_faction_price(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Database(Path(tmp) / "mud.db")
+            stored = self._character(database, "Pricing")
+            database.set_character_room(stored.id, "human_ashen_way")
+            character = database.get_character_by_name(stored.name)
+            self.assertIsNotNone(character)
+            adjust_reputation(
+                database,
+                stored.id,
+                "blackglass_crown",
+                standing=400,
+                renown=100,
+                reason="integration test",
+                propagate=False,
+            )
+            session = SimpleNamespace(database=database, character=character)
+            stock = MerchantStockEntry(
+                "integration_test_trade_good",
+                price_units=100,
+            )
+            merchant = MerchantDefinition(
+                "integration_test_merchant",
+                additional_stock=(stock,),
+                uses_common_stock=False,
+            )
+
+            self.assertEqual(_regional_price_multiplier(session), 0.92)
+            self.assertEqual(_local_sale_price(session, stock), 92)
+            lines = _merchant_wares_lines(
+                (("Test Merchant", merchant),),
+                balance=0,
+                session=session,
+            )
+            rendered = "\n".join(lines)
+            self.assertIn("Integration Test Trade Good - 9 embers, 2 sparks", rendered)
+            self.assertNotIn("Integration Test Trade Good - 1 flame", rendered)
 
     def test_faction_reputation_produces_a_local_world_reaction(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -204,6 +268,11 @@ class WorldSystemIntegrationTests(unittest.TestCase):
             self.assertEqual(str(equipped_events[0]["event_type"]), "boss_victory")
             self.assertIn("[boss:integration_boss]", str(equipped_events[0]["note"]))
             self.assertEqual(spare_events, [])
+
+    def test_ambient_flora_uses_the_shared_ecology_accounting(self) -> None:
+        source = inspect.getsource(_handle_flora)
+        self.assertIn("ASTRALIS_ECOLOGY.record_harvest", source)
+        self.assertNotIn("ASTRALIS_ECOLOGY._write", source)
 
     def test_room_renderer_keeps_the_cross_system_bridges(self) -> None:
         source = inspect.getsource(render_room_lines)

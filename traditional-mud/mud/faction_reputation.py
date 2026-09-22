@@ -15,11 +15,16 @@ class FactionDefinition:
 FACTIONS: tuple[FactionDefinition, ...] = (
     FactionDefinition("blackglass_crown", "Blackglass Crown", ("human_kingdom",), allies=("chainmark_houses",)),
     FactionDefinition("green_circle", "The Green Circle", ("great_elf_forest",), allies=("rainroot_chorus",)),
-    FactionDefinition("moon_courts", "The Moon Courts", ("moon_elf_highlands",)),
-    FactionDefinition("chainmark_houses", "Chainmark Trade Houses", ("dwarf_holds",), allies=("blackglass_crown",)),
-    FactionDefinition("brassgut_clans", "Brassgut Clans", ("goblin_swamps",)),
-    FactionDefinition("troll_tribes", "The Troll Tribes", ("troll_wilds",)),
-    FactionDefinition("pale_houses", "The Pale Houses", ("undead_necropolis",)),
+    FactionDefinition("moon_courts", "The Moon Courts", ("moon_peaks", "moon_elf_highlands")),
+    FactionDefinition(
+        "chainmark_houses",
+        "Chainmark Trade Houses",
+        ("dwarven_mountain_industry", "dwarf_holds"),
+        allies=("blackglass_crown",),
+    ),
+    FactionDefinition("brassgut_clans", "Brassgut Clans", ("junk_city_and_swamps", "goblin_swamps")),
+    FactionDefinition("troll_tribes", "The Troll Tribes", ("troll_strongholds", "troll_wilds")),
+    FactionDefinition("pale_houses", "The Pale Houses", ("desert_necropolis", "undead_necropolis")),
     FactionDefinition("rainroot_chorus", "The Rainroot Chorus", ("sporekin_underways",), allies=("green_circle",)),
 )
 FACTIONS_BY_KEY = {f.key: f for f in FACTIONS}
