@@ -35,12 +35,6 @@ PROFESSIONS: tuple[ProfessionDefinition, ...] = (
         primary_outputs=("cloth equipment",),
     ),
     ProfessionDefinition(
-        key="cartography",
-        name="Cartography",
-        description="Prepares durable waymaps that can be marked to real destinations and traded between travelers.",
-        primary_outputs=("blank waymaps", "marked waymaps"),
-    ),
-    ProfessionDefinition(
         key="enchanting",
         name="Enchanting",
         description="Creates or enhances magical equipment and effects.",
@@ -1015,14 +1009,14 @@ TAILORING_RECIPES_BY_KEY = {recipe.key: recipe for recipe in TAILORING_RECIPES}
 CARTOGRAPHY_RECIPES: tuple[CraftingRecipe, ...] = (
     CraftingRecipe(
         key="prepare_blank_waymap",
-        trade_skill_key="cartography",
+        trade_skill_key="tailoring",
         output_item_key="blank_waymap",
         minimum_skill=0,
         high_skill_quality_threshold=25,
         materials=(MaterialRequirement("cotton_cloth", 1),),
         output_quantity=1,
         station_key=None,
-        description="Cut, fold, and prepare sturdy cotton mapcloth into a blank waymap.",
+        description="Cut, edge, fold, and prepare sturdy cotton mapcloth into a blank waymap.",
         design_status="locked_waymap_system",
     ),
 )
