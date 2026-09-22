@@ -362,6 +362,64 @@ def move_location_instances_in_connection(
     return True
 
 
+def transfer_selected_waymaps_in_connection(
+    db,
+    *,
+    from_character_id: int,
+    to_character_id: int,
+    waymap_ids: tuple[int, ...] | list[int],
+    event_type: str = "trade",
+    note: str = "",
+) -> bool:
+    ids = tuple(dict.fromkeys(int(value) for value in waymap_ids))
+    if len(ids) != len(tuple(waymap_ids)) or not ids:
+        return False
+
+    source = WaymapHolder.character(from_character_id)
+    destination = WaymapHolder.character(to_character_id)
+    placeholders = ",".join("?" for _ in ids)
+    rows = db.execute(
+        f"""
+        SELECT *
+        FROM waymap_instances
+        WHERE id IN ({placeholders})
+          AND holder_kind = 'character'
+          AND holder_key = ?
+          AND holder_reservation IS NULL
+        ORDER BY id
+        """,
+        (*ids, str(int(from_character_id))),
+    ).fetchall()
+    if len(rows) != len(ids):
+        return False
+
+    found = {int(row["id"]) for row in rows}
+    if found != set(ids):
+        return False
+
+    for row in rows:
+        waymap_id = int(row["id"])
+        db.execute(
+            """
+            UPDATE waymap_instances
+            SET holder_kind = 'character', holder_key = ?, holder_reservation = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (str(int(to_character_id)), waymap_id),
+        )
+        _event(
+            db,
+            waymap_id=waymap_id,
+            event_type=event_type,
+            actor_character_id=int(from_character_id),
+            from_holder=source,
+            to_holder=destination,
+            note=note,
+        )
+    return True
+
+
 def transfer_owned_waymaps_in_connection(
     db,
     *,
