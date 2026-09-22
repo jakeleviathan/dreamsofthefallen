@@ -436,9 +436,15 @@ async def _handle_flora(session, world_service, verb: str, target: str) -> bool:
 
         database.add_item(character.id, item_key, 1)
         if state is not None:
-            state.resource_stock = max(0.0, state.resource_stock - 0.012)
-            state.vegetation = max(0.0, state.vegetation - 0.006)
-            ASTRALIS_ECOLOGY._write(scene.region_key, state)
+            # Ambient flora is part of the same regional ecology as formal
+            # HERBALISM nodes. Route the pick through the public ecology API so
+            # stock pressure, vegetation loss, disturbance, and persistence all
+            # stay in sync.
+            ASTRALIS_ECOLOGY.record_harvest(
+                scene.region_key,
+                skill_key="herbalism",
+                amount=1,
+            )
 
         item = crafting.ITEMS_BY_KEY.get(item_key)
         item_name = item.name if item is not None else name.rstrip("s")
