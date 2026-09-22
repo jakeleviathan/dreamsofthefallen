@@ -132,6 +132,67 @@ def _parse_quantity_target(argument: str) -> tuple[int | None, str]:
     return 1, argument.strip()
 
 
+def _inspection_target(target: str) -> str:
+    normalized = _normalize(target)
+    return normalized[3:] if normalized.startswith("at ") else normalized
+
+
+def _item_detail_lines(item_key: str, quantity: int = 1) -> tuple[str, ...]:
+    definition = crafting.ITEMS_BY_KEY.get(item_key)
+    name = _display_name(item_key)
+    if definition is None:
+        lines = [name, "An item has been left here."]
+        if quantity > 1:
+            lines.append(f"Quantity here: {quantity}.")
+        return tuple(lines)
+
+    lines = [definition.name, definition.description]
+    details: list[str] = []
+    if definition.category:
+        details.append(definition.category.replace("_", " ").title())
+    if definition.tier:
+        details.append(f"Tier {definition.tier}")
+
+    equipment = definition.equipment
+    if equipment is not None:
+        details.append(f"Slot: {equipment.slot.replace('_', ' ').title()}")
+        if equipment.armor_class:
+            details.append(f"AC +{equipment.armor_class}")
+        bonuses = [
+            f"{key.title()} +{value}"
+            for key, value in equipment.stat_bonuses.as_dict().items()
+            if value
+        ]
+        if bonuses:
+            details.append("Bonuses: " + ", ".join(bonuses))
+        if equipment.scripted_effects:
+            details.append("Special: " + "; ".join(equipment.scripted_effects))
+
+    if quantity > 1:
+        details.append(f"Quantity here: {quantity}")
+    if details:
+        lines.append(" | ".join(details))
+    return tuple(lines)
+
+
+async def inspect_ground_item_command(session, target: str) -> bool:
+    character = getattr(session, "character", None)
+    if character is None or not character.current_room:
+        return False
+    rows = list_ground_items(session.database, character.current_room)
+    match = _resolve_item(rows, _inspection_target(target))
+    if match.ambiguous:
+        await session.send("Be more specific: " + ", ".join(match.ambiguous_names) + ".\r\n")
+        return True
+    if not match.found:
+        return False
+
+    item_key = str(match.item_key)
+    quantity = ground_item_quantity(session.database, character.current_room, item_key)
+    await session.send("\r\n" + "\r\n".join(_item_detail_lines(item_key, quantity)) + "\r\n")
+    return True
+
+
 async def _show_ground_items(session) -> None:
     character = getattr(session, "character", None)
     if character is None or not character.current_room:
@@ -307,6 +368,11 @@ def install_ground_items_runtime(player_session_class) -> None:
             return
 
         normalized = " ".join(command.strip().lower().split())
+        inspection = normalized.split(maxsplit=1)
+        if len(inspection) == 2 and inspection[0] in {"look", "examine", "inspect"}:
+            if await inspect_ground_item_command(self, inspection[1]):
+                return
+
         if normalized == "drop":
             await drop_item_command(self, "")
             return
