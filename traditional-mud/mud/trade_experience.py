@@ -20,11 +20,14 @@ class TradeSession:
     first_character_id: int
     second_character_id: int
     offers: dict[int, dict[str, int]] = field(default_factory=dict)
+    waymap_offers: dict[int, list[int]] = field(default_factory=dict)
     confirmed: set[int] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         self.offers.setdefault(self.first_character_id, {})
         self.offers.setdefault(self.second_character_id, {})
+        self.waymap_offers.setdefault(self.first_character_id, [])
+        self.waymap_offers.setdefault(self.second_character_id, [])
 
     def partner_id(self, character_id: int) -> int:
         if character_id == self.first_character_id:
@@ -193,6 +196,9 @@ def exchange_items(
     first_offer: dict[str, int],
     second_character_id: int,
     second_offer: dict[str, int],
+    *,
+    first_waymap_ids: tuple[int, ...] = (),
+    second_waymap_ids: tuple[int, ...] = (),
 ) -> bool:
     """Atomically exchange two inventory offers under a SQLite write lock."""
     if first_character_id == second_character_id:
@@ -278,30 +284,66 @@ def exchange_items(
         credit(first_character_id, second_offer)
 
         if carries_waymaps:
-            from mud.waymaps import transfer_owned_waymaps_in_connection
+            from mud.waymaps import (
+                transfer_owned_waymaps_in_connection,
+                transfer_selected_waymaps_in_connection,
+            )
 
             first_waymaps = int(first_offer.get("marked_waymap", 0))
-            if first_waymaps and not transfer_owned_waymaps_in_connection(
-                db,
-                from_character_id=first_character_id,
-                to_character_id=second_character_id,
-                quantity=first_waymaps,
-                event_type="trade",
-                note="Transferred through a direct player exchange.",
-            ):
+            if first_waymap_ids and len(first_waymap_ids) != first_waymaps:
                 db.rollback()
                 return False
+            if first_waymaps:
+                moved = (
+                    transfer_selected_waymaps_in_connection(
+                        db,
+                        from_character_id=first_character_id,
+                        to_character_id=second_character_id,
+                        waymap_ids=first_waymap_ids,
+                        event_type="trade",
+                        note="Transferred through a direct player exchange.",
+                    )
+                    if first_waymap_ids
+                    else transfer_owned_waymaps_in_connection(
+                        db,
+                        from_character_id=first_character_id,
+                        to_character_id=second_character_id,
+                        quantity=first_waymaps,
+                        event_type="trade",
+                        note="Transferred through a direct player exchange.",
+                    )
+                )
+                if not moved:
+                    db.rollback()
+                    return False
+
             second_waymaps = int(second_offer.get("marked_waymap", 0))
-            if second_waymaps and not transfer_owned_waymaps_in_connection(
-                db,
-                from_character_id=second_character_id,
-                to_character_id=first_character_id,
-                quantity=second_waymaps,
-                event_type="trade",
-                note="Transferred through a direct player exchange.",
-            ):
+            if second_waymap_ids and len(second_waymap_ids) != second_waymaps:
                 db.rollback()
                 return False
+            if second_waymaps:
+                moved = (
+                    transfer_selected_waymaps_in_connection(
+                        db,
+                        from_character_id=second_character_id,
+                        to_character_id=first_character_id,
+                        waymap_ids=second_waymap_ids,
+                        event_type="trade",
+                        note="Transferred through a direct player exchange.",
+                    )
+                    if second_waymap_ids
+                    else transfer_owned_waymaps_in_connection(
+                        db,
+                        from_character_id=second_character_id,
+                        to_character_id=first_character_id,
+                        quantity=second_waymaps,
+                        event_type="trade",
+                        note="Transferred through a direct player exchange.",
+                    )
+                )
+                if not moved:
+                    db.rollback()
+                    return False
 
         for item_key, quantity in first_offer.items():
             transfer_owned_instances_in_connection(
@@ -706,6 +748,8 @@ async def _confirm_trade(session) -> None:
             first_offer,
             trade.second_character_id,
             second_offer,
+            first_waymap_ids=tuple(trade.waymap_offers[trade.first_character_id]),
+            second_waymap_ids=tuple(trade.waymap_offers[trade.second_character_id]),
         )
     except Exception:
         trade.confirmed.clear()
