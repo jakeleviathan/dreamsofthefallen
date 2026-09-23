@@ -275,6 +275,20 @@ def chatter_lines(
         return ()
     rng = rng or random.Random()
 
+    # Rare world-story beats use the same physical-visibility and room cooldown
+    # rules as ordinary chatter. They are hints, never an automatic quest marker.
+    if room_key == WAYMEET_COMMONHOUSE_KEY and 7 <= hour < 20 and rng.random() < 0.055:
+        return (
+            "Pella Dawnskein hums four notes on the Commonhouse steps. "
+            "She pauses for a fifth, then goes back to sorting painted pebbles.",
+        )
+    if room_key == WAYMEET_CROSSROADS_KEY and weather.lower() in WET_WEATHER and rng.random() < 0.055:
+        actor = rng.choice(present)
+        return (
+            actor.name + " pauses by the repaired bridge. 'Someone has put those "
+            "little chalk marks back again. Rain never seems to wash the last one away.'",
+        )
+
     if len(present) > 1:
         pairs = [
             PAIR_LINES[frozenset((a.key, b.key))]
