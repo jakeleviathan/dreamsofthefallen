@@ -79,7 +79,7 @@ class FifthLanternTests(unittest.TestCase):
 
     def test_host_is_talkable_and_sells_food_that_eat_and_drink_use(self):
         innkeeper, ambiguous = resolve_static_talk_target(
-            self.world, NPCS_BY_KEY, WAYMEET_TAVERN_KEY, "orla",
+            self.world, NPCS_BY_KEY, WAYMEET_TAVERN_KEY, "valline",
         )
         self.assertFalse(ambiguous)
         self.assertIsNotNone(innkeeper)
