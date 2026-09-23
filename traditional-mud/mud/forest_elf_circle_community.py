@@ -35,15 +35,15 @@ WET = frozenset(("rain", "storm", "thunderstorm", "snow"))
 # not adding more independent server movement loops.
 CIRCLE_ROOMS = (CIRCLE, GREENWAY, FOREST_ELF_KEEPER_NURSERY_KEY, FOREST_ELF_HEARTHWALK_KEY)
 
-LETHRA = MobileNpcDefinition(
-    key="forest_elf_circle_druid_lethra_mossweft",
-    name="Druid Lethra Mossweft",
+OTHIRA = MobileNpcDefinition(
+    key="forest_elf_circle_druid_othira_mossweft",
+    name="Druid Othira Mossweft",
     short_description="a patient Druid carrying damp root wraps and a slim notebook of Heartseed observations",
     spawn_room_key=FOREST_ELF_KEEPER_NURSERY_KEY,
     allowed_room_keys=CIRCLE_ROOMS,
     behavior=BEHAVIOR_ROUTINE,
     move_chance_per_tick=1.0,
-    aliases=("lethra", "mossweft"),
+    aliases=("othira", "mossweft"),
     routine_schedule=(
         RoutineStop(0, FOREST_ELF_KEEPER_NURSERY_KEY),
         RoutineStop(5, CIRCLE),
@@ -56,15 +56,15 @@ LETHRA = MobileNpcDefinition(
     weather_shelter_room_key=CIRCLE,
     shelter_weathers=tuple(sorted(SEVERE)),
 )
-ORREN = MobileNpcDefinition(
-    key="forest_elf_circle_keeper_orren_fernstitch",
-    name="Keeper Orren Fernstitch",
+ZELIK = MobileNpcDefinition(
+    key="forest_elf_circle_keeper_zelik_fernstitch",
+    name="Keeper Zelik Fernstitch",
     short_description="a practical herb keeper with a basket of reed braces and weather-worn planting tags",
     spawn_room_key=FOREST_ELF_HEARTHWALK_KEY,
     allowed_room_keys=CIRCLE_ROOMS,
     behavior=BEHAVIOR_ROUTINE,
     move_chance_per_tick=1.0,
-    aliases=("orren", "fernstitch"),
+    aliases=("zelik", "fernstitch"),
     routine_schedule=(
         RoutineStop(0, FOREST_ELF_HEARTHWALK_KEY),
         RoutineStop(5, CIRCLE),
@@ -76,7 +76,7 @@ ORREN = MobileNpcDefinition(
     weather_shelter_room_key=CIRCLE,
     shelter_weathers=tuple(sorted(SEVERE)),
 )
-CIRCLE_LIVING_NPCS = (LETHRA, ORREN)
+CIRCLE_LIVING_NPCS = (OTHIRA, ZELIK)
 CIRCLE_KEYS = frozenset(npc.key for npc in CIRCLE_LIVING_NPCS)
 
 
@@ -116,7 +116,7 @@ def _visible(manager: MobileNpcManager | None, room: str):
 RITUAL_OPENING = (
     "Keeper Maelis moves a bowl of water into the shade of the seven Circle stones. "
     "'We are not here to command the Heartseed. We are here to see what it needs.'",
-    "Druid Lethra Mossweft checks the Heartseed's leaves while Keeper Orren "
+    "Druid Othira Mossweft checks the Heartseed's leaves while Keeper Zelik "
     "Fernstitch loosens the soil at the outer edge of the herb border.",
     "The three work together in a quiet dawn rite: observe, tend only what needs "
     "tending, and leave the rest of the morning to the roots.",
@@ -124,24 +124,24 @@ RITUAL_OPENING = (
 RITUAL_CLOSING = (
     "Maelis puts the bowl away. 'The Heartseed's growth is its own answer. "
     "Our part was to make the answer possible.'",
-    "Lethra and Orren return the gathering tools to their places. "
+    "Othira and Zelik return the gathering tools to their places. "
     "The Circle resumes its ordinary morning work.",
 )
 STORM_DAMAGE = (
     "A hard gust tears across Circle Clearing. A low reed brace snaps and the "
     "herb border begins to wash out beneath the seven stones.",
     "Maelis calls for the nursery wraps and spare stakes. "
-    "Lethra and Orren abandon their ordinary rounds and come to help.",
+    "Othira and Zelik abandon their ordinary rounds and come to help.",
 )
 REPAIR_START = (
-    "With the worst wind past, Lethra holds the exposed roots steady while "
-    "Orren resets the reed braces. Maelis checks that the Heartseed's own bed "
+    "With the worst wind past, Othira holds the exposed roots steady while "
+    "Zelik resets the reed braces. Maelis checks that the Heartseed's own bed "
     "has not been disturbed.",
     "They work in pairs rather than forcing the damaged herbs upright. "
     "You could HELP REPAIR BORDER if you want to lend a hand.",
 )
 REPAIR_FINISHED = (
-    "Orren sets the last brace. Lethra checks the water path, and Maelis "
+    "Zelik sets the last brace. Othira checks the water path, and Maelis "
     "finds the newly settled soil firm enough to leave alone.",
     "The herb border is secure again. The little teaching patch of "
     "Silvermoss under the flat stones was kept safe throughout.",
@@ -270,7 +270,7 @@ class CircleCommunityDirector:
                     "will work on the roots when it is safe to do so.",)
         if not gathered(manager):
             return ("The Circle's keepers are gathering their tools. "
-                    "Wait for Lethra and Orren to arrive.",)
+                    "Wait for Othira and Zelik to arrive.",)
         if event.stage == "damaged":
             self.journal.advance(event, "damaged", "tending", moment.total_minutes)
         if not self.journal.participate(event, character_id, "repair", moment.total_minutes):
@@ -281,8 +281,8 @@ class CircleCommunityDirector:
         changed = self.journal.advance(event, "tending", "repaired", moment.total_minutes)
         self._route_group(manager, False)
         return (
-            "You hold the loosened herb roots while Orren resets the stakes. "
-            "Lethra shapes the runoff channel and Maelis checks every patch "
+            "You hold the loosened herb roots while Zelik resets the stakes. "
+            "Othira shapes the runoff channel and Maelis checks every patch "
             "before the three of you stand back.",
             "The herb border is repaired. The Circle remembers your help."
         ) if changed else ("The Circle records your help with the garden.",)
@@ -293,13 +293,13 @@ class CircleCommunityDirector:
     ) -> tuple[str, ...]:
         event = self.ritual(moment.day_number)
         if event is None or event.stage != "active" or not gathered(manager):
-            return ("The Circle gathers at dawn when Maelis, Lethra and Orren "
+            return ("The Circle gathers at dawn when Maelis, Othira and Zelik "
                     "are together. Watch for their next Heartseed rite.",)
         if not self.journal.participate(event, character_id, "joined", moment.total_minutes):
             return ("You are already taking part in this morning's Heartseed rite.",)
         return (
-            "You join the keepers beside the seven stones. Lethra offers you "
-            "the water bowl while Orren makes room at the herb border.",
+            "You join the keepers beside the seven stones. Othira offers you "
+            "the water bowl while Zelik makes room at the herb border.",
             "Maelis nods. 'The work is shared. That is how a Circle holds together.'",
         )
 
@@ -321,11 +321,11 @@ class CircleCommunityDirector:
             return (
                 "Community: The last storm has torn loose the herb border. "
                 "The protected Silvermoss teaching patch remains usable; "
-                "Lethra and Orren are being called to help."
+                "Othira and Zelik are being called to help."
             )
         if incident is not None and incident.stage == "tending":
             return (
-                "Community: Lethra and Orren are repairing the storm-battered "
+                "Community: Othira and Zelik are repairing the storm-battered "
                 "herb border with Maelis. HELP REPAIR BORDER to work beside them."
             )
         ritual = self.ritual(moment.day_number)
@@ -381,18 +381,18 @@ class CircleCommunityDirector:
         if incident is not None and gathered(manager):
             if incident.stage == "damaged":
                 return (
-                    "Orren checks the herb stakes while Lethra waits for the wind to ease.",
+                    "Zelik checks the herb stakes while Othira waits for the wind to ease.",
                     "Maelis warns them to leave the exposed roots alone until the gusts pass.",
                 )
             return (
-                "Lethra and Orren exchange quiet instructions over the damaged herb border.",
+                "Othira and Zelik exchange quiet instructions over the damaged herb border.",
                 "Maelis checks the teaching patch, keeping the novice Silvermoss safe.",
             )
         ritual = self.ritual(moment.day_number)
         if ritual is not None and ritual.stage == "active" and gathered(manager):
             return (
-                "Lethra examines the Heartseed without touching its new growth.",
-                "Orren passes Maelis the water bowl. 'No more moisture than the roots need.'",
+                "Othira examines the Heartseed without touching its new growth.",
+                "Zelik passes Maelis the water bowl. 'No more moisture than the roots need.'",
             )
         story = self.journal.latest_story(COMMUNITY, STORY)
         if story is not None and rng.random() < 0.45:
@@ -401,12 +401,12 @@ class CircleCommunityDirector:
                 "as an example of patient care, not stronger magic.",
             )
         actor = rng.choice(visible)
-        if actor.key == LETHRA.key:
+        if actor.key == OTHIRA.key:
             return (
-                "Lethra folds a damp root wrap and makes a note about tomorrow's nursery beds.",
+                "Othira folds a damp root wrap and makes a note about tomorrow's nursery beds.",
             )
         return (
-            "Orren replaces a weather-faded herb marker and checks the soil beneath it.",
+            "Zelik replaces a weather-faded herb marker and checks the soil beneath it.",
         )
 
 
@@ -466,7 +466,7 @@ def talk_lines(
 ) -> tuple[str, ...]:
     incident = director.incident()
     if incident is not None:
-        if actor.key == LETHRA.key:
+        if actor.key == OTHIRA.key:
             return (actor.name + " says, 'When the wind stops, we repair the "
                     "water path first. Roots do not wait for speeches.'",)
         return (actor.name + " says, 'I have the replacement braces ready. "
@@ -478,7 +478,7 @@ def talk_lines(
     if weather.casefold() in WET:
         return (actor.name + " says, 'Wet weather is for checking drainage, "
                 "not for demanding that every leaf grow faster.'",)
-    if actor.key == LETHRA.key:
+    if actor.key == OTHIRA.key:
         return (actor.name + " says, 'Morning care at the stones, nursery "
                 "work in the daylight. A good routine leaves room for surprises.'",)
     return (actor.name + " says, 'The herb border teaches where to gather "
@@ -569,7 +569,7 @@ def install_circle_community_runtime(player_session_class) -> None:
             if incident is not None:
                 await self.send(
                     "\r\nThe storm has pulled loose the outside reed braces. "
-                    "Lethra and Orren are organizing the repair with Maelis. "
+                    "Othira and Zelik are organizing the repair with Maelis. "
                     "The protected Silvermoss teaching patch remains harvestable.\r\n"
                 )
                 return
