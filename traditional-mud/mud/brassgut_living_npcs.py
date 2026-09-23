@@ -58,7 +58,7 @@ def _resident(static, description: str, aliases: tuple[str, ...],
 RUSKLE = _resident(
     RUSKLE_COIL,
     "a salvage broker pricing oddments while keeping one eye on the claim board",
-    ("ruskle", "coil", "salvage broker"),
+    ("ruskle", "coil", "goblin ruskle coil", "broker", "salvage broker"),
     (RoutineStop(0, MARKET), RoutineStop(7, MARKET),
      RoutineStop(10, SORTING), RoutineStop(12, MARKET),
      RoutineStop(19, PLAZA), RoutineStop(21, MARKET)),
@@ -76,7 +76,7 @@ JEX = _resident(
 HADRIK = _resident(
     HADRIK_COILPRESS,
     "a Dwarven trade factor measuring freight loads against a folding brass rule",
-    ("hadrik", "coilpress", "trade factor"),
+    ("hadrik", "coilpress", "dwarf", "dwarven trader", "trade factor"),
     (RoutineStop(0, LEDGER), RoutineStop(7, MARKET),
      RoutineStop(11, TINKER), RoutineStop(13, MARKET),
      RoutineStop(19, LEDGER), RoutineStop(22, MARKET)),
@@ -85,7 +85,7 @@ HADRIK = _resident(
 TRESSA = _resident(
     MARA_VALE,
     "a Human antiquities buyer carefully inspecting Earth-marked curios",
-    ("tressa", "vale", "human factor"),
+    ("tressa", "vale", "mara", "mara vale", "human factor"),
     (RoutineStop(0, LEDGER), RoutineStop(8, MARKET),
      RoutineStop(12, PLAZA), RoutineStop(13, MARKET),
      RoutineStop(18, LEDGER), RoutineStop(20, MARKET),
