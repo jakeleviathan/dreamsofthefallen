@@ -79,7 +79,7 @@ TRADITIONS: tuple[Tradition, ...] = (
               "unwritten obituary"), "Preservation, mineral memory, and reversible decay."),
     Tradition("spore", "Sporekin", "Mycela Manygills", "sporekin_lumen_hollow",
               "sporekin_mycelial_gallery", "Lumen Mycelium", "Crownspore Dust",
-              "brasscap_mushroom", ("Lumen Distillate", "Spore-Mend",
+              "greenleaf", ("Lumen Distillate", "Spore-Mend",
               "Capward Tonic", "Threadmind Cordial", "Recast Mycelium"),
               ("spore calendar", "silent cap", "folded gill"),
               "Fermented growth, symbiosis, and unusual organic transformations."),
@@ -422,8 +422,11 @@ def install_regional_alchemy_content() -> dict[str, int]:
 
 def catalog_counts() -> dict[str, int]:
     return {
-        **{t.key: sum(r.key.startswith(f"regional_{t.key}_")
-                   for r in RECIPES) for t in TRADITIONS},
+        **{t.key: sum(
+            r.key.startswith(f"regional_{t.key}_") or
+            r.key.startswith(f"regional_secret_{t.key}_")
+            for r in RECIPES
+        ) for t in TRADITIONS},
         "secret": sum(r.design_status == "regional_alchemy_secret" for r in RECIPES),
         "legendary": sum(r.design_status == "regional_alchemy_legendary" for r in RECIPES),
         "total": len(RECIPES),
