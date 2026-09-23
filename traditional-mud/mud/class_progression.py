@@ -36,6 +36,7 @@ CLASS_ROLE_SUMMARIES: dict[str, str] = {
     "druid": "Flexible nature caster: reliable secondary healing, steady recovery, and practical nature damage.",
     "priest": "Primary support: efficient healing, protection, resurrection, and party-wide recovery while retaining your spiritual path's flavor.",
     "necromancer": "Attrition specialist: drain life, maintain an undead servant, curse enemies, and turn time into an advantage.",
+    "occultist": "Risk caster: build Strain, expose hidden weaknesses, and use forbidden techniques before choosing Blood or Void.",
 }
 
 
@@ -265,6 +266,15 @@ NECROMANCER_ABILITIES = (
 )
 
 
+OCCULTIST_ABILITIES = (
+    mechanics.AbilityDefinition(key="unmake", name="Unmake", unlock_level=1, mana_cost=4, cooldown_seconds=5.0, description="Pull at a target's wrong edges for direct occult damage.", category="spell_damage", design_status="occultist_live"),
+    mechanics.AbilityDefinition(key="borrowed_vitality", name="Borrowed Vitality", unlock_level=3, mana_cost=2, cooldown_seconds=10.0, description="Trade a little of your own vitality for occult power; the bargain leaves Strain behind.", category="occult_utility", design_status="occultist_live"),
+    mechanics.AbilityDefinition(key="wrong_step", name="Wrong Step", unlock_level=5, mana_cost=6, cooldown_seconds=12.0, description="Step through a place that should not fit, briefly disrupting an enemy's retaliation.", category="spell_control", design_status="occultist_live"),
+    mechanics.AbilityDefinition(key="open_the_veil", name="Open the Veil", unlock_level=7, mana_cost=7, cooldown_seconds=18.0, description="Force your perception past the ordinary world, sharpening hidden and discovery-facing senses.", category="occult_utility", skill_improves_effectiveness=False, design_status="occultist_live"),
+    mechanics.AbilityDefinition(key="black_geometry", name="Black Geometry", unlock_level=9, mana_cost=11, cooldown_seconds=14.0, description="Fold impossible angles through one target for heavy occult damage.", category="spell_damage", cast_time_seconds=2.0, design_status="occultist_live"),
+)
+
+
 # Five signature pieces are not class-locked. Anyone can wear them and receive
 # their raw stats; the named affinity is a bonus only when the matching class
 # knows how to exploit that design. This keeps Astralis's universal-equipment
@@ -400,6 +410,7 @@ def install_class_progression_content() -> None:
     _upsert_fixed("wizard", WIZARD_ABILITIES)
     _upsert_fixed("druid", DRUID_ABILITIES)
     _upsert_fixed("necromancer", NECROMANCER_ABILITIES)
+    _upsert_fixed("occultist", OCCULTIST_ABILITIES)
 
     # Priest paths keep their deity/Witness starter identity, then share a small
     # party-care backbone. Resurrection is registered by the death system and is
