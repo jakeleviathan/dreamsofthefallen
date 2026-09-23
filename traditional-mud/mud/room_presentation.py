@@ -44,6 +44,7 @@ from mud.style_collectibles import (
     style_atelier_available,
 )
 from mud.world import NPCS_BY_KEY
+from mud.brassgut_living_npcs import static_contact_visible
 
 
 RESET = "\x1b[0m"
@@ -216,7 +217,9 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     hostile_records: list[tuple[str, str]] = []
     for npc_key in scene.npc_keys:
         npc = NPCS_BY_KEY.get(npc_key)
-        if npc is not None:
+        if npc is not None and static_contact_visible(
+            getattr(session, "mobile_npcs", None), npc_key, view.key,
+        ):
             people.append(f"  {_paint(NPC, npc.name)} - {npc.short_description}")
             try:
                 record_actor_discovery(
@@ -235,7 +238,10 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
 
     mobile_npcs = getattr(session, "mobile_npcs", None)
     if mobile_npcs is not None:
-        static_names = {NPCS_BY_KEY[key].name for key in scene.npc_keys if key in NPCS_BY_KEY}
+        static_names = {
+            NPCS_BY_KEY[key].name for key in scene.npc_keys
+            if key in NPCS_BY_KEY and static_contact_visible(mobile_npcs, key, view.key)
+        }
         for state in mobile_npcs.npcs_in_room(view.key):
             definition = state.definition
             aggressive = bool(getattr(definition, "aggressive", False))
