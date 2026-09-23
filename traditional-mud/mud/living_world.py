@@ -107,13 +107,13 @@ PULSE_TEMPLATES: tuple[DailyPulse, ...] = (
         headline="A copper-painted caravan has made Waymeet before dusk.",
         summary=(
             "A small itinerant factor is unloading practical surplus at Lantern Market. "
-            "Nothing is exclusive, but the stock is cheaper to reach than its usual source."
+            "Among the ordinary surplus sits a tray of curious clapperless brass waybells."
         ),
-        gossip="'Copperwake made good time. Nix is pretending not to watch their prices.'",
+        gossip="'Copperwake made good time. They have those bells with no clappers again. Nix says they are scrap.'",
         room_key=WAYMEET_LANTERN_MARKET_KEY,
         room_name="Waymeet Lantern Market",
         command_hint="BROWSE WANDERER",
-        merchant_wares=(("iron_ore", 5), ("raw_cotton", 5), ("greenleaf", 5)),
+        merchant_wares=(("iron_ore", 5), ("raw_cotton", 5), ("greenleaf", 5), ("omen_clapperless_waybell", 9)),
     ),
     DailyPulse(
         key="glass_thread_peddler",
