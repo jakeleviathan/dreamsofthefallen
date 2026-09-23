@@ -408,7 +408,7 @@ WAYMEET_ROOMS: tuple[RoomDefinition, ...] = (
         ),
         exits={"out": WAYMEET_COMMONHOUSE_KEY, "east": WAYMEET_TAVERN_KITCHEN_KEY, "up": WAYMEET_TAVERN_LOFT_KEY},
         npc_keys=(TAVERN_HOST_KEY,),
-        tags=("shared_world", "social_hub", "social", "rest", "safe", "meeting_place", "inn", "tavern"),
+        tags=("shared_world", "social_hub", "social", "rest", "safe", "meeting_place", "inn", "tavern", "indoors"),
     ),
     RoomDefinition(
         key=WAYMEET_TAVERN_KITCHEN_KEY,
@@ -421,7 +421,7 @@ WAYMEET_ROOMS: tuple[RoomDefinition, ...] = (
         ),
         exits={"west": WAYMEET_TAVERN_KEY},
         npc_keys=(TAVERN_COOK_KEY,),
-        tags=("shared_world", "social", "safe", "kitchen"),
+        tags=("shared_world", "social", "safe", "kitchen", "indoors"),
     ),
     RoomDefinition(
         key=WAYMEET_TAVERN_LOFT_KEY,
@@ -434,7 +434,7 @@ WAYMEET_ROOMS: tuple[RoomDefinition, ...] = (
             "their muddy boots at the stairs."
         ),
         exits={"down": WAYMEET_TAVERN_KEY},
-        tags=("shared_world", "rest", "safe", "inn", "meeting_place"),
+        tags=("shared_world", "rest", "safe", "inn", "meeting_place", "indoors"),
     ),
     RoomDefinition(
         key=WAYMEET_CRAFT_ROW_KEY,
