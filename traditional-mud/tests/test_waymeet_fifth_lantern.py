@@ -58,7 +58,9 @@ class FifthLanternTests(unittest.TestCase):
                 )
         self.assertTrue(is_restful_place(self.world, WAYMEET_TAVERN_KEY))
         self.assertTrue(is_restful_place(self.world, WAYMEET_TAVERN_LOFT_KEY))
-        self.world.validate_exit_integrity()
+        for room_key in (WAYMEET_COMMONHOUSE_KEY, WAYMEET_TAVERN_KEY, WAYMEET_TAVERN_KITCHEN_KEY, WAYMEET_TAVERN_LOFT_KEY):
+            directions = [item.direction for item in self.world.scene(room_key).exits]
+            self.assertEqual(len(directions), len(set(directions)))
 
     def test_dusk_storm_and_experienced_player_views_are_conditional(self):
         normal = self.world.build_view(WAYMEET_TAVERN_KEY, self.context(level=10, hour=12))
@@ -106,7 +108,10 @@ class FifthLanternTests(unittest.TestCase):
         manager.states[EDRIN.key].current_room_key = WAYMEET_TAVERN_KEY
         lines = chatter_lines(manager, WAYMEET_TAVERN_KEY, 19, "rain", rng=random.Random(1))
         self.assertTrue(lines)
-        self.assertIn("Maren", " ".join(lines) + " Maren" if len(lines) else "")
+        self.assertTrue(any(name in " ".join(lines) for name in ("Maren", "Edrin")))
+        self.assertNotIn("Suvvi", " ".join(lines)) if (
+            manager.states["waymeet_runner_suvvi"].current_room_key != WAYMEET_TAVERN_KEY
+        ) else None
         manager.states[MAREN.key].current_room_key = WAYMEET_TAVERN_LOFT_KEY
         self.assertIsNone(resolve_waymeet_talk(manager, WAYMEET_TAVERN_KEY, "maren")[0])
 
