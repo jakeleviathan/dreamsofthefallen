@@ -106,12 +106,13 @@ class FifthLanternTests(unittest.TestCase):
         # Existing cast comes by the same real route, and tavern dialogue
         # never refers to an absent patron as if physically present.
         manager.states[EDRIN.key].current_room_key = WAYMEET_TAVERN_KEY
-        lines = chatter_lines(manager, WAYMEET_TAVERN_KEY, 19, "rain", rng=random.Random(1))
-        self.assertTrue(lines)
-        self.assertTrue(any(name in " ".join(lines) for name in ("Maren", "Edrin")))
-        self.assertNotIn("Suvvi", " ".join(lines)) if (
-            manager.states["waymeet_runner_suvvi"].current_room_key != WAYMEET_TAVERN_KEY
-        ) else None
+        for key, state in manager.states.items():
+            if key not in {EDRIN.key, MAREN.key}:
+                state.current_room_key = WAYMEET_COMMONHOUSE_KEY
+        lines = chatter_lines(manager, WAYMEET_TAVERN_KEY, 19, "rain", rng=random.Random(0))
+        self.assertIn("Maren", " ".join(lines))
+        self.assertIn("Edrin", " ".join(lines))
+        self.assertNotIn("Suvvi", " ".join(lines))
         manager.states[MAREN.key].current_room_key = WAYMEET_TAVERN_LOFT_KEY
         self.assertIsNone(resolve_waymeet_talk(manager, WAYMEET_TAVERN_KEY, "maren")[0])
 
