@@ -46,8 +46,8 @@ class WaymeetLivingNpcTests(unittest.TestCase):
         return MobileNpcManager(definitions=definitions or WAYMEET_LIVING_NPCS)
 
     def test_four_unique_residents_have_real_legal_routes_and_daily_schedules(self):
-        self.assertEqual(len(WAYMEET_LIVING_NPCS), 4)
-        self.assertEqual(len({npc.name for npc in WAYMEET_LIVING_NPCS}), 4)
+        self.assertEqual(len(WAYMEET_LIVING_NPCS), 5)
+        self.assertEqual(len({npc.name for npc in WAYMEET_LIVING_NPCS}), 5)
         manager = self._manager()
         manager.validate_definitions()
         for npc in WAYMEET_LIVING_NPCS:
@@ -56,7 +56,7 @@ class WaymeetLivingNpcTests(unittest.TestCase):
             self.assertIn(npc.key, manager.states)
             self.assertTrue(all(stop.room_key in npc.allowed_room_keys for stop in npc.routine_schedule))
         register_waymeet_living_npcs()  # repeat registration never creates duplicates
-        self.assertEqual(len({npc.key for npc in WAYMEET_LIVING_NPCS}), 4)
+        self.assertEqual(len({npc.key for npc in WAYMEET_LIVING_NPCS}), 5)
 
     def test_waymeet_has_real_regional_weather_for_sheltering(self):
         self.assertIn("waymeet_frontier", REGIONS_BY_KEY)
