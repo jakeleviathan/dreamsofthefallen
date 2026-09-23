@@ -1233,6 +1233,13 @@ def craft_recipe(
     if recipe is None:
         return CraftAttemptResult(False, "Unknown recipe.")
 
+    # Gameplay lookups already hide locked recipes, but direct crafting and
+    # future UI routes must enforce the same persisted learning prerequisite.
+    flags = getattr(database, "list_flags", None)
+    if recipe.discovery_flag and callable(flags):
+        if recipe.discovery_flag not in flags(character_id):
+            return CraftAttemptResult(False, "You have not learned this formula yet.")
+
     if recipe.station_key is not None and station_key != recipe.station_key:
         return CraftAttemptResult(False, f"Requires a {recipe.station_key}.")
 
