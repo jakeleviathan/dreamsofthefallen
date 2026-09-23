@@ -17,8 +17,6 @@ from mud.npc_conversation import _delegate_prompt
 from mud.npcs import BEHAVIOR_ROUTINE, MobileNpcDefinition, MobileNpcManager, RoutineStop
 from mud.waymeet_frontier import (
     WAYMEET_COMMONHOUSE_KEY,
-    WAYMEET_TAVERN_KEY,
-    WAYMEET_TAVERN_LOFT_KEY,
     WAYMEET_CRAFT_ROW_KEY,
     WAYMEET_CROSSROADS_KEY,
     WAYMEET_GREEN_APPROACH_KEY,
@@ -35,6 +33,8 @@ WAYMEET_LIVING_ROOMS = (
     WAYMEET_LANTERN_MARKET_KEY,
     WAYMEET_GREEN_APPROACH_KEY,
     WAYMEET_COMMONHOUSE_KEY,
+    WAYMEET_TAVERN_KEY,
+    WAYMEET_TAVERN_LOFT_KEY,
     WAYMEET_CRAFT_ROW_KEY,
     WAYMEET_MARSH_ROAD_KEY,
 )
