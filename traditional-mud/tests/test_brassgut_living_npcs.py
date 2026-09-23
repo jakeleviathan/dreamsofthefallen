@@ -259,14 +259,13 @@ assert all(actor.key in game.mobile_npcs.states for actor in BRASSGUT_LIVING_NPC
 BrassgutMemoryStore(game.database)
 print("BRASSGUT_LIVING_OK")
 """
-        result = subprocess.run(
-            [sys.executable, "-c", script], cwd=ROOT,
-            env={**os.environ, "MUD_DB_PATH": ":memory:"},
-            capture_output=True, text=True, timeout=100,
-            check=False,
-        )
-        # The main server uses an on-disk DB because room state spans several
-        # connections. This probe verifies import and assembly independently.
+        with tempfile.TemporaryDirectory() as td:
+            result = subprocess.run(
+                [sys.executable, "-c", script], cwd=ROOT,
+                env={**os.environ, "MUD_DB_PATH": str(Path(td) / "probe.db")},
+                capture_output=True, text=True, timeout=100,
+                check=False,
+            )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("BRASSGUT_LIVING_OK", result.stdout)
 
