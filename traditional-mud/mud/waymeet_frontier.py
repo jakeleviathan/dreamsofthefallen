@@ -1078,9 +1078,9 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
                 await self.send("The Fifth Lantern is inside the Commonhouse Yard. From the yard, go IN.\r\n")
                 return
             if normalized in {"tavern", "tavern help"}:
-                await self.send("The Fifth Lantern: REST at the hearth or in the guest loft; SAY and EMOTE at the long table; TALK ORLA, BROWSE ORLA, BUY ORLA <item>; TAVERN MENU, TAVERN RUMORS, TAVERN REGULARS.\r\n")
+                await self.send("The Fifth Lantern: REST at the hearth or in the guest loft; SAY and EMOTE at the long table; TALK ORLA, BROWSE ORLA, BUY <item>; TAVERN MENU, TAVERN RUMORS, TAVERN REGULARS.\r\n")
             elif normalized == "tavern menu":
-                await self.send("Orla's counter: Fifth Lantern Road Stew (9 sparks; EAT), Fifth Lantern Spiced Tea (5 sparks; DRINK), Spring Water (3 sparks) and Blank Waymaps (8 sparks). BROWSE ORLA for live prices and BUY ORLA <item>.\r\n")
+                await self.send("Orla's counter: Fifth Lantern Road Stew (9 sparks; EAT), Fifth Lantern Spiced Tea (5 sparks; DRINK), Spring Water (3 sparks) and Blank Waymaps (8 sparks). BROWSE ORLA for live prices and BUY <item>.\r\n")
             elif normalized == "tavern regulars":
                 here = getattr(self, "mobile_npcs", None)
                 names = [state.definition.name for state in here.npcs_in_room(room_key)] if here else []
@@ -1093,7 +1093,7 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
                 if weather in {"rain", "storm", "thunderstorm", "snow", "duststorm"}:
                     lines.append("Wet-road report: delayed caravans are sheltering here until the weather clears.")
                 else:
-                    lines.append("Road report: the approaches are open to ordinary traffic; ask the marshal about local dangers.")
+                    lines.append("Weather report: clear skies for now. Ask the marshal about actual road conditions before departure.")
                 intro = self.database.get_quest(self.character.id, WAYMEET_INTRO_QUEST_KEY)
                 if intro and intro["status"] == "completed":
                     lines.append("You recognize the latest Gloamworks notice: the masonry under the Broken Mile is still being watched.")
