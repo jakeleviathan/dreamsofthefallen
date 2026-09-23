@@ -102,6 +102,7 @@ from mud.room_scene_actors import install_room_scene_runtime
 from mud.ecology import install_ecology_runtime
 from mud.combat_grind import install_combat_grind_runtime
 from mud.discovery_engine import install_discovery_runtime
+from mud.endgame_omens import install_endgame_omens_content, install_endgame_omens_runtime
 from mud.npc_name_audit import validate_unique_npc_names
 from mud.quest_npc_audit import validate_quest_talk_references
 from mud.npc_conversation import validate_static_npc_talkability
@@ -237,6 +238,9 @@ apply_crownfire_room_field_tuning(WORLD)
 # of fifty chairs, a bell-less watchtower, a blue salt sink, and a civilian noon
 # signal tower. They reward curiosity without becoming mandatory progression.
 install_roadside_discoveries_runtime(PlayerSession, WORLD)
+# Seed the future Hinge story across existing starter, Waymeet, and optional
+# midgame scenes without creating a new mandatory progression chain.
+install_endgame_omens_content(WORLD)
 install_style_collectibles_runtime(PlayerSession, WORLD)
 apply_style_collectibles_tuning()
 # MUDVerse support is account-wide and intentionally separate from the Sol economy.
@@ -369,6 +373,9 @@ install_ecology_runtime(PlayerSession, WORLD)
 # engine sees the fully assembled Astralis world, but exposes no completion
 # counter or checklist; secrets surface only through play and world conditions.
 install_discovery_runtime(PlayerSession, WORLD)
+# Preserve ordinary 360-secret catalog counts while adding eight authored
+# optional Hinge clues through the same durable discovery and wiki primitives.
+install_endgame_omens_runtime(PlayerSession, WORLD)
 
 # Enemy targeting sits immediately outside the complete authored ability stack.
 # TARGET selects without aggro; an enemy-targeted hotbar ability promotes that
