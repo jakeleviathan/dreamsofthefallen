@@ -45,7 +45,7 @@ class WaymeetLivingNpcTests(unittest.TestCase):
     def _manager(self, *definitions):
         return MobileNpcManager(definitions=definitions or WAYMEET_LIVING_NPCS)
 
-    def test_four_unique_residents_have_real_legal_routes_and_daily_schedules(self):
+    def test_five_unique_residents_have_real_legal_routes_and_daily_schedules(self):
         self.assertEqual(len(WAYMEET_LIVING_NPCS), 5)
         self.assertEqual(len({npc.name for npc in WAYMEET_LIVING_NPCS}), 5)
         manager = self._manager()
