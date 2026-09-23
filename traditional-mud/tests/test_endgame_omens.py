@@ -23,7 +23,7 @@ from mud.endgame_omens import (
     OMEN_DEFINITIONS,
     OMEN_FEATURES,
     OMEN_REGISTRY,
-    PELLA,
+    NIMRA,
     install_endgame_omens_content,
     install_endgame_omens_runtime,
     threshold_echoes,
@@ -39,6 +39,7 @@ from mud.waymeet_frontier import (
     WAYMEET_CROSSROADS_KEY,
     WAYMEET_LANTERN_MARKET_KEY,
     WAYMEET_ROOMS,
+    install_waymeet_content,
 )
 from mud.waymeet_living_npcs import EDRIN, chatter_lines
 
@@ -56,6 +57,9 @@ class TestSession:
 
 class OmenContentTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
+        # MobileNpcManager validates spawn rooms against the legacy registry.
+        # Keep the fixture independent of production import/test order.
+        install_waymeet_content()
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.database = Database(Path(self.temp.name) / "omens.db")
@@ -94,15 +98,15 @@ class OmenContentTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertIn(CLAPPERLESS_BELL_KEY, crafting.ITEMS_BY_KEY)
         self.assertEqual(crafting.ITEMS_BY_KEY[CLAPPERLESS_BELL_KEY].category, "curio")
-        self.assertEqual(legacy_world.NPCS_BY_KEY[PELLA.key], PELLA)
+        self.assertEqual(legacy_world.NPCS_BY_KEY[NIMRA.key], NIMRA)
         self.assertEqual(
-            len([npc for npc in legacy_world.NPCS if npc.key == PELLA.key]), 1,
+            len([npc for npc in legacy_world.NPCS if npc.key == NIMRA.key]), 1,
         )
-        self.assertIn(PELLA.key, self.world.scene(WAYMEET_COMMONHOUSE_KEY).npc_keys)
+        self.assertIn(NIMRA.key, self.world.scene(WAYMEET_COMMONHOUSE_KEY).npc_keys)
         talk_target, ambiguous = resolve_static_talk_target(
-            self.world, legacy_world.NPCS_BY_KEY, WAYMEET_COMMONHOUSE_KEY, "pella",
+            self.world, legacy_world.NPCS_BY_KEY, WAYMEET_COMMONHOUSE_KEY, "nimra",
         )
-        self.assertEqual(talk_target, PELLA)
+        self.assertEqual(talk_target, NIMRA)
         self.assertFalse(ambiguous)
 
     async def test_mural_is_optional_persistent_and_populates_living_wiki(self):
@@ -166,7 +170,7 @@ class OmenContentTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(discovery_record(self.database, self.character.id, BELL_COMPARISON))
         echoes = threshold_echoes(self.database, self.character.id)
         self.assertIn("waybell", echoes[0])
-        self.assertIn("Pella", " ".join(echoes))
+        self.assertIn("Nimra", " ".join(echoes))
         self.assertLessEqual(len(echoes), 3)
 
     async def test_local_runtime_intercepts_omens_without_stealing_normal_commands(self):
@@ -199,7 +203,7 @@ class OmenContentTests(unittest.IsolatedAsyncioTestCase):
         await session.playing_prompt()
         self.assertIn("rubbed away", " ".join(session.outputs))
 
-    def test_pella_ambient_refrain_is_room_local_and_respects_daytime(self):
+    def test_nimra_ambient_refrain_is_room_local_and_respects_daytime(self):
         class RareRng:
             def random(self):
                 return 0.0
@@ -210,11 +214,11 @@ class OmenContentTests(unittest.IsolatedAsyncioTestCase):
         manager = MobileNpcManager(definitions=(EDRIN,))
         manager.states[EDRIN.key].current_room_key = WAYMEET_COMMONHOUSE_KEY
         self.assertIn(
-            "Pella",
+            "Nimra",
             " ".join(chatter_lines(manager, WAYMEET_COMMONHOUSE_KEY, 12, "clear", rng=RareRng())),
         )
         self.assertNotIn(
-            "Pella",
+            "Nimra",
             " ".join(chatter_lines(manager, WAYMEET_COMMONHOUSE_KEY, 23, "clear", rng=RareRng())),
         )
         manager.states[EDRIN.key].current_room_key = WAYMEET_CROSSROADS_KEY
