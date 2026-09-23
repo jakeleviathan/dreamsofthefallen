@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from mud.combat import ENEMIES_BY_KEY
 from mud.partial_target_matching import normalize_target
 from mud.world import NPCS_BY_KEY
+from mud.brassgut_living_npcs import static_contact_visible
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +47,9 @@ def visible_actors(session, world_service) -> tuple[VisibleActor, ...]:
     if scene is not None:
         for npc_key in scene.npc_keys:
             npc = NPCS_BY_KEY.get(npc_key)
-            if npc is not None:
+            if npc is not None and static_contact_visible(
+                getattr(session, "mobile_npcs", None), npc_key, room_key,
+            ):
                 actors.append(
                     VisibleActor(
                         key=npc.key,
