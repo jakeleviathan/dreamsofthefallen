@@ -46,7 +46,8 @@ def _weather(session) -> str:
 
 def _visitor():
     moment = ASTRALIS_CLOCK.now()
-    return catalog.TRADITIONS[(moment.day_number + 2) % len(catalog.TRADITIONS)]
+    # Each visiting master keeps the Lantern Market stall for three Astralis days.
+    return catalog.TRADITIONS[((moment.day_number - 1) // 3 + 2) % len(catalog.TRADITIONS)]
 
 
 def _visitor_here(session) -> bool:
@@ -58,9 +59,33 @@ def _visitor_here(session) -> bool:
     )
 
 
+def _favorable(t, weather: str) -> bool:
+    if t.key == "moon":
+        return weather == "clear" and ASTRALIS_CLOCK.now().moon_phase == "full"
+    return weather in FAVORABLE_WEATHER[t.key]
+
+
 def _seller(session):
     return _current_tradition(session) or (
         _visitor() if _visitor_here(session) else None
+    )
+
+
+def _publish_secret(session, recipe) -> None:
+    """Only publish the player's actual discovered formula to the living wiki."""
+    from mud.collective_wiki import WikiFact, record_wiki_entry
+    room_key = session.character.current_room or ""
+    room = ROOMS_BY_KEY.get(room_key)
+    item = crafting.ITEMS_BY_KEY[recipe.output_item_key]
+    record_wiki_entry(
+        session.database, category="recipe", entry_key=recipe.key,
+        title=item.name, summary="A hidden alchemical formula discovered in Astralis.",
+        region_key=room.region_key if room is not None else "",
+        room_key=room_key,
+        facts=(WikiFact("formula", "Recovered Formula",
+                        recipe.description, "alchemical_discovery"),),
+        character_id=session.character.id,
+        character_name=session.character.name,
     )
 
 
@@ -180,7 +205,8 @@ async def _show_books(session) -> None:
         status = (
             "LEARNED" if flag in known
             else "IN PACK" if session.database.item_quantity(session.character.id, book.key)
-            else "TRAINER" if bi == 0 and not visiting
+            else "FREE TRAINER LESSON" if bi == 0 and not visiting
+            else "HOME TRAINER ONLY" if bi == 0
             else f"{price} sparks (skill {skill_floor}+)"
         )
         await session.send(f"  {book.name}: {status}\r\n")
@@ -321,6 +347,7 @@ async def _secret(session, clue: str) -> bool:
         r for r in catalog.RECIPES
         if r.discovery_flag == flag
     )
+    _publish_secret(session, recipe)
     await session.send(
         f"Careful inspection of the {clue} reveals an overlooked alchemical "
         f"sequence. Secret formula discovered: "
@@ -381,6 +408,7 @@ async def _experiment(session, roll: float | None = None) -> None:
     flag = catalog.secret_flag(t.key, stage)
     session.database.grant_flag(session.character.id, flag)
     recipe = next(r for r in catalog.RECIPES if r.discovery_flag == flag)
+    _publish_secret(session, recipe)
     await session.send(
         "A tiny reaction you almost discarded proves to be the missing step. "
         "Secret recipe discovered: "
@@ -400,7 +428,7 @@ async def _show_visitor(session) -> None:
     else:
         await session.send(
             "Traveling alchemists sell rotating regional manuals at Waymeet "
-            "Lantern Market from Astralis 08:00 to 17:00. "
+            "Lantern Market from Astralis 08:00 to 17:00; each master stays three days. "
             f"Today's visiting tradition is {t.name}.\r\n"
         )
 
@@ -418,7 +446,7 @@ async def _show_conditions(session) -> None:
         f"{moment.minute:02d}; moon: {moment.moon_phase_name}.\r\n"
     )
     if source is not None:
-        good = weather in FAVORABLE_WEATHER[source.key]
+        good = _favorable(source, weather)
         await session.send(
             f"{source.name} rare reagents: "
             + ("favorable weather; careful gathering can yield an extra sample."
@@ -465,7 +493,7 @@ def install_regional_alchemy_runtime(player_session_class) -> None:
             if t is not None else 0
         )
         await old_gather(session, target, skill_key)
-        if t is None or _weather(session) not in FAVORABLE_WEATHER[t.key]:
+        if t is None or not _favorable(t, _weather(session)):
             return
         key = catalog.sample_key(t.key, True)
         after = session.database.item_quantity(session.character.id, key)
