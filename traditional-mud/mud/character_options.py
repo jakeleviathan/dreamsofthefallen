@@ -296,6 +296,16 @@ CLASSES: tuple[ClassDefinition, ...] = (
         equipment_identity="Caster whose power is split between personal decay magic and an undead pet.",
         design_status="class_arc_locked",
     ),
+    ClassDefinition(
+        key="occultist",
+        name="Occultist",
+        description="A forbidden-knowledge caster who turns risk, ritual, and impossible perception into power before choosing a Blood or Void path.",
+        early_game_identity="Builds Strain to empower unsettling magic, performs rituals, and notices hidden fractures in ordinary places.",
+        endgame_identity="At level 10 the Occultist begins an in-world specialization into Blood, mastering vitality and sacrifice, or Void, mastering distance, displacement, and delayed consequence.",
+        class_passives=("Veil-Sight", "Strain"),
+        equipment_identity="Ritual-focused caster using strange implements, relics, and light equipment.",
+        design_status="early_game_live_specialization_foundation",
+    ),
 )
 
 
