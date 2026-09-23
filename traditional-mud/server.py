@@ -33,6 +33,7 @@ from mud.starter_matrix_quality import validate_starter_matrix_contract
 from mud.waymeet_frontier import install_waymeet_runtime
 from mud.waymeet_living_npcs import install_waymeet_living_talk_runtime
 from mud.brassgut_living_npcs import install_brassgut_living_talk_runtime
+from mud.forest_elf_circle_community import install_circle_community_runtime
 from mud.gloamworks_dungeon import install_gloamworks_runtime
 from mud.greywake_march import install_greywake_runtime
 from mud.blackreed_holdfast import install_blackreed_runtime
@@ -389,6 +390,10 @@ install_combat_grind_runtime(PlayerSession, WORLD)
 install_waymeet_living_talk_runtime(PlayerSession)
 # Brassgut shares the mobile manager, while market quests retain their handlers.
 install_brassgut_living_talk_runtime(PlayerSession)
+# A single new Circle community event layer coordinates existing Maelis with
+# two mobile keepers. The original Forest Elf tutorial continues to own its
+# Heartseed, Silvermoss and Maelis command handlers.
+install_circle_community_runtime(PlayerSession)
 
 # Post is intentionally the final command wrapper. Its subject/body editor and
 # destructive-action confirmations are modal input: they must see the player's
