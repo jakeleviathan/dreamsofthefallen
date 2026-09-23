@@ -13,7 +13,7 @@ import mud.profession_expansion as expansion
 import mud.world as world
 from mud.crafting import ConsumableEffect, ItemDefinition, ResourceNodeDefinition
 from mud.gear import CraftingRecipe, MaterialRequirement
-from mud.stats import CharacterStats
+from mud.stats import CharacterStats, EquipmentItem
 from mud.world import NpcDefinition
 
 
@@ -105,7 +105,7 @@ BANDS = (
 BOOK_PRICES = (0, 16, 55, 160, 420)
 SECRET_SKILLS = (80, 135, 195)
 GOLD_FIXATIVE_PRICE = 240
-GOLD_BUYBACK_CEILING = 22  # priced again in sols.item_list_price
+GOLD_BUYBACK_CEILING = 35  # priced again in sols.item_list_price
 
 
 def lesson_flag(region: str, band: int) -> str:
@@ -349,6 +349,22 @@ SECRET_CLUES.update({
 GOLDWORK_ITEMS = (
     ItemDefinition("alch_sunleaf", "Alchemical Gold Leaf",
         "Thin, durable gold leaf for tailors and enchanters.", "material", tier=7),
+    ItemDefinition(
+        "alch_gilded_travel_coat", "Sun-Gilt Roadkeeper Coat",
+        "A practical traveling coat sewn with genuine alchemical gold leaf.",
+        "equipment", equipment=EquipmentItem(
+            "Sun-Gilt Roadkeeper Coat", "body", armor_class=3,
+            stat_bonuses=CharacterStats(grace=2, love=2),
+        ), tier=7,
+    ),
+    ItemDefinition(
+        "alch_auric_scrying_focus", "Auric Scrying Focus",
+        "A focus pairing real alchemical gold with Moon Elf prismglass.",
+        "equipment", equipment=EquipmentItem(
+            "Auric Scrying Focus", "off_hand",
+            stat_bonuses=CharacterStats(mind=4, love=2),
+        ), tier=8,
+    ),
 )
 GOLDWORK_RECIPES = (
     CraftingRecipe("regional_beat_gold_leaf", "alchemy", "alch_sunleaf",
@@ -356,6 +372,24 @@ GOLDWORK_RECIPES = (
         station_key="alchemy_table",
         description="Beat genuine alchemical gold into a resilient metallic leaf.",
         design_status="regional_alchemy", discovery_flag=lesson_flag("dwarf", 4)),
+    CraftingRecipe(
+        "regional_sew_sungilt_roadkeeper", "tailoring",
+        "alch_gilded_travel_coat", 130, 160,
+        _materials(("alch_sunleaf", 1), ("silk_cloth", 2),
+                   ("astral_thread", 1)),
+        station_key="loom",
+        description="Sew permanent transmuted gold leaf into a durable silk travel coat.",
+        design_status="regional_alchemy_collaboration",
+    ),
+    CraftingRecipe(
+        "regional_enchant_auric_focus", "enchanting",
+        "alch_auric_scrying_focus", 155, 185,
+        _materials(("alch_gold_ingot", 1), ("alch_moon_2_5", 1),
+                   ("arcane_residue", 2), ("moonsteel_ingot", 1)),
+        station_key="enchanting_table",
+        description="Bind true gold and Moon Elf prismglass into a stable magical focus.",
+        design_status="regional_alchemy_collaboration",
+    ),
 )
 
 
