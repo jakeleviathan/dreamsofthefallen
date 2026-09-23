@@ -352,7 +352,7 @@ def chatter_lines(
     if room_key == WAYMEET_TAVERN_KEY and rng.random() < 0.35:
         actor = rng.choice(present)
         return (
-            "Orla Hearthglass sets a warm cup beside " + actor.name + ". 'Four roads, one hearth. What news?'",
+            "Valline Hearthglass sets a warm cup beside " + actor.name + ". 'Four roads, one hearth. What news?'",
             actor.name + " settles near the gearwheel fire and begins swapping road stories.",
         )
 
