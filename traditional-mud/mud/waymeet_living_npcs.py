@@ -242,15 +242,15 @@ PAIR_LINES: dict[frozenset[str], tuple[str, str]] = {
         "Edrin Tallowmark taps his ledger. 'One fewer if you stop asking me questions.'",
     ),
     frozenset((SUVVI.key, MAREN.key)): (
-        "Suvvi Rainpenny slides a parcel across the long table. 'Didn't you promise this would fit in a pocket?'",
+        "Suvvi Rainpenny thrusts a parcel toward Maren. 'Didn't you promise this would fit in a pocket?'",
         "Maren Copperwake laughs. 'A Troll pocket, yes.'",
     ),
     frozenset((BELREK.key, MAREN.key)): (
-        "Belrek Nailsong lays a bent rivet on the long table. 'Tell me exactly which wheel broke it.'",
+        "Belrek Nailsong shows Maren a bent rivet. 'Tell me exactly which wheel broke it.'",
         "Maren Copperwake points west. 'The wheel that got us home before the rain.'",
     ),
     frozenset((LESSA.key, MAREN.key)): (
-        "Lessa Siltward unfolds a trail map by the hearth. 'The southern way is shorter on foot.'",
+        "Lessa Siltward unfolds a trail map. 'The southern way is shorter on foot.'",
         "Maren Copperwake shakes her head. 'I've yet to see you pull a wagon on foot.'",
     ),
 }
@@ -294,8 +294,8 @@ SOLO_ACTIONS: dict[str, tuple[str, ...]] = {
         "Lessa Siltward pauses to compare the wind with the road dust on her boots.",
     ),
     MAREN.key: (
-        "Maren Copperwake pins an updated route note beside the Fifth Lantern's long table.",
-        "Maren Copperwake counts the evening wagons from the doorstep, then settles by the hearth.",
+        "Maren Copperwake updates a rain-creased route map in the margin.",
+        "Maren Copperwake counts the evening wagons and checks her cargo seals.",
     ),
 }
 WET_WEATHER = frozenset(("rain", "storm", "thunderstorm", "snow", "duststorm"))
@@ -367,6 +367,8 @@ def chatter_lines(
             return rng.choice(pairs)
 
     actor = rng.choice(present)
+    if room_key == WAYMEET_TAVERN_KEY and actor.key == MAREN.key:
+        return ("Maren Copperwake pins an updated route note beside the Fifth Lantern's long table.",)
     if room_key == WAYMEET_CROSSROADS_KEY and rng.random() < 0.65:
         return MARSHAL_LINES[actor.key]
     if weather.lower() in WET_WEATHER and rng.random() < 0.60:
