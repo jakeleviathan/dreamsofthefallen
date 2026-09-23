@@ -26,6 +26,7 @@ from mud.weather_gameplay import (
     weather_listen_text,
     weather_smell_text,
 )
+from mud.brassgut_living_npcs import static_contact_visible
 from mud.world import (
     FOREST_ELF_LISTENING_POOL_KEY,
     FOREST_ELF_WAYSTONE_BEND_KEY,
@@ -194,7 +195,9 @@ async def _render_current_room(session, original_show_current_room) -> None:
     if scene is not None:
         for npc_key in scene.npc_keys:
             npc = NPCS_BY_KEY.get(npc_key)
-            if npc:
+            if npc and static_contact_visible(
+                getattr(session, "mobile_npcs", None), npc_key, view.key,
+            ):
                 await session.send(f"\r\n{npc.name} is here, {npc.short_description}.\r\n")
         for enemy_key in scene.enemy_keys:
             enemy = ENEMIES_BY_KEY.get(enemy_key)
@@ -204,6 +207,9 @@ async def _render_current_room(session, original_show_current_room) -> None:
     if session.mobile_npcs is not None:
         local_weather = WORLD.state.weather_for(scene.region_key) if scene is not None else "clear"
         for state in session.mobile_npcs.npcs_in_room(view.key):
+            # A static quest record and the matching mobile actor are one person.
+            if scene is not None and state.definition.key in scene.npc_keys:
+                continue
             description = state.definition.short_description
             if (
                 state.definition.weather_shelter_room_key == view.key
