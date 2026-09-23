@@ -777,7 +777,7 @@ TOPICS: tuple[HelpTopic, ...] = (
         "At Circle Clearing the keepers share dawn Heartseed care, gather when storms damage the herb border, and remember the help players choose to offer.",
         (
             ("Dawn gathering", (
-                "Lethra and Orren follow their own daily rounds, returning to Maelis at the seven stones near dawn.",
+                "Othira and Zelik follow their own daily rounds, returning to Maelis at the seven stones near dawn.",
                 "Use CIRCLE or CIRCLE STATUS at Circle Clearing to see what the local community is doing. JOIN RITUAL while the keepers' Heartseed rite is underway.",
             )),
             ("Storm response", (
