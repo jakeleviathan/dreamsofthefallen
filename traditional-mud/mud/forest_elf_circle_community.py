@@ -205,8 +205,11 @@ class CircleCommunityDirector:
 
         ritual = self.ritual(day)
         ritual_due = (
-            5 <= moment.hour < 8 and weather not in SEVERE
-            and pending is None and (ritual is None or ritual.stage == "active")
+            weather not in SEVERE and pending is None
+            and (
+                (5 <= moment.hour < 8 and ritual is None)
+                or (ritual is not None and ritual.stage == "active")
+            )
         )
         self._route_group(manager, bool(pending) or ritual_due)
 
