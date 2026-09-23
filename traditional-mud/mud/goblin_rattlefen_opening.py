@@ -985,7 +985,7 @@ def install_rattlefen_opening_runtime(player_session_class, world_service) -> No
                 return
             if _is_target(target, "brin", "brin copperhand", "repairer") and await _talk_brin(self):
                 return
-            if _is_target(target, "mara", "mara vale", "human factor", "factor") and await _talk_mara(self):
+            if _is_target(target, "tressa", "tressa vale", "mara", "mara vale", "human factor", "factor") and await _talk_mara(self):
                 return
             if _is_target(target, "vikka", "vikka three-nails", "intake clerk", "clerk"):
                 if await _talk_vikka(self):

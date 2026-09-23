@@ -184,6 +184,7 @@ from mud.session import PlayerSession, SessionState
 from mud.npcs import MobileNpcManager, NpcMovement
 import mud.npcs as mobile_registry
 from mud.waymeet_living_npcs import WAYMEET_LIVING_NPCS, run_waymeet_chatter
+from mud.brassgut_living_npcs import BRASSGUT_LIVING_NPCS, run_brassgut_chatter
 from mud.room_runtime import WORLD, install_room_runtime
 from mud.waymaps import install_waymap_runtime
 from mud.world import NPCS_BY_KEY, ROOMS_BY_KEY
@@ -346,7 +347,7 @@ class MudServer:
             definitions=tuple(
                 definition
                 for definition in mobile_registry.MOBILE_NPC_DEFINITIONS
-                if definition not in WAYMEET_LIVING_NPCS
+                if definition not in (*WAYMEET_LIVING_NPCS, *BRASSGUT_LIVING_NPCS)
                 or set(definition.allowed_room_keys).issubset(ROOMS_BY_KEY)
             ),
             ecology=ASTRALIS_ECOLOGY,
@@ -501,6 +502,15 @@ class MudServer:
                 WORLD.state.weather_for,
             )
         )
+        brassgut_task = asyncio.create_task(
+            run_brassgut_chatter(
+                self.mobile_npcs,
+                self.database,
+                self.player_room_keys,
+                self.broadcast_waymeet_chatter,
+                WORLD.state.weather_for,
+            )
+        )
         weather_task = asyncio.create_task(
             ASTRALIS_WEATHER.run(
                 WORLD.state,
@@ -537,6 +547,7 @@ class MudServer:
         finally:
             npc_task.cancel()
             chatter_task.cancel()
+            brassgut_task.cancel()
             weather_task.cancel()
             ecology_task.cancel()
             district_task.cancel()
@@ -544,6 +555,7 @@ class MudServer:
             await asyncio.gather(
                 npc_task,
                 chatter_task,
+                brassgut_task,
                 weather_task,
                 ecology_task,
                 district_task,
