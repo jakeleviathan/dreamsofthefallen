@@ -31,6 +31,7 @@ from mud.endgame_omens import (
 from mud.goblin_start import GOBLIN_PATCHWORK_PLAZA_KEY, GOBLIN_ROOMS
 from mud.living_world import PULSE_TEMPLATES
 from mud.npcs import MobileNpcManager
+from mud.npc_conversation import resolve_static_talk_target
 from mud.roadside_discoveries import NOON_LENS_KEY, QUIET_BELFRY_KEY, ROADSIDE_ROOMS
 from mud.room_engine import WorldService
 from mud.waymeet_frontier import (
@@ -97,6 +98,12 @@ class OmenContentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             len([npc for npc in legacy_world.NPCS if npc.key == PELLA.key]), 1,
         )
+        self.assertIn(PELLA.key, self.world.scene(WAYMEET_COMMONHOUSE_KEY).npc_keys)
+        talk_target, ambiguous = resolve_static_talk_target(
+            self.world, legacy_world.NPCS_BY_KEY, WAYMEET_COMMONHOUSE_KEY, "pella",
+        )
+        self.assertEqual(talk_target, PELLA)
+        self.assertFalse(ambiguous)
 
     async def test_mural_is_optional_persistent_and_populates_living_wiki(self):
         first = await self.discover(GOBLIN_PATCHWORK_PLAZA_KEY, "examine mural")
@@ -158,6 +165,7 @@ class OmenContentTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue((await self.discover(QUIET_BELFRY_KEY, "compare bell")).discovered)
         self.assertIsNotNone(discovery_record(self.database, self.character.id, BELL_COMPARISON))
         echoes = threshold_echoes(self.database, self.character.id)
+        self.assertIn("waybell", echoes[0])
         self.assertIn("Pella", " ".join(echoes))
         self.assertLessEqual(len(echoes), 3)
 
