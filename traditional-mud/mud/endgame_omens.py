@@ -53,16 +53,16 @@ CLAPPERLESS_BELL = ItemDefinition(
     tier=1,
 )
 
-PELLA = NpcDefinition(
-    key="waymeet_child_pella_dawnskein",
-    name="Pella Dawnskein",
+NIMRA = NpcDefinition(
+    key="waymeet_child_nimra_dawnskein",
+    name="Nimra Dawnskein",
     short_description=(
         "a curious child sorting painted road pebbles and humming an unfinished tune"
     ),
     room_key=WAYMEET_COMMONHOUSE_KEY,
     role="Commonhouse child and keeper of a half-remembered road song",
     dialogue=(
-        "Pella lines up four colored pebbles. 'These are the four roads. "
+        "Nimra lines up four colored pebbles. 'These are the four roads. "
         "This one's for the road that isn't there. My grandma says I made it up.'",
         "She hums four clear notes, pauses for a fifth, then shrugs. "
         "'Grandma always stopped there. She said the rest wasn't ours to sing.'",
@@ -123,7 +123,7 @@ OMEN_FEATURES: dict[str, tuple[FeatureDefinition, ...]] = {
             "Children's Road Song",
             "children at the steps playing a four-road counting game",
             "The children trade rhymes and painted pebbles while the adults "
-            "talk about broken wagons and tonight's meals. Pella keeps "
+            "talk about broken wagons and tonight's meals. Nimra keeps "
             "stopping her tune one note before the others expect it.",
             aliases=("children", "road song", "humming", "song"),
             listen="Four bright notes rise from the steps, followed by a "
@@ -204,15 +204,15 @@ OMEN_DEFINITIONS = (
         kind="omen",
         trigger="command",
         verbs=("listen",),
-        targets=("children", "humming", "road song", "pella"),
+        targets=("children", "humming", "road song", "nimra"),
         text=(
-            "Pella Dawnskein hums four notes and leaves a fifth hanging in "
+            "Nimra Dawnskein hums four notes and leaves a fifth hanging in "
             "silence. She says her grandmother sang it the same way and "
             "refused to supply an ending. Then she runs off to fetch "
             "another painted road pebble, as if it meant nothing."
         ),
         condition=DiscoveryCondition(room_keys=(WAYMEET_COMMONHOUSE_KEY,)),
-        internal_name="Pella's unfinished refrain",
+        internal_name="Nimra's unfinished refrain",
     ),
     DiscoveryDefinition(
         key=BELL_RESONANCE,
@@ -285,7 +285,7 @@ OMEN_DEFINITIONS = (
         verbs=("trace",),
         targets=("fifth notch", "missing note"),
         text=(
-            "Remembering Pella's unfinished song and the Waymeet chalk, "
+            "Remembering Nimra's unfinished song and the Waymeet chalk, "
             "you trace four marks on the frame. The fifth is not a direction "
             "or a note. It is an instruction to wait while something "
             "on the other side answers."
@@ -339,19 +339,19 @@ def install_endgame_omens_content(world_service) -> None:
         crafting.ITEMS = crafting.ITEMS + (CLAPPERLESS_BELL,)
     crafting.ITEMS_BY_KEY[CLAPPERLESS_BELL_KEY] = CLAPPERLESS_BELL
 
-    known = legacy_world.NPCS_BY_KEY.get(PELLA.key)
-    if known is not None and known != PELLA:
-        raise ValueError("Conflicting Commonhouse NPC: " + PELLA.key)
+    known = legacy_world.NPCS_BY_KEY.get(NIMRA.key)
+    if known is not None and known != NIMRA:
+        raise ValueError("Conflicting Commonhouse NPC: " + NIMRA.key)
     if known is None:
-        legacy_world.NPCS = legacy_world.NPCS + (PELLA,)
-    legacy_world.NPCS_BY_KEY[PELLA.key] = PELLA
+        legacy_world.NPCS = legacy_world.NPCS + (NIMRA,)
+    legacy_world.NPCS_BY_KEY[NIMRA.key] = NIMRA
 
     # Registration alone cannot make a static NPC visible. Rich LOOK and the
     # generic TALK router both read the room's actual npc_keys.
     commonhouse = world_service.legacy_rooms[WAYMEET_COMMONHOUSE_KEY]
-    if PELLA.key not in commonhouse.npc_keys:
+    if NIMRA.key not in commonhouse.npc_keys:
         commonhouse = replace(
-            commonhouse, npc_keys=(*commonhouse.npc_keys, PELLA.key),
+            commonhouse, npc_keys=(*commonhouse.npc_keys, NIMRA.key),
         )
         world_service.legacy_rooms[WAYMEET_COMMONHOUSE_KEY] = commonhouse
         if WAYMEET_COMMONHOUSE_KEY in legacy_world.ROOMS_BY_KEY:
@@ -374,7 +374,7 @@ def install_endgame_omens_content(world_service) -> None:
 REVISIT_LINES = {
     BURIED_MURAL: "The old mural still leads four roads toward an unmarked fifth place.",
     CHALK_CIPHER: "The same fifth chalk mark has been rubbed away again.",
-    CHILD_REFRAIN: "Pella hums those four familiar notes, then goes quiet before the fifth.",
+    CHILD_REFRAIN: "Nimra hums those four familiar notes, then goes quiet before the fifth.",
     BELL_RESONANCE: "Your waybell gives four faint notes, followed by that impossible pause.",
     EMPTY_BELFRY: "The empty frame still waits under the weight of something that is not here.",
     BELL_COMPARISON: "Your waybell's notches still fit the marks of the vanished larger bell.",
@@ -409,7 +409,7 @@ def threshold_echoes(database, character_id: int) -> tuple[str, ...]:
         )
     if CHILD_REFRAIN in known:
         echoes.append(
-            "You recognize Pella Dawnskein's unfinished tune in the ward's opening notes. "
+            "You recognize Nimra Dawnskein's unfinished tune in the ward's opening notes. "
             "Somewhere back at the Commonhouse she will still be humming it."
         )
     if EMPTY_BELFRY in known:
