@@ -72,7 +72,7 @@ WARDEN_KEY = "waymeet_warden_korr_snowhand"
 FOREMAN_KEY = "waymeet_foreman_hedda_rivetstone"
 BROKER_KEY = "waymeet_broker_nix_coil"
 PROVISIONER_KEY = "waymeet_provisioner_sevra_lent"
-TAVERN_HOST_KEY = "waymeet_host_orla_hearthglass"
+TAVERN_HOST_KEY = "waymeet_host_valline_hearthglass"
 TAVERN_COOK_KEY = "waymeet_cook_merrin_mosskettle"
 TAVERN_STEW_KEY = "waymeet_fifth_lantern_road_stew"
 TAVERN_TEA_KEY = "waymeet_fifth_lantern_spiced_tea"
@@ -298,13 +298,13 @@ PROVISIONER = NpcDefinition(
 )
 TAVERN_HOST = NpcDefinition(
     key=TAVERN_HOST_KEY,
-    name="Orla Hearthglass",
+    name="Valline Hearthglass",
     short_description="an Undead innkeeper polishing mismatched glassware beside a lamp made from an old freight-lift lens",
     room_key=WAYMEET_TAVERN_KEY,
     role="keeper of the Fifth Lantern inn and its caravan table",
     dialogue=(
-        "Orla turns a chipped cup in her hands. 'The first rule here: nobody asks which road you came by until you've had a chance to warm up.'",
-        "'BROWSE ORLA for stew and spiced tea. The loft is upstairs; there's room for travelers, not private kingdoms.'",
+        "Valline turns a chipped cup in her hands. 'The first rule here: nobody asks which road you came by until you've had a chance to warm up.'",
+        "'BROWSE VALLINE for stew and spiced tea. The loft is upstairs; there's room for travelers, not private kingdoms.'",
         "'Ask the room what the roads are doing. TAVERN RUMORS follows real road reports, not prophecies.'",
     ),
 )
@@ -316,7 +316,7 @@ TAVERN_COOK = NpcDefinition(
     role="the Fifth Lantern's cook and keeper of the communal hearth",
     dialogue=(
         "Merrin tilts a steaming ladle. 'Travelers have different names for the same root. I keep every name and put the root in the stew.'",
-        "'If the bridge floods, we stretch the meal, not the truth. Orla will know who still needs a bed.'",
+        "'If the bridge floods, we stretch the meal, not the truth. Valline will know who still needs a bed.'",
     ),
 )
 WAYMEET_NPCS = (MARSHAL, WARDEN, FOREMAN, BROKER, PROVISIONER, TAVERN_HOST, TAVERN_COOK)
@@ -404,7 +404,7 @@ WAYMEET_ROOMS: tuple[RoomDefinition, ...] = (
             "a retired Dwarven freight-lift gear; its iron teeth now hold a circular hearth. Goblin copper "
             "patches mend the roof, Forest Elf woven shades soften the lamps, and smoked Necropolis glass "
             "keeps the drafts away from the long shared table. Boots from every homeland dry by the fire. "
-            "Behind the counter, Orla keeps a ledger of arriving caravans, spare beds and missed deliveries."
+            "Behind the counter, Valline keeps a ledger of arriving caravans, spare beds and missed deliveries."
         ),
         exits={"out": WAYMEET_COMMONHOUSE_KEY, "east": WAYMEET_TAVERN_KITCHEN_KEY, "up": WAYMEET_TAVERN_LOFT_KEY},
         npc_keys=(TAVERN_HOST_KEY,),
@@ -581,7 +581,7 @@ def waymeet_augmentations() -> dict[str, RoomAugmentation]:
                     "and the names of those who rebuilt the hearth after each one.",
                     aliases=("hearth", "fire", "gear", "gearwheel")),
                 _feature("fifth_lantern_ledger", "Caravan Ledger",
-                    "Orla's working record of arrivals, empty bunks and roads worth avoiding",
+                    "Valline's working record of arrivals, empty bunks and roads worth avoiding",
                     "Columns for the western, northern, southern and marsh roads leave a fifth column "
                     "for anyone who needs company. Use TAVERN RUMORS for the current road report.",
                     aliases=("ledger", "book", "road reports", "reports")),
@@ -603,7 +603,7 @@ def waymeet_augmentations() -> dict[str, RoomAugmentation]:
                     "The lanterns are turned low. Late arrivals murmur over maps while the guest loft creaks overhead.",
                     condition=ViewCondition(time_buckets=("night",))),
                 DescriptionLayer("fifth_lantern_bad_weather",
-                    "Rain beats on the patched roof. Orla shifts the dry blankets near the hearth "
+                    "Rain beats on the patched roof. Valline shifts the dry blankets near the hearth "
                     "and leaves space for delayed travelers.",
                     condition=ViewCondition(weather=("rain", "storm", "thunderstorm", "snow", "duststorm"))),
                 DescriptionLayer("fifth_lantern_midgame",
@@ -1078,9 +1078,9 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
                 await self.send("The Fifth Lantern is inside the Commonhouse Yard. From the yard, go IN.\r\n")
                 return
             if normalized in {"tavern", "tavern help"}:
-                await self.send("The Fifth Lantern: REST at the hearth or in the guest loft; SAY and EMOTE at the long table; TALK ORLA, BROWSE ORLA, BUY <item>; TAVERN MENU, TAVERN RUMORS, TAVERN REGULARS.\r\n")
+                await self.send("The Fifth Lantern: REST at the hearth or in the guest loft; SAY and EMOTE at the long table; TALK VALLINE, BROWSE VALLINE, BUY <item>; TAVERN MENU, TAVERN RUMORS, TAVERN REGULARS.\r\n")
             elif normalized == "tavern menu":
-                await self.send("Orla's counter: Fifth Lantern Road Stew (9 sparks; EAT), Fifth Lantern Spiced Tea (5 sparks; DRINK), Spring Water (3 sparks) and Blank Waymaps (8 sparks). BROWSE ORLA for live prices and BUY <item>.\r\n")
+                await self.send("Valline's counter: Fifth Lantern Road Stew (9 sparks; EAT), Fifth Lantern Spiced Tea (5 sparks; DRINK), Spring Water (3 sparks) and Blank Waymaps (8 sparks). BROWSE VALLINE for live prices and BUY <item>.\r\n")
             elif normalized == "tavern regulars":
                 here = getattr(self, "mobile_npcs", None)
                 names = [state.definition.name for state in here.npcs_in_room(room_key)] if here else []
@@ -1098,7 +1098,7 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
                 if intro and intro["status"] == "completed":
                     lines.append("You recognize the latest Gloamworks notice: the masonry under the Broken Mile is still being watched.")
                 else:
-                    lines.append("Orla points to Marshal Aven's notice about the Broken Mile and Gloam Mouth.")
+                    lines.append("Valline points to Marshal Aven's notice about the Broken Mile and Gloam Mouth.")
                 if self.character.level >= 15:
                     lines.append("Experienced caravaners are comparing reports from Ashcross and the Meridian Outerworks.")
                 elif self.character.level >= 11:
