@@ -1075,16 +1075,16 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
             room_key = self.character.current_room or ""
             inside = room_key in {WAYMEET_TAVERN_KEY, WAYMEET_TAVERN_KITCHEN_KEY, WAYMEET_TAVERN_LOFT_KEY}
             if not inside:
-                await self.send("The Fifth Lantern is inside the Commonhouse Yard. From the yard, go IN.\\r\\n")
+                await self.send("The Fifth Lantern is inside the Commonhouse Yard. From the yard, go IN.\r\n")
                 return
             if normalized in {"tavern", "tavern help"}:
-                await self.send("The Fifth Lantern: REST at the hearth or in the guest loft; SAY and EMOTE at the long table; TALK ORLA, BROWSE ORLA, BUY ORLA <item>; TAVERN MENU, TAVERN RUMORS, TAVERN REGULARS.\\r\\n")
+                await self.send("The Fifth Lantern: REST at the hearth or in the guest loft; SAY and EMOTE at the long table; TALK ORLA, BROWSE ORLA, BUY ORLA <item>; TAVERN MENU, TAVERN RUMORS, TAVERN REGULARS.\r\n")
             elif normalized == "tavern menu":
-                await self.send("Orla's counter: Fifth Lantern Road Stew (9 sparks; EAT), Fifth Lantern Spiced Tea (5 sparks; DRINK), Spring Water (3 sparks) and Blank Waymaps (8 sparks). BROWSE ORLA for live prices and BUY ORLA <item>.\\r\\n")
+                await self.send("Orla's counter: Fifth Lantern Road Stew (9 sparks; EAT), Fifth Lantern Spiced Tea (5 sparks; DRINK), Spring Water (3 sparks) and Blank Waymaps (8 sparks). BROWSE ORLA for live prices and BUY ORLA <item>.\r\n")
             elif normalized == "tavern regulars":
                 here = getattr(self, "mobile_npcs", None)
                 names = [state.definition.name for state in here.npcs_in_room(room_key)] if here else []
-                await self.send("Travelers currently in this room: " + (", ".join(names) if names else "none of the regulars right now") + ".\\r\\n")
+                await self.send("Travelers currently in this room: " + (", ".join(names) if names else "none of the regulars right now") + ".\r\n")
             else:
                 from mud.astralis_time import ASTRALIS_CLOCK
                 hour = ASTRALIS_CLOCK.now().hour
@@ -1105,7 +1105,7 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
                     lines.append("Missing-caravan reports from Broken Reach have drawn seasoned groups to the long table.")
                 if hour >= 18 or hour < 5:
                     lines.append("The evening drivers trade route notes until the last lamp burns low.")
-                await self.send("\\r\\n".join(lines) + "\\r\\n")
+                await self.send("\r\n".join(lines) + "\r\n")
             return
         if normalized in {"waymeet", "waymeet help", "frontier"} and _in_waymeet(self):
             await self.send(
