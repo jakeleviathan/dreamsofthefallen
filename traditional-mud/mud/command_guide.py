@@ -130,6 +130,10 @@ COMMANDS: tuple[CommandEntry, ...] = (
 
     CommandEntry("world", "TIME / DATE / CALENDAR", "Read the persistent accelerated Astralis clock and calendar."),
     CommandEntry("world", "WEATHER", "Read current regional weather where the calendar runtime exposes it."),
+    CommandEntry("world", "CIRCLE / CIRCLE STATUS", "At Forest Elf Circle Clearing, view shared ritual, storm recovery and community memory."),
+    CommandEntry("world", "JOIN RITUAL", "Join the Circle's Heartseed rite while Maelis and the scheduled keepers are gathered."),
+    CommandEntry("world", "HELP REPAIR BORDER", "Help the keepers repair storm damage in Circle Clearing once the weather has eased."),
+    CommandEntry("world", "SHARE HEARTSEED STORY", "After restoring the Heartseed, voluntarily share your lesson with the Circle's persistent care slates."),
     CommandEntry("world", "TODAY / DISPATCH", "Read the current living-world pulse without turning it into a daily quest."),
     CommandEntry("world", "GOSSIP / RUMOR", "Hear the current event and public-history texture through in-world rumor."),
     CommandEntry("world", "CHRONICLE / HISTORY", "Read persistent public server history and recorded firsts."),
@@ -292,6 +296,13 @@ async def _show_help_here(session, world_service) -> None:
             continue
         suggestions.append((f"{verb} <named feature>", "this room contains authored text that points at this interaction"))
     suggestions.extend(contextual_action_hints(room_key))
+    if room_key == "forest_elf_circle_clearing":
+        suggestions.extend((
+            ("CIRCLE STATUS", "see the Circle's current ritual and herb-border work"),
+            ("JOIN RITUAL", "join the Heartseed gathering when the keepers are together"),
+            ("HELP REPAIR BORDER", "assist with storm damage after the keepers gather"),
+            ("SHARE HEARTSEED STORY", "share a restored Heartseed lesson with the community"),
+        ))
 
     if style_atelier_available(world_service, room_key):
         suggestions.extend(
