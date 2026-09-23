@@ -185,6 +185,12 @@ from mud.npcs import MobileNpcManager, NpcMovement
 import mud.npcs as mobile_registry
 from mud.waymeet_living_npcs import WAYMEET_LIVING_NPCS, run_waymeet_chatter
 from mud.brassgut_living_npcs import BRASSGUT_LIVING_NPCS, run_brassgut_chatter
+from mud.forest_elf_circle_community import (
+    CIRCLE_LIVING_NPCS,
+    REGION as CIRCLE_REGION,
+    CircleCommunityDirector,
+    run_circle_community,
+)
 from mud.room_runtime import WORLD, install_room_runtime
 from mud.waymaps import install_waymap_runtime
 from mud.world import NPCS_BY_KEY, ROOMS_BY_KEY
@@ -347,7 +353,7 @@ class MudServer:
             definitions=tuple(
                 definition
                 for definition in mobile_registry.MOBILE_NPC_DEFINITIONS
-                if definition not in (*WAYMEET_LIVING_NPCS, *BRASSGUT_LIVING_NPCS)
+                if definition not in (*WAYMEET_LIVING_NPCS, *BRASSGUT_LIVING_NPCS, *CIRCLE_LIVING_NPCS)
                 or set(definition.allowed_room_keys).issubset(ROOMS_BY_KEY)
             ),
             ecology=ASTRALIS_ECOLOGY,
@@ -358,6 +364,12 @@ class MudServer:
         # Seasonal culture transitions begin from the current calendar season;
         # startup itself does not replay a fake season-change announcement.
         SEASONAL_CULTURES.initialize(moment)
+        # Circle events belong to one shared world coordinator, not to each
+        # player's session. Reapply pending rendezvous after a server restart.
+        self.circle_community = CircleCommunityDirector.for_database(self.database)
+        self.circle_community.pulse(
+            self.mobile_npcs, moment, WORLD.state.weather_for(CIRCLE_REGION),
+        )
 
     async def handle_connection(
         self,
@@ -372,6 +384,7 @@ class MudServer:
             mobile_npc_movement_callback=self.broadcast_npc_movement,
             room_players_callback=self.players_in_room,
         )
+        session.circle_community = self.circle_community
         self.sessions.add(session)
         try:
             await session.run()
@@ -511,6 +524,15 @@ class MudServer:
                 WORLD.state.weather_for,
             )
         )
+        circle_task = asyncio.create_task(
+            run_circle_community(
+                self.circle_community,
+                self.mobile_npcs,
+                self.player_room_keys,
+                self.broadcast_waymeet_chatter,
+                WORLD.state.weather_for,
+            )
+        )
         weather_task = asyncio.create_task(
             ASTRALIS_WEATHER.run(
                 WORLD.state,
@@ -548,6 +570,7 @@ class MudServer:
             npc_task.cancel()
             chatter_task.cancel()
             brassgut_task.cancel()
+            circle_task.cancel()
             weather_task.cancel()
             ecology_task.cancel()
             district_task.cancel()
@@ -556,6 +579,7 @@ class MudServer:
                 npc_task,
                 chatter_task,
                 brassgut_task,
+                circle_task,
                 weather_task,
                 ecology_task,
                 district_task,
