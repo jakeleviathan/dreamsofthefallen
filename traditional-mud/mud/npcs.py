@@ -375,6 +375,9 @@ class MobileNpcManager:
         self.definitions = definitions
         self.ecology = ecology
         self.states: dict[str, MobileNpcState] = {}
+        # Shared community events may temporarily call peaceful residents to a
+        # common workplace without replacing their permanent daily schedules.
+        self.routine_overrides: dict[str, str] = {}
         self.regional_pools: dict[str, RegionalSpawnDefinition] = {}
         self._regional_instance_to_pool: dict[str, str] = {}
         self._regional_next_spawn_tick: dict[str, int] = {}
@@ -400,6 +403,7 @@ class MobileNpcManager:
 
     def reset(self) -> None:
         self.states = {}
+        self.routine_overrides.clear()
         self._regional_instance_to_pool.clear()
         self._rare_expiry_tick.clear()
         self._tick_index = 0
@@ -1387,7 +1391,8 @@ class MobileNpcManager:
 
     def _choose_routine_move(self, state: MobileNpcState, hour: int) -> tuple[str, str, str] | None:
         allowed = set(state.definition.allowed_room_keys)
-        desired_room = self._routine_destination(state.definition, hour)
+        override = self.routine_overrides.get(state.definition.key)
+        desired_room = override if override in allowed else self._routine_destination(state.definition, hour)
         path = self._shortest_path(state.current_room_key, desired_room, allowed)
         if path is None or len(path) < 2:
             return None
@@ -1395,7 +1400,7 @@ class MobileNpcManager:
         direction = self._direction_to(state.current_room_key, destination)
         if direction is None:
             return None
-        return direction, destination, "schedule"
+        return direction, destination, "community" if override in allowed else "schedule"
 
     def _choose_weather_shelter_move(self, state: MobileNpcState) -> tuple[str, str, str] | None:
         shelter = state.definition.weather_shelter_room_key
