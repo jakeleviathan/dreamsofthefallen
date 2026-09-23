@@ -93,7 +93,7 @@ def _npc_lines(session, scene) -> list[str]:
         for npc_key in getattr(scene, "npc_keys", ()):
             npc = NPCS_BY_KEY.get(npc_key)
             if npc is None or npc.name in seen or not static_contact_visible(
-                getattr(session, "mobile_npcs", None), npc_key, scene.key,
+                getattr(session, "mobile_npcs", None), npc_key, getattr(scene, "key", ""),
             ):
                 continue
             seen.add(npc.name)
@@ -214,7 +214,7 @@ def _objective_talk_hint(session, scene) -> tuple[str, str, str] | None:
     for npc_key in getattr(scene, "npc_keys", ()):
         npc = NPCS_BY_KEY.get(npc_key)
         if npc is not None and static_contact_visible(
-            getattr(session, "mobile_npcs", None), npc_key, scene.key,
+            getattr(session, "mobile_npcs", None), npc_key, getattr(scene, "key", ""),
         ):
             available.append((npc_key, npc))
     if not available:
