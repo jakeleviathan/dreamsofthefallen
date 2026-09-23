@@ -15,7 +15,7 @@ from mud.astralis_time import AstralisMoment
 from mud.community_events import CommunityEventJournal
 from mud.database import Database
 from mud.forest_elf_circle_community import (
-    CIRCLE, CIRCLE_LIVING_NPCS, COMMUNITY, DISRUPTION, LETHRA, ORREN,
+    CIRCLE, CIRCLE_LIVING_NPCS, COMMUNITY, DISRUPTION, OTHIRA, ZELIK,
     REGION, RITUAL, STORY, CircleCommunityDirector, gathered,
     install_circle_community_runtime, register_circle_living_npcs,
     resolve_circle_talk, talk_lines,
@@ -80,21 +80,21 @@ class CircleCommunityTests(unittest.TestCase):
         register_circle_living_npcs()
         self.assertEqual(len({actor.key for actor in CIRCLE_LIVING_NPCS}), 2)
         self._gather_at()
-        self.assertEqual(self.manager.states[LETHRA.key].current_room_key, CIRCLE)
-        self.assertEqual(self.manager.states[ORREN.key].current_room_key, CIRCLE)
+        self.assertEqual(self.manager.states[OTHIRA.key].current_room_key, CIRCLE)
+        self.assertEqual(self.manager.states[ZELIK.key].current_room_key, CIRCLE)
         self.director.pulse(self.manager, moment(55, 9), "clear")
         for _ in range(4):
             self.manager.tick(hour=9, rng=random.Random(2),
                               weather_provider=lambda _: "clear")
-        self.assertNotEqual(self.manager.states[LETHRA.key].current_room_key, CIRCLE)
-        self.assertNotEqual(self.manager.states[ORREN.key].current_room_key, CIRCLE)
+        self.assertNotEqual(self.manager.states[OTHIRA.key].current_room_key, CIRCLE)
+        self.assertNotEqual(self.manager.states[ZELIK.key].current_room_key, CIRCLE)
 
     def test_shared_dawn_ritual_persists_without_duplicate_events(self):
         self._gather_at()
         opening = self.director.pulse(self.manager, moment(55, 5, 1), "clear")
         self.assertIn("Maelis", " ".join(opening))
-        self.assertIn("Lethra", " ".join(opening))
-        self.assertIn("Orren", " ".join(opening))
+        self.assertIn("Othira", " ".join(opening))
+        self.assertIn("Zelik", " ".join(opening))
         self.assertEqual(
             self.director.pulse(self.manager, moment(55, 5, 2), "clear"), (),
         )
@@ -141,7 +141,7 @@ class CircleCommunityTests(unittest.TestCase):
         recovery = self.director.pulse(
             self.manager, moment(70, 12, 3), "clear",
         )
-        self.assertIn("Lethra", " ".join(recovery))
+        self.assertIn("Othira", " ".join(recovery))
         self.assertEqual(self.director.incident().stage, "tending")
         self.assertIn("HELP REPAIR BORDER", self.director.scene_line(moment(70, 12, 4)))
         end = self.director.pulse(self.manager, moment(70, 12, 13), "clear")
@@ -231,14 +231,14 @@ class CircleCommunityTests(unittest.TestCase):
         self.assertTrue(gossip)
 
     def test_talk_uses_real_location_and_weather(self):
-        self.assertIsNone(resolve_circle_talk(self.manager, CIRCLE, "lethra"))
+        self.assertIsNone(resolve_circle_talk(self.manager, CIRCLE, "othira"))
         self._gather_at()
-        self.assertEqual(resolve_circle_talk(self.manager, CIRCLE, "lethra"), LETHRA)
+        self.assertEqual(resolve_circle_talk(self.manager, CIRCLE, "othira"), OTHIRA)
         self.assertEqual(resolve_circle_talk(
-            self.manager, CIRCLE, "keeper orren fernstitch",
-        ), ORREN)
+            self.manager, CIRCLE, "keeper zelik fernstitch",
+        ), ZELIK)
         self.assertIn("JOIN RITUAL", " ".join(talk_lines(
-            LETHRA, moment(55, 5, 1), "clear", self.director,
+            OTHIRA, moment(55, 5, 1), "clear", self.director,
         ))) if self.director.ritual(55) is not None else self.assertTrue(True)
 
 
