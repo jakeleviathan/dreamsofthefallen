@@ -1675,10 +1675,10 @@ class PlayerSession:
         direction_aliases = {
             "n": "north", "s": "south", "e": "east", "w": "west",
             "ne": "northeast", "nw": "northwest", "se": "southeast", "sw": "southwest",
-            "u": "up", "d": "down",
+            "u": "up", "d": "down", "go in": "in", "go out": "out",
         }
         direction = direction_aliases.get(verb, verb)
-        if direction in {"north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest", "up", "down"}:
+        if direction in {"north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest", "up", "down", "in", "out"}:
             await self.move_character(direction)
             return
 
