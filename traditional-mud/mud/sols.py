@@ -77,6 +77,14 @@ def item_list_price(item_key: str) -> int:
     if item is None:
         return 0
 
+    # Real alchemical gold is valuable without being an infinite Sol faucet.
+    # Its required purchased fixative costs 240 sparks per permanent conversion;
+    # ordinary merchant buyback from this 100-spark retail valuation is 35.
+    if item_key == "alch_gold_ingot":
+        return 100
+    if item_key == "alch_auric_fixative":
+        return 0  # licensed stabilizers are not bought back by ordinary shops
+
     category = str(getattr(item, "category", "") or "").strip().lower()
     tier = max(0, int(getattr(item, "tier", 0) or 0))
 
