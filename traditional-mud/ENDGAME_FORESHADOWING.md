@@ -11,11 +11,11 @@ details now and provides durable, per-character callbacks for later content.
 | --- | --- | --- | --- |
 | Starter | Junk City, Patchwork Plaza | Ancient arc under busy paving | EXAMINE MURAL |
 | Early shared world | Waymeet Crossroads | Weathered marks beneath a bridge notice | READ CHALK MARKS |
-| Early shared world | Waymeet Commonhouse Yard | Pella Dawnskein, a child with a pebble game | TALK PELLA, LISTEN CHILDREN |
+| Early shared world | Waymeet Commonhouse Yard | Nimra Dawnskein, a child with a pebble game | TALK NIMRA, LISTEN CHILDREN |
 | Copperwake caravan days | Waymeet Lantern Market | An itinerant trader's oddment tray | BROWSE WANDERER, BUY WANDERER CLAPPERLESS WAYBELL |
 | While carrying the bell | Waymeet Crossroads / Commonhouse | The bell has no clapper | LISTEN BELL |
 | Optional level ~18 | Quiet Belfry | Empty, still-loaded bell frame | LISTEN FRAME; bell owners may COMPARE BELL |
-| Optional level ~34 | Noonwatch Lens Room | An old civilian sighting frame with a blank bearing | READ LENS SCRATCHES; players who heard Pella **and** read the chalk may TRACE FIFTH NOTCH |
+| Optional level ~34 | Noonwatch Lens Room | An old civilian sighting frame with a blank bearing | READ LENS SCRATCHES; players who heard Nimra **and** read the chalk may TRACE FIFTH NOTCH |
 
 The Copperwake bell is priced at **nine sparks**, with no combat statistics
 and no gameplay power. Its appearances follow the existing daily event
@@ -23,10 +23,10 @@ rotation, so it is intermittent, not a permanent hidden shop. The bell
 is an extra connection, not required to understand or finish any story.
 Every race can encounter shared Waymeet clues without visiting Junk City.
 
-Pella is a named, talkable character, not an anonymous one-shot clue.
+Nimra is a named, talkable character, not an anonymous one-shot clue.
 Her pebble game and grandmother's unfinished tune work as ordinary local
 color now. Rare ambient chatter lets nearby residents notice recurring
-chalk after wet weather, and Pella sometimes hums during daytime. These
+chalk after wet weather, and Nimra sometimes hums during daytime. These
 use the established Waymeet presence requirement and cooldowns.
 
 ## Memory and payoff
@@ -42,7 +42,7 @@ level-50 integration seam. Once the Hinge raid is authored, play its same
 core introduction to everyone. Then append **at most three** optional
 character-specific recognition lines returned by this function. Those
 lines connect the gateway's ground plan to the Junk City mural, ward script
-to Waymeet chalk, opening notes to Pella, bell mechanism to Quiet Belfry,
+to Waymeet chalk, opening notes to Nimra, bell mechanism to Quiet Belfry,
 fifth bearing to Noonwatch, and carried waybell to its larger counterpart.
 Deliver these once at a dramatic moment, not every time the door is viewed.
 
@@ -59,7 +59,7 @@ arc remain future story beats.
   opening, met a particular faction, or kept a purchasable trinket.
 - Midgame clues stand on their own. Remembering early details offers
   an additional line, never access or progression.
-- No early NPC is omniscient. Pella does not know the fifth road's
+- No early NPC is omniscient. Nimra does not know the fifth road's
   destination. The merchant does not know the bell's purpose.
 - The endgame should revisit these specific people and objects rather
   than replacing the mysteries with unrelated exposition.
