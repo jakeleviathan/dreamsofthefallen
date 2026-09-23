@@ -21,6 +21,7 @@ from mud.waymeet_living_npcs import (
     EDRIN, MAREN, WAYMEET_LIVING_NPCS, chatter_lines, resolve_waymeet_talk,
 )
 from mud.world import NPCS_BY_KEY
+from mud.weather_gameplay import room_is_weather_exposed
 
 
 class FifthLanternTests(unittest.TestCase):
@@ -58,6 +59,8 @@ class FifthLanternTests(unittest.TestCase):
                 )
         self.assertTrue(is_restful_place(self.world, WAYMEET_TAVERN_KEY))
         self.assertTrue(is_restful_place(self.world, WAYMEET_TAVERN_LOFT_KEY))
+        for room_key in (WAYMEET_TAVERN_KEY, WAYMEET_TAVERN_KITCHEN_KEY, WAYMEET_TAVERN_LOFT_KEY):
+            self.assertFalse(room_is_weather_exposed(self.world.scene(room_key).tags, room_key))
         for room_key in (WAYMEET_COMMONHOUSE_KEY, WAYMEET_TAVERN_KEY, WAYMEET_TAVERN_KITCHEN_KEY, WAYMEET_TAVERN_LOFT_KEY):
             directions = [item.direction for item in self.world.scene(room_key).exits]
             self.assertEqual(len(directions), len(set(directions)))
