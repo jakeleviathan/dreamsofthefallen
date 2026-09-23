@@ -4,6 +4,7 @@ import asyncio
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import mud.crafting as crafting
 import mud.world as legacy_world
@@ -39,7 +40,6 @@ from mud.waymeet_frontier import (
     WAYMEET_CROSSROADS_KEY,
     WAYMEET_LANTERN_MARKET_KEY,
     WAYMEET_ROOMS,
-    install_waymeet_content,
 )
 from mud.waymeet_living_npcs import EDRIN, chatter_lines
 
@@ -57,9 +57,6 @@ class TestSession:
 
 class OmenContentTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        # MobileNpcManager validates spawn rooms against the legacy registry.
-        # Keep the fixture independent of production import/test order.
-        install_waymeet_content()
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.database = Database(Path(self.temp.name) / "omens.db")
@@ -211,7 +208,12 @@ class OmenContentTests(unittest.IsolatedAsyncioTestCase):
             def choice(self, values):
                 return values[0]
 
-        manager = MobileNpcManager(definitions=(EDRIN,))
+        # Validate the mobile against temporary Waymeet rooms without changing
+        # the process-wide world seen by later, independent test classes.
+        with patch.dict(
+            legacy_world.ROOMS_BY_KEY, {room.key: room for room in WAYMEET_ROOMS},
+        ):
+            manager = MobileNpcManager(definitions=(EDRIN,))
         manager.states[EDRIN.key].current_room_key = WAYMEET_COMMONHOUSE_KEY
         self.assertIn(
             "Nimra",
