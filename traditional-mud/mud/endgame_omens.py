@@ -6,6 +6,8 @@ shared discovery journal and collective wiki remember real player interactions.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 import mud.crafting as crafting
 import mud.world as legacy_world
 from mud.crafting import ItemDefinition
@@ -344,6 +346,21 @@ def install_endgame_omens_content(world_service) -> None:
         legacy_world.NPCS = legacy_world.NPCS + (PELLA,)
     legacy_world.NPCS_BY_KEY[PELLA.key] = PELLA
 
+    # Registration alone cannot make a static NPC visible. Rich LOOK and the
+    # generic TALK router both read the room's actual npc_keys.
+    commonhouse = world_service.legacy_rooms[WAYMEET_COMMONHOUSE_KEY]
+    if PELLA.key not in commonhouse.npc_keys:
+        commonhouse = replace(
+            commonhouse, npc_keys=(*commonhouse.npc_keys, PELLA.key),
+        )
+        world_service.legacy_rooms[WAYMEET_COMMONHOUSE_KEY] = commonhouse
+        if WAYMEET_COMMONHOUSE_KEY in legacy_world.ROOMS_BY_KEY:
+            legacy_world.ROOMS_BY_KEY[WAYMEET_COMMONHOUSE_KEY] = commonhouse
+            legacy_world.ROOMS = tuple(
+                commonhouse if old.key == WAYMEET_COMMONHOUSE_KEY else old
+                for old in legacy_world.ROOMS
+            )
+
     for room_key, features in OMEN_FEATURES.items():
         existing = world_service.augmentations.get(room_key, RoomAugmentation())
         world_service.augmentations[room_key] = _merge_features(
@@ -375,6 +392,11 @@ def threshold_echoes(database, character_id: int) -> tuple[str, ...]:
     """
     known = discovered_keys(database, character_id)
     echoes: list[str] = []
+    if BELL_RESONANCE in known and database.item_quantity(character_id, CLAPPERLESS_BELL_KEY):
+        echoes.append(
+            "The little clapperless waybell trembles in your pack. "
+            "Four notes answer the great mechanism, then the fifth stays silent."
+        )
     if BURIED_MURAL in known:
         echoes.append(
             "The gateway's ground plan is the buried mural from Junk City, "
@@ -399,11 +421,6 @@ def threshold_echoes(database, character_id: int) -> tuple[str, ...]:
         echoes.append(
             "Noonwatch's fifth bearing does not point down a road. "
             "It points through the gap now opening before you."
-        )
-    if BELL_RESONANCE in known and database.item_quantity(character_id, CLAPPERLESS_BELL_KEY):
-        echoes.append(
-            "The little clapperless waybell trembles in your pack. "
-            "Four notes answer the great mechanism, then the fifth stays silent."
         )
     return tuple(echoes[:3])
 
