@@ -22,6 +22,8 @@ from mud.waymeet_frontier import (
     WAYMEET_GREEN_APPROACH_KEY,
     WAYMEET_LANTERN_MARKET_KEY,
     WAYMEET_MARSH_ROAD_KEY,
+    WAYMEET_TAVERN_KEY,
+    WAYMEET_TAVERN_LOFT_KEY,
     WAYMEET_WEST_ROAD_KEY,
 )
 
@@ -31,6 +33,8 @@ WAYMEET_LIVING_ROOMS = (
     WAYMEET_LANTERN_MARKET_KEY,
     WAYMEET_GREEN_APPROACH_KEY,
     WAYMEET_COMMONHOUSE_KEY,
+    WAYMEET_TAVERN_KEY,
+    WAYMEET_TAVERN_LOFT_KEY,
     WAYMEET_CRAFT_ROW_KEY,
     WAYMEET_MARSH_ROAD_KEY,
 )
@@ -52,7 +56,8 @@ EDRIN = MobileNpcDefinition(
         RoutineStop(8, WAYMEET_CROSSROADS_KEY),
         RoutineStop(12, WAYMEET_LANTERN_MARKET_KEY),
         RoutineStop(14, WAYMEET_CROSSROADS_KEY),
-        RoutineStop(19, WAYMEET_COMMONHOUSE_KEY),
+        RoutineStop(18, WAYMEET_TAVERN_KEY),
+        RoutineStop(21, WAYMEET_COMMONHOUSE_KEY),
     ),
     weather_shelter_room_key=WAYMEET_COMMONHOUSE_KEY,
     shelter_weathers=("storm", "thunderstorm", "snow", "duststorm"),
@@ -74,6 +79,7 @@ SUVVI = MobileNpcDefinition(
         RoutineStop(11, WAYMEET_CRAFT_ROW_KEY),
         RoutineStop(14, WAYMEET_CROSSROADS_KEY),
         RoutineStop(17, WAYMEET_LANTERN_MARKET_KEY),
+        RoutineStop(19, WAYMEET_TAVERN_KEY),
         RoutineStop(21, WAYMEET_COMMONHOUSE_KEY),
     ),
     weather_shelter_room_key=WAYMEET_LANTERN_MARKET_KEY,
@@ -95,7 +101,8 @@ BELREK = MobileNpcDefinition(
         RoutineStop(9, WAYMEET_CROSSROADS_KEY),
         RoutineStop(11, WAYMEET_CRAFT_ROW_KEY),
         RoutineStop(15, WAYMEET_CROSSROADS_KEY),
-        RoutineStop(18, WAYMEET_COMMONHOUSE_KEY),
+        RoutineStop(18, WAYMEET_TAVERN_KEY),
+        RoutineStop(22, WAYMEET_COMMONHOUSE_KEY),
     ),
     weather_shelter_room_key=WAYMEET_CRAFT_ROW_KEY,
     shelter_weathers=("storm", "thunderstorm", "snow", "duststorm"),
@@ -116,13 +123,35 @@ LESSA = MobileNpcDefinition(
         RoutineStop(10, WAYMEET_CROSSROADS_KEY),
         RoutineStop(13, WAYMEET_LANTERN_MARKET_KEY),
         RoutineStop(16, WAYMEET_GREEN_APPROACH_KEY),
-        RoutineStop(19, WAYMEET_COMMONHOUSE_KEY),
+        RoutineStop(19, WAYMEET_TAVERN_KEY),
+        RoutineStop(21, WAYMEET_COMMONHOUSE_KEY),
     ),
     weather_shelter_room_key=WAYMEET_COMMONHOUSE_KEY,
     shelter_weathers=("storm", "thunderstorm", "snow", "duststorm"),
 )
 
-WAYMEET_LIVING_NPCS = (EDRIN, SUVVI, BELREK, LESSA)
+MAREN = MobileNpcDefinition(
+    key="waymeet_caravaner_maren",
+    name="Maren Copperwake",
+    short_description="a Troll caravaner with a brass route token, a rain-creased map and a fondness for a good story",
+    spawn_room_key=WAYMEET_TAVERN_LOFT_KEY,
+    allowed_room_keys=WAYMEET_LIVING_ROOMS,
+    behavior=BEHAVIOR_ROUTINE,
+    move_chance_per_tick=1.0,
+    aliases=("maren", "copperwake", "caravaner"),
+    routine_schedule=(
+        RoutineStop(0, WAYMEET_TAVERN_LOFT_KEY),
+        RoutineStop(6, WAYMEET_WEST_ROAD_KEY),
+        RoutineStop(9, WAYMEET_CROSSROADS_KEY),
+        RoutineStop(12, WAYMEET_LANTERN_MARKET_KEY),
+        RoutineStop(18, WAYMEET_TAVERN_KEY),
+        RoutineStop(22, WAYMEET_TAVERN_LOFT_KEY),
+    ),
+    weather_shelter_room_key=WAYMEET_TAVERN_KEY,
+    shelter_weathers=("storm", "thunderstorm", "snow", "duststorm"),
+)
+
+WAYMEET_LIVING_NPCS = (EDRIN, SUVVI, BELREK, LESSA, MAREN)
 _WAYMEET_KEYS = frozenset(npc.key for npc in WAYMEET_LIVING_NPCS)
 
 
@@ -169,12 +198,19 @@ TALK_LINES: dict[str, dict[str, str]] = {
         "dusk": "I prefer delivering before dark. Not every road gives the favor back.",
         "night": "Tomorrow's letters are dry beneath my cloak. That is enough for tonight.",
     },
+    MAREN.key: {
+        "dawn": "First wagon out, last one to breakfast. That's how you stay solvent.",
+        "day": "I mark the potholes the same way I mark the good inns: so I can find them again.",
+        "dusk": "Fifth Lantern by sundown. If you need a party for Broken Reach, try the long table.",
+        "night": "I've a clean bunk upstairs and four roads in my dreams. Life's not bad.",
+    },
 }
 WEATHER_LINES: dict[str, str] = {
     EDRIN.key: "Half my timetable has become a list of bridges the drivers refuse to cross.",
     SUVVI.key: "Wet letters cost me twice the running. I am charging the clouds.",
     BELREK.key: "Rain shows every rotten seam in the bridge. The dangerous ones were already there.",
     LESSA.key: "The wind brings the woodland smell this far, even over wet wagon canvas.",
+    MAREN.key: "A driver respects a storm, but a dry hearth buys it more respect.",
 }
 PAIR_LINES: dict[frozenset[str], tuple[str, str]] = {
     frozenset((EDRIN.key, SUVVI.key)): (
@@ -201,6 +237,22 @@ PAIR_LINES: dict[frozenset[str], tuple[str, str]] = {
         "Lessa Siltward says, 'There is a new rut where the south road joins the bridge.'",
         "Belrek Nailsong pulls a stub of chalk from his belt. 'Show me before the next heavy cart finds it.'",
     ),
+    frozenset((EDRIN.key, MAREN.key)): (
+        "Maren Copperwake asks Edrin, 'How many late wagons before you come inside?'",
+        "Edrin Tallowmark taps his ledger. 'One fewer if you stop asking me questions.'",
+    ),
+    frozenset((SUVVI.key, MAREN.key)): (
+        "Suvvi Rainpenny thrusts a parcel toward Maren. 'Didn't you promise this would fit in a pocket?'",
+        "Maren Copperwake laughs. 'A Troll pocket, yes.'",
+    ),
+    frozenset((BELREK.key, MAREN.key)): (
+        "Belrek Nailsong shows Maren a bent rivet. 'Tell me exactly which wheel broke it.'",
+        "Maren Copperwake points west. 'The wheel that got us home before the rain.'",
+    ),
+    frozenset((LESSA.key, MAREN.key)): (
+        "Lessa Siltward unfolds a trail map. 'The southern way is shorter on foot.'",
+        "Maren Copperwake shakes her head. 'I've yet to see you pull a wagon on foot.'",
+    ),
 }
 MARSHAL_LINES = {
     EDRIN.key: (
@@ -219,6 +271,10 @@ MARSHAL_LINES = {
         "Marshal Aven Marr asks, 'Anything unusual on the southern approach?'",
         "Lessa Siltward replies, 'Only the usual things in unusual places. I marked them on your map.'",
     ),
+    MAREN.key: (
+        "Marshal Aven Marr studies Maren's cargo slips. 'Anything missing from your manifest?'",
+        "Maren Copperwake replies, 'Only the dry weather you promised me.'",
+    ),
 }
 SOLO_ACTIONS: dict[str, tuple[str, ...]] = {
     EDRIN.key: (
@@ -236,6 +292,10 @@ SOLO_ACTIONS: dict[str, tuple[str, ...]] = {
     LESSA.key: (
         "Lessa Siltward checks the seals on her letters and studies the route stones.",
         "Lessa Siltward pauses to compare the wind with the road dust on her boots.",
+    ),
+    MAREN.key: (
+        "Maren Copperwake updates a rain-creased route map in the margin.",
+        "Maren Copperwake counts the evening wagons and checks her cargo seals.",
     ),
 }
 WET_WEATHER = frozenset(("rain", "storm", "thunderstorm", "snow", "duststorm"))
@@ -289,6 +349,13 @@ def chatter_lines(
             "little chalk marks back again. Rain never seems to wash the last one away.'",
         )
 
+    if room_key == WAYMEET_TAVERN_KEY and rng.random() < 0.35:
+        actor = rng.choice(present)
+        return (
+            "Valline Hearthglass sets a warm cup beside " + actor.name + ". 'Four roads, one hearth. What news?'",
+            actor.name + " settles near the gearwheel fire and begins swapping road stories.",
+        )
+
     if len(present) > 1:
         pairs = [
             PAIR_LINES[frozenset((a.key, b.key))]
@@ -300,6 +367,8 @@ def chatter_lines(
             return rng.choice(pairs)
 
     actor = rng.choice(present)
+    if room_key == WAYMEET_TAVERN_KEY and actor.key == MAREN.key:
+        return ("Maren Copperwake pins an updated route note beside the Fifth Lantern's long table.",)
     if room_key == WAYMEET_CROSSROADS_KEY and rng.random() < 0.65:
         return MARSHAL_LINES[actor.key]
     if weather.lower() in WET_WEATHER and rng.random() < 0.60:

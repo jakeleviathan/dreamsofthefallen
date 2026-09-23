@@ -81,6 +81,20 @@ WAYMEET_SEVRA_MERCHANT = MerchantDefinition(
     uses_common_stock=False,
 )
 
+# Valline uses the universal Sol merchant commands. The food items carry the
+# ordinary EAT/DRINK metadata, so this is a working inn counter, not scenery.
+WAYMEET_FIFTH_LANTERN_MERCHANT = MerchantDefinition(
+    "waymeet_host_valline_hearthglass",
+    additional_stock=(
+        MerchantStockEntry("waymeet_fifth_lantern_road_stew", price_units=9),
+        MerchantStockEntry("waymeet_fifth_lantern_spiced_tea", price_units=5),
+        MerchantStockEntry("spring_water", price_units=3),
+        MerchantStockEntry("blank_waymap", price_units=8),
+    ),
+    uses_common_stock=False,
+)
+
+
 # Starter-city merchants. These turn authored market/shop scenery into usable
 # Sol economy endpoints instead of leaving them as descriptive placeholders.
 GOBLIN_BRASSGUT_MERCHANT = MerchantDefinition(
@@ -149,6 +163,7 @@ MERCHANTS: tuple[MerchantDefinition, ...] = (
     ASHEN_WAY_CURIO_PEDDLER_MERCHANT,
     WAYMEET_VEKK_MERCHANT,
     WAYMEET_SEVRA_MERCHANT,
+    WAYMEET_FIFTH_LANTERN_MERCHANT,
     GOBLIN_BRASSGUT_MERCHANT,
     UNDEAD_CHISEL_MERCHANT,
     *REGIONAL_STARTER_MERCHANTS,

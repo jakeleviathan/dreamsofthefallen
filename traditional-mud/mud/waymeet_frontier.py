@@ -8,7 +8,7 @@ import mud.economy_loop as economy
 import mud.quests as quests
 import mud.world as legacy_world
 from mud.combat import EnemyDefinition
-from mud.crafting import ItemDefinition
+from mud.crafting import ConsumableEffect, ItemDefinition
 from mud.quests import QuestDefinition
 from mud.room_engine import DescriptionLayer, ExitDefinition, FeatureDefinition, RoomAugmentation, ViewCondition
 from mud.world import NpcDefinition, RoomDefinition
@@ -22,6 +22,9 @@ WAYMEET_HIGH_ROAD_KEY = "waymeet_high_road"
 WAYMEET_MARSH_ROAD_KEY = "waymeet_marsh_road"
 WAYMEET_LANTERN_MARKET_KEY = "waymeet_lantern_market"
 WAYMEET_COMMONHOUSE_KEY = "waymeet_commonhouse_yard"
+WAYMEET_TAVERN_KEY = "waymeet_fifth_lantern"
+WAYMEET_TAVERN_KITCHEN_KEY = "waymeet_fifth_lantern_kitchen"
+WAYMEET_TAVERN_LOFT_KEY = "waymeet_fifth_lantern_loft"
 WAYMEET_CRAFT_ROW_KEY = "waymeet_hammer_thread_row"
 WAYMEET_BROKEN_MILE_KEY = "waymeet_broken_mile"
 WAYMEET_BRIARCUT_KEY = "waymeet_briarcut_fields"
@@ -37,6 +40,9 @@ WAYMEET_ROOM_KEYS = (
     WAYMEET_CROSSROADS_KEY,
     WAYMEET_LANTERN_MARKET_KEY,
     WAYMEET_COMMONHOUSE_KEY,
+    WAYMEET_TAVERN_KEY,
+    WAYMEET_TAVERN_KITCHEN_KEY,
+    WAYMEET_TAVERN_LOFT_KEY,
     WAYMEET_CRAFT_ROW_KEY,
     WAYMEET_BROKEN_MILE_KEY,
     WAYMEET_BRIARCUT_KEY,
@@ -66,6 +72,10 @@ WARDEN_KEY = "waymeet_warden_korr_snowhand"
 FOREMAN_KEY = "waymeet_foreman_hedda_rivetstone"
 BROKER_KEY = "waymeet_broker_nix_coil"
 PROVISIONER_KEY = "waymeet_provisioner_sevra_lent"
+TAVERN_HOST_KEY = "waymeet_host_valline_hearthglass"
+TAVERN_COOK_KEY = "waymeet_cook_merrin_mosskettle"
+TAVERN_STEW_KEY = "waymeet_fifth_lantern_road_stew"
+TAVERN_TEA_KEY = "waymeet_fifth_lantern_spiced_tea"
 
 
 WAYMEET_INTRO_QUEST = QuestDefinition(
@@ -142,7 +152,23 @@ GLOAM_RESIDUE = ItemDefinition(
     category="material",
     tier=1,
 )
-WAYMEET_ITEMS = (THORNBACK_FANG, SLATEBACK_CLAW, GLOAM_RESIDUE)
+TAVERN_STEW = ItemDefinition(
+    key=TAVERN_STEW_KEY,
+    name="Fifth Lantern Road Stew",
+    description="A warming bowl of grain, marsh onion and the day's safe caravan provisions. EAT it for 8 HP.",
+    category="food",
+    consumable=ConsumableEffect(use_mode="eat", heal_hp=8, effect_tags=("food", "waymeet")),
+    tier=1,
+)
+TAVERN_TEA = ItemDefinition(
+    key=TAVERN_TEA_KEY,
+    name="Fifth Lantern Spiced Tea",
+    description="Steeped greenleaf, fragrant bark and spring water served in a lidded travel flask. DRINK it for 4 HP.",
+    category="food",
+    consumable=ConsumableEffect(use_mode="drink", heal_hp=4, effect_tags=("waymeet", "tea")),
+    tier=1,
+)
+WAYMEET_ITEMS = (THORNBACK_FANG, SLATEBACK_CLAW, GLOAM_RESIDUE, TAVERN_STEW, TAVERN_TEA)
 
 
 THORNBACK_JACKAL = EnemyDefinition(
@@ -270,7 +296,30 @@ PROVISIONER = NpcDefinition(
         "'BROWSE SEVRA. Eight sparks for processed stock. Convenience should cost something, but not your entire afternoon.'",
     ),
 )
-WAYMEET_NPCS = (MARSHAL, WARDEN, FOREMAN, BROKER, PROVISIONER)
+TAVERN_HOST = NpcDefinition(
+    key=TAVERN_HOST_KEY,
+    name="Valline Hearthglass",
+    short_description="an Undead innkeeper polishing mismatched glassware beside a lamp made from an old freight-lift lens",
+    room_key=WAYMEET_TAVERN_KEY,
+    role="keeper of the Fifth Lantern inn and its caravan table",
+    dialogue=(
+        "Valline turns a chipped cup in her hands. 'The first rule here: nobody asks which road you came by until you've had a chance to warm up.'",
+        "'BROWSE VALLINE for stew and spiced tea. The loft is upstairs; there's room for travelers, not private kingdoms.'",
+        "'Ask the room what the roads are doing. TAVERN RUMORS follows real road reports, not prophecies.'",
+    ),
+)
+TAVERN_COOK = NpcDefinition(
+    key=TAVERN_COOK_KEY,
+    name="Merrin Mosskettle",
+    short_description="a Sporekin cook tending three differently sized pots beneath a reclaimed copper chimney",
+    room_key=WAYMEET_TAVERN_KITCHEN_KEY,
+    role="the Fifth Lantern's cook and keeper of the communal hearth",
+    dialogue=(
+        "Merrin tilts a steaming ladle. 'Travelers have different names for the same root. I keep every name and put the root in the stew.'",
+        "'If the bridge floods, we stretch the meal, not the truth. Valline will know who still needs a bed.'",
+    ),
+)
+WAYMEET_NPCS = (MARSHAL, WARDEN, FOREMAN, BROKER, PROVISIONER, TAVERN_HOST, TAVERN_COOK)
 
 
 WAYMEET_ROOMS: tuple[RoomDefinition, ...] = (
@@ -343,8 +392,49 @@ WAYMEET_ROOMS: tuple[RoomDefinition, ...] = (
         description=(
             "Behind a long public house, rain barrels, hitching posts, benches, cookfires, and laundry lines turn a plain yard into Waymeet's unofficial social square. Travelers who would be conspicuous in one another's homelands become merely another wet person looking for a seat."
         ),
-        exits={"south": WAYMEET_GREEN_APPROACH_KEY, "east": WAYMEET_CRAFT_ROW_KEY},
+        exits={"south": WAYMEET_GREEN_APPROACH_KEY, "east": WAYMEET_CRAFT_ROW_KEY, "in": WAYMEET_TAVERN_KEY},
         tags=("shared_world", "social", "rest", "safe", "meeting_place"),
+    ),
+    RoomDefinition(
+        key=WAYMEET_TAVERN_KEY,
+        name="The Fifth Lantern",
+        region_key=WAYMEET_REGION_KEY,
+        description=(
+            "A fifth lantern burns beneath four road signs over the door. The common room was built around "
+            "a retired Dwarven freight-lift gear; its iron teeth now hold a circular hearth. Goblin copper "
+            "patches mend the roof, Forest Elf woven shades soften the lamps, and smoked Necropolis glass "
+            "keeps the drafts away from the long shared table. Boots from every homeland dry by the fire. "
+            "Behind the counter, Valline keeps a ledger of arriving caravans, spare beds and missed deliveries."
+        ),
+        exits={"out": WAYMEET_COMMONHOUSE_KEY, "east": WAYMEET_TAVERN_KITCHEN_KEY, "up": WAYMEET_TAVERN_LOFT_KEY},
+        npc_keys=(TAVERN_HOST_KEY,),
+        tags=("shared_world", "social_hub", "social", "rest", "safe", "meeting_place", "inn", "tavern", "indoors"),
+    ),
+    RoomDefinition(
+        key=WAYMEET_TAVERN_KITCHEN_KEY,
+        name="Fifth Lantern Kitchen",
+        region_key=WAYMEET_REGION_KEY,
+        description=(
+            "An old boiler heats three hanging pots beneath a battered copper hood. A Sporekin herb rack "
+            "grows in the window, and recipes in several scripts are pinned to a single board. The smell "
+            "of marsh onion and warm grain reaches the common room to the west."
+        ),
+        exits={"west": WAYMEET_TAVERN_KEY},
+        npc_keys=(TAVERN_COOK_KEY,),
+        tags=("shared_world", "social", "safe", "kitchen", "indoors"),
+    ),
+    RoomDefinition(
+        key=WAYMEET_TAVERN_LOFT_KEY,
+        name="Fifth Lantern Guest Loft",
+        region_key=WAYMEET_REGION_KEY,
+        description=(
+            "The upstairs loft holds curtained bunks, a patchwork pile of spare blankets and a shared "
+            "washstand. A wide window looks over the four roads; the hearth's warmth rises through "
+            "the old lift grille beneath the floor. Nobody owns a bunk forever, and everyone leaves "
+            "their muddy boots at the stairs."
+        ),
+        exits={"down": WAYMEET_TAVERN_KEY},
+        tags=("shared_world", "rest", "safe", "inn", "meeting_place", "indoors"),
     ),
     RoomDefinition(
         key=WAYMEET_CRAFT_ROW_KEY,
@@ -464,6 +554,86 @@ def waymeet_augmentations() -> dict[str, RoomAugmentation]:
                     "Most notices are painfully ordinary: axle wanted, bridge crew needed, three missing sheep, room for two passengers eastbound. One newer notice warns that carts have begun stopping near the Broken Mile after dark and that old Gloamworks masonry may be shifting again.",
                     aliases=("board", "notice board", "notices"),
                 ),
+            ),
+        ),
+        WAYMEET_COMMONHOUSE_KEY: RoomAugmentation(
+            features=(
+                _feature(
+                    "fifth_lantern_sign",
+                    "Fifth Lantern Sign",
+                    "an extra lantern over an open door leading into a warm common room",
+                    "Four signs point down Waymeet's roads. The fifth points inward: a retired lift lens above "
+                    "the Commonhouse door. Someone has written WELCOME BACK in several scripts.",
+                    aliases=("sign", "lantern", "door", "inn", "tavern"),
+                ),
+            ),
+            description_layers=(
+                DescriptionLayer("fifth_lantern_wet_yard",
+                    "Wet travelers crowd beneath the Fifth Lantern's awning. Warmth and voices spill out when the door opens.",
+                    condition=ViewCondition(weather=("rain", "storm", "thunderstorm", "snow", "duststorm"))),
+            ),
+        ),
+        WAYMEET_TAVERN_KEY: RoomAugmentation(
+            features=(
+                _feature("fifth_lantern_hearth", "Gearwheel Hearth",
+                    "the retired freight-lift gear serving as a communal fireside",
+                    "The iron teeth have been lined with riverstone. A Goblin repair plate records three floods "
+                    "and the names of those who rebuilt the hearth after each one.",
+                    aliases=("hearth", "fire", "gear", "gearwheel")),
+                _feature("fifth_lantern_ledger", "Caravan Ledger",
+                    "Valline's working record of arrivals, empty bunks and roads worth avoiding",
+                    "Columns for the western, northern, southern and marsh roads leave a fifth column "
+                    "for anyone who needs company. Use TAVERN RUMORS for the current road report.",
+                    aliases=("ledger", "book", "road reports", "reports")),
+                _feature("fifth_lantern_table", "Long Table",
+                    "a shared meeting place for travelers looking for company",
+                    "Names and old route marks have been carefully carved into the table. "
+                    "There's room to sit, talk, invite others into a party or simply listen. "
+                    "REST near the hearth for improved recovery.",
+                    aliases=("table", "communal table", "benches")),
+            ),
+            description_layers=(
+                DescriptionLayer("fifth_lantern_dawn",
+                    "At dawn, Merrin's first pot simmers and the early couriers stop in long enough to warm their hands.",
+                    condition=ViewCondition(time_buckets=("dawn",))),
+                DescriptionLayer("fifth_lantern_evening",
+                    "At dusk the long table fills as the last wagons arrive, each driver bringing a different version of the same road.",
+                    condition=ViewCondition(time_buckets=("dusk",))),
+                DescriptionLayer("fifth_lantern_night",
+                    "The lanterns are turned low. Late arrivals murmur over maps while the guest loft creaks overhead.",
+                    condition=ViewCondition(time_buckets=("night",))),
+                DescriptionLayer("fifth_lantern_bad_weather",
+                    "Rain beats on the patched roof. Valline shifts the dry blankets near the hearth "
+                    "and leaves space for delayed travelers.",
+                    condition=ViewCondition(weather=("rain", "storm", "thunderstorm", "snow", "duststorm"))),
+                DescriptionLayer("fifth_lantern_midgame",
+                    "A worn notice at the far end of the table asks experienced travelers to compare maps "
+                    "of Broken Reach before heading into its missing-caravan country.",
+                    condition=ViewCondition(min_level=11)),
+            ),
+        ),
+        WAYMEET_TAVERN_KITCHEN_KEY: RoomAugmentation(
+            features=(
+                _feature("fifth_lantern_recipe_board", "Recipe Board",
+                    "recipes traded between every homeland",
+                    "Every recipe has been annotated by the travelers who improved it. "
+                    "Merrin keeps useful corrections and refuses to cross out the original writer.",
+                    aliases=("recipes", "board", "cookbook")),
+            ),
+        ),
+        WAYMEET_TAVERN_LOFT_KEY: RoomAugmentation(
+            features=(
+                _feature("fifth_lantern_guest_book", "Guest Book",
+                    "a weather-stained record of travelers who found shelter here",
+                    "The oldest pages are mostly repaired bridge accounts; the newest are thank-you notes "
+                    "and directions left for friends following a day behind.",
+                    aliases=("book", "bunks", "beds", "window")),
+            ),
+            description_layers=(
+                DescriptionLayer("fifth_lantern_loft_weather",
+                    "Wind rattles the shutters and the rain blurs the four roads below. "
+                    "Up here the patched roof holds, and the shared loft stays warm.",
+                    condition=ViewCondition(weather=("rain", "storm", "thunderstorm", "snow", "duststorm"))),
             ),
         ),
         WAYMEET_BROKEN_MILE_KEY: RoomAugmentation(
@@ -901,9 +1071,45 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
         if normalized.startswith("buy "):
             if await _buy_market(self, command.strip().split(maxsplit=1)[1]):
                 return
+        if normalized in {"tavern", "tavern help", "tavern menu", "tavern rumors", "tavern regulars"} and _in_waymeet(self):
+            room_key = self.character.current_room or ""
+            inside = room_key in {WAYMEET_TAVERN_KEY, WAYMEET_TAVERN_KITCHEN_KEY, WAYMEET_TAVERN_LOFT_KEY}
+            if not inside:
+                await self.send("The Fifth Lantern is inside the Commonhouse Yard. From the yard, go IN.\r\n")
+                return
+            if normalized in {"tavern", "tavern help"}:
+                await self.send("The Fifth Lantern: REST at the hearth or in the guest loft; SAY and EMOTE at the long table; TALK VALLINE, BROWSE VALLINE, BUY <item>; TAVERN MENU, TAVERN RUMORS, TAVERN REGULARS.\r\n")
+            elif normalized == "tavern menu":
+                await self.send("Valline's counter: Fifth Lantern Road Stew (9 sparks; EAT), Fifth Lantern Spiced Tea (5 sparks; DRINK), Spring Water (3 sparks) and Blank Waymaps (8 sparks). BROWSE VALLINE for live prices and BUY <item>.\r\n")
+            elif normalized == "tavern regulars":
+                here = getattr(self, "mobile_npcs", None)
+                names = [state.definition.name for state in here.npcs_in_room(room_key)] if here else []
+                await self.send("Travelers currently in this room: " + (", ".join(names) if names else "none of the regulars right now") + ".\r\n")
+            else:
+                from mud.astralis_time import ASTRALIS_CLOCK
+                hour = ASTRALIS_CLOCK.now().hour
+                weather = world_service.state.weather_for(WAYMEET_REGION_KEY)
+                lines = []
+                if weather in {"rain", "storm", "thunderstorm", "snow", "duststorm"}:
+                    lines.append("Wet-road report: delayed caravans are sheltering here until the weather clears.")
+                else:
+                    lines.append("Weather report: clear skies for now. Ask the marshal about actual road conditions before departure.")
+                intro = self.database.get_quest(self.character.id, WAYMEET_INTRO_QUEST_KEY)
+                if intro and intro["status"] == "completed":
+                    lines.append("You recognize the latest Gloamworks notice: the masonry under the Broken Mile is still being watched.")
+                else:
+                    lines.append("Valline points to Marshal Aven's notice about the Broken Mile and Gloam Mouth.")
+                if self.character.level >= 15:
+                    lines.append("Experienced caravaners are comparing reports from Ashcross and the Meridian Outerworks.")
+                elif self.character.level >= 11:
+                    lines.append("Missing-caravan reports from Broken Reach have drawn seasoned groups to the long table.")
+                if hour >= 18 or hour < 5:
+                    lines.append("The evening drivers trade route notes until the last lamp burns low.")
+                await self.send("\r\n".join(lines) + "\r\n")
+            return
         if normalized in {"waymeet", "waymeet help", "frontier"} and _in_waymeet(self):
             await self.send(
-                "Waymeet is the first shared level 2-5 region. TALK MARSHAL for the local story, TALK WARDEN or TALK FOREMAN for repeatable contracts, BROWSE in Lantern Market for merchants, RESOURCES for gathering, and follow the damaged road toward Gloam Mouth for the first dungeon hint.\r\n"
+                "Waymeet is the first shared level 2-5 region. TALK MARSHAL for the local story, TALK WARDEN or TALK FOREMAN for repeatable contracts, BROWSE in Lantern Market for merchants, RESOURCES for gathering, and follow the damaged road toward Gloam Mouth for the first dungeon hint. The Fifth Lantern tavern and guest loft are IN from Commonhouse Yard; use TAVERN there for its live road reports and menu.\r\n"
             )
             return
 
