@@ -81,10 +81,10 @@ WAYMEET_SEVRA_MERCHANT = MerchantDefinition(
     uses_common_stock=False,
 )
 
-# Orla uses the universal Sol merchant commands. The food items carry the
+# Valline uses the universal Sol merchant commands. The food items carry the
 # ordinary EAT/DRINK metadata, so this is a working inn counter, not scenery.
 WAYMEET_FIFTH_LANTERN_MERCHANT = MerchantDefinition(
-    "waymeet_host_orla_hearthglass",
+    "waymeet_host_valline_hearthglass",
     additional_stock=(
         MerchantStockEntry("waymeet_fifth_lantern_road_stew", price_units=9),
         MerchantStockEntry("waymeet_fifth_lantern_spiced_tea", price_units=5),
