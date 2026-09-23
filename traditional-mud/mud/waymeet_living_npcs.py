@@ -279,7 +279,7 @@ def chatter_lines(
     # rules as ordinary chatter. They are hints, never an automatic quest marker.
     if room_key == WAYMEET_COMMONHOUSE_KEY and 7 <= hour < 20 and rng.random() < 0.055:
         return (
-            "Pella Dawnskein hums four notes on the Commonhouse steps. "
+            "Nimra Dawnskein hums four notes on the Commonhouse steps. "
             "She pauses for a fifth, then goes back to sorting painted pebbles.",
         )
     if room_key == WAYMEET_CROSSROADS_KEY and weather.lower() in WET_WEATHER and rng.random() < 0.055:
