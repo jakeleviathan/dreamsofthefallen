@@ -771,6 +771,29 @@ TOPICS: tuple[HelpTopic, ...] = (
         see_also=("ecology", "factions", "quests", "exploration"),
     ),
     HelpTopic(
+        "circle-community",
+        "Forest Elf Circle: Shared Care",
+        "world",
+        "At Circle Clearing the keepers share dawn Heartseed care, gather when storms damage the herb border, and remember the help players choose to offer.",
+        (
+            ("Dawn gathering", (
+                "Lethra and Orren follow their own daily rounds, returning to Maelis at the seven stones near dawn.",
+                "Use CIRCLE or CIRCLE STATUS at Circle Clearing to see what the local community is doing. JOIN RITUAL while the keepers' Heartseed rite is underway.",
+            )),
+            ("Storm response", (
+                "Severe storms may damage the herb border. The keepers interrupt their routes, wait for the wind to ease, then repair the damage together.",
+                "EXAMINE HERB BORDER to see the damage and HELP REPAIR BORDER once the workers have gathered and the weather is safe.",
+                "The protected beginner Silvermoss teaching patch remains usable during storm recovery.",
+            )),
+            ("Shared memory", (
+                "If you restored the Heartseed, SHARE HEARTSEED STORY at the Circle to put your experience on its common care slates.",
+                "Ceremonies, repairs and voluntary contributions persist across server restarts; participating does not replace or repeat your starter quests.",
+            )),
+        ),
+        aliases=("circle", "forest circle", "heartseed rite", "herb border repair"),
+        see_also=("world", "quests", "ecology", "gathering"),
+    ),
+    HelpTopic(
         "ecology",
         "Ecology & Signs of the Land",
         "world",
