@@ -72,8 +72,8 @@ class WaymeetFrontierTests(unittest.TestCase):
         return tempdir, database, _Session(database, character)
 
     def test_zone_has_a_dozen_plus_connected_rooms_and_four_shared_approaches(self):
-        self.assertEqual(len(WAYMEET_ROOMS), 13)
-        self.assertEqual(len(set(WAYMEET_ROOM_KEYS)), 13)
+        self.assertEqual(len(WAYMEET_ROOMS), 16)
+        self.assertEqual(len(set(WAYMEET_ROOM_KEYS)), 16)
         by_key = {room.key: room for room in WAYMEET_ROOMS}
         self.assertEqual(set(by_key), set(WAYMEET_ROOM_KEYS))
         for room in WAYMEET_ROOMS:
