@@ -20,6 +20,7 @@ from mud.racial_abilities import (
 from mud.equipment_system import equipped_definitions, equipped_item_keys
 from mud.reflection_opportunities import reflection_opportunities
 from mud.room_engine import PlayerRoomContext
+from mud.room_player_presence import room_player_entries
 from mud.style_collectibles import style_atelier_available
 from mud.weather_gameplay import effects_for_weather, room_is_weather_exposed, surface_condition
 from mud.world import NPCS_BY_KEY
@@ -122,6 +123,10 @@ def _room_snapshot(session, world) -> dict | None:
         "exits": exits,
         "exit_keys": exit_keys,
         "features": features,
+        "players": [
+            {"name": name, "description": description, "is_self": name.endswith(" (you)")}
+            for name, description in room_player_entries(session)
+        ],
     }
 
 

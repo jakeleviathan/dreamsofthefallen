@@ -15,6 +15,7 @@ from mud.player_preferences import (
     style_text,
 )
 from mud.quests import QUESTS_BY_KEY
+from mud.room_player_presence import room_player_entries
 from mud.room_runtime import (
     WORLD as LIVE_WORLD,
     _context_for,
@@ -112,15 +113,7 @@ def _npc_lines(session, scene) -> list[str]:
 
 
 def _player_lines(session) -> list[str]:
-    character = getattr(session, "character", None)
-    callback = getattr(session, "room_players_callback", None)
-    if character is None or callback is None or not character.current_room:
-        return []
-    try:
-        players = callback(character.current_room, character.id)
-    except Exception:
-        return []
-    return [str(player.name) for player in players if getattr(player, "name", None)]
+    return [f"{name} - {description}" for name, description in room_player_entries(session)]
 
 
 def _find_room_player(session, target: str):
@@ -309,8 +302,8 @@ async def _render_room(session, world, previous_show_current_room) -> None:
     players = _player_lines(session)
     if players:
         await session.send(style_text(session, "Players:", "accent") + "\r\n")
-        for name in players:
-            await session.send(f"  {name} is here.\r\n")
+        for line in players:
+            await session.send(f"  {line}\r\n")
 
     threats = _enemy_lines(scene)
     if threats:

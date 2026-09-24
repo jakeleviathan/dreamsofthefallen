@@ -35,6 +35,7 @@ from mud.room_presentation import (
 )
 from mud.stats import CharacterStats
 from mud.waymeet_adventure_arc import CELLAR_RAT, TOLL_RAT_RUN
+from mud.waymeet_frontier import WAYMEET_TAVERN_KEY
 
 class DB:
     def list_flags(self, _character_id):
@@ -194,6 +195,21 @@ assert f"{HOSTILE}[ Hostile ]" in hostile, hostile
 assert "Test Hunter" in hostile, hostile
 assert "[ Creatures ]" not in hostile, hostile
 assert "[ Danger ]" not in hostile, hostile
+
+session.character.name = "Prime"
+session.character.current_room = WAYMEET_TAVERN_KEY
+session._movement_resting = True
+tavern = "\\r\\n".join(render_room_lines(session, server.WORLD))
+assert "[ Players ]" in tavern, tavern
+assert "Prime (you)" in tavern, tavern
+assert "resting beside the gearwheel hearth" in tavern, tavern
+assert tavern.index("[ People ]") < tavern.index("[ Players ]") < tavern.index("[ Exits ]"), tavern
+
+session._movement_resting = False
+standing = "\\r\\n".join(render_room_lines(session, server.WORLD))
+assert "Prime (you)" in standing, standing
+assert "standing nearby" in standing, standing
+assert "resting beside the gearwheel hearth" not in standing, standing
 
 print("ROOM_PRESENTATION_OK")
 '''
