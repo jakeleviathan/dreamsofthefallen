@@ -61,6 +61,19 @@ class RoomPlayerPresenceTests(unittest.TestCase):
         self.neighbor._movement_resting = False
         self.assertEqual(self.entries()[1], ("Brom", "a Dwarf Brute standing nearby"))
 
+    def test_rest_in_any_region_uses_global_player_section(self):
+        self.viewer.character.current_room = "goblin_clattergate"
+        self.neighbor.character.current_room = "goblin_clattergate"
+        self.viewer._movement_resting = True
+        self.neighbor._movement_resting = True
+        self.assertEqual(
+            self.entries(),
+            [
+                ("Prime (you)", "a Goblin Priest resting"),
+                ("Brom", "a Dwarf Brute resting"),
+            ],
+        )
+
     def test_guest_loft_uses_room_specific_rest_description(self):
         self.viewer.character.current_room = WAYMEET_TAVERN_LOFT_KEY
         self.viewer._movement_resting = True
