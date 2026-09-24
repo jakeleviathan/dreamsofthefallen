@@ -17,6 +17,10 @@ def _role_description(character) -> str:
     return " ".join(part for part in (race_name, class_name) if part)
 
 
+def _role_article(role: str) -> str:
+    return "an" if role[:1].casefold() in {"a", "e", "i", "o", "u"} else "a"
+
+
 def _live_session(character, viewer):
     """The room callback supplies visible characters; this resolves live activity.
 
@@ -41,6 +45,12 @@ def _live_session(character, viewer):
 def _activity(session, room_key: str) -> str:
     if session is None:
         return "standing nearby"
+    casting = getattr(session, "_active_cast", None)
+    if isinstance(casting, dict):
+        ability = casting.get("ability")
+        spell_name = " ".join(str(getattr(ability, "name", "") or "").split())[:64]
+        if spell_name:
+            return f"casting {spell_name}"
     enemy = getattr(session, "active_enemy", None)
     if enemy is not None and bool(getattr(enemy, "alive", True)):
         name = str(getattr(getattr(enemy, "definition", None), "name", "") or "")
@@ -91,6 +101,6 @@ def room_player_entries(session) -> list[tuple[str, str]]:
         role = _role_description(character)
         activity = _activity(_live_session(character, session), viewer.current_room)
         label = name + (" (you)" if is_self else "")
-        description = " ".join(part for part in (f"a {role}" if role else "an adventurer", activity) if part)
+        description = f"{_role_article(role)} {role} {activity}" if role else f"an adventurer {activity}"
         entries.append((label, description))
     return entries
