@@ -78,6 +78,16 @@ class RoomPlayerPresenceTests(unittest.TestCase):
         self.neighbor.active_enemy = None
         self.assertIn("resting", self.entries()[1][1])
 
+    def test_casting_is_shown_only_while_cast_is_active(self):
+        self.neighbor._active_cast = {"ability": SimpleNamespace(name="Storm Bolt")}
+        self.assertEqual(self.entries()[1], ("Brom", "a Dwarf Brute casting Storm Bolt"))
+        self.neighbor._active_cast = None
+        self.assertEqual(self.entries()[1], ("Brom", "a Dwarf Brute standing nearby"))
+
+    def test_undead_uses_an_undead(self):
+        self.neighbor.character.race = "undead"
+        self.assertIn("an Undead Brute", self.entries()[1][1])
+
     def test_only_the_room_callback_decides_who_is_visible(self):
         self.viewer.room_players_callback = lambda _room, _exclude: ()
         self.assertEqual(len(self.entries()), 1)
@@ -101,7 +111,7 @@ class RoomPlayerPresenceTests(unittest.TestCase):
         self.assertEqual(self.entries()[1], ("Brom", "a Dwarf Brute standing nearby"))
         self.neighbor.state.name = "PLAYING"
         self.neighbor.character.current_room = "another_room"
-        self.assertEqual(self.entries()[1], ("Brom", "a Dwarf Brute standing nearby"))
+        self.assertEqual(self.entries(), [("Prime (you)", "a Goblin Priest standing nearby")])
 
 
 if __name__ == "__main__":
