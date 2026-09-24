@@ -170,6 +170,8 @@ class RoomPromptExperienceTests(unittest.TestCase):
         self.assertIn("Notable: Skyglass Rail, Tea Table.", output)
         self.assertIn("People:", output)
         self.assertIn("Druid Nera Voss", output)
+        self.assertIn("Players:", output)
+        self.assertIn("Mira (you) - a Moon Elf Wizard standing nearby", output)
         self.assertIn("Exits: NORTH - Upper Walk | WEST", output)
         self.assertNotIn("OLD ROOM RENDER", output)
 
