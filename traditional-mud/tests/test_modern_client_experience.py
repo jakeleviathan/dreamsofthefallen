@@ -97,6 +97,7 @@ class ModernClientExperienceTests(unittest.TestCase):
             self.assertEqual(snapshot["num"], stable_room_number("human_demon_gate"))
             self.assertTrue(snapshot["name"])
             self.assertIsInstance(snapshot["exits"], dict)
+            self.assertEqual(snapshot["players"], [{"name": "ModernHero (you)", "description": "a Human Brute standing nearby", "is_self": True}])
             self.assertTrue(all(isinstance(value, int) and value > 0 for value in snapshot["exits"].values()))
 
     def test_onboarding_is_persistent_and_gets_out_of_the_way(self):
