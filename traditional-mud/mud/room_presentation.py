@@ -32,6 +32,7 @@ from mud.goblin_swamp import (
 )
 from mud.inventory_inspection import install_inventory_inspection_runtime
 from mud.room_scene_actors import scene_lines
+from mud.room_player_presence import room_player_entries
 from mud.mana_regeneration import install_mana_regeneration_runtime
 from mud.movement_system import install_movement_runtime
 from mud.partial_target_matching import install_partial_target_matching_runtime
@@ -53,6 +54,7 @@ REGION = "\x1b[90m"
 BODY = "\x1b[37m"
 FEATURE = "\x1b[96m"
 NPC = "\x1b[92m"
+PLAYER = "\x1b[1;96m"
 CREATURE = "\x1b[93m"
 HOSTILE = "\x1b[1;91m"
 # Compatibility alias for older imports. New room presentation uses CREATURE
@@ -286,6 +288,14 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             lines.append(
                 f"  {_paint(REGION, 'Local reception')} - {local_reaction}"
             )
+
+    players = room_player_entries(session)
+    if players:
+        lines.extend(["", _section_header("Players", PLAYER)])
+        lines.extend(
+            f"  {_paint(PLAYER, name)} - {description}"
+            for name, description in players
+        )
 
     # Authored room enemies do not auto-aggro merely because they can fight.
     # They therefore belong under Creatures. Only mobile definitions explicitly
