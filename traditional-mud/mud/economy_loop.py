@@ -524,7 +524,18 @@ def _recipe_visible(session, recipe: CraftingRecipe) -> bool:
 
 
 def _visible_recipes(session) -> tuple[CraftingRecipe, ...]:
-    return tuple(recipe for recipe in crafting.ALL_RECIPES if _recipe_visible(session, recipe))
+    # The regional catalog adds 300 formulas. Read learning flags once per
+    # screen rather than querying persistence separately for every locked one.
+    character = getattr(session, "character", None)
+    flags = (
+        set(session.database.list_flags(character.id))
+        if character is not None else set()
+    )
+    return tuple(
+        recipe for recipe in crafting.ALL_RECIPES
+        if not getattr(recipe, "discovery_flag", None)
+        or recipe.discovery_flag in flags
+    )
 
 
 def _profession_name(key: str) -> str:
