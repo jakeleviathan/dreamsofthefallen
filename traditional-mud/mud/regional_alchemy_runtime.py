@@ -630,7 +630,7 @@ def install_regional_alchemy_runtime(player_session_class) -> None:
             ):
                 await _read_book(self, target)
                 return
-        if normalized == "craft experiment" and _current_tradition(self) is not None:
+        if normalized == "craft experiment":
             await _experiment(self)
             return
         if normalized in {"alchemy progress", "alchemy journal"}:
