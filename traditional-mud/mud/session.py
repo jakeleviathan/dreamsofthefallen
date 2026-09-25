@@ -418,6 +418,19 @@ class PlayerSession:
         elif normalized == "external.discord.get":
             self._discord_presence_service().ready = True
             await self.send_discord_presence(force=True)
+        elif normalized == "dreams.room.get" or (
+            normalized in {"core.supports.add", "core.supports.set"}
+            and isinstance(payload, (list, tuple))
+            and any(
+                str(package).strip().split(" ", 1)[0].casefold() == "dreams"
+                for package in payload
+            )
+        ):
+            # HUD packages can initialize after the first character-enter
+            # packet. Resend the whole room once its handler has registered.
+            sender = getattr(self, "push_room_snapshot", None)
+            if callable(sender):
+                await sender(force=True)
 
     async def send_discord_presence(self, *, force: bool = False) -> bool:
         presence = self._discord_presence_service()
