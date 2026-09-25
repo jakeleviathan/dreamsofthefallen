@@ -7,7 +7,7 @@ import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from mud.room_gmcp import ROOM_PACKAGE, push_room_snapshot
 from mud.telnet import GMCP, IAC, SB, SE, TelnetConnection
@@ -52,6 +52,24 @@ class RoomGmcpUnitTests(unittest.IsolatedAsyncioTestCase):
             character=SimpleNamespace(current_room="waymeet_crossroads"),
             telnet=FakeTelnet(),
         )
+
+    async def test_ui_registration_and_explicit_get_resend_the_current_room(self):
+        from mud.session import PlayerSession
+
+        fake = SimpleNamespace(push_room_snapshot=AsyncMock())
+        await PlayerSession._handle_client_gmcp(
+            fake, "Core.Supports.Add", ["Dreams 2", "Room 1"],
+        )
+        fake.push_room_snapshot.assert_awaited_once_with(force=True)
+        fake.push_room_snapshot.reset_mock()
+        await PlayerSession._handle_client_gmcp(fake, "Dreams.Room.Get", None)
+        fake.push_room_snapshot.assert_awaited_once_with(force=True)
+
+        fake.push_room_snapshot.reset_mock()
+        await PlayerSession._handle_client_gmcp(
+            fake, "Core.Supports.Add", ["Char 1"],
+        )
+        fake.push_room_snapshot.assert_not_awaited()
 
     async def test_complete_room_is_one_message_with_its_own_boundary(self):
         data = room_data()
