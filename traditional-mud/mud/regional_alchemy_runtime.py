@@ -157,8 +157,9 @@ async def show_crafting_studies(session) -> None:
         for t in catalog.TRADITIONS
     ]
     secrets = sum(
-        catalog.secret_flag(t.key, stage) in known
-        for t in catalog.TRADITIONS for stage in range(3)
+        recipe.discovery_flag in known
+        for recipe in catalog.RECIPES
+        if recipe.design_status in {"regional_alchemy_secret", "regional_alchemy_legendary"}
     )
     await session.send(
         "\r\n=== ALCHEMY STUDIES ===\r\n"
@@ -218,14 +219,14 @@ async def _study(session) -> None:
     if t is None:
         await session.send(
             "There is no regional alchemy mentor here. ALCHEMY REGIONS "
-            "shows the nine teaching halls.\r\n"
+            "shows the nine teaching halls; RECIPES ALCHEMY keeps your formula book.\r\n"
         )
         return
     flag = catalog.lesson_flag(t.key, 0)
     if flag in _known(session):
         await session.send(
             f"{t.trainer} reviews your notes. You already know the apprentice "
-            f"{t.name} formulas. For further study use ALCHEMY BOOKS here.\r\n"
+            f"{t.name} formulas. Advanced volumes are under RECIPES ALCHEMY.\r\n"
         )
         return
     session.database.grant_flag(session.character.id, flag)
@@ -243,7 +244,7 @@ async def _show_books(session) -> None:
         await session.send(
             "No alchemical manuscript seller is here. Visit one of the "
             "nine regional trainers or look for the Waymeet traveling "
-            "alchemist during the daytime. ALCHEMY REGIONS lists the halls.\r\n"
+            "alchemist during the daytime. RECIPES ALCHEMY lists your learned formulas.\r\n"
         )
         return
     visiting = _current_tradition(session) is None
@@ -288,7 +289,7 @@ async def _buy_book(session, target: str) -> None:
     ]
     if len(matching) != 1:
         await session.send(
-            "Name an advanced volume sold here. Use ALCHEMY BOOKS to see titles.\r\n"
+            "Name an advanced volume sold here. Use RECIPES ALCHEMY to see titles.\r\n"
         )
         return
     bi = matching[0]
@@ -480,7 +481,7 @@ async def _show_visitor(session) -> None:
         await session.send(
             f"{t.trainer} has arrived at Waymeet Lantern Market with "
             f"{t.name} alchemy manuals. The stall closes at Astralis 17:00. "
-            "Use ALCHEMY BOOKS here.\r\n"
+            "Use RECIPES ALCHEMY to browse the manuals here.\r\n"
         )
     else:
         await session.send(
