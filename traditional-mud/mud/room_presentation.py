@@ -418,6 +418,7 @@ def render_room_lines(
             "title": view.name,
             "region_id": scene.region_key,
             "region": _region_label(scene.region_key),
+            "weather": world_service.state.weather_for(scene.region_key),
             "description": view.description,
             "tags": list(view.tags),
             "notable": notable_entries,
