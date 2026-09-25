@@ -66,7 +66,7 @@ def _activity(session, room_key: str) -> str:
     return "standing nearby"
 
 
-def room_player_entries(session) -> list[tuple[str, str]]:
+def room_player_data(session) -> list[dict]:
     """Render the viewer and other *online* characters in the same room.
 
     The server's room_players_callback remains the source of truth for who is
@@ -84,7 +84,7 @@ def room_player_entries(session) -> list[tuple[str, str]]:
         except Exception:
             others = []
 
-    entries: list[tuple[str, str]] = []
+    entries: list[dict] = []
     seen: set[int] = set()
     for character in (viewer, *sorted(others, key=lambda c: str(getattr(c, "name", "")).casefold())):
         name = str(getattr(character, "name", "") or "").strip()
@@ -102,5 +102,18 @@ def room_player_entries(session) -> list[tuple[str, str]]:
         activity = _activity(_live_session(character, session), viewer.current_room)
         label = name + (" (you)" if is_self else "")
         description = f"{_role_article(role)} {role} {activity}" if role else f"an adventurer {activity}"
-        entries.append((label, description))
+        entries.append({
+            "id": character_id,
+            "name": name,
+            "label": label,
+            "role": role,
+            "description": description,
+            "activity": activity,
+            "is_self": is_self,
+        })
     return entries
+
+
+def room_player_entries(session) -> list[tuple[str, str]]:
+    """Legacy text projection of the same authoritative live room-player data."""
+    return [(player["label"], player["description"]) for player in room_player_data(session)]

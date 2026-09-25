@@ -32,7 +32,8 @@ from mud.goblin_swamp import (
 )
 from mud.inventory_inspection import install_inventory_inspection_runtime
 from mud.room_scene_actors import scene_lines
-from mud.room_player_presence import room_player_entries
+from mud.room_player_presence import room_player_data
+from mud.room_gmcp import install_room_gmcp_runtime
 from mud.mana_regeneration import install_mana_regeneration_runtime
 from mud.movement_system import install_movement_runtime
 from mud.partial_target_matching import install_partial_target_matching_runtime
@@ -102,9 +103,14 @@ def _section_header(label: str, color: str) -> str:
     return _paint(color, f"[ {label} ]")
 
 
-def render_room_lines(session, world_service) -> tuple[str, ...]:
+def render_room_lines(
+    session, world_service, *, room_data: dict | None = None,
+    record_discovery: bool = True,
+) -> tuple[str, ...]:
     """Return one consistently formatted, ANSI-colored room view."""
 
+    if room_data is not None:
+        room_data.clear()
     character = getattr(session, "character", None)
     if character is None:
         return ()
@@ -117,14 +123,18 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     if scene is None:
         return ()
 
-    # A room enters the communal wiki only when a real player receives its
-    # rendered view. Inventory and quest knowledge are sampled here too, so
-    # things acquired through any subsystem can join the same discovery ledger.
-    try:
-        record_room_view(session, world_service, view=view, scene=scene)
-        record_character_known_state(session)
-    except Exception:
-        pass
+    # Full LOOK can record discovery. Passive GMCP refreshes must not
+    # repeatedly write discovery or history records.
+    if record_discovery:
+        try:
+            record_room_view(session, world_service, view=view, scene=scene)
+            record_character_known_state(session)
+        except Exception:
+            pass
+
+    def record_actor(*args, **kwargs) -> None:
+        if record_discovery:
+            record_actor_discovery(*args, **kwargs)
 
     lines: list[str] = [
         "",
@@ -143,7 +153,13 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
     has_style_atelier = style_atelier_available(world_service, view.key)
 
     notable: list[str] = []
+    notable_entries: list[dict] = []
     for feature in view.features:
+        notable_entries.append({
+            "id": str(getattr(feature, "key", "") or ""),
+            "name": feature.name,
+            "description": feature.summary or "",
+        })
         detail = f"  {_paint(FEATURE, feature.name)}"
         if feature.summary:
             detail += f" - {feature.summary}"
@@ -158,17 +174,22 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         subtle_tell = None
     if subtle_tell:
         notable.append(f"  {_paint(FEATURE, 'Subtle Detail')} - {subtle_tell}")
+        notable_entries.append({"id": "subtle_detail", "name": "Subtle Detail", "description": subtle_tell})
 
     if has_puddle:
-        notable.append(
-            f"  {_paint(FEATURE, 'Puddle')} - fresh rainwater deep enough to hold your reflection"
-        )
+        puddle_description = "fresh rainwater deep enough to hold your reflection"
+        notable.append(f"  {_paint(FEATURE, 'Puddle')} - {puddle_description}")
+        notable_entries.append({"id": "rain_puddle", "name": "Puddle", "description": puddle_description})
     if business is not None:
         notable.append(
             f"  {_paint(BUSINESS, business.name)} - {business.storefront_description}"
         )
+        notable_entries.append({
+            "id": business.key, "name": business.name,
+            "description": business.storefront_description,
+        })
         try:
-            record_actor_discovery(
+            record_actor(
                 session,
                 category="business",
                 entry_key=business.key,
@@ -180,12 +201,11 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         except Exception:
             pass
     if has_style_atelier:
-        notable.append(
-            f"  {_paint(BUSINESS, PAVO_ATELIER_NAME)} - mirrors, draped garment forms, "
-            "and a brass placard offering permanent STYLE COPY service"
-        )
+        atelier_description = "mirrors, draped garment forms, and a brass placard offering permanent STYLE COPY service"
+        notable.append(f"  {_paint(BUSINESS, PAVO_ATELIER_NAME)} - {atelier_description}")
+        notable_entries.append({"id": "pavos_impossible_atelier", "name": PAVO_ATELIER_NAME, "description": atelier_description})
         try:
-            record_actor_discovery(
+            record_actor(
                 session,
                 category="business",
                 entry_key="pavos_impossible_atelier",
@@ -194,7 +214,7 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
                 room_key=view.key,
                 region_key=scene.region_key,
             )
-            record_actor_discovery(
+            record_actor(
                 session,
                 category="person",
                 entry_key="pavo",
@@ -215,6 +235,7 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         lines.extend(f"  {_paint(CORPSE, detail)}" for detail in scene_contents)
 
     people: list[str] = []
+    people_entries: list[dict] = []
     creature_records: list[tuple[str, str]] = []
     hostile_records: list[tuple[str, str]] = []
     for npc_key in scene.npc_keys:
@@ -223,8 +244,9 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             getattr(session, "mobile_npcs", None), npc_key, view.key,
         ):
             people.append(f"  {_paint(NPC, npc.name)} - {npc.short_description}")
+            people_entries.append({"id": npc_key, "name": npc.name, "description": npc.short_description})
             try:
-                record_actor_discovery(
+                record_actor(
                     session,
                     category="person",
                     entry_key=npc_key,
@@ -237,6 +259,7 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
                 pass
     if has_style_atelier:
         people.append(f"  {_paint(NPC, PAVO_NAME)} - {PAVO_SHORT_DESCRIPTION}")
+        people_entries.append({"id": "pavo", "name": PAVO_NAME, "description": PAVO_SHORT_DESCRIPTION})
 
     mobile_npcs = getattr(session, "mobile_npcs", None)
     if mobile_npcs is not None:
@@ -261,8 +284,12 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
                     people.append(
                         f"  {_paint(NPC, definition.name)} - {definition.short_description}"
                     )
+                    people_entries.append({
+                        "id": actor_key, "name": definition.name,
+                        "description": definition.short_description,
+                    })
             try:
-                record_actor_discovery(
+                record_actor(
                     session,
                     category=actor_category,
                     entry_key=actor_key,
@@ -274,6 +301,7 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             except Exception:
                 pass
 
+    local_reaction = ""
     if people:
         lines.extend(["", _section_header("People", NPC), *people])
         try:
@@ -289,12 +317,12 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
                 f"  {_paint(REGION, 'Local reception')} - {local_reaction}"
             )
 
-    players = room_player_entries(session)
+    players = room_player_data(session)
     if players:
         lines.extend(["", _section_header("Players", PLAYER)])
         lines.extend(
-            f"  {_paint(PLAYER, name)} - {description}"
-            for name, description in players
+            f"  {_paint(PLAYER, player['label'])} - {player['description']}"
+            for player in players
         )
 
     # Authored room enemies do not auto-aggro merely because they can fight.
@@ -309,7 +337,7 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         ):
             creature_records.append((enemy.name, enemy.description))
             try:
-                record_actor_discovery(
+                record_actor(
                     session,
                     category="creature",
                     entry_key=enemy_key,
@@ -343,6 +371,7 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
         if database is not None and callable(getattr(database, "connect", None))
         else []
     )
+    corpse_entries: list[dict] = []
     if corpses:
         counts: dict[str, int] = {}
         for corpse in corpses:
@@ -353,11 +382,15 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             seen[corpse.enemy_name] = seen.get(corpse.enemy_name, 0) + 1
             suffix = f" #{seen[corpse.enemy_name]}" if counts[corpse.enemy_name] > 1 else ""
             decay = corpse_decay_label(corpse, now=current)
+            corpse_entries.append({
+                "id": int(corpse.id), "name": corpse.enemy_name + suffix, "decay": decay,
+            })
             corpse_lines.append(
                 f"  {_paint(CORPSE, f'Corpse of {corpse.enemy_name}{suffix} ({decay})')}"
             )
         lines.extend(["", _section_header("Corpses", CORPSE), *corpse_lines])
 
+    business_lines: list[str] = []
     if business is not None:
         moment = ASTRALIS_CLOCK.now()
         status_lines = HUMAN_DISTRICT.storefront_lines(
@@ -367,6 +400,7 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             moment.day_number,
         )
         if status_lines:
+            business_lines = list(status_lines)
             lines.extend(["", _section_header("Business", BUSINESS)])
             lines.extend(f"  {_paint(REGION, line)}" for line in status_lines)
 
@@ -377,6 +411,32 @@ def render_room_lines(session, world_service) -> tuple[str, ...]:
             destination = exit_view.name or exit_view.destination_key
             lines.append(f"  {direction:<16} -> {destination}")
 
+    if room_data is not None:
+        room_data.update({
+            "schema_version": 1,
+            "id": view.key,
+            "title": view.name,
+            "region_id": scene.region_key,
+            "region": _region_label(scene.region_key),
+            "weather": world_service.state.weather_for(scene.region_key),
+            "description": view.description,
+            "tags": list(view.tags),
+            "notable": notable_entries,
+            "on_ground": [{"text": detail} for detail in scene_contents],
+            "people": people_entries,
+            "local_reception": local_reaction if people else "",
+            "players": players,
+            "creatures": [{"name": name, "description": description} for name, description in creature_records],
+            "hostile": [{"name": name, "description": description} for name, description in hostile_records],
+            "corpses": corpse_entries,
+            "business": business_lines,
+            "exits": [
+                {"direction": exit_view.direction,
+                 "title": exit_view.name or exit_view.destination_key,
+                 "room_id": exit_view.destination_key}
+                for exit_view in view.exits
+            ],
+        })
     lines.append("")
     return tuple(lines)
 
@@ -543,15 +603,28 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     original_show_current_room = player_session_class.show_current_room
 
     async def show_current_room(self) -> None:
-        lines = render_room_lines(self, world_service)
-        if not lines:
-            await original_show_current_room(self)
-            return
+        room_data: dict = {}
+        was_suspended = getattr(self, "_room_gmcp_suspended", False)
+        self._room_gmcp_suspended = True
+        try:
+            lines = render_room_lines(self, world_service, room_data=room_data)
+            if not lines:
+                await original_show_current_room(self)
+                return
 
-        overlays = await _legacy_room_overlays(self, original_show_current_room)
-        await self.send("\r\n".join(lines) + "\r\n")
-        for text in overlays:
-            await self.send(text)
+            overlays = await _legacy_room_overlays(self, original_show_current_room)
+            await self.send("\r\n".join(lines) + "\r\n")
+            for text in overlays:
+                await self.send(text)
+        finally:
+            self._room_gmcp_suspended = was_suspended
+
+        # This exact observation is now delivered as one framed GMCP message.
+        # Legacy overlays are included as distinct plain-text entries, not
+        # misidentified as parts of the authored room description.
+        await self.push_room_snapshot(
+            room_data=room_data, overlays=overlays, force=True,
+        )
 
     player_session_class.show_current_room = show_current_room
     player_session_class._room_presentation_runtime_installed = True
@@ -562,6 +635,7 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     install_consider_runtime(player_session_class, world_service)
     install_exploration_map_runtime(player_session_class, world_service)
     install_exploration_map_gmcp_runtime(player_session_class, world_service)
+    install_room_gmcp_runtime(player_session_class, world_service)
     install_partial_target_matching_runtime(player_session_class, world_service)
     install_goblin_swamp_gathering_bridge(player_session_class)
 

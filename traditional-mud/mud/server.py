@@ -434,6 +434,18 @@ class MudServer:
                         f"{movement.npc_name} fixes its attention on you and continues to stalk your trail.\r\n> "
                     )
 
+        # NPC departures and arrivals change the structured room, even when
+        # nobody in either room sends a command.
+        for session in tuple(self.sessions):
+            if (
+                session.state is SessionState.PLAYING
+                and session.character is not None
+                and session.character.current_room in {
+                    movement.origin_room_key, movement.destination_room_key,
+                }
+            ):
+                await session.push_room_snapshot(force=True)
+
         for session in destination_sessions:
             await session.check_mobile_npc_aggression(movement.npc_key)
 
@@ -484,6 +496,21 @@ class MudServer:
                 continue
             await session.send(f"\r\n{event.text}\r\n> ")
 
+    async def refresh_room_clients(self) -> None:
+        """Keep idle Mudlet rooms current when people, NPCs, or the world change."""
+        while True:
+            await asyncio.sleep(3.0)
+            active = (
+                session for session in tuple(self.sessions)
+                if session.state is SessionState.PLAYING
+                and session.character is not None
+                and getattr(session.telnet, "gmcp_enabled", False)
+            )
+            await asyncio.gather(
+                *(session.push_room_snapshot() for session in active),
+                return_exceptions=True,
+            )
+
     async def run(self) -> None:
         server = await asyncio.start_server(
             self.handle_connection,
@@ -497,6 +524,7 @@ class MudServer:
         print(f"Astralis clock: {moment.calendar_display} (4 real hours per world day)")
         print(f"Connect with a Telnet client on port {self.port}.")
 
+        room_task = asyncio.create_task(self.refresh_room_clients())
         npc_task = asyncio.create_task(
             self.mobile_npcs.run(
                 self.broadcast_npc_movement,
@@ -567,6 +595,7 @@ class MudServer:
             async with server:
                 await server.serve_forever()
         finally:
+            room_task.cancel()
             npc_task.cancel()
             chatter_task.cancel()
             brassgut_task.cancel()
@@ -576,6 +605,7 @@ class MudServer:
             district_task.cancel()
             seasonal_task.cancel()
             await asyncio.gather(
+                room_task,
                 npc_task,
                 chatter_task,
                 brassgut_task,
