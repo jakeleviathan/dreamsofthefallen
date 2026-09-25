@@ -911,7 +911,7 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
             f"Search: RECIPES {label} SEARCH <text>\r\n"
             "Details: RECIPE <name>\r\n"
         )
-        if profession == "alchemy":
+        if profession == "alchemy" and getattr(crafting, "_regional_alchemy_installed", False):
             # Keep learning, manuscript availability, and experimentation in
             # the crafting book rather than a separate Alchemy interface.
             from mud.regional_alchemy_runtime import show_crafting_studies
