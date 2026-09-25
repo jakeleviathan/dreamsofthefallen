@@ -524,7 +524,18 @@ def _recipe_visible(session, recipe: CraftingRecipe) -> bool:
 
 
 def _visible_recipes(session) -> tuple[CraftingRecipe, ...]:
-    return tuple(recipe for recipe in crafting.ALL_RECIPES if _recipe_visible(session, recipe))
+    # The regional catalog adds 300 formulas. Read learning flags once per
+    # screen rather than querying persistence separately for every locked one.
+    character = getattr(session, "character", None)
+    flags = (
+        set(session.database.list_flags(character.id))
+        if character is not None else set()
+    )
+    return tuple(
+        recipe for recipe in crafting.ALL_RECIPES
+        if not getattr(recipe, "discovery_flag", None)
+        or recipe.discovery_flag in flags
+    )
 
 
 def _profession_name(key: str) -> str:
@@ -633,9 +644,10 @@ def _recipe_filter(value: str) -> tuple[str, str | None, str | None]:
     profession = aliases.get(parts[0])
     if profession:
         if len(parts) == 1:
-            # A profession view answers the most useful question first: what can
-            # I actually make right now?
-            return "craftable", profession, None
+            # Alchemy is a learned formula book: show attemptable known formulas
+            # even before the player has gathered ingredients or found a table.
+            # Other trades preserve their existing craftable-now default.
+            return ("ready" if profession == "alchemy" else "craftable"), profession, None
         view = parts[1]
         if view in {"craftable", "now"} and len(parts) == 2:
             return "craftable", profession, None
@@ -725,7 +737,7 @@ async def _show_recipe_help(session) -> None:
     await session.send(
         "\r\n--- Recipe Book Commands ---\r\n"
         "RECIPES                         concise all-profession overview\r\n"
-        "RECIPES <profession>            recipes you can craft right now\r\n"
+        "RECIPES <profession>            craftable now (Alchemy: learned, attemptable formulas)\r\n"
         "RECIPES <profession> ALL        every attemptable recipe\r\n"
         "RECIPES <profession> CRAFTABLE  materials, station, and skill ready now\r\n"
         "RECIPES <profession> ARMOR      protective equipment\r\n"
@@ -736,7 +748,11 @@ async def _show_recipe_help(session) -> None:
         "RECIPES CRAFTABLE               craftable recipes across every profession\r\n"
         "RECIPES SEARCH <text>           search the whole visible recipe book\r\n"
         "RECIPE <name>                   full recipe details\r\n"
-        "CRAFT <name>                    begin an interruptible crafting action\r\n\r\n"
+        "CRAFT <name>                    begin an interruptible crafting action\r\n"
+        "RECIPES ALCHEMY                learned formulas, trainers, and manuscripts\r\n"
+        "TRAIN ALCHEMY                  learn from a regional master at their hall\r\n"
+        "BROWSE MANUALS / BUY / READ     find, purchase, and study portable manuscripts\r\n"
+        "CRAFT EXPERIMENT               investigate a hidden formula at a teaching hall\r\n\r\n"
         "At a recipe trivial value, success is guaranteed and that recipe can no longer raise your skill.\r\n"
         "Completed failures consume ingredients. Movement or damage interrupts crafting without consuming them.\r\n"
     )
@@ -906,6 +922,11 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
             f"Search: RECIPES {label} SEARCH <text>\r\n"
             "Details: RECIPE <name>\r\n"
         )
+        if profession == "alchemy" and getattr(crafting, "_regional_alchemy_installed", False):
+            # Keep learning, manuscript availability, and experimentation in
+            # the crafting book rather than a separate Alchemy interface.
+            from mud.regional_alchemy_runtime import show_crafting_studies
+            await show_crafting_studies(session)
 
 
 async def _show_recipe_detail(session, target: str) -> None:

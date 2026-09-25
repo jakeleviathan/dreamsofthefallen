@@ -99,25 +99,17 @@ def _alchemy_skill(session) -> int:
 
 async def _show_help(session) -> None:
     await session.send(
-        "\r\n=== REGIONAL ALCHEMY ===\r\n"
-        "ALCHEMY REGIONS        See the nine teaching traditions.\r\n"
-        "STUDY ALCHEMY          Learn the first local lesson from a master.\r\n"
-        "ALCHEMY BOOKS          Browse manuals at a trainer or visiting seller.\r\n"
-        "BUY ALCHEMY BOOK <name>  Buy a portable manual for Sols.\r\n"
-        "READ ALCHEMY BOOK <name> Study your manual; it is reusable and tradeable.\r\n"
-        "ALCHEMY PROGRESS       See your learned cultural lessons.\r\n"
-        "ALCHEMY VISITOR        Find out when a traveling alchemist is in Waymeet.\r\n"
-        "ALCHEMY CONDITIONS     Check local reagent weather.\r\n"
-        "EXPERIMENT ALCHEMY     Risk local materials on a hidden discovery.\r\n"
-        "EXAMINE <clue>         Investigate workshop objects for rare recipes.\r\n"
-        "RECIPES ALCHEMY SEARCH <text> searches learned formula names.\r\n"
-        "RECIPE <name> gives ingredients; CRAFT <name> uses your actual skill "
-        "and nearby alchemy station.\r\n"
-        "True Gold is a permanent Dwarven master transmutation. "
-        "Licensed Auric Fixative is expensive, consumed, and sold only "
-        "by the Dwarven master with sufficient Alchemy skill.\r\n"
+        "\r\n=== ALCHEMY IN YOUR CRAFTING BOOK ===\r\n"
+        "RECIPES ALCHEMY shows learned, attemptable formulas and local study options.\r\n"
+        "RECIPES ALCHEMY ALL shows every learned formula, including difficult ones.\r\n"
+        "TRAIN ALCHEMY at a regional mentor learns your first local formulas.\r\n"
+        "BROWSE MANUALS, BUY <manual>, and READ <manual> handle further lessons.\r\n"
+        "RECIPE <name> inspects ingredients; CRAFT <name> uses your crafting skill.\r\n"
+        "CRAFT EXPERIMENT at a teaching hall can discover hidden formulas.\r\n"
+        "EXAMINE workshop clues for other secret formulas.\r\n"
+        "ALCHEMY REGIONS and ALCHEMY CONDITIONS remain available for travel and weather.\r\n"
+        "Licensed Auric Fixative is sold at the Dwarven hall for true-gold transmutation.\r\n"
     )
-
 
 async def _show_regions(session) -> None:
     known = _known(session)
@@ -157,26 +149,93 @@ async def _show_progress(session) -> None:
     )
 
 
+async def show_crafting_studies(session) -> None:
+    """Render regional lessons inside the ordinary RECIPES ALCHEMY screen."""
+    known = _known(session)
+    learned = [
+        (t, sum(catalog.lesson_flag(t.key, band) in known for band in range(5)))
+        for t in catalog.TRADITIONS
+    ]
+    secrets = sum(
+        recipe.discovery_flag in known
+        for recipe in catalog.RECIPES
+        if recipe.design_status in {"regional_alchemy_secret", "regional_alchemy_legendary"}
+    )
+    await session.send(
+        "\r\n=== ALCHEMY STUDIES ===\r\n"
+        f"Traditions studied: {sum(bool(count) for _t, count in learned)}/9 | "
+        f"Volumes learned: {sum(count for _t, count in learned)}/45 | "
+        f"Hidden discoveries: {secrets}/30\r\n"
+    )
+    await session.send("Teaching halls:\r\n")
+    for tradition, count in learned:
+        room = ROOMS_BY_KEY.get(tradition.hall)
+        room_name = room.name if room is not None else tradition.hall
+        await session.send(
+            f"  {tradition.name}: {room_name} ({tradition.trainer})"
+            f" | {count}/5 volumes\r\n"
+        )
+
+    mentor = _current_tradition(session)
+    if mentor is not None:
+        if catalog.lesson_flag(mentor.key, 0) not in known:
+            await session.send(
+                f"{mentor.trainer} can teach your first {mentor.name} formulas. "
+                "Use TRAIN ALCHEMY.\r\n"
+            )
+        else:
+            await session.send(
+                f"{mentor.trainer} is here for advanced {mentor.name} study.\r\n"
+            )
+    seller = _seller(session)
+    if seller is not None:
+        await _show_books(session)
+    else:
+        await session.send(
+            "Regional mentors sell advanced manuscripts at their teaching halls; "
+            "a visiting alchemist sometimes sells them at Waymeet Lantern Market.\r\n"
+        )
+
+    carried = [
+        crafting.ITEMS_BY_KEY[catalog.book_key(t.key, band)].name
+        for t in catalog.TRADITIONS for band in range(5)
+        if catalog.book_key(t.key, band) in crafting.ITEMS_BY_KEY
+        and session.database.item_quantity(
+            session.character.id, catalog.book_key(t.key, band)
+        ) > 0
+        and catalog.lesson_flag(t.key, band) not in known
+    ]
+    if carried:
+        await session.send(
+            "Unread manuals in your pack: " + ", ".join(carried)
+            + ". Use READ <manual> to permanently learn their recipes.\r\n"
+        )
+    await session.send(
+        "Hidden formulas come from workshop clues or CRAFT EXPERIMENT "
+        "at a regional alchemy table.\r\n"
+    )
+
+
 async def _study(session) -> None:
     t = _current_tradition(session)
     if t is None:
         await session.send(
             "There is no regional alchemy mentor here. ALCHEMY REGIONS "
-            "shows the nine teaching halls.\r\n"
+            "shows the nine teaching halls; RECIPES ALCHEMY keeps your formula book.\r\n"
         )
         return
     flag = catalog.lesson_flag(t.key, 0)
     if flag in _known(session):
         await session.send(
             f"{t.trainer} reviews your notes. You already know the apprentice "
-            f"{t.name} formulas. For further study use ALCHEMY BOOKS here.\r\n"
+            f"{t.name} formulas. Advanced volumes are under RECIPES ALCHEMY.\r\n"
         )
         return
     session.database.grant_flag(session.character.id, flag)
     await session.send(
         f"{t.trainer} teaches you the first {t.name} tradition. "
         f"{len(t.patterns)} apprentice recipes are now in your recipe book. "
-        f"Gather {t.common} and {t.rare} locally; use RECIPE <name> for details.\r\n"
+        f"Gather {t.common} and {t.rare} locally; find them under RECIPES ALCHEMY.\r\n"
     )
 
 
@@ -187,7 +246,7 @@ async def _show_books(session) -> None:
         await session.send(
             "No alchemical manuscript seller is here. Visit one of the "
             "nine regional trainers or look for the Waymeet traveling "
-            "alchemist during the daytime. ALCHEMY REGIONS lists the halls.\r\n"
+            "alchemist during the daytime. RECIPES ALCHEMY lists your learned formulas.\r\n"
         )
         return
     visiting = _current_tradition(session) is None
@@ -211,8 +270,8 @@ async def _show_books(session) -> None:
         )
         await session.send(f"  {book.name}: {status}\r\n")
     await session.send(
-        "Use BUY ALCHEMY BOOK <name> then READ ALCHEMY BOOK <name>. "
-        "The apprentice lesson is free from its home trainer.\r\n"
+        "Use BUY <manual> and READ <manual> to learn permanently. "
+        "The apprentice lesson is free from its home trainer via TRAIN ALCHEMY.\r\n"
     )
 
 
@@ -232,7 +291,7 @@ async def _buy_book(session, target: str) -> None:
     ]
     if len(matching) != 1:
         await session.send(
-            "Name an advanced volume sold here. Use ALCHEMY BOOKS to see titles.\r\n"
+            "Name an advanced volume sold here. Use RECIPES ALCHEMY to see titles.\r\n"
         )
         return
     bi = matching[0]
@@ -253,7 +312,7 @@ async def _buy_book(session, target: str) -> None:
     session.database.add_item(session.character.id, book.key, 1)
     await session.send(
         f"Purchased {book.name} for {price} sparks. "
-        f"Use READ ALCHEMY BOOK {book.name} to learn the formulas.\r\n"
+        f"Use READ {book.name} to learn the formulas.\r\n"
     )
 
 
@@ -295,7 +354,8 @@ async def _read_book(session, target: str) -> None:
     await session.send(
         f"You carefully study the {catalog.BANDS[bi][0]} {t.name} manuscript. "
         f"{len(t.patterns)} permanent recipes are added to your journal. "
-        "The book remains in your pack and can be shared.\r\n"
+        "The book remains in your pack and can be shared. "
+        "The new formulas are in RECIPES ALCHEMY.\r\n"
     )
 
 
@@ -423,7 +483,7 @@ async def _show_visitor(session) -> None:
         await session.send(
             f"{t.trainer} has arrived at Waymeet Lantern Market with "
             f"{t.name} alchemy manuals. The stall closes at Astralis 17:00. "
-            "Use ALCHEMY BOOKS here.\r\n"
+            "Use RECIPES ALCHEMY to browse the manuals here.\r\n"
         )
     else:
         await session.send(
@@ -531,8 +591,49 @@ def install_regional_alchemy_runtime(player_session_class) -> None:
         if normalized in {"alchemy regions", "alchemy trainers"}:
             await _show_regions(self)
             return
-        if normalized in {"study alchemy", "train alchemy"}:
+        if normalized == "study alchemy" or (
+            normalized in {"train alchemy", "study"} and _current_tradition(self) is not None
+        ):
             await _study(self)
+            return
+        if normalized in {"browse manuals", "browse alchemy"}:
+            await _show_books(self)
+            return
+        if normalized.startswith("buy ") and _seller(self) is not None:
+            seller = _seller(self)
+            target = normalized[4:]
+            if any(
+                target in {
+                    _normalize(catalog.BANDS[band][0]),
+                    _normalize(crafting.ITEMS_BY_KEY[catalog.book_key(seller.key, band)].name),
+                    _normalize(f"{catalog.BANDS[band][0]} {seller.name}"),
+                }
+                for band in range(1, 5)
+            ):
+                await _buy_book(self, target)
+                return
+        if normalized.startswith(("read ", "study ")):
+            target = normalized.split(" ", 1)[1]
+            owned = [
+                (t, band) for t in catalog.TRADITIONS for band in range(5)
+                if self.database.item_quantity(
+                    self.character.id, catalog.book_key(t.key, band)
+                ) > 0
+            ]
+            if any(
+                target in {
+                    _normalize(crafting.ITEMS_BY_KEY[catalog.book_key(t.key, band)].name),
+                    _normalize(f"{catalog.BANDS[band][0]} {t.name}"),
+                }
+                or target in _normalize(
+                    crafting.ITEMS_BY_KEY[catalog.book_key(t.key, band)].name
+                )
+                for t, band in owned
+            ):
+                await _read_book(self, target)
+                return
+        if normalized == "craft experiment":
+            await _experiment(self)
             return
         if normalized in {"alchemy progress", "alchemy journal"}:
             await _show_progress(self)
