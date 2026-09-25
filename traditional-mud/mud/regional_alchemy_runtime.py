@@ -167,11 +167,13 @@ async def show_crafting_studies(session) -> None:
         f"Volumes learned: {sum(count for _t, count in learned)}/45 | "
         f"Hidden discoveries: {secrets}/30\r\n"
     )
-    if any(count for _t, count in learned):
+    await session.send("Teaching halls:\r\n")
+    for tradition, count in learned:
+        room = ROOMS_BY_KEY.get(tradition.hall)
+        room_name = room.name if room is not None else tradition.hall
         await session.send(
-            "Your traditions: "
-            + ", ".join(f"{t.name} {count}/5" for t, count in learned if count)
-            + "\r\n"
+            f"  {tradition.name}: {room_name} ({tradition.trainer})"
+            f" | {count}/5 volumes\r\n"
         )
 
     mentor = _current_tradition(session)
