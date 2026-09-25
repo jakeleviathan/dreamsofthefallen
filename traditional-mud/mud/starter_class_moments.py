@@ -143,6 +143,10 @@ CLASS_PRACTICE: dict[str, tuple[str, str]] = {
         "You feel for the boundary between vitality and absence, draw the faintest thread of that sensation toward yourself, then release it before any harm is done. Minor Life Tap is built from the same dangerous relationship: take, restore, stop before appetite becomes carelessness.",
         "Necromancers work close to death without being excused from control, consequence, or judgment.",
     ),
+    "occultist": (
+        "You look past the obvious shape of the room until one detail becomes subtly impossible: a shadow with no owner, an angle that closes too slowly, a pulse heard through stone. You acknowledge it without chasing it. That restraint is the first occult discipline.",
+        "Occultists survive forbidden knowledge by deciding not only what they can perceive, but what they are willing to answer.",
+    ),
 }
 
 
