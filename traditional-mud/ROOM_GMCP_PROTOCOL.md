@@ -106,6 +106,13 @@ registerAnonymousEventHandler("gmcp.Dreams.Room", function()
 end)
 ```
 
+When the UI finishes registering its event handler, send
+`Core.Supports.Add ["Dreams 2","Room 1","Char 1"]`. The official HUD
+already does this; the server now resends the complete room if a character is
+active. Custom clients can also send `Dreams.Room.Get` with no payload to
+request a full snapshot after a late UI reload. This prevents a freshly
+installed UI from missing the initial room packet.
+
 This works with the existing GMCP negotiation. Respect account accessibility
 and HUD preferences: when GMCP is disabled, the text presentation remains the
 source of truth for that client.
