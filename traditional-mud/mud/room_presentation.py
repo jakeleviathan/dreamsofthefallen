@@ -33,6 +33,7 @@ from mud.goblin_swamp import (
 from mud.inventory_inspection import install_inventory_inspection_runtime
 from mud.room_scene_actors import scene_lines
 from mud.room_player_presence import room_player_data
+from mud.room_gmcp import install_room_gmcp_runtime
 from mud.mana_regeneration import install_mana_regeneration_runtime
 from mud.movement_system import install_movement_runtime
 from mud.partial_target_matching import install_partial_target_matching_runtime
@@ -601,15 +602,28 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     original_show_current_room = player_session_class.show_current_room
 
     async def show_current_room(self) -> None:
-        lines = render_room_lines(self, world_service)
-        if not lines:
-            await original_show_current_room(self)
-            return
+        room_data: dict = {}
+        was_suspended = getattr(self, "_room_gmcp_suspended", False)
+        self._room_gmcp_suspended = True
+        try:
+            lines = render_room_lines(self, world_service, room_data=room_data)
+            if not lines:
+                await original_show_current_room(self)
+                return
 
-        overlays = await _legacy_room_overlays(self, original_show_current_room)
-        await self.send("\r\n".join(lines) + "\r\n")
-        for text in overlays:
-            await self.send(text)
+            overlays = await _legacy_room_overlays(self, original_show_current_room)
+            await self.send("\r\n".join(lines) + "\r\n")
+            for text in overlays:
+                await self.send(text)
+        finally:
+            self._room_gmcp_suspended = was_suspended
+
+        # This exact observation is now delivered as one framed GMCP message.
+        # Legacy overlays are included as distinct plain-text entries, not
+        # misidentified as parts of the authored room description.
+        await self.push_room_snapshot(
+            room_data=room_data, overlays=overlays, force=True,
+        )
 
     player_session_class.show_current_room = show_current_room
     player_session_class._room_presentation_runtime_installed = True
@@ -620,6 +634,7 @@ def install_room_presentation_runtime(player_session_class, world_service) -> No
     install_consider_runtime(player_session_class, world_service)
     install_exploration_map_runtime(player_session_class, world_service)
     install_exploration_map_gmcp_runtime(player_session_class, world_service)
+    install_room_gmcp_runtime(player_session_class, world_service)
     install_partial_target_matching_runtime(player_session_class, world_service)
     install_goblin_swamp_gathering_bridge(player_session_class)
 
