@@ -26,6 +26,7 @@ Dreams.Room {"schema_version":1,"revision":1,"id":"waymeet_crossroads",...}
   "title": "Waymeet Crossroads",
   "region_id": "waymeet_frontier",
   "region": "Waymeet Frontier",
+  "weather": "rain",
   "description": "Four roads meet around a weather-dark stone post...",
   "tags": ["road", "safe"],
   "notable": [
