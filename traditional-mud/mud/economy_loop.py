@@ -758,7 +758,8 @@ async def _show_recipe_help(session) -> None:
         "TRAIN ALCHEMY                  learn from a regional master at their hall\r\n"
         "BROWSE MANUALS / BUY / READ     find, purchase, and study portable manuscripts\r\n"
         "CRAFT EXPERIMENT               investigate a hidden formula at a teaching hall\r\n\r\n"
-        "TRAIN TAILORING / BROWSE PATTERNS / COMMISSION at regional tailoring halls.\r\n"\n        "At a recipe trivial value, success is guaranteed and that recipe can no longer raise your skill.\r\n"
+        "TRAIN TAILORING / BROWSE PATTERNS / COMMISSION at regional tailoring halls.\r\n"
+        "At a recipe trivial value, success is guaranteed and that recipe can no longer raise your skill.\r\n"
         "Completed failures consume ingredients. Movement or damage interrupts crafting without consuming them.\r\n"
     )
 async def _show_recipe_group(
