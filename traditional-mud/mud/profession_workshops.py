@@ -679,6 +679,10 @@ async def _show_workshop(session, profession_key: str) -> None:
     await session.send(
         f"\r\nUse {verb} <item> to make something here, or RECIPE <item> for ingredient details.\r\n"
     )
+    if profession_key == "tailoring" and getattr(crafting, "_regional_tailoring_installed", False):
+        # TAILOR and RECIPES TAILORING share the same learning/commission info.
+        from mud.regional_tailoring_runtime import show_crafting_studies
+        await show_crafting_studies(session)
 
 
 async def _craft_profession(session, profession_key: str, target: str) -> None:

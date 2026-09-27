@@ -89,6 +89,8 @@ from mud.profession_workshops import install_profession_workshops_runtime
 from mud.profession_expansion import install_profession_expansion_content, install_profession_expansion_runtime
 from mud.regional_alchemy import install_regional_alchemy_content
 from mud.regional_alchemy_runtime import install_regional_alchemy_runtime
+from mud.regional_tailoring import install_regional_tailoring_content
+from mud.regional_tailoring_runtime import install_regional_tailoring_runtime
 from mud.planar_realms import install_planar_realms_runtime
 from mud.item_naming import install_authored_item_names
 from mud.item_heritage import install_item_heritage_runtime
@@ -265,12 +267,16 @@ _PROFESSION_RECIPE_COUNTS = install_profession_expansion_content()
 # All nine authored cultures teach their own formulas, and cross-regional
 # experimentation now gives Alchemy an actual permanent-transmutation path.
 _REGIONAL_ALCHEMY_COUNTS = install_regional_alchemy_content()
+# Nine culture-specific Tailoring traditions add real dye, lining, cloth
+# progression, pattern folios, hidden cuts and repeatable Sol commissions.
+_REGIONAL_TAILORING_COUNTS = install_regional_tailoring_content(WORLD)
 # Final semantic pass: preserve stable recipe keys while correcting legacy
 # ingredient combinations that existed only to force cross-region material use.
 apply_recipe_semantic_quality()
 install_profession_workshops_runtime(PlayerSession)
 install_profession_expansion_runtime(PlayerSession)
 install_regional_alchemy_runtime(PlayerSession)
+install_regional_tailoring_runtime(PlayerSession)
 
 # Regional installers above own their local gathering tables and may replace
 # entries while registering content. Add common freshwater last so those local
