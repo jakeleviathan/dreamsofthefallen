@@ -759,6 +759,8 @@ async def _show_recipe_help(session) -> None:
         "BROWSE MANUALS / BUY / READ     find, purchase, and study portable manuscripts\r\n"
         "CRAFT EXPERIMENT               investigate a hidden formula at a teaching hall\r\n\r\n"
         "TRAIN TAILORING / BROWSE PATTERNS / COMMISSION at regional tailoring halls.\r\n"
+        "TRAIN BLACKSMITHING / SMITH STUDIES at regional master forges.\r\n"
+        "SMITH EXPERIMENT <metal> follows forge clues; REFORGE <item or serial> WITH <metal> preserves heritage.\r\n"
         "At a recipe trivial value, success is guaranteed and that recipe can no longer raise your skill.\r\n"
         "Completed failures consume ingredients. Movement or damage interrupts crafting without consuming them.\r\n"
     )
@@ -936,6 +938,9 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
         if profession == "tailoring" and getattr(crafting, "_regional_tailoring_installed", False):
             from mud.regional_tailoring_runtime import show_crafting_studies as tailoring_studies
             await tailoring_studies(session)
+        if profession == "blacksmithing" and getattr(crafting, "_regional_blacksmithing_installed", False):
+            from mud.regional_blacksmithing import show_crafting_studies as smith_studies
+            await smith_studies(session)
 
 
 async def _show_recipe_detail(session, target: str) -> None:
