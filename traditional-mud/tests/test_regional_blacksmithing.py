@@ -106,6 +106,16 @@ class RegionalBlacksmithingTests(unittest.TestCase):
         self.assertEqual(reforged.stat_bonuses.grace, 2)
         self.assertEqual(reforged.armor_class, 0)
 
+    def test_metals_have_distinct_mechanical_character(self) -> None:
+        self.assertEqual(smith._metal_bonus(crafting.METAL_TIERS_BY_KEY["iron"]).hp, 1)
+        self.assertEqual(smith._metal_bonus(crafting.METAL_TIERS_BY_KEY["steel"]).might, 1)
+        self.assertEqual(smith._metal_bonus(crafting.METAL_TIERS_BY_KEY["cobalt"]).grace, 1)
+        self.assertEqual(smith._metal_bonus(crafting.METAL_TIERS_BY_KEY["moonsteel"]).mind, 1)
+        self.assertEqual(smith._metal_bonus(crafting.METAL_TIERS_BY_KEY["emberite"]).might, 2)
+        self.assertEqual(smith._metal_bonus(crafting.METAL_TIERS_BY_KEY["stariron"]).hp, 2)
+        astralite = smith._metal_bonus(crafting.METAL_TIERS_BY_KEY["astralite"])
+        self.assertEqual((astralite.grace, astralite.mind, astralite.hp), (1, 1, 2))
+
     def test_reforge_cost_scales_with_piece_size(self) -> None:
         weapon = ItemDefinition(
             "test_sword",
