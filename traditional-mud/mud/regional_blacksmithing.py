@@ -59,7 +59,7 @@ TRADITIONS: tuple[SmithingTradition, ...] = (
         "Unbroken Freight Hammer", "hp", "might",
     ),
     SmithingTradition(
-        "forest", "Forest Elf", "Greenway Edgecraft", "Ilyra Greenhammer",
+        "forest", "Forest Elf", "Greenway Edgecraft", "Edraya Greenhammer",
         "forest_elf_hearthwalk", "Greenbark Quench",
         "Greenleaf steeped in clean water for a slow, forgiving edge quench that favors flexible work.",
         (("greenleaf", 2), ("spring_water", 1)), "iron", "leaf-shaped temper mark",
@@ -414,12 +414,12 @@ def _reforge_stats(item: ItemDefinition, metal: crafting.MetalTierDefinition) ->
     base = eq.stat_bonuses
     values = base.as_dict()
     armor = eq.armor_class
-    if eq.slot == "weapon":
+    if eq.slot in {"weapon", "main_hand"}:
         values["might"] = max(values["might"], metal.tier + 1)
     elif eq.slot == "off_hand":
         armor = max(armor, metal.tier + 1)
         values["hp"] = max(values["hp"], metal.tier)
-    elif eq.slot == "body":
+    elif eq.slot in {"body", "chest"}:
         armor = max(armor, metal.tier * 2)
         values["hp"] = max(values["hp"], metal.tier)
     else:
@@ -814,7 +814,7 @@ def _resolve_owned_reforge_target(session, target: str):
 
 def _reforge_cost(item: ItemDefinition) -> int:
     assert item.equipment is not None
-    if item.equipment.slot == "body":
+    if item.equipment.slot in {"body", "chest"}:
         return 4
     if item.equipment.slot == "off_hand":
         return 3
