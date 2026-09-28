@@ -164,6 +164,21 @@ def _focus_bonus(tradition: SmithingTradition, tier: int) -> CharacterStats:
     return CharacterStats(**values)
 
 
+METAL_CHARACTER: dict[str, tuple[str, CharacterStats]] = {
+    "iron": ("stout", CharacterStats(hp=1)),
+    "steel": ("direct", CharacterStats(might=1)),
+    "cobalt": ("quick", CharacterStats(grace=1)),
+    "moonsteel": ("attuned", CharacterStats(mind=1)),
+    "emberite": ("forceful", CharacterStats(might=2)),
+    "stariron": ("unyielding", CharacterStats(hp=2)),
+    "astralite": ("balanced", CharacterStats(grace=1, mind=1, hp=2)),
+}
+
+
+def _metal_bonus(metal: crafting.MetalTierDefinition) -> CharacterStats:
+    return METAL_CHARACTER.get(metal.key, ("plain", CharacterStats()))[1]
+
+
 def _regional_equipment(
     tradition: SmithingTradition,
     metal: crafting.MetalTierDefinition,
@@ -190,13 +205,15 @@ def _regional_equipment(
     else:
         stats = CharacterStats(hp=max(1, tier // 2))
         armor = tier + 1
-    stats = stats.plus(_focus_bonus(tradition, tier))
+    stats = stats.plus(_metal_bonus(metal)).plus(_focus_bonus(tradition, tier))
+    metal_character = METAL_CHARACTER.get(metal.key, ("plain", CharacterStats()))[0]
     name = f"{tradition.identity} {metal.name} {label}"
     return ItemDefinition(
         regional_piece_key(tradition.key, metal.key, slug),
         name,
         f"{tradition.name} smithwork in {metal.name.lower()}, finished with {tradition.quench_name}. "
-        f"The piece emphasizes {tradition.identity.lower()} methods rather than a generic tier silhouette.",
+        f"The {metal.name} gives it a {metal_character} character while "
+        f"{tradition.identity.lower()} methods shape the regional emphasis.",
         "equipment",
         EquipmentItem(name, slot, armor_class=armor, stat_bonuses=stats),
         tier=tier,
@@ -426,11 +443,12 @@ def _reforge_stats(item: ItemDefinition, metal: crafting.MetalTierDefinition) ->
         armor = max(armor, metal.tier)
         if eq.slot in {"hands", "legs"}:
             values["hp"] = max(values["hp"], max(1, metal.tier // 2))
+    metal_bonus = _metal_bonus(metal)
     return replace(
         eq,
         name=f"{metal.name}-Reforged {item.name}",
         armor_class=armor,
-        stat_bonuses=CharacterStats(**values),
+        stat_bonuses=CharacterStats(**values).plus(metal_bonus),
     )
 
 
@@ -632,6 +650,11 @@ async def show_crafting_studies(session) -> None:
     await session.send(
         "Advanced ore sources: Cobalt in Dwarven freight workings; Moonsilver in Moon Elf highlands; "
         "Emberite in the Underclock; Stariron in Greywake; Astralite in the Salt Kingdoms.\r\n"
+    )
+    await session.send(
+        "Metal character: Iron is stout; Steel direct; Cobalt quick; Moonsteel attuned; "
+        "Emberite forceful; Stariron unyielding; Astralite balanced. These properties alter "
+        "finished gear rather than acting as tier numbers alone.\r\n"
     )
     if local is not None:
         await session.send(
