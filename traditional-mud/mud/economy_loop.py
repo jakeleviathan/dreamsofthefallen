@@ -648,9 +648,16 @@ def _recipe_filter(value: str) -> tuple[str, str | None, str | None]:
             # avoiding the confusing empty book that hides regional patterns.
             # Standalone core tests without regional Tailoring keep their
             # original craftable-now behavior.
-            learned_trade = profession == "alchemy" or (
-                profession == "tailoring"
-                and getattr(crafting, "_regional_tailoring_installed", False)
+            learned_trade = (
+                profession == "alchemy"
+                or (
+                    profession == "tailoring"
+                    and getattr(crafting, "_regional_tailoring_installed", False)
+                )
+                or (
+                    profession == "blacksmithing"
+                    and getattr(crafting, "_regional_blacksmithing_installed", False)
+                )
             )
             return ("ready" if learned_trade else "craftable"), profession, None
         view = parts[1]
@@ -742,7 +749,7 @@ async def _show_recipe_help(session) -> None:
     await session.send(
         "\r\n--- Recipe Book Commands ---\r\n"
         "RECIPES                         concise all-profession overview\r\n"
-        "RECIPES <profession>            craftable now (Alchemy/Tailoring: learned patterns)\r\n"
+        "RECIPES <profession>            craftable now (Alchemy/Tailoring/Blacksmithing: learned patterns)\r\n"
         "RECIPES <profession> ALL        every attemptable recipe\r\n"
         "RECIPES <profession> CRAFTABLE  materials, station, and skill ready now\r\n"
         "RECIPES <profession> ARMOR      protective equipment\r\n"
@@ -759,6 +766,8 @@ async def _show_recipe_help(session) -> None:
         "BROWSE MANUALS / BUY / READ     find, purchase, and study portable manuscripts\r\n"
         "CRAFT EXPERIMENT               investigate a hidden formula at a teaching hall\r\n\r\n"
         "TRAIN TAILORING / BROWSE PATTERNS / COMMISSION at regional tailoring halls.\r\n"
+        "TRAIN BLACKSMITHING / SMITH STUDIES at regional master forges.\r\n"
+        "SMITH EXPERIMENT <metal> follows forge clues; REFORGE <item or serial> WITH <metal> preserves heritage.\r\n"
         "At a recipe trivial value, success is guaranteed and that recipe can no longer raise your skill.\r\n"
         "Completed failures consume ingredients. Movement or damage interrupts crafting without consuming them.\r\n"
     )
@@ -936,6 +945,9 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
         if profession == "tailoring" and getattr(crafting, "_regional_tailoring_installed", False):
             from mud.regional_tailoring_runtime import show_crafting_studies as tailoring_studies
             await tailoring_studies(session)
+        if profession == "blacksmithing" and getattr(crafting, "_regional_blacksmithing_installed", False):
+            from mud.regional_blacksmithing import show_crafting_studies as smith_studies
+            await smith_studies(session)
 
 
 async def _show_recipe_detail(session, target: str) -> None:
