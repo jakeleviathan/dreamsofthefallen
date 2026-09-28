@@ -92,10 +92,12 @@ The `id` is the stable game room key; `exits[].room_id` is the destination key.
 
 ## Mudlet integration
 
-The official HUD already registers the `gmcp.Dreams.RoomView` event and assigns
-the payload to `a dedicated room-view model`. A custom UI can register the same event
-and render `gmcp.Dreams.RoomView.title`, `.description`, `.people`, `.players`,
-`.exits`, etc. An illustrative handler:
+The official HUD keeps using the older `Dreams.Room` state for its existing
+mapper integration. The richer room envelope intentionally uses the separate
+`Dreams.RoomView` package so those two schemas cannot overwrite each other while
+a player moves. Custom UIs should register `gmcp.Dreams.RoomView` and render its
+`.title`, `.description`, `.people`, `.players`, `.exits`, etc. An
+illustrative handler:
 
 ```lua
 registerAnonymousEventHandler("gmcp.Dreams.RoomView", function()
