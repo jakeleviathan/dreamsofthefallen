@@ -19,7 +19,8 @@ import server
 from mud.corpse_loot import create_corpse
 from mud.database import Database
 from mud.enemy_lifecycle import clear_static_enemy_respawn, mark_static_enemy_defeated
-from mud.goblin_swamp import GOBLIN_MUDGLASS_CROSSING_KEY, MIRE_TICK_SWARM
+from mud.goblin_swamp import GOBLIN_APOTHECARY_BLIND_KEY, GOBLIN_MUDGLASS_CROSSING_KEY, MIRE_TICK_SWARM
+from mud.modern_client_experience import _room_snapshot
 from mud.room_presentation import (
     BUSINESS,
     CORPSE,
@@ -44,6 +45,7 @@ class DB:
 session = SimpleNamespace(
     character=SimpleNamespace(
         id=1,
+        name="Prime",
         race="goblin",
         character_class="priest",
         level=1,
@@ -67,6 +69,34 @@ assert f"{EXIT}NORTH" in text, text
 assert "The Sorting Spine" in text, text
 assert text.index("The Clattergate") < text.index("[ Notable ]") < text.index("[ People ]") < text.index("[ Exits ]")
 assert server.PlayerSession._room_presentation_runtime_installed
+
+# Regression: dynamic room features must be identical between main LOOK text
+# and the Current Room HUD. The Apothecary Blind is weather-exposed but was not
+# in the legacy hard-coded puddle whitelist, so rain once appeared only in HUD.
+apothecary_scene = server.WORLD.scene(GOBLIN_APOTHECARY_BLIND_KEY)
+assert apothecary_scene is not None
+previous_weather = server.WORLD.state.weather_for(apothecary_scene.region_key)
+server.WORLD.state.set_weather(apothecary_scene.region_key, "rain")
+session.character.current_room = GOBLIN_APOTHECARY_BLIND_KEY
+room_data = {}
+apothecary_text = "\r\n".join(render_room_lines(session, server.WORLD, room_data=room_data))
+hud_room = _room_snapshot(session, server.WORLD)
+assert hud_room is not None
+
+hud_puddle = next(
+    feature for feature in hud_room["features"]
+    if feature["name"] == "Rain Puddle"
+)
+text_puddle = next(
+    feature for feature in room_data["notable"]
+    if feature["name"] == "Rain Puddle"
+)
+assert hud_puddle["summary"] == text_puddle["description"]
+assert f"{FEATURE}Rain Puddle" in apothecary_text, apothecary_text
+assert text_puddle["description"] in apothecary_text, apothecary_text
+
+server.WORLD.state.set_weather(apothecary_scene.region_key, previous_weather)
+session.character.current_room = "goblin_clattergate"
 
 with tempfile.TemporaryDirectory() as temp:
     database = Database(Path(temp) / "room-presentation.db")
