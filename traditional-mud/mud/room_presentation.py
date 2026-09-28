@@ -5,7 +5,7 @@ from time import time
 import mud.room_runtime as room_runtime
 from mud.actor_inspection import install_actor_inspection_runtime
 from mud.astralis_human_district import HUMAN_DISTRICT
-from mud.astralis_time import ASTRALIS_CLOCK, puddle_available
+from mud.astralis_time import ASTRALIS_CLOCK
 from mud.combat import ENEMIES_BY_KEY
 from mud.consider import install_consider_runtime
 from mud.contextual_command_routing import install_contextual_command_routing_guard
@@ -38,6 +38,7 @@ from mud.mana_regeneration import install_mana_regeneration_runtime
 from mud.movement_system import install_movement_runtime
 from mud.partial_target_matching import install_partial_target_matching_runtime
 from mud.quest_experience import install_quest_experience_runtime
+from mud.reflection_opportunities import room_reflection_opportunities
 from mud.room_engine import PlayerRoomContext
 from mud.style_collectibles import (
     PAVO_ATELIER_NAME,
@@ -148,7 +149,7 @@ def render_room_lines(
             lines.append("")
         lines.append(_paint(BODY, paragraph.replace("\n", " ")))
 
-    has_puddle = puddle_available(view.key, scene.region_key, world_service.state)
+    reflection_sources = room_reflection_opportunities(scene, world_service.state)
     business = HUMAN_DISTRICT.business_in_room(view.key)
     has_style_atelier = style_atelier_available(world_service, view.key)
 
@@ -176,10 +177,19 @@ def render_room_lines(
         notable.append(f"  {_paint(FEATURE, 'Subtle Detail')} - {subtle_tell}")
         notable_entries.append({"id": "subtle_detail", "name": "Subtle Detail", "description": subtle_tell})
 
-    if has_puddle:
-        puddle_description = "fresh rainwater deep enough to hold your reflection"
-        notable.append(f"  {_paint(FEATURE, 'Puddle')} - {puddle_description}")
-        notable_entries.append({"id": "rain_puddle", "name": "Puddle", "description": puddle_description})
+    # Reflection sources are runtime room features too. Use the exact same
+    # weather/exposure resolver as the structured HUD so LOOK and Current Room
+    # cannot disagree about mirrors, reflective water, or rain-created puddles.
+    authored_feature_names = {str(feature.name).casefold() for feature in view.features}
+    for source in reflection_sources:
+        if source.name.casefold() in authored_feature_names:
+            continue
+        notable.append(f"  {_paint(FEATURE, source.name)} - {source.room_text}")
+        notable_entries.append({
+            "id": f"reflection:{source.key}",
+            "name": source.name,
+            "description": source.room_text,
+        })
     if business is not None:
         notable.append(
             f"  {_paint(BUSINESS, business.name)} - {business.storefront_description}"

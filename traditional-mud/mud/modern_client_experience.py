@@ -18,7 +18,7 @@ from mud.racial_abilities import (
     RACIAL_TEXT,
 )
 from mud.equipment_system import equipped_definitions, equipped_item_keys
-from mud.reflection_opportunities import reflection_opportunities
+from mud.reflection_opportunities import room_reflection_opportunities
 from mud.room_engine import PlayerRoomContext
 from mud.room_player_presence import room_player_entries
 from mud.style_collectibles import style_atelier_available
@@ -95,9 +95,7 @@ def _room_snapshot(session, world) -> dict | None:
         }
         for feature in view.features
     ]
-    weather = world.state.weather_for(scene.region_key)
-    exposed = room_is_weather_exposed(scene.tags, scene.key)
-    for source in reflection_opportunities(scene, weather, exposed=exposed):
+    for source in room_reflection_opportunities(scene, world.state):
         if any(feature["name"] == source.name for feature in features):
             continue
         features.append(
