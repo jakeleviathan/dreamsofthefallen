@@ -415,7 +415,9 @@ def install_regional_alchemy_content() -> dict[str, int]:
                 f"a {t.name.lower()} master alchemist arranging carefully labeled reagents",
                 t.hall, "regional alchemy trainer",
                 (f"{t.trainer} says: '{t.description} "
-                 "Use RECIPES ALCHEMY to browse formulas and manuals; TRAIN ALCHEMY for your first lesson.'",),
+                 "I sell advanced alchemy manuals here. Use SHOP or BROWSE to see the shelf, "
+                 "BUY <manual> to purchase one, and READ <manual> to learn it. "
+                 "TRAIN ALCHEMY is your first lesson; RECIPES ALCHEMY shows your formulas.'",),
             )
             world.NPCS += (npc,)
             world.NPCS_BY_KEY[npc_key] = npc
