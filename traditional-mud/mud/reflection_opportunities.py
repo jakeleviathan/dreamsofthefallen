@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from mud.appearance import appearance_description
+from mud.weather_gameplay import room_is_weather_exposed
 
 
 RAINY_WEATHER = frozenset({"rain", "storm", "thunderstorm"})
@@ -329,6 +330,19 @@ def reflection_opportunities(scene, weather: str, *, exposed: bool) -> tuple[Ref
         )
 
     return tuple(result)
+
+
+def room_reflection_opportunities(scene, state) -> tuple[ReflectionOpportunity, ...]:
+    """Return the room's currently visible reflection sources from shared world state.
+
+    Room text and structured clients must call this same adapter so weather-created
+    surfaces such as rain puddles cannot appear in one presentation but not another.
+    """
+    if scene is None or state is None:
+        return ()
+    weather = state.weather_for(scene.region_key)
+    exposed = room_is_weather_exposed(scene.tags, scene.key)
+    return reflection_opportunities(scene, weather, exposed=exposed)
 
 
 def find_reflection_opportunity(
