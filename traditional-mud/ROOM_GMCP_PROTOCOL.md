@@ -1,6 +1,6 @@
 # Structured room feed for UI developers
 
-The server sends one **`Dreams.Room` GMCP JSON object** whenever the player
+The server sends one **`Dreams.RoomView` GMCP JSON object** whenever the player
 enters a room or uses `LOOK`. Each GMCP subnegotiation is already framed by
 Telnet `IAC SB GMCP` and `IAC SE`: that is the unambiguous start/end of the
 room message. **Do not look for visible `[ROOM_START]` / `[ROOM_END]` tags.**
@@ -15,7 +15,7 @@ ground contents, corpses and exits rather than an approximate reconstruction.
 Below is illustrative data, not a dump of the current world database:
 
 ```text
-Dreams.Room {"schema_version":1,"revision":1,"id":"waymeet_crossroads",...}
+Dreams.RoomView {"schema_version":1,"revision":1,"id":"waymeet_crossroads",...}
 ```
 
 ```json
@@ -92,14 +92,14 @@ The `id` is the stable game room key; `exits[].room_id` is the destination key.
 
 ## Mudlet integration
 
-The official HUD already registers the `gmcp.Dreams.Room` event and assigns
-the payload to `DreamsHUD.state.room`. A custom UI can register the same event
-and render `gmcp.Dreams.Room.title`, `.description`, `.people`, `.players`,
+The official HUD already registers the `gmcp.Dreams.RoomView` event and assigns
+the payload to `a dedicated room-view model`. A custom UI can register the same event
+and render `gmcp.Dreams.RoomView.title`, `.description`, `.people`, `.players`,
 `.exits`, etc. An illustrative handler:
 
 ```lua
-registerAnonymousEventHandler("gmcp.Dreams.Room", function()
-  local room = gmcp.Dreams.Room
+registerAnonymousEventHandler("gmcp.Dreams.RoomView", function()
+  local room = gmcp.Dreams.RoomView
   if type(room) ~= "table" or room.schema_version ~= 1 then return end
   -- room is a COMPLETE snapshot. Replace your prior UI room model here.
   updateRoomPanel(room)
@@ -109,7 +109,7 @@ end)
 When the UI finishes registering its event handler, send
 `Core.Supports.Add ["Dreams 2","Room 1","Char 1"]`. The official HUD
 already does this; the server now resends the complete room if a character is
-active. Custom clients can also send `Dreams.Room.Get` with no payload to
+active. Custom clients can also send `Dreams.RoomView.Get` with no payload to
 request a full snapshot after a late UI reload. This prevents a freshly
 installed UI from missing the initial room packet.
 
