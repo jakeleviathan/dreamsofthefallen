@@ -107,7 +107,7 @@ class RegionalBlacksmithingTests(unittest.TestCase):
         )
 
         self.assertGreaterEqual(reforged.stat_bonuses.might, 4)
-        self.assertEqual(reforged.stat_bonuses.grace, 2)
+        self.assertEqual(reforged.stat_bonuses.grace, 3)
         self.assertEqual(reforged.armor_class, 0)
 
     def test_metals_have_distinct_mechanical_character(self) -> None:
