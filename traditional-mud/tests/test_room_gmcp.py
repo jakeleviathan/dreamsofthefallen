@@ -62,6 +62,10 @@ class RoomGmcpUnitTests(unittest.IsolatedAsyncioTestCase):
         )
         fake.push_room_snapshot.assert_awaited_once_with(force=True)
         fake.push_room_snapshot.reset_mock()
+        await PlayerSession._handle_client_gmcp(fake, "Dreams.RoomView.Get", None)
+        fake.push_room_snapshot.assert_awaited_once_with(force=True)
+
+        fake.push_room_snapshot.reset_mock()
         await PlayerSession._handle_client_gmcp(fake, "Dreams.Room.Get", None)
         fake.push_room_snapshot.assert_awaited_once_with(force=True)
 
@@ -78,6 +82,8 @@ class RoomGmcpUnitTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.session.telnet.messages), 1)
         package, payload = self.session.telnet.messages[0]
         self.assertEqual(package, ROOM_PACKAGE)
+        self.assertEqual(ROOM_PACKAGE, "Dreams.RoomView")
+        self.assertNotEqual(ROOM_PACKAGE, "Dreams.Room")
         self.assertEqual(payload["schema_version"], 1)
         self.assertEqual(payload["revision"], 1)
         self.assertEqual(payload["id"], "waymeet_crossroads")
@@ -189,7 +195,7 @@ class RoomGmcpFramingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(raw.count(start), 1)
         self.assertEqual(raw.count(end), 1)
         package, body = raw[len(start):-len(end)].split(b" ", 1)
-        self.assertEqual(package, b"Dreams.Room")
+        self.assertEqual(package, b"Dreams.RoomView")
         self.assertEqual(json.loads(body)["id"], "waymeet_crossroads")
 
 
