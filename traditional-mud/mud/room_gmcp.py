@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Versioned, complete GMCP room snapshots for modern clients.
 
-A GMCP subnegotiation is a single framed message, so Dreams.Room itself is the
+A GMCP subnegotiation is a single framed message, so Dreams.RoomView itself is the
 start/end boundary. No protocol markers ever appear in ordinary Telnet text.
 """
 
@@ -11,7 +11,7 @@ import re
 from time import monotonic
 
 
-ROOM_PACKAGE = "Dreams.Room"
+ROOM_PACKAGE = "Dreams.RoomView"
 ROOM_SCHEMA_VERSION = 1
 ROOM_REFRESH_SECONDS = 2.5
 _ANSI_SGR = re.compile(r"\x1b\[[0-9;]*m")
@@ -29,7 +29,7 @@ async def push_room_snapshot(
     session, world_service, *, room_data: dict | None = None,
     overlays: list[str] | None = None, force: bool = False,
 ) -> bool:
-    """Send a full, self-contained Dreams.Room frame if the visible room changed.
+    """Send a full, self-contained Dreams.RoomView frame if the visible room changed.
 
     Explicit LOOK/movement passes an already-rendered room_data object so both
     formats reflect the *same* world observation. Passive refreshes reuse the
