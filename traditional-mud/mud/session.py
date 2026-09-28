@@ -418,7 +418,7 @@ class PlayerSession:
         elif normalized == "external.discord.get":
             self._discord_presence_service().ready = True
             await self.send_discord_presence(force=True)
-        elif normalized == "dreams.room.get" or (
+        elif normalized in {"dreams.roomview.get", "dreams.room.get"} or (
             normalized in {"core.supports.add", "core.supports.set"}
             and isinstance(payload, (list, tuple))
             and any(
@@ -426,8 +426,9 @@ class PlayerSession:
                 for package in payload
             )
         ):
-            # HUD packages can initialize after the first character-enter
-            # packet. Resend the whole room once its handler has registered.
+            # UI packages can initialize after the first character-enter packet.
+            # Resend the canonical full room view once its handler has registered.
+            # Dreams.Room.Get remains accepted as a backwards-compatible request alias.
             sender = getattr(self, "push_room_snapshot", None)
             if callable(sender):
                 await sender(force=True)
