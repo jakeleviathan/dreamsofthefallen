@@ -71,6 +71,32 @@ def _seller(session):
     )
 
 
+def _manual_shop_command(command: str, seller) -> bool:
+    """Return True for intuitive commands that should open a mentor's manual shelf."""
+    if seller is None:
+        return False
+    normalized = _normalize(command)
+    if normalized in {
+        "shop",
+        "browse",
+        "buy",
+        "shop alchemy",
+        "browse alchemy",
+        "shop books",
+        "browse books",
+        "shop manuals",
+        "browse manuals",
+        "alchemy books",
+        "alchemy manuals",
+    }:
+        return True
+    trainer = _normalize(seller.trainer)
+    return normalized in {
+        f"shop {trainer}",
+        f"browse {trainer}",
+    }
+
+
 def _publish_secret(session, recipe) -> None:
     """Only publish the player's actual discovered formula to the living wiki."""
     from mud.collective_wiki import WikiFact, record_wiki_entry
@@ -103,7 +129,8 @@ async def _show_help(session) -> None:
         "RECIPES ALCHEMY shows learned, attemptable formulas and local study options.\r\n"
         "RECIPES ALCHEMY ALL shows every learned formula, including difficult ones.\r\n"
         "TRAIN ALCHEMY at a regional mentor learns your first local formulas.\r\n"
-        "BROWSE MANUALS, BUY <manual>, and READ <manual> handle further lessons.\r\n"
+        "SHOP or BROWSE at a regional mentor lists manuals for sale; BUY <manual> purchases one.\r\n"
+        "READ <manual> permanently learns a purchased volume.\r\n"
         "RECIPE <name> inspects ingredients; CRAFT <name> uses your crafting skill.\r\n"
         "CRAFT EXPERIMENT at a teaching hall can discover hidden formulas.\r\n"
         "EXAMINE workshop clues for other secret formulas.\r\n"
@@ -266,11 +293,13 @@ async def _show_books(session) -> None:
             else "IN PACK" if session.database.item_quantity(session.character.id, book.key)
             else "FREE TRAINER LESSON" if bi == 0 and not visiting
             else "HOME TRAINER ONLY" if bi == 0
-            else f"{price} sparks (skill {skill_floor}+)"
+            else f"{price} sparks (skill {skill_floor}+) | BUY {rank.upper()}"
         )
         await session.send(f"  {book.name}: {status}\r\n")
     await session.send(
-        "Use BUY <manual> and READ <manual> to learn permanently. "
+        "SHOP or BROWSE reopens this list. Buy an advanced volume with "
+        "BUY <rank> (for example, BUY FIELD) or BUY <full manual title>. "
+        "After purchase, READ <manual> to learn it permanently. "
         "The apprentice lesson is free from its home trainer via TRAIN ALCHEMY.\r\n"
     )
 
@@ -596,11 +625,11 @@ def install_regional_alchemy_runtime(player_session_class) -> None:
         ):
             await _study(self)
             return
-        if normalized in {"browse manuals", "browse alchemy"}:
+        seller = _seller(self)
+        if _manual_shop_command(normalized, seller):
             await _show_books(self)
             return
-        if normalized.startswith("buy ") and _seller(self) is not None:
-            seller = _seller(self)
+        if normalized.startswith("buy ") and seller is not None:
             target = normalized[4:]
             if any(
                 target in {
