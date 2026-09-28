@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+import tempfile
 
 import mud.crafting as crafting
 import mud.economy_loop as economy
+import mud.item_heritage as heritage
 import mud.regional_blacksmithing as smith
+from mud.database import Database
 from mud.crafting import ItemDefinition
 from mud.stats import CharacterStats, EquipmentItem
 
@@ -115,6 +119,42 @@ class RegionalBlacksmithingTests(unittest.TestCase):
         self.assertEqual(smith._metal_bonus(crafting.METAL_TIERS_BY_KEY["stariron"]).hp, 2)
         astralite = smith._metal_bonus(crafting.METAL_TIERS_BY_KEY["astralite"])
         self.assertEqual((astralite.grace, astralite.mind, astralite.hp), (1, 1, 2))
+
+    def test_reforge_transaction_preserves_one_heritage_serial(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Database(Path(tmp) / "smithing.db")
+            account = database.create_account("smith", "test-hash")
+            character = database.create_character(
+                account.id,
+                "Hammerhand",
+                "dwarf",
+                "brute",
+            )
+            database.add_item(character.id, "iron_sword", 1)
+            database.add_item(character.id, "cobalt_ingot", 2)
+
+            ok, serial, error = smith._reforge_transaction(
+                database,
+                character_id=character.id,
+                source_key="iron_sword",
+                output_key="cobalt_sword",
+                ingot_key="cobalt_ingot",
+                ingot_quantity=2,
+                serial=None,
+            )
+
+            self.assertTrue(ok, error)
+            self.assertIsNotNone(serial)
+            self.assertEqual(database.item_quantity(character.id, "iron_sword"), 0)
+            self.assertEqual(database.item_quantity(character.id, "cobalt_sword"), 1)
+            self.assertEqual(database.item_quantity(character.id, "cobalt_ingot"), 0)
+
+            record = heritage.provenance_by_serial(database, str(serial))
+            self.assertIsNotNone(record)
+            assert record is not None
+            self.assertEqual(record["item_key"], "cobalt_sword")
+            self.assertEqual(record["serial"], serial)
+            self.assertEqual(record["events"][-1]["event_type"], "reforged")
 
     def test_reforge_cost_scales_with_piece_size(self) -> None:
         weapon = ItemDefinition(
