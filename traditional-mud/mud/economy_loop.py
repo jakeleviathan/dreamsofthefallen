@@ -648,16 +648,9 @@ def _recipe_filter(value: str) -> tuple[str, str | None, str | None]:
             # avoiding the confusing empty book that hides regional patterns.
             # Standalone core tests without regional Tailoring keep their
             # original craftable-now behavior.
-            learned_trade = (
-                profession == "alchemy"
-                or (
-                    profession == "tailoring"
-                    and getattr(crafting, "_regional_tailoring_installed", False)
-                )
-                or (
-                    profession == "blacksmithing"
-                    and getattr(crafting, "_regional_blacksmithing_installed", False)
-                )
+            learned_trade = profession == "alchemy" or (
+                profession == "tailoring"
+                and getattr(crafting, "_regional_tailoring_installed", False)
             )
             return ("ready" if learned_trade else "craftable"), profession, None
         view = parts[1]
@@ -749,7 +742,7 @@ async def _show_recipe_help(session) -> None:
     await session.send(
         "\r\n--- Recipe Book Commands ---\r\n"
         "RECIPES                         concise all-profession overview\r\n"
-        "RECIPES <profession>            craftable now (Alchemy/Tailoring/Blacksmithing: learned patterns)\r\n"
+        "RECIPES <profession>            craftable now (Alchemy/Tailoring: learned patterns)\r\n"
         "RECIPES <profession> ALL        every attemptable recipe\r\n"
         "RECIPES <profession> CRAFTABLE  materials, station, and skill ready now\r\n"
         "RECIPES <profession> ARMOR      protective equipment\r\n"
