@@ -939,6 +939,20 @@ def _round_rows(session, room_key: str | None = None):
         ).fetchall()
 
 
+def room_bar_entries(session, room_key: str | None = None) -> list[dict[str, object]]:
+    """Stable room-presentation view of currently shared tasting rounds."""
+
+    return [
+        {
+            "item_key": str(row["item_key"]),
+            "name": str(row["display_name"]),
+            "host": str(row["host_name"]),
+            "cups": int(row["cups"]),
+        }
+        for row in _round_rows(session, room_key)
+    ]
+
+
 async def _pour(session, target: str) -> None:
     if getattr(session, "active_enemy", None) is not None:
         await session.send(
