@@ -199,6 +199,20 @@ class RegionalCookingTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(int(rows[0]["portions"]), 4)
 
+        from mud.room_presentation import render_room_lines
+        room_data = {}
+        rendered = render_room_lines(
+            self.session,
+            server.WORLD,
+            room_data=room_data,
+            record_discovery=False,
+        )
+        self.assertIn("Shared Table", "".join(rendered))
+        self.assertEqual(room_data["shared_table"][0]["portions"], 4)
+        self.assertEqual(
+            room_data["shared_table"][0]["chef"], self.character.name
+        )
+
         class Combatant:
             current_hp = 5
             max_hp = 30
