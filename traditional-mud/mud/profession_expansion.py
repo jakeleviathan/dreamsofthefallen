@@ -1519,6 +1519,24 @@ def install_profession_expansion_content() -> dict[str, int]:
 
     workshops.install_missing_profession_content()
 
+    # Enchanting was deliberately removed as a repeatable tradeskill. Older
+    # content installers may still have authored enchanting recipes in memory,
+    # so normalize the shared registries before expanding the active roster.
+    enchanting_keys = {
+        recipe.key
+        for recipe in crafting.ALL_RECIPES
+        if recipe.trade_skill_key == "enchanting"
+    }
+    if enchanting_keys:
+        crafting.ALL_RECIPES = tuple(
+            recipe for recipe in crafting.ALL_RECIPES
+            if recipe.trade_skill_key != "enchanting"
+        )
+        for recipe_key in enchanting_keys:
+            crafting.RECIPES_BY_KEY.pop(recipe_key, None)
+    crafting.ENCHANTING_RECIPES = ()
+    crafting.ENCHANTING_RECIPES_BY_KEY = {}
+
     blacksmith_items, blacksmith_recipes = _blacksmithing_expansion()
     tailoring_items, tailoring_recipes = _tailoring_expansion()
     alchemy_items, alchemy_recipes = _alchemy_expansion()
