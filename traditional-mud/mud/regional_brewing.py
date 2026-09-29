@@ -147,7 +147,13 @@ def _bonus(region: str, tier: int, family: str) -> CharacterStats:
     return CharacterStats(grace=1, love=1, mind=1)
 
 
-def _materials(tradition: BrewingTradition, family: str, *, primary: bool) -> tuple[MaterialRequirement, ...]:
+def _materials(
+    tradition: BrewingTradition,
+    family: str,
+    *,
+    primary: bool,
+    band_key: str,
+) -> tuple[MaterialRequirement, ...]:
     ingredient = tradition.ingredient_key
     water = "filtered_brewing_water" if family in {"coffee", "tonic", "tea"} else "spring_water"
     if family == "ale":
@@ -198,8 +204,8 @@ def _materials(tradition: BrewingTradition, family: str, *, primary: bool) -> tu
         # Crossroads blending stays grounded in finished beverages rather than
         # pretending two raw ingredients are a "blend".
         return (
-            MaterialRequirement("brewed_greenward_fruit_cider", 1),
-            MaterialRequirement("brewed_greenward_root_tonic", 1),
+            MaterialRequirement(f"brewed_{band_key}_fruit_cider", 1),
+            MaterialRequirement(f"brewed_{band_key}_root_tonic", 1),
         )
     return (
         MaterialRequirement(ingredient, 1),
@@ -289,7 +295,8 @@ def _catalog():
                     output,
                     band.trivial + (2 if primary else 7),
                     band.trivial + (30 if primary else 35),
-                    _materials(tradition, family, primary=primary),
+                    _materials(tradition, family, primary=primary, band_key=band.key),
+                    output_quantity=2,
                     station_key="brewhouse",
                     description=f"Use the {tradition.identity} method to make {name}, then let the batch finish before bottling.",
                     design_status="regional_brewing_pattern",
@@ -352,6 +359,7 @@ def _catalog():
                 MaterialRequirement("wild_yeast_culture", 1),
                 MaterialRequirement("filtered_brewing_water", 1),
             ),
+            output_quantity=2,
             station_key="brewhouse",
             description=f"The hidden {tradition.name.lower()} process for {tradition.secret_name}.",
             design_status="regional_brewing_secret",
