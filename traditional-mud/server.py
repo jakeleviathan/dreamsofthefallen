@@ -95,6 +95,8 @@ from mud.regional_blacksmithing import (
     install_regional_blacksmithing_content,
     install_regional_blacksmithing_runtime,
 )
+from mud.regional_cooking import install_regional_cooking_content
+from mud.regional_cooking_runtime import install_regional_cooking_runtime
 from mud.planar_realms import install_planar_realms_runtime
 from mud.item_naming import install_authored_item_names
 from mud.item_heritage import install_item_heritage_runtime
@@ -277,6 +279,9 @@ _REGIONAL_TAILORING_COUNTS = install_regional_tailoring_content(WORLD)
 # Nine regional Blacksmithing traditions add component forging, quench media,
 # advanced mining access, hidden forge experiments, and provenance-safe reforging.
 _REGIONAL_BLACKSMITHING_COUNTS = install_regional_blacksmithing_content(WORLD)
+# Cooking now has nine regional cuisines, technique-gated lessons, world-condition
+# discoveries, communal serving, and player signature dishes.
+_REGIONAL_COOKING_COUNTS = install_regional_cooking_content(WORLD)
 # Final semantic pass: preserve stable recipe keys while correcting legacy
 # ingredient combinations that existed only to force cross-region material use.
 apply_recipe_semantic_quality()
@@ -285,6 +290,7 @@ install_profession_expansion_runtime(PlayerSession)
 install_regional_alchemy_runtime(PlayerSession)
 install_regional_tailoring_runtime(PlayerSession)
 install_regional_blacksmithing_runtime(PlayerSession)
+install_regional_cooking_runtime(PlayerSession)
 
 # Regional installers above own their local gathering tables and may replace
 # entries while registering content. Add common freshwater last so those local
