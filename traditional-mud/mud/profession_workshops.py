@@ -17,7 +17,7 @@ from mud.stats import CharacterStats, EquipmentItem
 ARCANE_RESIDUE = ItemDefinition(
     "arcane_residue",
     "Arcane Residue",
-    "A faint violet powder left where minor otherworldly creatures or unstable magic have shed energy. Enchanters use it to wake simple runes.",
+    "A faint violet powder left where minor otherworldly creatures or unstable magic have shed energy. Alchemists and perfumers prize it as a rare reactive reagent.",
     "material",
     tier=1,
 )
@@ -297,7 +297,7 @@ def install_missing_profession_content() -> None:
         "brewhouse": "Brewhouse / Fermenter",
     })
 
-    # Small imps now feed the starter Enchanting loop as well as smithing.
+    # Small imps remain a world source for Arcane Residue used by other rare craft branches.
     imp_drops = economy.LOOT_TABLES.get("small_imp", (economy.LootDrop(economy.IMP_HORN.key),))
     if not any(drop.item_key == ARCANE_RESIDUE.key for drop in imp_drops):
         economy.LOOT_TABLES["small_imp"] = imp_drops + (economy.LootDrop(ARCANE_RESIDUE.key),)
