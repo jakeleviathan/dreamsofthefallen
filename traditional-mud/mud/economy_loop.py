@@ -113,6 +113,7 @@ STATION_LABELS = {
     "mortar_and_pestle": "Mortar and Pestle",
     "alchemy_table": "Alchemy Table",
     "enchanting_table": "Runic Workbench",
+    "brewhouse": "Brewhouse / Fermenter",
     "cookfire": "Cookfire",
 }
 
@@ -632,7 +633,7 @@ def _recipe_filter(value: str) -> tuple[str, str | None, str | None]:
         "blacksmith": "blacksmithing", "blacksmithing": "blacksmithing",
         "tailor": "tailoring", "tailoring": "tailoring", "sewing": "tailoring",
         "alchemy": "alchemy", "alchemist": "alchemy",
-        "enchant": "enchanting", "enchanter": "enchanting", "enchanting": "enchanting",
+        "brew": "brewing", "brewer": "brewing", "brewing": "brewing",
         "cook": "cooking", "cooking": "cooking", "chef": "cooking",
     }
     if not wanted:
@@ -651,6 +652,9 @@ def _recipe_filter(value: str) -> tuple[str, str | None, str | None]:
             learned_trade = profession == "alchemy" or (
                 profession == "tailoring"
                 and getattr(crafting, "_regional_tailoring_installed", False)
+            ) or (
+                profession == "brewing"
+                and getattr(crafting, "_regional_brewing_installed", False)
             )
             return ("ready" if learned_trade else "craftable"), profession, None
         view = parts[1]
@@ -901,7 +905,7 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
             "Showing a concise view. Use RECIPES <profession> for what you can craft now, "
             "or RECIPES HELP for filters.\r\n"
         )
-        profession_order = ("blacksmithing", "tailoring", "alchemy", "enchanting", "cooking")
+        profession_order = ("blacksmithing", "tailoring", "alchemy", "brewing", "cooking")
         for key in profession_order:
             recipes = [r for r in visible if r.trade_skill_key == key]
             if recipes:
@@ -911,7 +915,7 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
     if not selected:
         await session.send("No recipes match that view right now.\r\n")
     else:
-        profession_order = ("blacksmithing", "tailoring", "alchemy", "enchanting", "cooking")
+        profession_order = ("blacksmithing", "tailoring", "alchemy", "brewing", "cooking")
         remaining = sorted({r.trade_skill_key for r in selected} - set(profession_order))
         for key in (*profession_order, *remaining):
             group = [r for r in selected if r.trade_skill_key == key]
@@ -941,6 +945,9 @@ async def _show_recipes(session, recipe_filter: str = "") -> None:
         if profession == "blacksmithing" and getattr(crafting, "_regional_blacksmithing_installed", False):
             from mud.regional_blacksmithing import show_crafting_studies as smith_studies
             await smith_studies(session)
+        if profession == "brewing" and getattr(crafting, "_regional_brewing_installed", False):
+            from mud.regional_brewing_runtime import show_brewing_studies
+            await show_brewing_studies(session)
 
 
 async def _show_recipe_detail(session, target: str) -> None:
@@ -952,6 +959,14 @@ async def _show_recipe_detail(session, target: str) -> None:
         await session.send(error + "\r\n")
         return
     assert recipe is not None
+
+    # Brewing is a persistent process rather than an instant craft. CRAFT still
+    # accepts Brewing recipes for consistency, but hands them to the batch
+    # runtime so there is no shortcut around fermentation and cellaring.
+    if recipe.trade_skill_key == "brewing" and getattr(crafting, "_regional_brewing_installed", False):
+        from mud.regional_brewing_runtime import start_brew
+        await start_brew(session, recipe)
+        return
 
     state = _recipe_state(session, recipe)
     output = crafting.ITEMS_BY_KEY.get(recipe.output_item_key)
