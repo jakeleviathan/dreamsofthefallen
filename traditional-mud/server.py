@@ -86,7 +86,11 @@ from mud.content_foundry import install_content_foundry_runtime
 from mud.content_density import install_content_density_runtime
 from mud.recipe_quality import apply_recipe_semantic_quality
 from mud.profession_workshops import install_profession_workshops_runtime
-from mud.profession_expansion import install_profession_expansion_content, install_profession_expansion_runtime
+from mud.profession_expansion import (
+    install_profession_expansion_content,
+    install_profession_expansion_runtime,
+    retire_enchanting_profession,
+)
 from mud.regional_alchemy import install_regional_alchemy_content
 from mud.regional_alchemy_runtime import install_regional_alchemy_runtime
 from mud.regional_tailoring import install_regional_tailoring_content
@@ -97,6 +101,8 @@ from mud.regional_blacksmithing import (
 )
 from mud.regional_cooking import install_regional_cooking_content
 from mud.regional_cooking_runtime import install_regional_cooking_runtime
+from mud.regional_brewing import install_regional_brewing_content
+from mud.regional_brewing_runtime import install_regional_brewing_runtime
 from mud.planar_realms import install_planar_realms_runtime
 from mud.item_naming import install_authored_item_names
 from mud.item_heritage import install_item_heritage_runtime
@@ -282,6 +288,14 @@ _REGIONAL_BLACKSMITHING_COUNTS = install_regional_blacksmithing_content(WORLD)
 # Cooking now has nine regional cuisines, technique-gated lessons, world-condition
 # discoveries, communal serving, and player signature dishes.
 _REGIONAL_COOKING_COUNTS = install_regional_cooking_content(WORLD)
+# Brewing is a separate craft rather than an Alchemy/Cooking submenu: nine
+# regional houses teach local styles, while every successful recipe becomes a
+# persistent ferment that can be bottled fresh or cellared when appropriate.
+_REGIONAL_BREWING_COUNTS = install_regional_brewing_content(WORLD)
+# Some older content layers can still register retired Enchanting recipes while
+# assembling the full world. Brewing owns that profession slot now, so enforce
+# the final production roster after every regional content installer has run.
+retire_enchanting_profession()
 # Final semantic pass: preserve stable recipe keys while correcting legacy
 # ingredient combinations that existed only to force cross-region material use.
 apply_recipe_semantic_quality()
@@ -291,6 +305,7 @@ install_regional_alchemy_runtime(PlayerSession)
 install_regional_tailoring_runtime(PlayerSession)
 install_regional_blacksmithing_runtime(PlayerSession)
 install_regional_cooking_runtime(PlayerSession)
+install_regional_brewing_runtime(PlayerSession)
 
 # Regional installers above own their local gathering tables and may replace
 # entries while registering content. Add common freshwater last so those local

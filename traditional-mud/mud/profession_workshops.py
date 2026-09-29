@@ -17,7 +17,7 @@ from mud.stats import CharacterStats, EquipmentItem
 ARCANE_RESIDUE = ItemDefinition(
     "arcane_residue",
     "Arcane Residue",
-    "A faint violet powder left where minor otherworldly creatures or unstable magic have shed energy. Enchanters use it to wake simple runes.",
+    "A faint violet powder left where minor otherworldly creatures or unstable magic have shed energy. Alchemists and perfumers prize it as a rare reactive reagent.",
     "material",
     tier=1,
 )
@@ -261,19 +261,17 @@ def _register_recipes(recipes: tuple[CraftingRecipe, ...], attr_name: str) -> No
 
 
 def install_missing_profession_content() -> None:
+    # Arcane Residue remains a useful rare alchemical/perfumery reagent, but
+    # Enchanting itself is intentionally not a tradeskill anymore.
     _register_items((
         ARCANE_RESIDUE,
         FIELD_GRAIN,
         MARSH_ONION,
-        RUNED_IRON_DAGGER,
-        GREENWARD_HOOD,
-        MOONLIT_FOCUS_DAGGER,
         TRAIL_FLATBREAD,
         GREENLEAF_BROTH,
         BITTERROOT_STEW,
     ))
     _register_nodes((FIELDGRAIN_PATCH, MARSH_ONION_BED))
-    _register_recipes(ENCHANTING_RECIPES, "ENCHANTING_RECIPES")
     _register_recipes(COOKING_RECIPES, "COOKING_RECIPES")
 
     # Starter access to the new gathering/crafting loops uses rooms already
@@ -287,8 +285,6 @@ def install_missing_profession_content() -> None:
             economy.ROOM_RESOURCE_NODE_KEYS[room_key] = current + (node_key,)
 
     station_additions = {
-        "dwarf_workshop_tier": ("enchanting_table",),
-        "human_cinder_lane": ("enchanting_table",),
         "forest_elf_hearthwalk": ("cookfire",),
         "goblin_tinker_row": ("cookfire",),
     }
@@ -297,11 +293,11 @@ def install_missing_profession_content() -> None:
         economy.ROOM_STATIONS[room_key] = current + tuple(key for key in additions if key not in current)
 
     economy.STATION_LABELS.update({
-        "enchanting_table": "Runic Workbench",
         "cookfire": "Cookfire",
+        "brewhouse": "Brewhouse / Fermenter",
     })
 
-    # Small imps now feed the starter Enchanting loop as well as smithing.
+    # Small imps remain a world source for Arcane Residue used by other rare craft branches.
     imp_drops = economy.LOOT_TABLES.get("small_imp", (economy.LootDrop(economy.IMP_HORN.key),))
     if not any(drop.item_key == ARCANE_RESIDUE.key for drop in imp_drops):
         economy.LOOT_TABLES["small_imp"] = imp_drops + (economy.LootDrop(ARCANE_RESIDUE.key),)
@@ -657,7 +653,7 @@ async def _show_professions(session) -> None:
         )
 
     await session.send(
-        "\r\nCommands: FORGE, TAILOR, ENCHANT, COOK, MINING, HARVESTING, HERBALISM, RECIPES.\r\n"
+        "\r\nCommands: FORGE, TAILOR, BREW, COOK, MINING, HARVESTING, HERBALISM, RECIPES.\r\n"
     )
 
 
@@ -668,7 +664,7 @@ async def _show_professions(session) -> None:
 WORKSHOP_META = {
     "blacksmithing": ("FORGE", "forge", "Forge"),
     "tailoring": ("TAILORING WORKBENCH", "loom", "Loom / Sewing Bench"),
-    "enchanting": ("ENCHANTING WORKBENCH", "enchanting_table", "Runic Workbench"),
+    "brewing": ("BREWHOUSE", "brewhouse", "Brewhouse / Fermenter"),
     "cooking": ("COOKFIRE", "cookfire", "Cookfire"),
 }
 
@@ -687,8 +683,16 @@ def _recipe_category(recipe: CraftingRecipe) -> str:
         if recipe.key.startswith("weave_"):
             return "WEAVING"
         return "FINISHED GOODS"
-    if recipe.trade_skill_key == "enchanting":
-        return "RUNES & ENCHANTED GEAR"
+    if recipe.trade_skill_key == "brewing":
+        item = crafting.ITEMS_BY_KEY.get(recipe.output_item_key)
+        tags = set(item.consumable.effect_tags) if item is not None and item.consumable is not None else set()
+        if "coffee" in tags or "tea" in tags:
+            return "TEAS & COFFEE"
+        if "tonic" in tags:
+            return "TONICS"
+        if "blend" in tags or "cordial" in tags:
+            return "CORDIALS & BLENDS"
+        return "FERMENTED DRINKS"
     if recipe.trade_skill_key == "cooking":
         item = crafting.ITEMS_BY_KEY.get(recipe.output_item_key)
         tags = set(item.consumable.effect_tags) if item is not None and item.consumable is not None else set()
@@ -756,7 +760,7 @@ async def _show_workshop(session, profession_key: str) -> None:
     verb = {
         "blacksmithing": "FORGE",
         "tailoring": "TAILOR",
-        "enchanting": "ENCHANT",
+        "brewing": "BREW",
         "cooking": "COOK",
     }[profession_key]
     await session.send(
@@ -766,6 +770,9 @@ async def _show_workshop(session, profession_key: str) -> None:
         # TAILOR and RECIPES TAILORING share the same learning/commission info.
         from mud.regional_tailoring_runtime import show_crafting_studies
         await show_crafting_studies(session)
+    if profession_key == "brewing" and getattr(crafting, "_regional_brewing_installed", False):
+        from mud.regional_brewing_runtime import show_brewing_studies
+        await show_brewing_studies(session)
     if profession_key == "cooking" and getattr(crafting, "_regional_cooking_installed", False):
         from mud.regional_cooking_runtime import show_cooking_studies
         await show_cooking_studies(session)
@@ -981,11 +988,11 @@ def install_profession_workshops_runtime(player_session_class) -> None:
             await _craft_profession(self, "tailoring", stripped.split(maxsplit=1)[1])
             return
 
-        if normalized in {"enchant", "enchanting"}:
-            await _show_workshop(self, "enchanting")
+        if normalized in {"brew", "brewing", "brewhouse"}:
+            await _show_workshop(self, "brewing")
             return
-        if normalized.startswith("enchant "):
-            await _craft_profession(self, "enchanting", stripped.split(maxsplit=1)[1])
+        if normalized.startswith("brew "):
+            await _craft_profession(self, "brewing", stripped.split(maxsplit=1)[1])
             return
 
         if normalized in {"cook", "cooking", "cookfire"}:

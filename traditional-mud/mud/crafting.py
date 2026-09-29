@@ -35,15 +35,15 @@ PROFESSIONS: tuple[ProfessionDefinition, ...] = (
         primary_outputs=("cloth equipment",),
     ),
     ProfessionDefinition(
-        key="enchanting",
-        name="Enchanting",
-        description="Creates or enhances magical equipment and effects.",
-        primary_outputs=("magical items", "enchanted equipment"),
+        key="brewing",
+        name="Brewing",
+        description="Ferments, infuses, ages, and blends drinks for travel, taverns, and social tables.",
+        primary_outputs=("ales", "ciders", "meads", "teas", "coffees", "tonics", "cordials", "spirits"),
     ),
     ProfessionDefinition(
         key="alchemy",
         name="Alchemy",
-        description="Brews potions, tinctures, antidotes, essential oils, perfumes, and other alchemical goods.",
+        description="Prepares potions, tinctures, antidotes, essential oils, perfumes, and other alchemical goods.",
         primary_outputs=("potions", "elixirs", "tinctures", "antidotes", "essential oils", "perfumes"),
     ),
     ProfessionDefinition(

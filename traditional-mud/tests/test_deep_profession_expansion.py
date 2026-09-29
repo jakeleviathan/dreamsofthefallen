@@ -32,7 +32,7 @@ from mud.stats import CharacterStats
 
 counts = expansion.production_recipe_counts()
 print("PROFESSION_COUNTS", counts)
-assert set(counts) == {"blacksmithing", "tailoring", "enchanting", "alchemy", "cooking"}
+assert set(counts) == {"blacksmithing", "tailoring", "brewing", "alchemy", "cooking"}
 assert all(count >= 80 for count in counts.values()), counts
 
 # Every trade spans a real progression instead of clustering at starter skill.
@@ -61,9 +61,8 @@ for key in (
     assert key in crafting.ITEMS_BY_KEY, key
     assert crafting.ITEMS_BY_KEY[key].equipment is not None
 
-# Alchemy and Cooking have 8 full bands of ten generated recipes, while
-# Enchanting consumes real crafted base gear rather than conjuring gear from
-# Arcane Residue alone.
+# Alchemy, Cooking, and Brewing have broad generated ladders. Brewing replaces
+# the old Enchanting tradeskill; magical equipment is not a repeatable profession.
 for band in expansion.PROFESSION_BANDS:
     alchemy = [r for r in crafting.ALL_RECIPES if r.trade_skill_key == "alchemy" and band.key in r.key]
     cooking = [
@@ -71,10 +70,10 @@ for band in expansion.PROFESSION_BANDS:
         if r.trade_skill_key == "cooking"
         and any(i.key in r.key for i in expansion.PANTRY_INGREDIENTS if i.tier == band.tier)
     ]
-    enchanting = [r for r in crafting.ALL_RECIPES if r.trade_skill_key == "enchanting" and band.key in r.key]
+    brewing = [r for r in crafting.ALL_RECIPES if r.trade_skill_key == "brewing" and band.key in r.key and r.design_status == "deep_brewing_expansion"]
     assert len(alchemy) >= 10, (band.key, len(alchemy))
     assert len(cooking) >= 10, (band.key, len(cooking))
-    assert len(enchanting) >= 10, (band.key, len(enchanting))
+    assert len(brewing) >= 10, (band.key, len(brewing))
 
 # Pantry ingredients are actual gatherables in authored rooms, and mature hubs
 # have the stations necessary to use the expanded professions.
@@ -85,7 +84,7 @@ for ingredient in expansion.PANTRY_INGREDIENTS:
 
 assert "cookfire" in economy.ROOM_STATIONS["veyra_public_hearth"]
 assert "alchemy_table" in economy.ROOM_STATIONS["veyra_greenhall"]
-assert "enchanting_table" in economy.ROOM_STATIONS["veyra_scholars_rise"]
+assert "brewhouse" in economy.ROOM_STATIONS["veyra_public_hearth"]
 assert "forge" in economy.ROOM_STATIONS["waymeet_hammer_thread_row"]
 assert "loom" in economy.ROOM_STATIONS["waymeet_hammer_thread_row"]
 

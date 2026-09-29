@@ -29,17 +29,20 @@ ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 assert server.PlayerSession._profession_workshops_runtime_installed
 
-# Enchanting and Cooking are real recipe professions now.
-for key in ("enchanting", "cooking"):
+# Brewing and Cooking are real recipe professions. Enchanting is deliberately
+# no longer a repeatable tradeskill.
+for key in ("brewing", "cooking"):
     recipes = [r for r in crafting.ALL_RECIPES if r.trade_skill_key == key]
     assert recipes, key
+assert "enchanting" not in crafting.PROFESSIONS_BY_KEY
+assert not [r for r in crafting.ALL_RECIPES if r.trade_skill_key == "enchanting"]
 
 assert "arcane_residue" in crafting.ITEMS_BY_KEY
 assert "field_grain" in crafting.ITEMS_BY_KEY
 assert "marsh_onion" in crafting.ITEMS_BY_KEY
 assert "fieldgrain_patch" in crafting.RESOURCE_NODES_BY_KEY
 assert "marsh_onion_bed" in crafting.RESOURCE_NODES_BY_KEY
-assert "enchanting_table" in economy.ROOM_STATIONS["dwarf_workshop_tier"]
+assert "brewhouse" in economy.ROOM_STATIONS["waymeet_fifth_lantern"]
 assert "cookfire" in economy.ROOM_STATIONS["forest_elf_hearthwalk"]
 assert any(drop.item_key == "arcane_residue" for drop in economy.LOOT_TABLES["small_imp"])
 
@@ -64,7 +67,7 @@ with tempfile.TemporaryDirectory() as tmp:
     asyncio.run(workshops._show_professions(session))
     sheet = ANSI.sub("", "".join(session.outputs))
     for label in (
-        "Blacksmithing", "Tailoring", "Enchanting", "Alchemy", "Cooking",
+        "Blacksmithing", "Tailoring", "Brewing", "Alchemy", "Cooking",
         "Mining", "Harvesting", "Herbalism",
     ):
         assert label in sheet, label
@@ -109,17 +112,6 @@ with tempfile.TemporaryDirectory() as tmp:
     assert db.item_quantity(character.id, "trail_flatbread") == 1
     assert db.get_trade_skill_progress(character.id, "cooking")["skill_xp"] == 0
 
-    # Starter Enchanting follows the same trivial-recipe rule.
-    db.add_item(character.id, "iron_dagger", 1)
-    db.add_item(character.id, "arcane_residue", 1)
-    db.add_item(character.id, "lavender_essential_oil", 1)
-    result = crafting.craft_recipe(
-        db, character.id, "enchant_runed_iron_dagger", station_key="enchanting_table"
-    )
-    assert result.success, result.message
-    assert db.item_quantity(character.id, "runed_iron_dagger") == 1
-    assert db.get_trade_skill_progress(character.id, "enchanting")["skill_xp"] == 0
-
     # Prepared food is not decorative inventory: EAT consumes it, heals, and
     # applies its authored temporary nourishment bonus.
     db.add_item(character.id, "greenleaf_broth", 1)
@@ -159,9 +151,10 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "Rootsnag Bitterroot" in herbalism
     assert "Bitterroot" in herbalism
 
-# Recipe book receives the two newly real professions too.
-assert any(r.trade_skill_key == "enchanting" for r in crafting.ALL_RECIPES)
+# Recipe book exposes Brewing and Cooking, and does not resurrect Enchanting.
+assert any(r.trade_skill_key == "brewing" for r in crafting.ALL_RECIPES)
 assert any(r.trade_skill_key == "cooking" for r in crafting.ALL_RECIPES)
+assert not any(r.trade_skill_key == "enchanting" for r in crafting.ALL_RECIPES)
 print("PROFESSION_OVERHAUL_OK")
 """
         result = subprocess.run(
