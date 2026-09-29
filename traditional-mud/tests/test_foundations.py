@@ -746,7 +746,7 @@ class DesignFoundationTests(unittest.TestCase):
     def test_crafting_profession_roster_and_node_based_mining(self) -> None:
         self.assertEqual(
             [profession.name for profession in PROFESSIONS],
-            ["Blacksmithing", "Tailoring", "Enchanting", "Alchemy", "Cooking"],
+            ["Blacksmithing", "Tailoring", "Brewing", "Alchemy", "Cooking"],
         )
         self.assertTrue(GATHERING_SKILLS_BY_KEY["mining"].node_based)
         self.assertTrue(GATHERING_SKILLS_BY_KEY["harvesting"].node_based)
