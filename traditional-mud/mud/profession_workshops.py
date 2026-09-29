@@ -615,6 +615,14 @@ def _recipe_category(recipe: CraftingRecipe) -> str:
     if recipe.trade_skill_key == "enchanting":
         return "RUNES & ENCHANTED GEAR"
     if recipe.trade_skill_key == "cooking":
+        item = crafting.ITEMS_BY_KEY.get(recipe.output_item_key)
+        tags = set(item.consumable.effect_tags) if item is not None and item.consumable is not None else set()
+        if "regional_secret" in tags:
+            return "DISCOVERED MASTER DISHES"
+        if "feast" in tags or "meal" in tags:
+            return "MEALS & SHARED SUPPERS"
+        if "snack" in tags:
+            return "TRAIL FOOD & PRESERVES"
         return "MEALS & PROVISIONS"
     return "RECIPES"
 
@@ -683,6 +691,9 @@ async def _show_workshop(session, profession_key: str) -> None:
         # TAILOR and RECIPES TAILORING share the same learning/commission info.
         from mud.regional_tailoring_runtime import show_crafting_studies
         await show_crafting_studies(session)
+    if profession_key == "cooking" and getattr(crafting, "_regional_cooking_installed", False):
+        from mud.regional_cooking_runtime import show_cooking_studies
+        await show_cooking_studies(session)
 
 
 async def _craft_profession(session, profession_key: str, target: str) -> None:
