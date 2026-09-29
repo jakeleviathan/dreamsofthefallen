@@ -82,6 +82,19 @@ class RegionalCookingTests(unittest.TestCase):
                 recipe.key,
             )
 
+        metal_inputs = {
+            key
+            for tier in crafting.METAL_TIERS
+            for key in (tier.raw_material_key, tier.ingot_key)
+            if key is not None
+        }
+        for recipe in cooking.RECIPES:
+            if recipe.design_status == "regional_cooking_pattern":
+                self.assertFalse(
+                    any(req.item_key in metal_inputs for req in recipe.materials),
+                    recipe.key,
+                )
+
     def test_every_cuisine_is_physically_present(self):
         for tradition in cooking.TRADITIONS:
             self.assertIn(tradition.hall, ROOMS_BY_KEY)
