@@ -59,7 +59,7 @@ TRADITIONS: tuple[BrewingTradition, ...] = (
         "Dense malt, measured temperatures and cellar schedules built around working shifts.",
     ),
     BrewingTradition(
-        "forest", "Forest Elf", "Greenway Mead Table", "Sael Mosscup",
+        "forest", "Forest Elf", "Greenway Mead Table", "Evirn Mosscup",
         "forest_elf_hearthwalk", "heartberry", "Heartberry",
         "Heartberry Mead", "mead", "Canopy Tea", "tea",
         "wax-sealed blossom cup", "First-Bloom Mead",
@@ -67,7 +67,7 @@ TRADITIONS: tuple[BrewingTradition, ...] = (
         "Wild honey, living fruit and gentle infusions that keep the season recognizable.",
     ),
     BrewingTradition(
-        "moon", "Moon Elf", "Moonstep Infusion House", "Ilyra Stillmoon",
+        "moon", "Moon Elf", "Moonstep Infusion House", "Nymara Stillmoon",
         "moon_elf_alpine_light_garden", "silverpear", "Silverpear",
         "Silverpear Cider", "cider", "Paleleaf Tea", "tea",
         "mirror-marked steeping glass", "Long-Moon Reserve",
@@ -75,7 +75,7 @@ TRADITIONS: tuple[BrewingTradition, ...] = (
         "Precise fruit ferments and timed infusions where water and temperature matter as much as ingredients.",
     ),
     BrewingTradition(
-        "human", "Human", "Veyra Brewers' Measure", "Dessa Vintner",
+        "human", "Human", "Veyra Brewers' Measure", "Caldris Vintner",
         "veyra_public_hearth", "blackglass_onion", "Blackglass Onion",
         "Guild Bitter", "ale", "Blackglass Coffee", "coffee",
         "guild gravity slate", "Five-Gate Cordial",
