@@ -351,6 +351,22 @@ def render_room_lines(
                 f"{portions} {portion_label}, served by {entry['chef']}"
             )
 
+    shared_bar_entries: list[dict[str, object]] = []
+    try:
+        from mud.regional_brewing_runtime import room_bar_entries
+        shared_bar_entries = room_bar_entries(session, view.key)
+    except Exception:
+        shared_bar_entries = []
+    if shared_bar_entries:
+        lines.extend(["", _section_header("Shared Bar", BUSINESS)])
+        for entry in shared_bar_entries:
+            cups = int(entry["cups"])
+            cup_label = "cup" if cups == 1 else "cups"
+            lines.append(
+                f"  {_paint(BUSINESS, str(entry['name']))} - "
+                f"{cups} {cup_label}, poured by {entry['host']}"
+            )
+
     # Authored room enemies do not auto-aggro merely because they can fight.
     # They therefore belong under Creatures. Only mobile definitions explicitly
     # marked aggressive appear under Hostile.
@@ -453,6 +469,7 @@ def render_room_lines(
             "local_reception": local_reaction if people else "",
             "players": players,
             "shared_table": shared_table_entries,
+            "shared_bar": shared_bar_entries,
             "creatures": [{"name": name, "description": description} for name, description in creature_records],
             "hostile": [{"name": name, "description": description} for name, description in hostile_records],
             "corpses": corpse_entries,
