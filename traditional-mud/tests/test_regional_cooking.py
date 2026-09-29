@@ -150,6 +150,39 @@ class RegionalCookingTests(unittest.TestCase):
             0,
         )
 
+    def test_food_nourishment_replaces_instead_of_stacking(self):
+        tradition = cooking.BY_KEY["forest"]
+        self.move(tradition.hall)
+        first_key = cooking.dish_key("forest", "greenward", "bowl")
+        second_key = cooking.dish_key("forest", "bitterroad", "bowl")
+        self.db.add_item(self.character.id, first_key, 1)
+        self.db.add_item(self.character.id, second_key, 1)
+
+        class Combatant:
+            current_hp = 20
+            max_hp = 30
+            current_mana = 10
+            max_mana = 20
+            stats = CharacterStats()
+
+        self.session.combatant = Combatant()
+        self.session.send_client_state = lambda: asyncio.sleep(0)
+
+        asyncio.run(
+            __import__("mud.profession_workshops", fromlist=["_eat"])._eat(
+                self.session, crafting.item_display_name(first_key)
+            )
+        )
+        asyncio.run(
+            __import__("mud.profession_workshops", fromlist=["_eat"])._eat(
+                self.session, crafting.item_display_name(second_key)
+            )
+        )
+        expected = crafting.ITEMS_BY_KEY[
+            second_key
+        ].consumable.temporary_stat_bonuses
+        self.assertEqual(self.session.combatant.stats, expected)
+
     def test_communal_table_serves_multiple_portions(self):
         tradition = cooking.BY_KEY["goblin"]
         self.move(tradition.hall)
@@ -205,7 +238,7 @@ class RegionalCookingIsolatedTests(unittest.TestCase):
             0,
             result.stdout + "\n" + result.stderr,
         )
-        self.assertIn("Ran 5 tests", result.stderr)
+        self.assertIn("Ran 6 tests", result.stderr)
 
 
 if __name__ == "__main__":
