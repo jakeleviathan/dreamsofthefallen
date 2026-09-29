@@ -55,7 +55,7 @@ TRADITIONS: tuple[CookingTradition, ...] = (
         "harvesting", 25, "infusion", "mirror-written tea card", "Long Moon Supper",
         ("snow", "mist", "clear"), "winter",
         "Precise teas, fruit reductions and lightly preserved foods built around timing."),
-    CookingTradition("human", "Human", "Veyra Guild Kitchen", "Tavren Saucewright",
+    CookingTradition("human", "Human", "Veyra Guild Kitchen", "Qeramis Saucewright",
         "veyra_public_hearth", "veyra_north_waterworks", "blackglass_onion", "Blackglass Onion",
         "herbalism", 5, "reduction", "guild tasting slate", "Five-Gate Banquet",
         ("rain", "cloudy", "clear"), "autumn",
