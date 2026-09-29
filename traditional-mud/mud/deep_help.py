@@ -573,6 +573,9 @@ TOPICS: tuple[HelpTopic, ...] = (
             ("Making things", (
                 "CRAFT <recipe> uses real inventory materials at the required station.",
                 "FORGE, TAILOR or SEW, ENCHANT, and COOK provide profession-specific workshop flows.",
+                "Cooking has regional masters and techniques. TRAIN COOKING learns local recipe bands; COOKBOOK records the traditions you have actually discovered.",
+                "COOK EXPERIMENT <ingredient> tests regional clues against live world conditions. Hidden dishes can depend on season and weather.",
+                "SERVE <food> lays out multiple portions for the room. TABLE inspects them and EAT TABLE <dish> takes a serving. Advanced cooks can name a current SIGNATURE dish.",
             )),
             ("Profession sheet", (
                 "PROFESSIONS or TRADESKILLS shows skill bars, tiers, recipe counts, and upcoming milestones.",
@@ -589,6 +592,7 @@ TOPICS: tuple[HelpTopic, ...] = (
         (
             ("Food", (
                 "FOOD lists carried prepared food. EAT <food> consumes it and applies its authored restorative or nourishment effect.",
+                "Regional dishes distinguish quick provisions from full meals and shared suppers. SERVE <food> can turn prepared food into a communal table with multiple portions.",
             )),
             ("Potions", (
                 "POTIONS lists carried alchemical drinks. DRINK <potion> consumes one for its authored effect.",
