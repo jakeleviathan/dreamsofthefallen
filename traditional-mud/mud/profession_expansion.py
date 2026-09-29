@@ -997,6 +997,7 @@ def _brewing_expansion() -> tuple[
                 band.trivial + index,
                 band.trivial + index + 25,
                 mats,
+                output_quantity=2,
                 station_key="brewhouse",
                 description=(
                     f"Prepare {display}. Brewing continues after the mash or infusion: "
