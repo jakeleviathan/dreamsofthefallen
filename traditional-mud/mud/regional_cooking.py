@@ -134,7 +134,9 @@ def _catalog():
             minimum_skill=tradition.gathering_minimum, design_status="regional_cooking_gathering",
             tier=2, region_hint=tradition.gathering_room.replace("_", " ").title()))
 
-        for ti, band in enumerate(expansion.PROFESSION_BANDS):
+        for ti, (band, pantry) in enumerate(
+            zip(expansion.PROFESSION_BANDS, expansion.PANTRY_INGREDIENTS)
+        ):
             for offset, (slug, label, meal_kind, qty) in enumerate(DISH_PATTERNS):
                 output = dish_key(tradition.key, band.key, slug)
                 name = f"{tradition.identity} {band.name} {label}"
@@ -152,7 +154,7 @@ def _catalog():
                     tier=band.tier))
                 mats = [
                     MaterialRequirement(tradition.ingredient_key, qty),
-                    MaterialRequirement(band.reagent_key, 1),
+                    MaterialRequirement(pantry.key, 1),
                 ]
                 if slug in {"bite", "supper"}:
                     mats.append(MaterialRequirement("field_grain", 1 + (slug == "supper")))
