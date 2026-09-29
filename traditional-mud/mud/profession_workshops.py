@@ -370,6 +370,63 @@ async def _expire_food_bonus(session, item_name: str, bonus: CharacterStats, sec
         await sender()
 
 
+def _revert_nourishment_bonus(combatant, bonus: CharacterStats) -> None:
+    inverse = CharacterStats(
+        might=-bonus.might,
+        grace=-bonus.grace,
+        love=-bonus.love,
+        mind=-bonus.mind,
+        hp=-bonus.hp,
+    )
+    combatant.stats = combatant.stats.plus(inverse)
+    combatant.max_hp = max(1, combatant.max_hp - max(0, bonus.hp))
+    combatant.current_hp = min(combatant.current_hp, combatant.max_hp)
+    mana_bonus = max(0, bonus.mana_bonus)
+    combatant.max_mana = max(0, combatant.max_mana - mana_bonus)
+    combatant.current_mana = min(combatant.current_mana, combatant.max_mana)
+
+
+def _clear_active_nourishment(session) -> str | None:
+    active = getattr(session, "_active_food_effect", None)
+    if not isinstance(active, dict):
+        return None
+    task = active.get("task")
+    if task is not None and not task.done():
+        task.cancel()
+    combatant = getattr(session, "combatant", None)
+    bonus = active.get("bonus")
+    if combatant is not None and isinstance(bonus, CharacterStats):
+        _revert_nourishment_bonus(combatant, bonus)
+    session._active_food_effect = None
+    return str(active.get("item_name") or "your previous meal")
+
+
+async def _expire_nourishment_bonus(
+    session,
+    item_name: str,
+    bonus: CharacterStats,
+    seconds: float,
+    token: object,
+) -> None:
+    try:
+        await asyncio.sleep(seconds)
+    except asyncio.CancelledError:
+        return
+    active = getattr(session, "_active_food_effect", None)
+    if not isinstance(active, dict) or active.get("token") is not token:
+        return
+    combatant = getattr(session, "combatant", None)
+    if combatant is None:
+        session._active_food_effect = None
+        return
+    _revert_nourishment_bonus(combatant, bonus)
+    session._active_food_effect = None
+    await session.send(f"\r\nThe temporary nourishment from {item_name} fades.\r\n")
+    sender = getattr(session, "send_client_state", None)
+    if callable(sender):
+        await sender()
+
+
 async def _eat(session, target: str) -> None:
     if getattr(session, "active_enemy", None) is not None:
         await session.send("You cannot stop to eat while fighting.\r\n")
@@ -387,18 +444,27 @@ async def _eat(session, target: str) -> None:
     combatant = getattr(session, "combatant", None)
     healed = 0
     duration = 0.0
+    replaced_nourishment = None
     if combatant is not None:
-        before = combatant.current_hp
-        combatant.current_hp = min(combatant.max_hp, combatant.current_hp + max(0, effect.heal_hp))
-        healed = combatant.current_hp - before
-
         bonus = effect.temporary_stat_bonuses
         if effect.duration_ticks > 0 and bonus != CharacterStats():
+            # Food is one nourishment slot, not a stat-stacking exploit. Eating
+            # a new meal cleanly replaces the previous meal's temporary bonus.
+            replaced_nourishment = _clear_active_nourishment(session)
             combatant.stats = combatant.stats.plus(bonus)
             combatant.max_hp += max(0, bonus.hp)
             combatant.max_mana += max(0, bonus.mana_bonus)
             duration = effect.duration_ticks * FOOD_TICK_SECONDS
-            task = asyncio.create_task(_expire_food_bonus(session, item.name, bonus, duration))
+            token = object()
+            task = asyncio.create_task(
+                _expire_nourishment_bonus(session, item.name, bonus, duration, token)
+            )
+            session._active_food_effect = {
+                "token": token,
+                "item_name": item.name,
+                "bonus": bonus,
+                "task": task,
+            }
             tasks = getattr(session, "_food_effect_tasks", None)
             if tasks is None:
                 tasks = set()
@@ -406,9 +472,18 @@ async def _eat(session, target: str) -> None:
             tasks.add(task)
             task.add_done_callback(tasks.discard)
 
+        before = combatant.current_hp
+        combatant.current_hp = min(
+            combatant.max_hp,
+            combatant.current_hp + max(0, effect.heal_hp),
+        )
+        healed = combatant.current_hp - before
+
     text = f"You eat {item.name}."
     if healed:
         text += f" You recover {healed} HP."
+    if replaced_nourishment:
+        text += f" Its nourishment replaces the effect from {replaced_nourishment}."
     if duration:
         text += f" Its temporary nourishment lasts about {int(duration)} seconds."
     await session.send(text + "\r\n")
