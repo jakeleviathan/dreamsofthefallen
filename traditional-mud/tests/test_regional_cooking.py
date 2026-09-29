@@ -205,7 +205,7 @@ class RegionalCookingIsolatedTests(unittest.TestCase):
             0,
             result.stdout + "\n" + result.stderr,
         )
-        self.assertIn("Ran 4 tests", result.stderr)
+        self.assertIn("Ran 5 tests", result.stderr)
 
 
 if __name__ == "__main__":
