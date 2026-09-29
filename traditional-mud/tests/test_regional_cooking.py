@@ -1,3 +1,20 @@
+"""Isolated production integration tests for the regional Cooking system.
+
+The production server assembles mutable global registries, so the full Cooking
+contract runs in a child process rather than contaminating neighboring tests.
+"""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import subprocess
+import sys
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+PRODUCTION_TESTS = r'''
 from __future__ import annotations
 
 import asyncio
@@ -18,11 +35,13 @@ from mud.world import NPCS_BY_KEY, ROOMS_BY_KEY
 
 class RegionalCookingTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.db = Database(Path(self.tmp.name) / "cooking.db")
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.db = Database(Path(tmp.name) / "cooking.db")
         account = self.db.create_account("cooktest", "x")
-        self.character = self.db.create_character(account.id, "PanTester", "human", "druid")
+        self.character = self.db.create_character(
+            account.id, "PanTester", "human", "druid"
+        )
         self.messages = []
 
         async def send(text):
@@ -50,11 +69,18 @@ class RegionalCookingTests(unittest.TestCase):
             "regional_ingredients": 9,
             "techniques": 9,
         })
-        self.assertEqual(len({x.key for x in cooking.ITEMS}), len(cooking.ITEMS))
-        self.assertEqual(len({x.key for x in cooking.RECIPES}), len(cooking.RECIPES))
+        self.assertEqual(
+            len({item.key for item in cooking.ITEMS}), len(cooking.ITEMS)
+        )
+        self.assertEqual(
+            len({recipe.key for recipe in cooking.RECIPES}), len(cooking.RECIPES)
+        )
         for recipe in cooking.RECIPES:
             self.assertIn(recipe.key, crafting.RECIPES_BY_KEY)
-            self.assertTrue(all(req.item_key in crafting.ITEMS_BY_KEY for req in recipe.materials))
+            self.assertTrue(
+                all(req.item_key in crafting.ITEMS_BY_KEY for req in recipe.materials),
+                recipe.key,
+            )
 
     def test_every_cuisine_is_physically_present(self):
         for tradition in cooking.TRADITIONS:
@@ -70,12 +96,20 @@ class RegionalCookingTests(unittest.TestCase):
     def test_master_training_reveals_regional_recipes(self):
         tradition = cooking.BY_KEY["waymeet"]
         self.move(tradition.hall)
-        self.db.get_trade_skill_progress = lambda *_: {"skill_xp": 55, "uses": 55}
-        recipe = cooking.RECIPES_BY_KEY["regional_cook_waymeet_greenward_bite"]
+        self.db.get_trade_skill_progress = lambda *_: {
+            "skill_xp": 55,
+            "uses": 55,
+        }
+        recipe = cooking.RECIPES_BY_KEY[
+            "regional_cook_waymeet_greenward_bite"
+        ]
         self.assertFalse(economy._recipe_visible(self.session, recipe))
         asyncio.run(runtime._train(self.session))
         self.assertTrue(economy._recipe_visible(self.session, recipe))
-        self.assertIn(cooking.lesson_flag("waymeet", 3), self.db.list_flags(self.character.id))
+        self.assertIn(
+            cooking.lesson_flag("waymeet", 3),
+            self.db.list_flags(self.character.id),
+        )
 
     def test_world_condition_experiment_unlocks_secret(self):
         tradition = cooking.BY_KEY["forest"]
@@ -87,18 +121,34 @@ class RegionalCookingTests(unittest.TestCase):
             now=lambda: SimpleNamespace(season=tradition.experiment_season)
         )
         try:
-            asyncio.run(runtime._experiment(self.session, tradition.ingredient_name))
+            asyncio.run(
+                runtime._experiment(self.session, tradition.ingredient_name)
+            )
         finally:
             runtime.ASTRALIS_CLOCK = old_clock
-        self.assertIn(cooking.secret_flag("forest"), self.db.list_flags(self.character.id))
-        self.assertEqual(self.db.item_quantity(self.character.id, tradition.ingredient_key), 0)
+        self.assertIn(
+            cooking.secret_flag("forest"),
+            self.db.list_flags(self.character.id),
+        )
+        self.assertEqual(
+            self.db.item_quantity(
+                self.character.id, tradition.ingredient_key
+            ),
+            0,
+        )
 
     def test_communal_table_serves_multiple_portions(self):
         tradition = cooking.BY_KEY["goblin"]
         self.move(tradition.hall)
-        item_key = cooking.dish_key("goblin", "greenward", "supper")
+        item_key = cooking.dish_key(
+            "goblin", "greenward", "supper"
+        )
         self.db.add_item(self.character.id, item_key, 1)
-        asyncio.run(runtime._serve(self.session, crafting.item_display_name(item_key)))
+        asyncio.run(
+            runtime._serve(
+                self.session, crafting.item_display_name(item_key)
+            )
+        )
         rows = runtime._table_rows(self.session)
         self.assertEqual(len(rows), 1)
         self.assertEqual(int(rows[0]["portions"]), 4)
@@ -109,12 +159,40 @@ class RegionalCookingTests(unittest.TestCase):
             current_mana = 10
             max_mana = 20
             stats = CharacterStats()
+
         self.session.combatant = Combatant()
         self.session.send_client_state = lambda: asyncio.sleep(0)
-        asyncio.run(runtime._eat_table(self.session, crafting.item_display_name(item_key)))
+        asyncio.run(
+            runtime._eat_table(
+                self.session, crafting.item_display_name(item_key)
+            )
+        )
         rows = runtime._table_rows(self.session)
         self.assertEqual(int(rows[0]["portions"]), 3)
         self.assertGreater(self.session.combatant.current_hp, 5)
+
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+
+
+class RegionalCookingIsolatedTests(unittest.TestCase):
+    def test_production_regional_cooking_contract(self):
+        result = subprocess.run(
+            [sys.executable, "-c", PRODUCTION_TESTS],
+            cwd=ROOT,
+            env={**os.environ, "PYTHONPATH": str(ROOT)},
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        self.assertEqual(
+            result.returncode,
+            0,
+            result.stdout + "\n" + result.stderr,
+        )
+        self.assertIn("Ran 4 tests", result.stderr)
 
 
 if __name__ == "__main__":
