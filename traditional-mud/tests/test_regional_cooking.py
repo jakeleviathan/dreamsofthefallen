@@ -1,0 +1,121 @@
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+import tempfile
+import unittest
+from types import SimpleNamespace
+
+import server
+import mud.crafting as crafting
+import mud.economy_loop as economy
+import mud.regional_cooking as cooking
+import mud.regional_cooking_runtime as runtime
+from mud.database import Database
+from mud.stats import CharacterStats
+from mud.world import NPCS_BY_KEY, ROOMS_BY_KEY
+
+
+class RegionalCookingTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.db = Database(Path(self.tmp.name) / "cooking.db")
+        account = self.db.create_account("cooktest", "x")
+        self.character = self.db.create_character(account.id, "PanTester", "human", "druid")
+        self.messages = []
+
+        async def send(text):
+            self.messages.append(text)
+
+        self.session = SimpleNamespace(
+            database=self.db,
+            character=self.character,
+            send=send,
+            active_enemy=None,
+            current_weather=lambda: "clear",
+            can_receive_item=lambda key, qty: True,
+        )
+
+    def move(self, room):
+        self.db.set_character_room(self.character.id, room)
+        self.character = self.db.get_character_by_name(self.character.name)
+        self.session.character = self.character
+
+    def test_catalog_has_blacksmithing_scale_depth(self):
+        self.assertEqual(cooking.catalog_counts(), {
+            "traditions": 9,
+            "regional_dishes": 288,
+            "hidden_dishes": 9,
+            "regional_ingredients": 9,
+            "techniques": 9,
+        })
+        self.assertEqual(len({x.key for x in cooking.ITEMS}), len(cooking.ITEMS))
+        self.assertEqual(len({x.key for x in cooking.RECIPES}), len(cooking.RECIPES))
+        for recipe in cooking.RECIPES:
+            self.assertIn(recipe.key, crafting.RECIPES_BY_KEY)
+            self.assertTrue(all(req.item_key in crafting.ITEMS_BY_KEY for req in recipe.materials))
+
+    def test_every_cuisine_is_physically_present(self):
+        for tradition in cooking.TRADITIONS:
+            self.assertIn(tradition.hall, ROOMS_BY_KEY)
+            self.assertIn(tradition.gathering_room, ROOMS_BY_KEY)
+            self.assertIn(f"regional_cook_{tradition.key}", NPCS_BY_KEY)
+            self.assertIn("cookfire", economy.ROOM_STATIONS[tradition.hall])
+            self.assertIn(
+                cooking.ingredient_node_key(tradition.key),
+                economy.ROOM_RESOURCE_NODE_KEYS[tradition.gathering_room],
+            )
+
+    def test_master_training_reveals_regional_recipes(self):
+        tradition = cooking.BY_KEY["waymeet"]
+        self.move(tradition.hall)
+        self.db.get_trade_skill_progress = lambda *_: {"skill_xp": 55, "uses": 55}
+        recipe = cooking.RECIPES_BY_KEY["regional_cook_waymeet_greenward_bite"]
+        self.assertFalse(economy._recipe_visible(self.session, recipe))
+        asyncio.run(runtime._train(self.session))
+        self.assertTrue(economy._recipe_visible(self.session, recipe))
+        self.assertIn(cooking.lesson_flag("waymeet", 3), self.db.list_flags(self.character.id))
+
+    def test_world_condition_experiment_unlocks_secret(self):
+        tradition = cooking.BY_KEY["forest"]
+        self.move(tradition.hall)
+        self.db.add_item(self.character.id, tradition.ingredient_key, 1)
+        self.session.current_weather = lambda: tradition.experiment_weather[0]
+        old_clock = runtime.ASTRALIS_CLOCK
+        runtime.ASTRALIS_CLOCK = SimpleNamespace(
+            now=lambda: SimpleNamespace(season=tradition.experiment_season)
+        )
+        try:
+            asyncio.run(runtime._experiment(self.session, tradition.ingredient_name))
+        finally:
+            runtime.ASTRALIS_CLOCK = old_clock
+        self.assertIn(cooking.secret_flag("forest"), self.db.list_flags(self.character.id))
+        self.assertEqual(self.db.item_quantity(self.character.id, tradition.ingredient_key), 0)
+
+    def test_communal_table_serves_multiple_portions(self):
+        tradition = cooking.BY_KEY["goblin"]
+        self.move(tradition.hall)
+        item_key = cooking.dish_key("goblin", "greenward", "supper")
+        self.db.add_item(self.character.id, item_key, 1)
+        asyncio.run(runtime._serve(self.session, crafting.item_display_name(item_key)))
+        rows = runtime._table_rows(self.session)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(int(rows[0]["portions"]), 4)
+
+        class Combatant:
+            current_hp = 5
+            max_hp = 30
+            current_mana = 10
+            max_mana = 20
+            stats = CharacterStats()
+        self.session.combatant = Combatant()
+        self.session.send_client_state = lambda: asyncio.sleep(0)
+        asyncio.run(runtime._eat_table(self.session, crafting.item_display_name(item_key)))
+        rows = runtime._table_rows(self.session)
+        self.assertEqual(int(rows[0]["portions"]), 3)
+        self.assertGreater(self.session.combatant.current_hp, 5)
+
+
+if __name__ == "__main__":
+    unittest.main()
