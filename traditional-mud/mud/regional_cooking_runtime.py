@@ -238,16 +238,34 @@ async def _serve(session, target: str) -> None:
         "Anyone here can use TABLE and EAT TABLE <dish>.\r\n")
 
 
-def _table_rows(session):
+def _table_rows(session, room_key: str | None = None):
     _ensure_schema(session.database)
-    room = session.character.current_room or ""
+    room = room_key if room_key is not None else (session.character.current_room or "")
     now = datetime.now(timezone.utc).isoformat()
     with session.database.connect() as db:
-        db.execute("DELETE FROM cooking_shared_tables WHERE expires_at <= ? OR portions <= 0", (now,))
+        db.execute(
+            "DELETE FROM cooking_shared_tables WHERE expires_at <= ? OR portions <= 0",
+            (now,),
+        )
         return db.execute(
             """SELECT item_key, chef_character_id, chef_name, display_name, portions
                FROM cooking_shared_tables WHERE room_key = ? AND portions > 0
-               ORDER BY served_at""", (room,)).fetchall()
+               ORDER BY served_at""",
+            (room,),
+        ).fetchall()
+
+
+def room_table_entries(session, room_key: str | None = None) -> list[dict[str, object]]:
+    """Stable room-presentation view of live communal food."""
+    return [
+        {
+            "item_key": str(row["item_key"]),
+            "name": str(row["display_name"]),
+            "chef": str(row["chef_name"]),
+            "portions": int(row["portions"]),
+        }
+        for row in _table_rows(session, room_key)
+    ]
 
 
 async def _show_table(session) -> None:
