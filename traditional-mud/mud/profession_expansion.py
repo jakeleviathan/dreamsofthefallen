@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
+import mud.brewing as brewing
 import mud.crafting as crafting
 import mud.economy_loop as economy
 import mud.profession_workshops as workshops
@@ -744,6 +745,282 @@ def _enchanting_expansion() -> tuple[tuple[ItemDefinition, ...], tuple[CraftingR
     return tuple(items), tuple(recipes)
 
 
+
+def _brewing_expansion() -> tuple[
+    tuple[ItemDefinition, ...],
+    tuple[ResourceNodeDefinition, ...],
+    tuple[CraftingRecipe, ...],
+]:
+    """Build the broad Brewing ladder used before regional house recipes.
+
+    Brewing is intentionally not Alchemy with different labels. The recipe owns
+    ingredients and skill progression; :mod:`mud.brewing` owns fermentation,
+    yeast/water choices and optional cellaring so the live command can resolve a
+    persistent batch instead of granting an item immediately.
+    """
+
+    items: list[ItemDefinition] = [
+        ItemDefinition(
+            "brewers_yeast",
+            "Clean Brewer's Yeast",
+            "A dependable house culture kept for predictable ales, ciders and meads.",
+            "brewing_material",
+            tier=1,
+        ),
+        ItemDefinition(
+            "wild_yeast_culture",
+            "Wild Yeast Culture",
+            "A lively captured culture that ferments more slowly and leaves a less predictable house character.",
+            "brewing_material",
+            tier=1,
+        ),
+        ItemDefinition(
+            "filtered_brewing_water",
+            "Filtered Brewing Water",
+            "Spring water passed through a brewer's filter bed for a cleaner, quicker fermentation.",
+            "brewing_material",
+            tier=1,
+        ),
+        ItemDefinition(
+            "wild_honey",
+            "Wild Honey",
+            "Dark floral honey gathered from sheltered combs and prized by mead makers.",
+            "food_material",
+            tier=1,
+        ),
+        ItemDefinition(
+            "cinderbean",
+            "Cinderbean",
+            "A dark aromatic bean roasted for bitter, invigorating brews.",
+            "food_material",
+            tier=2,
+        ),
+    ]
+    nodes = [
+        ResourceNodeDefinition(
+            "brewers_yeast_crock",
+            "House Yeast Crock",
+            None,
+            "brewers_yeast",
+            minimum_skill=0,
+            design_status="brewing_culture_source",
+            tier=1,
+            region_hint="Working brewhouses maintain communal starter cultures.",
+        ),
+        ResourceNodeDefinition(
+            "wild_yeast_jar",
+            "Wild Culture Jar",
+            None,
+            "wild_yeast_culture",
+            minimum_skill=0,
+            design_status="brewing_culture_source",
+            tier=1,
+            region_hint="Working brewhouses keep captured local cultures beside the clean house strain.",
+        ),
+        ResourceNodeDefinition(
+            "wild_honeycomb",
+            "Wild Honeycomb",
+            "harvesting",
+            "wild_honey",
+            minimum_skill=5,
+            design_status="brewing_honey_source",
+            tier=1,
+            region_hint="Flowering woodland edges and healthy greenways.",
+        ),
+        ResourceNodeDefinition(
+            "cinderbean_shrub",
+            "Cinderbean Shrub",
+            "harvesting",
+            "cinderbean",
+            minimum_skill=15,
+            design_status="brewing_coffee_source",
+            tier=2,
+            region_hint="Warm irrigated farms and sheltered trade gardens.",
+        ),
+    ]
+
+    recipes: list[CraftingRecipe] = []
+    styles = (
+        ("field_ale", "Field Ale", "ale", "brewers_yeast", "spring_water", 36, 45),
+        ("fruit_cider", "Cider", "cider", "wild_yeast_culture", "spring_water", 32, 40),
+        ("honey_mead", "Honey Mead", "mead", "brewers_yeast", "spring_water", 44, 60),
+        ("leaf_tea", "Leaf Tea", "tea", None, "spring_water", 6, 0),
+        ("cinder_coffee", "Cinder Coffee", "coffee", None, "filtered_brewing_water", 5, 0),
+        ("root_tonic", "Root Tonic", "tonic", None, "filtered_brewing_water", 8, 0),
+        ("road_kvass", "Road Kvass", "kvass", "wild_yeast_culture", "spring_water", 22, 24),
+        ("cordial", "Cordial", "cordial", None, None, 10, 35),
+        ("cellar_ale", "Cellar Ale", "ale", "brewers_yeast", "filtered_brewing_water", 52, 90),
+        ("house_blend", "House Blend", "blend", None, None, 12, 30),
+    )
+
+    for band, ingredient in zip(PROFESSION_BANDS, PANTRY_INGREDIENTS):
+        tier = band.tier
+        outputs: dict[str, str] = {}
+        for index, (slug, label, family, yeast_key, water_key, ferment, age) in enumerate(styles):
+            output_key = f"brewed_{band.key}_{slug}"
+            outputs[slug] = output_key
+
+            if slug == "fruit_cider":
+                display = f"{ingredient.name} {label}"
+            elif slug in {"leaf_tea", "cinder_coffee", "root_tonic", "cordial"}:
+                display = f"{ingredient.name} {label}"
+            else:
+                display = f"{band.name} {label}"
+
+            amount = 1 + int(tier >= 7 and slug in {"cellar_ale", "house_blend"})
+            if family in {"ale", "kvass"}:
+                bonus = CharacterStats(might=amount, hp=max(0, tier // 3))
+            elif family == "cider":
+                bonus = CharacterStats(grace=amount)
+            elif family == "mead":
+                bonus = CharacterStats(love=amount)
+            elif family == "tea":
+                bonus = CharacterStats(mind=amount)
+            elif family == "coffee":
+                bonus = CharacterStats(grace=amount, mind=1)
+            elif family == "tonic":
+                bonus = CharacterStats(hp=2 + tier // 2)
+            elif family == "cordial":
+                bonus = CharacterStats(love=amount, mind=1 if tier >= 4 else 0)
+            else:
+                bonus = CharacterStats(might=1, grace=1, love=1 if tier >= 4 else 0, mind=1)
+
+            alcoholic = family in {"ale", "cider", "mead", "kvass", "cordial", "blend"}
+            tags = ["brew", family, band.key]
+            tags.append("alcoholic" if alcoholic else "nonalcoholic")
+            if family == "coffee":
+                tags.append("caffeinated")
+            if family in {"tea", "tonic"}:
+                tags.append("herbal")
+
+            effect = ConsumableEffect(
+                use_mode="drink",
+                heal_hp=2 + tier + index // 4,
+                temporary_stat_bonuses=bonus,
+                duration_ticks=10 + tier * 3 + index // 2,
+                effect_tags=tuple(tags),
+            )
+            items.append(ItemDefinition(
+                output_key,
+                display,
+                f"A {family.replace('_', ' ')} brewed around {ingredient.name} and the {band.name.lower()} brewing band.",
+                "beverage",
+                consumable=effect,
+                tier=tier,
+            ))
+
+            aged_key = None
+            if age:
+                aged_key = f"{output_key}_cellared"
+                items.append(ItemDefinition(
+                    aged_key,
+                    f"Cellared {display}",
+                    f"A patient cellar expression of {display}; time has rounded the brew without turning it into a stronger combat consumable.",
+                    "beverage",
+                    consumable=ConsumableEffect(
+                        use_mode="drink",
+                        heal_hp=effect.heal_hp,
+                        temporary_stat_bonuses=effect.temporary_stat_bonuses,
+                        duration_ticks=effect.duration_ticks + 6 + tier,
+                        effect_tags=effect.effect_tags + ("cellared",),
+                    ),
+                    tier=tier,
+                ))
+
+            if slug == "field_ale":
+                mats = (
+                    MaterialRequirement("field_grain", 2),
+                    MaterialRequirement(ingredient.key, 1),
+                    MaterialRequirement(yeast_key, 1),
+                    MaterialRequirement(water_key, 1),
+                )
+            elif slug == "fruit_cider":
+                mats = (
+                    MaterialRequirement(ingredient.key, 2),
+                    MaterialRequirement(yeast_key, 1),
+                    MaterialRequirement(water_key, 1),
+                )
+            elif slug == "honey_mead":
+                mats = (
+                    MaterialRequirement("wild_honey", 2),
+                    MaterialRequirement(ingredient.key, 1),
+                    MaterialRequirement(yeast_key, 1),
+                    MaterialRequirement(water_key, 1),
+                )
+            elif slug == "leaf_tea":
+                mats = (
+                    MaterialRequirement(ingredient.key, 1),
+                    MaterialRequirement("greenleaf", 1),
+                    MaterialRequirement(water_key, 1),
+                )
+            elif slug == "cinder_coffee":
+                mats = (
+                    MaterialRequirement("cinderbean", 2),
+                    MaterialRequirement(ingredient.key, 1),
+                    MaterialRequirement(water_key, 1),
+                )
+            elif slug == "root_tonic":
+                mats = (
+                    MaterialRequirement("bitterroot", 1),
+                    MaterialRequirement(ingredient.key, 1),
+                    MaterialRequirement(water_key, 1),
+                )
+            elif slug == "road_kvass":
+                mats = (
+                    MaterialRequirement("field_grain", 2),
+                    MaterialRequirement(ingredient.key, 1),
+                    MaterialRequirement(yeast_key, 1),
+                    MaterialRequirement(water_key, 1),
+                )
+            elif slug == "cordial":
+                mats = (
+                    MaterialRequirement(ingredient.key, 2),
+                    MaterialRequirement("grain_alcohol", 1),
+                )
+            elif slug == "cellar_ale":
+                mats = (
+                    MaterialRequirement("field_grain", 3),
+                    MaterialRequirement(ingredient.key, 2),
+                    MaterialRequirement(yeast_key, 1),
+                    MaterialRequirement(water_key, 1),
+                )
+            else:
+                mats = (
+                    MaterialRequirement(outputs["fruit_cider"], 1),
+                    MaterialRequirement(outputs["root_tonic"], 1),
+                )
+
+            recipe = CraftingRecipe(
+                f"brew_{band.key}_{slug}",
+                "brewing",
+                output_key,
+                band.trivial + index,
+                band.trivial + index + 25,
+                mats,
+                station_key="brewhouse",
+                description=(
+                    f"Prepare {display}. Brewing continues after the mash or infusion: "
+                    "the batch must finish before it can be bottled, and suitable styles may be cellared."
+                ),
+                design_status="deep_brewing_expansion",
+            )
+            recipes.append(recipe)
+            brewing.register_process(brewing.BrewProcess(
+                recipe_key=recipe.key,
+                family=family,
+                ferment_seconds=ferment + tier * (3 if family not in {"tea", "coffee", "tonic"} else 1),
+                age_seconds=age + tier * 4 if age else 0,
+                aged_output_item_key=aged_key,
+                default_yeast_key=yeast_key,
+                default_water_key=water_key,
+                can_swap_yeast=yeast_key is not None,
+                can_swap_water=water_key is not None,
+                social_cups=3 if family in {"coffee", "tea", "tonic"} else 4,
+            ))
+
+    return tuple(items), tuple(nodes), tuple(recipes)
+
+
 def _perfumery_expansion() -> tuple[
     tuple[ItemDefinition, ...],
     tuple[CraftingRecipe, ...],
@@ -1124,6 +1401,7 @@ def _register_recipes(recipes: tuple[CraftingRecipe, ...]) -> None:
         "blacksmithing": "BLACKSMITHING_RECIPES",
         "tailoring": "TAILORING_RECIPES",
         "alchemy": "ALCHEMY_RECIPES",
+        "brewing": "BREWING_RECIPES",
         "enchanting": "ENCHANTING_RECIPES",
         "cooking": "COOKING_RECIPES",
     }
@@ -1153,18 +1431,31 @@ def _install_world_access() -> None:
             economy.ROOM_RESOURCE_NODE_KEYS[ingredient.room_key] = current + (ingredient.node_key,)
 
     economy.STATION_LABELS.setdefault("perfumer_bench", "Perfumer's Bench")
+    economy.STATION_LABELS.setdefault("brewhouse", "Brewhouse / Fermenter")
+
+    resource_additions = {
+        "waymeet_fifth_lantern": ("brewers_yeast_crock", "wild_yeast_jar"),
+        "forest_elf_greenway": ("wild_honeycomb",),
+        "sablewater_reed_farms": ("cinderbean_shrub",),
+    }
+    for room_key, node_keys in resource_additions.items():
+        current = economy.ROOM_RESOURCE_NODE_KEYS.get(room_key, ())
+        economy.ROOM_RESOURCE_NODE_KEYS[room_key] = current + tuple(
+            key for key in node_keys if key not in current
+        )
 
     station_additions = {
-        "waymeet_hammer_thread_row": ("forge", "loom", "enchanting_table", "perfumer_bench"),
+        "waymeet_hammer_thread_row": ("forge", "loom", "perfumer_bench"),
+        "waymeet_fifth_lantern": ("brewhouse",),
         "waymeet_commonhouse_yard": ("cookfire",),
-        "veyra_hammer_hall": ("forge", "enchanting_table"),
+        "veyra_hammer_hall": ("forge",),
         "veyra_loom_hall": ("loom",),
         "veyra_greenhall": ("mortar_and_pestle", "alchemy_table", "perfumer_bench"),
-        "veyra_scholars_rise": ("enchanting_table", "alchemy_table"),
-        "veyra_public_hearth": ("cookfire",),
+        "veyra_scholars_rise": ("alchemy_table",),
+        "veyra_public_hearth": ("cookfire", "brewhouse"),
         "sablewater_reed_farms": ("cookfire",),
-        "greywake_lantern_hospice": ("mortar_and_pestle", "alchemy_table", "perfumer_bench", "cookfire"),
-        "forest_elf_hearthwalk": ("perfumer_bench",),
+        "greywake_lantern_hospice": ("mortar_and_pestle", "alchemy_table", "perfumer_bench", "cookfire", "brewhouse"),
+        "forest_elf_hearthwalk": ("perfumer_bench", "brewhouse"),
         "goblin_apothecary_blind": ("perfumer_bench",),
     }
     for room_key, station_keys in station_additions.items():
@@ -1232,9 +1523,13 @@ def install_profession_expansion_content() -> dict[str, int]:
     alchemy_items, alchemy_recipes = _alchemy_expansion()
     pantry_items, pantry_nodes = _pantry_content()
     cooking_items, cooking_recipes = _cooking_expansion()
-    enchanting_items, enchanting_recipes = _enchanting_expansion()
+    brewing_items, brewing_nodes, brewing_recipes = _brewing_expansion()
     perfume_items, perfume_recipes, perfume_fragrances = _perfumery_expansion()
     secret_items, secret_recipes = _secret_content()
+    # Enchanting is no longer a tradeskill. Magical equipment remains authored
+    # world/discovery content rather than a repeatable profession ladder.
+    secret_items = tuple(item for item in secret_items if item.key != "secret_last_door_focus_item")
+    secret_recipes = tuple(recipe for recipe in secret_recipes if recipe.trade_skill_key != "enchanting")
 
     all_items = (
         blacksmith_items
@@ -1242,7 +1537,7 @@ def install_profession_expansion_content() -> dict[str, int]:
         + alchemy_items
         + pantry_items
         + cooking_items
-        + enchanting_items
+        + brewing_items
         + perfume_items
         + secret_items
     )
@@ -1251,14 +1546,14 @@ def install_profession_expansion_content() -> dict[str, int]:
         + tailoring_recipes
         + alchemy_recipes
         + cooking_recipes
-        + enchanting_recipes
+        + brewing_recipes
         + perfume_recipes
         + secret_recipes
     )
 
     _register_items(all_items)
     _register_fragrances(perfume_items, perfume_fragrances)
-    _register_nodes(pantry_nodes)
+    _register_nodes(pantry_nodes + brewing_nodes)
     _register_recipes(all_recipes)
     _install_world_access()
 
@@ -1421,11 +1716,6 @@ _SECRET_DISCOVERIES = {
         SECRET_RECIPE_FLAGS["secret_one_breath_elixir"],
         "secret_one_breath_elixir",
         "The old mortar has a second grinding channel hidden beneath its lip, sized for suspending mineral catalyst instead of crushing herbs.",
-    ),
-    ("dwarf_workshop_tier", "examine runic workbench"): (
-        SECRET_RECIPE_FLAGS["secret_last_door_focus"],
-        "secret_last_door_focus",
-        "One scarred corner of the runic bench carries a deliberately blank center surrounded by two complete binding rings. The omission is the technique.",
     ),
     ("veyra_public_hearth", "examine hearth tiles"): (
         SECRET_RECIPE_FLAGS["secret_seven_roads_feast"],
