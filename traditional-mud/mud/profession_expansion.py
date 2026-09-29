@@ -1464,6 +1464,41 @@ def _install_world_access() -> None:
         economy.ROOM_STATIONS[room_key] = current + tuple(key for key in station_keys if key not in current)
 
 
+def retire_enchanting_profession() -> None:
+    """Remove legacy Enchanting registrations after the production world is assembled.
+
+    Enchanting used to be installed by several content layers. Brewing replaces it
+    as a repeatable profession, so this cleanup is intentionally safe to call more
+    than once and acts as the final authority over the shared crafting registries.
+    Magical items and Arcane Residue remain valid world content; only the retired
+    profession recipes and workshop stations are removed.
+    """
+
+    enchanting_keys = {
+        recipe.key
+        for recipe in crafting.ALL_RECIPES
+        if recipe.trade_skill_key == "enchanting"
+    }
+    if enchanting_keys:
+        crafting.ALL_RECIPES = tuple(
+            recipe
+            for recipe in crafting.ALL_RECIPES
+            if recipe.trade_skill_key != "enchanting"
+        )
+        for recipe_key in enchanting_keys:
+            crafting.RECIPES_BY_KEY.pop(recipe_key, None)
+
+    crafting.ENCHANTING_RECIPES = ()
+    crafting.ENCHANTING_RECIPES_BY_KEY = {}
+
+    for room_key, stations in tuple(economy.ROOM_STATIONS.items()):
+        if "enchanting_table" in stations:
+            economy.ROOM_STATIONS[room_key] = tuple(
+                station for station in stations if station != "enchanting_table"
+            )
+    economy.STATION_LABELS.pop("enchanting_table", None)
+
+
 def production_recipe_counts() -> dict[str, int]:
     return {
         profession.key: sum(1 for recipe in crafting.ALL_RECIPES if recipe.trade_skill_key == profession.key)
@@ -1519,23 +1554,8 @@ def install_profession_expansion_content() -> dict[str, int]:
 
     workshops.install_missing_profession_content()
 
-    # Enchanting was deliberately removed as a repeatable tradeskill. Older
-    # content installers may still have authored enchanting recipes in memory,
-    # so normalize the shared registries before expanding the active roster.
-    enchanting_keys = {
-        recipe.key
-        for recipe in crafting.ALL_RECIPES
-        if recipe.trade_skill_key == "enchanting"
-    }
-    if enchanting_keys:
-        crafting.ALL_RECIPES = tuple(
-            recipe for recipe in crafting.ALL_RECIPES
-            if recipe.trade_skill_key != "enchanting"
-        )
-        for recipe_key in enchanting_keys:
-            crafting.RECIPES_BY_KEY.pop(recipe_key, None)
-    crafting.ENCHANTING_RECIPES = ()
-    crafting.ENCHANTING_RECIPES_BY_KEY = {}
+    # Normalize any legacy registrations before building the active profession set.
+    retire_enchanting_profession()
 
     blacksmith_items, blacksmith_recipes = _blacksmithing_expansion()
     tailoring_items, tailoring_recipes = _tailoring_expansion()
