@@ -45,7 +45,7 @@ TRADITIONS: tuple[CookingTradition, ...] = (
         "harvesting", 10, "smoking", "soot-marked smoke schedule", "Nine-Shift Smoke Board",
         ("snow", "cloudy", "clear"), "winter",
         "Dense breads, smoked provisions and long-cooked meals built for hard shifts."),
-    CookingTradition("forest", "Forest Elf", "Greenway Living Table", "Sela Mossladle",
+    CookingTradition("forest", "Forest Elf", "Greenway Living Table", "Oriveth Mossladle",
         "forest_elf_hearthwalk", "forest_elf_greenway", "heartberry", "Heartberry",
         "harvesting", 0, "open-fire roasting", "leaf-pressed recipe strip", "Canopy Ember Supper",
         ("rain", "mist", "clear"), "summer",
