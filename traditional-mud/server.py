@@ -33,6 +33,7 @@ from mud.starter_matrix_quality import validate_starter_matrix_contract
 from mud.waymeet_frontier import install_waymeet_runtime
 from mud.waymeet_living_npcs import install_waymeet_living_talk_runtime
 from mud.brassgut_living_npcs import install_brassgut_living_talk_runtime
+from mud.world_living_npcs import register_world_living_npcs
 from mud.forest_elf_circle_community import install_circle_community_runtime
 from mud.gloamworks_dungeon import install_gloamworks_runtime
 from mud.greywake_march import install_greywake_runtime
@@ -321,6 +322,11 @@ apply_living_world_event_variety(PlayerSession)
 # help/GMCP presentation. Its entrances remain contextual and undisclosed: there
 # is intentionally no seven-plane checklist for players to complete.
 install_planar_realms_runtime(PlayerSession, WORLD)
+
+# Complete the scheduled civilian layer only after the full physical world has
+# been assembled. Bespoke regional casts count toward the baseline, so this adds
+# residents only where a region is still comparatively static.
+_WORLD_LIVING_NPCS = register_world_living_npcs()
 
 # NPC names are part of the player-facing command namespace: TALK commonly accepts
 # a given name, and two authored people sharing one makes rooms and quests
