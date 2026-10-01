@@ -37,8 +37,9 @@ FALLEN_WORDMARK = (
 )
 
 
-# The upper silhouette suggests a celestial gate opening in cloudbanks. The
-# lower sigil turns the composition into a literal fall toward Astralis.
+# The upper silhouette suggests a celestial gate opening in cloudbanks. Beneath
+# the title, a luminous skyline now makes the destination feel like an actual
+# impossible city suspended above Astralis rather than an abstract rune.
 CELESTIAL_GATE = (
     ".        *            |            *        .",
     "       .-----.        |        .-----.",
@@ -50,19 +51,38 @@ CELESTIAL_GATE = (
     "*",
 )
 
-FALLING_SIGIL = (
-    "|",
-    "*",
-    ".---+---.",
-    ".-'    |    `-.",
-    ".'      / \\      `.",
-    "/_______/___\\_______\\",
+CELESTIAL_SKYLINE = (
+    ".              *              .",
+    "*              |              *",
+    "/\\             /|\\             /\\",
+    "/  \\       /\\ / | \\ /\\       /  \\",
+    "|[]|      /  \\  |  /  \\      |[]|",
+    "|  |  /\\  | [] .-+-. [] |  /\\  |  |",
+    "|__|_/  \\_|____|_|_|____|_/  \\_|__|",
+    "/____| [] |  .-/___\\-.  | [] |____\\",
+    "| [] |____|__|  _  |__|____| [] |",
+    "|_____|____|__|_|_|__|____|_____|",
+    "------------|_______|------------",
+    "\\             |             /",
+    "\\            |            /",
+    "\\           |           /",
+    "\\          |          /",
+    "\\         |         /",
+    "\\        |        /",
+    "\\       |       /",
+    "\\      |      /",
+    "\\     |     /",
+    "\\    |    /",
     "\\   |   /",
     "\\  |  /",
     "\\ | /",
     "\\|/",
     "V",
 )
+
+# Backwards-compatible name for any older imports or tools that referenced the
+# previous abstract lower sigil.
+FALLING_SIGIL = CELESTIAL_SKYLINE
 
 
 def _paint(style: str, text: str) -> str:
@@ -108,15 +128,30 @@ def build_welcome_banner() -> str:
     )
     dreams = _paint_wordmark(DREAMS_WORDMARK, STARLIGHT)
     fallen = _paint_wordmark(FALLEN_WORDMARK, STARLIGHT)
-    sigil = _paint_rows(
-        FALLING_SIGIL,
+    skyline = _paint_rows(
+        CELESTIAL_SKYLINE,
         (
             TWILIGHT,
             GOLD,
             DREAMLIGHT,
+            STARLIGHT,
+            DREAMLIGHT,
             DREAMLIGHT,
             STARLIGHT,
             STARLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            TWILIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
             DREAMLIGHT,
             DREAMLIGHT,
             DREAMLIGHT,
@@ -135,7 +170,7 @@ def build_welcome_banner() -> str:
         "",
         _paint(TWILIGHT, _center("The road remembers every soul that crossed it.")),
         "",
-        *sigil,
+        *skyline,
         "",
         _paint(STARLIGHT, _center("A S T R A L I S")),
         _paint(DREAMLIGHT, _center("-----+-----+-----")),
