@@ -4,40 +4,22 @@ import re
 
 
 # Classic MUD clients still assume an 80-column terminal. The splash deliberately
-# keeps every visible line at 78 columns or fewer, even though modern Mudlet
-# windows are usually much wider.
+# keeps every visible line at 78 columns or fewer so it remains clean in old
+# Telnet clients while still looking intentional in modern Mudlet windows.
 BANNER_WIDTH = 78
 
 RESET = "\x1b[0m"
-IRON = "\x1b[37m"
-SHADOW = "\x1b[90m"
-GOLD = "\x1b[1;93m"
+STARLIGHT = "\x1b[1;97m"
 DREAMLIGHT = "\x1b[96m"
-
-# 256-color stops for the title-art gradient. In capable clients the logo falls
-# from electric blue through violet into hot pink. Accessibility/plain-Telnet
-# policy still strips these ANSI sequences completely.
-GRADIENT_256 = (
-    33,   # deep electric blue
-    39,
-    45,
-    63,
-    69,
-    99,
-    105,
-    135,
-    141,
-    171,
-    177,
-    207,
-    213,  # pink
-)
+TWILIGHT = "\x1b[38;5;141m"
+GOLD = "\x1b[1;38;5;220m"
+SHADOW = "\x1b[90m"
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
-# Custom slanted terminal wordmarks: large enough to feel like a logo, but made
-# entirely from 7-bit ASCII so old Telnet clients do not need Unicode glyphs.
+# Hand-built slanted wordmarks. They use only 7-bit ASCII so the title remains
+# readable in basic Telnet clients and when ANSI color is stripped.
 DREAMS_WORDMARK = (
     r"    ____  ____  _________    __  _______",
     r"   / __ \/ __ \/ ____/   |  /  |/  / ___/",
@@ -55,62 +37,30 @@ FALLEN_WORDMARK = (
 )
 
 
-def _mirror_ascii(text: str) -> str:
-    """Geometrically mirror a half-row, including slash direction."""
-    mirrored: list[str] = []
-    for char in reversed(text):
-        if char == "/":
-            mirrored.append("\\")
-        elif char == "\\":
-            mirrored.append("/")
-        elif char == "<":
-            mirrored.append(">")
-        elif char == ">":
-            mirrored.append("<")
-        elif char == "(":
-            mirrored.append(")")
-        elif char == ")":
-            mirrored.append("(")
-        else:
-            mirrored.append(char)
-    return "".join(mirrored)
-
-
-def _mirrored_row(left: str, center: str = " ") -> str:
-    """Build one 77-column row around the splash's fixed center column."""
-    if len(center) != 1:
-        raise ValueError("Mirrored banner rows require one center character.")
-    half_width = (BANNER_WIDTH - 2) // 2  # 38; 38 + center + 38 = 77.
-    if len(left) > half_width:
-        raise ValueError(f"Banner half-row is too wide: {left!r}")
-    left = left.rjust(half_width)
-    return left + center + _mirror_ascii(left)
-
-
-# Every decorative row below is authored only once on the left. The right side is
-# generated, so a hand-spaced edit can no longer make one side drift away from
-# the other.
-TOP_ORNAMENT = (
-    _mirrored_row("      /\\       /\\       /\\", "^"),
-    _mirrored_row(" /\\__/  \\_____/  \\_____/  \\", "|"),
-    _mirrored_row(r"_/                                  ", "V"),
+# The upper silhouette suggests a celestial gate opening in cloudbanks. The
+# lower sigil turns the composition into a literal fall toward Astralis.
+CELESTIAL_GATE = (
+    ".        *            |            *        .",
+    "       .-----.        |        .-----.",
+    ".----'       `---.    |    .---'       `----.",
+    "___/                  \\___|___/                  \\___",
+    "_/       .--.        .---\\ | /---.        .--.       \\_",
+    "------'________/    \\______/      \\|/      \\______/    \\________`------",
+    "|",
+    "*",
 )
 
-MID_ORNAMENT = (
-    _mirrored_row(r"\__      ________      ________", "|"),
-    _mirrored_row(r"   \____/        \____/       ", "V"),
-)
-
-DREAM_SIGIL = (
-    r"\        |        /",
-    r"\       |       /",
-    r"\      |      /",
-    r"------\     |     /------",
-    r"\    |    /",
-    r"\   |   /",
-    r"\  |  /",
-    r"\ | /",
-    r"\|/",
+FALLING_SIGIL = (
+    "|",
+    "*",
+    ".---+---.",
+    ".-'    |    `-.",
+    ".'      / \\      `.",
+    "/_______/___\\_______\\",
+    "\\   |   /",
+    "\\  |  /",
+    "\\ | /",
+    "\\|/",
     "V",
 )
 
@@ -127,60 +77,73 @@ def _visible_width(text: str) -> int:
     return len(_ANSI_RE.sub("", text))
 
 
-def _gradient_style(position: int, total: int) -> str:
-    if total <= 1:
-        stop = GRADIENT_256[0]
-    else:
-        ratio = max(0.0, min(1.0, position / (total - 1)))
-        index = round(ratio * (len(GRADIENT_256) - 1))
-        stop = GRADIENT_256[index]
-    return f"\x1b[1;38;5;{stop}m"
+def _paint_rows(rows: tuple[str, ...], styles: tuple[str, ...]) -> tuple[str, ...]:
+    if len(rows) != len(styles):
+        raise ValueError("Each banner row requires exactly one style.")
+    return tuple(_paint(style, _center(row)) for row, style in zip(rows, styles))
 
 
-def _gradient_rows(rows: tuple[str, ...]) -> tuple[str, ...]:
-    colored_positions = [index for index, row in enumerate(rows) if row]
-    total = len(colored_positions)
-    painted: list[str] = []
-    color_position = 0
-    for row in rows:
-        if not row:
-            painted.append("")
-            continue
-        painted.append(_paint(_gradient_style(color_position, total), _center(row)))
-        color_position += 1
-    return tuple(painted)
+def _paint_wordmark(rows: tuple[str, ...], style: str) -> tuple[str, ...]:
+    """Center a hand-spaced ASCII wordmark as one block, preserving its slant."""
+    width = max(len(row) for row in rows)
+    left = max(0, (BANNER_WIDTH - width) // 2)
+    return tuple(_paint(style, (" " * left) + row) for row in rows)
 
 
 def build_welcome_banner() -> str:
-    """Return the symmetric blue-purple-pink metal title treatment."""
+    """Return the terminal-native celestial Dreams of the Fallen splash."""
 
-    art_rows = (
-        *TOP_ORNAMENT,
-        "",
-        *DREAMS_WORDMARK,
-        "",
-        "O F   T H E",
-        "",
-        *FALLEN_WORDMARK,
-        "",
-        *MID_ORNAMENT,
-        "",
-        *DREAM_SIGIL,
-        "",
-        "A S T R A L I S",
-    )
-
-    lines: list[str] = ["", *_gradient_rows(art_rows)]
-    lines.extend(
+    gate = _paint_rows(
+        CELESTIAL_GATE,
         (
-            _paint(SHADOW, _center("DREAMS OF THE FALLEN // ASTRALIS")),
-            _paint(SHADOW, _center("Beneath Astralis, something dreams.")),
-            "",
-            _paint(GOLD, _center("LOGIN     CREATE ACCOUNT")),
-            _paint(SHADOW, _center("Type HELP for a brief explanation.")),
-            "",
-        )
+            GOLD,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            STARLIGHT,
+            DREAMLIGHT,
+            TWILIGHT,
+            GOLD,
+        ),
     )
+    dreams = _paint_wordmark(DREAMS_WORDMARK, STARLIGHT)
+    fallen = _paint_wordmark(FALLEN_WORDMARK, STARLIGHT)
+    sigil = _paint_rows(
+        FALLING_SIGIL,
+        (
+            TWILIGHT,
+            GOLD,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            STARLIGHT,
+            STARLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            DREAMLIGHT,
+            GOLD,
+        ),
+    )
+
+    lines: list[str] = [
+        "",
+        *gate,
+        "",
+        *dreams,
+        _paint(GOLD, _center("O F   T H E")),
+        *fallen,
+        "",
+        _paint(TWILIGHT, _center("The road remembers every soul that crossed it.")),
+        "",
+        *sigil,
+        "",
+        _paint(STARLIGHT, _center("A S T R A L I S")),
+        _paint(DREAMLIGHT, _center("-----+-----+-----")),
+        "",
+        _paint(GOLD, _center("[ LOGIN / CREATE ACCOUNT ]")),
+        _paint(SHADOW, _center("Enter your account name below to awaken.")),
+        "",
+    ]
     return "\r\n".join(lines) + "\r\n"
 
 
@@ -188,7 +151,7 @@ WELCOME_BANNER = build_welcome_banner()
 
 
 def plain_welcome_banner() -> str:
-    """ANSI-free banner used by tests and accessibility checks."""
+    """ANSI-free banner used by tests and accessibility presentation."""
     return _ANSI_RE.sub("", WELCOME_BANNER)
 
 
