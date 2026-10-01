@@ -13,6 +13,7 @@ from mud.welcome_banner import (
     DREAMLIGHT,
     DREAMS_WORDMARK,
     FALLEN_WORDMARK,
+    CELESTIAL_SKYLINE,
     FALLING_SIGIL,
     GOLD,
     SHADOW,
@@ -35,7 +36,7 @@ class WelcomeBannerDesignTests(unittest.TestCase):
         self.assertLessEqual(max(widths), BANNER_WIDTH)
         self.assertLessEqual(BANNER_WIDTH, 78)
 
-    def test_banner_has_title_gate_falling_sigil_and_world_identity(self):
+    def test_banner_has_title_gate_celestial_skyline_and_world_identity(self):
         plain = plain_welcome_banner()
         self.assertEqual(len(DREAMS_WORDMARK), 5)
         self.assertEqual(len(FALLEN_WORDMARK), 5)
@@ -48,18 +49,28 @@ class WelcomeBannerDesignTests(unittest.TestCase):
         self.assertIn("[ LOGIN / CREATE ACCOUNT ]", plain)
         self.assertIn("Enter your account name below to awaken.", plain)
         self.assertIn(CELESTIAL_GATE[5], plain)
-        self.assertIn(FALLING_SIGIL[5], plain)
+        self.assertIn(CELESTIAL_SKYLINE[6], plain)
+        self.assertIn("|[]|", plain)
+        self.assertIn("|_______|", plain)
+        self.assertIs(FALLING_SIGIL, CELESTIAL_SKYLINE)
 
         # The visible splash remains genuine old-client-safe terminal art.
         plain.encode("ascii")
 
-    def test_falling_sigil_stays_on_one_center_axis(self):
-        lines = plain_welcome_banner().replace("\r", "").split("\n")
+    def test_celestial_skyline_reads_as_city_and_descends_to_one_axis(self):
+        plain = plain_welcome_banner()
+        lines = plain.replace("\r", "").split("\n")
         center = BANNER_WIDTH // 2
-        for row in ("|", "*", ".---+---.", "\\|/", "V"):
+
+        # The skyline has towers, windows, a central palace, and a horizon.
+        self.assertIn("|[]|", plain)
+        self.assertIn("/____| [] |", plain)
+        self.assertIn("------------|_______|------------", plain)
+
+        # The descending light remains centered beneath the city.
+        for row in ("\\|/", "V"):
             candidates = [line for line in lines if line.strip() == row]
             self.assertTrue(candidates, row)
-            # The lower sigil is after the title, so the last matching row is its row.
             line = candidates[-1]
             self.assertEqual(line.index(row[len(row) // 2]), center, row)
 
@@ -83,7 +94,8 @@ from mud.final_runtime_policy import _presentation_text
 assert "The road remembers every soul that crossed it." in session_module.WELCOME_BANNER
 assert "A S T R A L I S" in session_module.WELCOME_BANNER
 assert "[ LOGIN / CREATE ACCOUNT ]" in session_module.WELCOME_BANNER
-assert ".---+---." in session_module.WELCOME_BANNER
+assert "------------|_______|------------" in session_module.WELCOME_BANNER
+assert "|[]|" in session_module.WELCOME_BANNER
 
 class Telnet:
     gmcp_enabled = False
