@@ -47,6 +47,7 @@ class WelcomeBannerDesignTests(unittest.TestCase):
         self.assertIn("A S T R A L I S", plain)
         self.assertIn("The road remembers every soul that crossed it.", plain)
         self.assertIn("[ LOGIN / CREATE ACCOUNT ]", plain)
+        self.assertIn("Discord: https://discord.gg/MyW5XJWgzW", plain)
         self.assertIn("Enter your account name below to awaken.", plain)
         self.assertIn(CELESTIAL_GATE[5], plain)
         self.assertIn(CELESTIAL_SKYLINE[6], plain)
@@ -96,6 +97,7 @@ assert "A S T R A L I S" in session_module.WELCOME_BANNER
 assert "[ LOGIN / CREATE ACCOUNT ]" in session_module.WELCOME_BANNER
 assert "------------|_______|------------" in session_module.WELCOME_BANNER
 assert "|[]|" in session_module.WELCOME_BANNER
+assert "Discord: https://discord.gg/MyW5XJWgzW" in session_module.WELCOME_BANNER
 
 class Telnet:
     gmcp_enabled = False
@@ -110,6 +112,7 @@ class Session:
 plain = _presentation_text(Session(), session_module.WELCOME_BANNER)
 assert "\x1b[" not in plain
 assert "A S T R A L I S" in plain
+assert "Discord: https://discord.gg/MyW5XJWgzW" in plain
 assert "Enter your account name below to awaken." in plain
 print("CELESTIAL_BANNER_OK")
 """
