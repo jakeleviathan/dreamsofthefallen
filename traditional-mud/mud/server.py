@@ -185,6 +185,11 @@ from mud.npcs import MobileNpcManager, NpcMovement
 import mud.npcs as mobile_registry
 from mud.waymeet_living_npcs import WAYMEET_LIVING_NPCS, run_waymeet_chatter
 from mud.brassgut_living_npcs import BRASSGUT_LIVING_NPCS, run_brassgut_chatter
+from mud.world_living_npcs import (
+    install_world_living_talk_runtime,
+    register_world_living_npcs,
+    run_world_living_chatter,
+)
 from mud.forest_elf_circle_community import (
     CIRCLE_LIVING_NPCS,
     REGION as CIRCLE_REGION,
@@ -328,6 +333,10 @@ install_waymap_runtime(PlayerSession, WORLD)
 # command handling. Access is role-gated, disruptive actions require confirmation,
 # and every staff action is written to the persistent audit log.
 install_staff_control_runtime(PlayerSession)
+# Fill the rest of Astralis with the same schedule/weather/chatter grammar used
+# by the bespoke Waymeet, Brassgut and Circle casts. This wrapper owns only the
+# generated non-quest residents and delegates every other TALK command.
+install_world_living_talk_runtime(PlayerSession, WORLD)
 
 
 class MudServer:
@@ -337,6 +346,11 @@ class MudServer:
         self.sessions: set[PlayerSession] = set()
         self.database = Database()
         load_world_room_state(WORLD.state)
+
+        # Root production assembly registers these before the NPC name audit.
+        # Calling again here keeps direct mud.server launches and isolated tests
+        # complete; registration is idempotent.
+        register_world_living_npcs()
 
         moment = ASTRALIS_CLOCK.now()
         # Regional weather is persistent shared state. Missing regions receive
@@ -561,6 +575,14 @@ class MudServer:
                 WORLD.state.weather_for,
             )
         )
+        world_living_task = asyncio.create_task(
+            run_world_living_chatter(
+                self.mobile_npcs,
+                self.player_room_keys,
+                self.broadcast_waymeet_chatter,
+                WORLD.state.weather_for,
+            )
+        )
         weather_task = asyncio.create_task(
             ASTRALIS_WEATHER.run(
                 WORLD.state,
@@ -600,6 +622,7 @@ class MudServer:
             chatter_task.cancel()
             brassgut_task.cancel()
             circle_task.cancel()
+            world_living_task.cancel()
             weather_task.cancel()
             ecology_task.cancel()
             district_task.cancel()
@@ -610,6 +633,7 @@ class MudServer:
                 chatter_task,
                 brassgut_task,
                 circle_task,
+                world_living_task,
                 weather_task,
                 ecology_task,
                 district_task,
