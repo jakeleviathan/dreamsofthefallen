@@ -176,6 +176,7 @@ def build_welcome_banner() -> str:
         _paint(DREAMLIGHT, _center("-----+-----+-----")),
         "",
         _paint(GOLD, _center("[ LOGIN / CREATE ACCOUNT ]")),
+        _paint(DREAMLIGHT, _center("Discord: https://discord.gg/MyW5XJWgzW")),
         _paint(SHADOW, _center("Enter your account name below to awaken.")),
         "",
     ]
