@@ -503,7 +503,7 @@ UNBLINKING_ROOMS: tuple[RoomDefinition, ...] = (
         "Three-Hand Gate",
         OBSERVATORY_REGION_KEY,
         "A black circular door is surrounded by three widely separated witness plates. The old builders could have linked them. They deliberately did not. A surviving warning reads: NO SINGLE OBSERVER MAY AUTHORIZE DEEP SIGHT.",
-        {"west": OBS_KEEPER_HALL_KEY},
+        {"west": OBS_KEEPER_HALL_KEY, "east": OBS_INVERSION_STAIR_KEY},
         tags=("dungeon", "unblinking_star", "level_15", "group_required", "cooperative_gate"),
     ),
     _room(
@@ -573,7 +573,7 @@ UNBLINKING_ROOMS: tuple[RoomDefinition, ...] = (
         "The Aperture",
         OBSERVATORY_REGION_KEY,
         "The observatory ends at a slit narrower than a doorway. Beyond it is not sky, stone, or ordinary darkness. Something occupies the far side without fitting through. When it presses close, pieces of one presence appear at incompatible depths, each piece turning toward the observers.",
-        {"west": OBS_THRESHOLD_KEY},
+        {"west": OBS_THRESHOLD_KEY, "east": OBS_SEAL_ENGINE_KEY},
         enemies=(OPEN_EYED_FRAGMENT_KEY,),
         tags=("dungeon", "unblinking_star", "level_15_16", "core", "boss", "group_required"),
     ),
@@ -620,7 +620,7 @@ def _merge_augmentation(existing: RoomAugmentation | None, extra: RoomAugmentati
 def unblinking_augmentations() -> dict[str, RoomAugmentation]:
     return {
         ASHCROSS_MILESTONE_KEY: RoomAugmentation(
-            extra_exits=(
+            exit_overrides=(
                 ExitDefinition(
                     direction="northeast",
                     destination_key=STARFALL_APPROACH_KEY,
@@ -664,7 +664,7 @@ def unblinking_augmentations() -> dict[str, RoomAugmentation]:
             ),
         ),
         OBS_THREE_HAND_GATE_KEY: RoomAugmentation(
-            extra_exits=(
+            exit_overrides=(
                 ExitDefinition(
                     direction="east",
                     destination_key=OBS_INVERSION_STAIR_KEY,
@@ -689,7 +689,7 @@ def unblinking_augmentations() -> dict[str, RoomAugmentation]:
             ),
         ),
         OBS_APERTURE_KEY: RoomAugmentation(
-            extra_exits=(
+            exit_overrides=(
                 ExitDefinition(
                     direction="east",
                     destination_key=OBS_SEAL_ENGINE_KEY,
@@ -753,8 +753,13 @@ def install_unblinking_star_content(world_service=None) -> None:
         _replace_npc(npc)
 
     milestone = legacy_world.ROOMS_BY_KEY.get(ASHCROSS_MILESTONE_KEY)
-    if milestone is not None and ARCHIVIST_KEY not in milestone.npc_keys:
-        milestone = replace(milestone, npc_keys=(*milestone.npc_keys, ARCHIVIST_KEY))
+    if milestone is not None:
+        npc_keys = milestone.npc_keys
+        if ARCHIVIST_KEY not in npc_keys:
+            npc_keys = (*npc_keys, ARCHIVIST_KEY)
+        exits = dict(milestone.exits)
+        exits["northeast"] = STARFALL_APPROACH_KEY
+        milestone = replace(milestone, npc_keys=npc_keys, exits=exits)
         _replace_room(milestone)
 
     if world_service is None:
