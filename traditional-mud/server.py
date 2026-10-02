@@ -72,6 +72,7 @@ from mud.midgame_three_roads import install_midgame_12_20_runtime
 from mud.midgame_three_roads_tuning import apply_midgame_three_roads_tuning
 from mud.frontier_convergence import install_frontier_convergence_runtime
 from mud.eight_roads_midgame import install_eight_roads_runtime
+from mud.unblinking_star_observatory import install_unblinking_star_runtime
 from mud.broken_reach_midgame import install_broken_reach_runtime
 from mud.broken_reach_tuning import apply_broken_reach_route_tuning
 from mud.salt_kingdoms_midgame import install_salt_kingdoms_runtime
@@ -225,6 +226,10 @@ install_frontier_convergence_runtime(PlayerSession, WORLD)
 # Road, and Sporekin Rainroot. All eight roads remain open to every race. Any
 # three independent witness threads, plus the mapped Outerworks, open Meridian.
 install_eight_roads_runtime(PlayerSession, WORLD)
+# The Observatory of the Unblinking Star is a level 13-16 expedition that turns
+# the Starfall Scar into a true 3-5 player group dungeon and seeds the larger
+# reciprocal-observation mystery without replacing the existing Ashcross routes.
+install_unblinking_star_runtime(PlayerSession, WORLD)
 # Broken Reach is the broad shared 11-20 exploration region beyond Waymeet.
 # It adds caravan disappearances, the morally gray Grinning Men, three competing
 # regional claims, a full House Beneath the Hill dungeon, optional oddities, and
