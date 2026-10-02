@@ -912,7 +912,7 @@ async def _survey_scar(session) -> bool:
         return False
     session.database.grant_flag(session.character.id, SCAR_SURVEYED_FLAG)
     _advance_if(session, "survey_scar", "enter_observatory")
-    if session.database.count_item(session.character.id, STARFALL_GLASS_KEY) <= 0:
+    if session.database.item_quantity(session.character.id, STARFALL_GLASS_KEY) <= 0:
         session.database.add_item(session.character.id, STARFALL_GLASS_KEY, 1)
     await session.send(
         "You compare glass layers, exposed roots, and the buried rings below. The evidence refuses the easy story: nothing struck this place from above. Local earth was fused around an event centered on the observatory itself.\r\n"
