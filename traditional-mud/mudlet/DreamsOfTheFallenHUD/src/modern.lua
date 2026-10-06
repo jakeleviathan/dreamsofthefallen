@@ -533,13 +533,13 @@ function H.buildModern()
   H.questPrev:echo("<center>‹</center>")
   H.questPrev:setClickCallback("DreamsHUD.shiftQuest", "prev")
 
-  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 48, 10, -96, 58, QUEST_TITLE_TEXT)
+  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 50, 10, -100, 34, QUEST_TITLE_TEXT)
 
   H.questNext = label(H.questPane, "DreamsHUD.QuestNext", -42, 10, 34, 34, BUTTON_STYLE)
   H.questNext:echo("<center>›</center>")
   H.questNext:setClickCallback("DreamsHUD.shiftQuest", "next")
 
-  H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 82, -16, 152, QUEST_OBJECTIVE_TEXT)
+  H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 60, -16, 168, QUEST_OBJECTIVE_TEXT)
   H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 246, -16, 60, QUEST_MORE_TEXT)
   H.questButton = label(H.questPane, "DreamsHUD.QuestButton", 8, -42, -16, 34, BUTTON_STYLE)
   H.questButton:echo("<center>OPEN QUEST LOG</center>")
@@ -810,7 +810,7 @@ function H.renderQuestPanel()
     H.questMore:echo("")
     return
   end
-  H.questTitle:echo(escape(quest.name))
+  H.questTitle:echo("<center><b>" .. escape(quest.name) .. "</b></center>")
   H.questObjective:echo("<span style=\"color:#dfc18c\"><b>Current objective</b></span><br/>" .. escape(quest.objective or "Explore and learn what the situation requires."))
   local other = #active - 1
   H.questMore:echo(other > 0 and (tostring(other) .. " other active quest" .. (other == 1 and "" or "s") .. ". Open the log to switch context.") or "This is your only active quest.")
