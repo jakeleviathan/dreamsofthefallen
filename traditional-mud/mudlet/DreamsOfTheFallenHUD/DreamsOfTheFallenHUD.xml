@@ -1039,7 +1039,24 @@ function H.buildModern()
 
   H.questNext = label(H.questNav, "DreamsHUD.QuestNext", -34, 0, 34, 34, BUTTON_STYLE)
   H.questNext:echo("&lt;center&gt;›&lt;/center&gt;")
-  H.questNext:setClickCallback("DreamsHUD.shiftQuest", "next")
+
+  -- Dedicated topmost hit targets. These exactly cover the visible arrow
+  -- buttons so the entire 34x34 rectangle behaves like a normal button.
+  H.questPrevHit = label(H.questNav, "DreamsHUD.QuestPrevHit", 0, 0, 34, 34, [[
+    QLabel {
+      background-color: transparent;
+      border: 0px;
+    }
+  ]])
+  H.questPrevHit:setClickCallback("DreamsHUD.shiftQuest", "prev")
+
+  H.questNextHit = label(H.questNav, "DreamsHUD.QuestNextHit", -34, 0, 34, 34, [[
+    QLabel {
+      background-color: transparent;
+      border: 0px;
+    }
+  ]])
+  H.questNextHit:setClickCallback("DreamsHUD.shiftQuest", "next")
 
   H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 60, -16, 168, QUEST_OBJECTIVE_TEXT)
   H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 246, -16, 60, QUEST_MORE_TEXT)
