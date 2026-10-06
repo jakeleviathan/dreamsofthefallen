@@ -529,13 +529,21 @@ function H.buildModern()
 
   H.questPane = Geyser.Container:new({ name = "DreamsHUD.QuestPane", x = 0, y = 0, width = "100%", height = "100%" }, H.contentFrame)
 
-  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 50, 10, -100, 34, QUEST_TITLE_TEXT)
+  H.questNav = Geyser.Container:new({
+    name = "DreamsHUD.QuestNav",
+    x = 8,
+    y = 10,
+    width = -16,
+    height = 34,
+  }, H.questPane)
 
-  H.questPrev = label(H.questPane, "DreamsHUD.QuestPrev", 8, 10, 34, 34, BUTTON_STYLE)
+  H.questPrev = label(H.questNav, "DreamsHUD.QuestPrev", "0%", 0, "10%", 34, BUTTON_STYLE)
   H.questPrev:echo("<center>‹</center>")
   H.questPrev:setClickCallback("DreamsHUD.shiftQuest", "prev")
 
-  H.questNext = label(H.questPane, "DreamsHUD.QuestNext", -42, 10, 34, 34, BUTTON_STYLE)
+  H.questTitle = label(H.questNav, "DreamsHUD.QuestTitle", "12%", 0, "76%", 34, QUEST_TITLE_TEXT)
+
+  H.questNext = label(H.questNav, "DreamsHUD.QuestNext", "90%", 0, "10%", 34, BUTTON_STYLE)
   H.questNext:echo("<center>›</center>")
   H.questNext:setClickCallback("DreamsHUD.shiftQuest", "next")
 
