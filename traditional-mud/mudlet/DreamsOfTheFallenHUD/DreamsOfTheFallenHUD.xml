@@ -791,6 +791,34 @@ function H.runAction(command)
   send(command, true)
 end
 
+function H.shiftQuest(direction)
+  local quests = H.state.quests or {}
+  local active = quests.active or {}
+  if #active == 0 then return end
+
+  local trackedKey = quests.tracked and tostring(quests.tracked.key or "") or ""
+  local index = 1
+
+  for i, quest in ipairs(active) do
+    if tostring(quest.key or "") == trackedKey then
+      index = i
+      break
+    end
+  end
+
+  if direction == "prev" then
+    index = ((index - 2) % #active) + 1
+  else
+    index = (index % #active) + 1
+  end
+
+  quests.tracked = active[index]
+  H.state.quests = quests
+  H.renderQuestPanel()
+
+  send(direction == "prev" and "QUEST PREV" or "QUEST NEXT", true)
+end
+
 function H.inspectInventoryItem(name)
   name = tostring(name or ""):gsub("[\r\n]", " ")
   if name == "" then return end
@@ -994,7 +1022,17 @@ function H.buildModern()
   H.partyFooter = label(H.partyPane, "DreamsHUD.PartyFooter", 8, 260, -16, -8, MUTED_TEXT)
 
   H.questPane = Geyser.Container:new({ name = "DreamsHUD.QuestPane", x = 0, y = 0, width = "100%", height = "100%" }, H.contentFrame)
-  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 8, 10, -16, 58, QUEST_TITLE_TEXT)
+
+  H.questPrev = label(H.questPane, "DreamsHUD.QuestPrev", 8, 10, 34, 34, BUTTON_STYLE)
+  H.questPrev:echo("&lt;center&gt;‹&lt;/center&gt;")
+  H.questPrev:setClickCallback("DreamsHUD.shiftQuest", "prev")
+
+  H.questTitle = label(H.questPane, "DreamsHUD.QuestTitle", 48, 10, -96, 58, QUEST_TITLE_TEXT)
+
+  H.questNext = label(H.questPane, "DreamsHUD.QuestNext", -42, 10, 34, 34, BUTTON_STYLE)
+  H.questNext:echo("&lt;center&gt;›&lt;/center&gt;")
+  H.questNext:setClickCallback("DreamsHUD.shiftQuest", "next")
+
   H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 82, -16, 152, QUEST_OBJECTIVE_TEXT)
   H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 246, -16, 60, QUEST_MORE_TEXT)
   H.questButton = label(H.questPane, "DreamsHUD.QuestButton", 8, -42, -16, 34, BUTTON_STYLE)
@@ -1249,6 +1287,17 @@ function H.renderQuestPanel()
   local quests = H.state.quests or {}
   local active = quests.active or {}
   local quest = quests.tracked or active[1]
+
+  if H.questPrev and H.questNext then
+    if #active &gt; 1 then
+      H.questPrev:show()
+      H.questNext:show()
+    else
+      H.questPrev:hide()
+      H.questNext:hide()
+    end
+  end
+
   if not quest then
     H.questTitle:echo("NO ACTIVE QUEST")
     H.questObjective:echo("The road is yours. Exploration, hunting, crafting, and social play continue without a quest marker.")

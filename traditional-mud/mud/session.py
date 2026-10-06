@@ -1861,6 +1861,43 @@ class PlayerSession:
             await self.send("You cannot read that.\r\n")
             return
 
+        if verb in {"quest next", "quest prev"}:
+            active_rows = [
+                row for row in self.database.list_quests(self.character.id)
+                if row.get("status") == "active"
+            ]
+
+            if not active_rows:
+                await self.send("You have no active quests to track.\r\n")
+                return
+
+            tracked_key = self.database.get_tracked_quest(self.character.id)
+            current_index = 0
+
+            for index, row in enumerate(active_rows):
+                if str(row["quest_key"]) == tracked_key:
+                    current_index = index
+                    break
+
+            if verb == "quest next":
+                new_index = (current_index + 1) % len(active_rows)
+            else:
+                new_index = (current_index - 1) % len(active_rows)
+
+            row = active_rows[new_index]
+            quest_key = str(row["quest_key"])
+            definition = QUESTS_BY_KEY.get(quest_key)
+            quest_name = definition.name if definition else quest_key.replace("_", " ").title()
+
+            self.database.set_tracked_quest(self.character.id, quest_key)
+
+            await self.send(f"Now tracking: {quest_name}\r\n")
+            if definition:
+                objective = definition.objective_for_step(row.get("current_step"))
+                if objective:
+                    await self.send(f"Current objective: {objective}\r\n")
+            return
+
         if verb == "quest track" or verb.startswith("quest track "):
             target = verb[len("quest track"):].strip()
             if not target:
