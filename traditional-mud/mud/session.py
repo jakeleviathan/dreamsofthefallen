@@ -1861,6 +1861,56 @@ class PlayerSession:
             await self.send("You cannot read that.\r\n")
             return
 
+        if verb == "quest track" or verb.startswith("quest track "):
+            target = verb[len("quest track"):].strip()
+            if not target:
+                await self.send("Usage: QUEST TRACK <quest name>\r\n")
+                return
+
+            active_rows = [
+                row for row in self.database.list_quests(self.character.id)
+                if row.get("status") == "active"
+            ]
+
+            exact_matches = []
+            partial_matches = []
+
+            for row in active_rows:
+                quest_key = str(row["quest_key"])
+                definition = QUESTS_BY_KEY.get(quest_key)
+                quest_name = definition.name if definition else quest_key.replace("_", " ").title()
+
+                if target.lower() in {quest_key.lower(), quest_name.lower()}:
+                    exact_matches.append((row, definition, quest_name))
+                elif target.lower() in quest_name.lower():
+                    partial_matches.append((row, definition, quest_name))
+
+            matches = exact_matches or partial_matches
+
+            if not matches:
+                await self.send(f"No active quest matches '{target}'. Type QUESTS to see your active quests.\r\n")
+                return
+
+            if len(matches) > 1:
+                await self.send("That matches more than one active quest:\r\n")
+                for _row, _definition, quest_name in matches:
+                    await self.send(f"  {quest_name}\r\n")
+                await self.send("Use QUEST TRACK followed by the full quest name.\r\n")
+                return
+
+            row, definition, quest_name = matches[0]
+
+            if not self.database.set_tracked_quest(self.character.id, str(row["quest_key"])):
+                await self.send("That quest cannot be tracked right now.\r\n")
+                return
+
+            await self.send(f"Now tracking: {quest_name}\r\n")
+            if definition:
+                objective = definition.objective_for_step(row.get("current_step"))
+                if objective:
+                    await self.send(f"Current objective: {objective}\r\n")
+            return
+
         if verb in {"quests", "quest", "journal"}:
             rows = self.database.list_quests(self.character.id)
             await self.send("\r\n--- Quest Journal ---\r\n")

@@ -172,6 +172,14 @@ class Database:
                     PRIMARY KEY (character_id, quest_key),
                     FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
                 );
+
+                CREATE TABLE IF NOT EXISTS character_tracked_quest (
+                    character_id INTEGER PRIMARY KEY,
+                    quest_key TEXT NOT NULL,
+                    FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE,
+                    FOREIGN KEY (character_id, quest_key)
+                        REFERENCES character_quests(character_id, quest_key) ON DELETE CASCADE
+                );
                 """
             )
             self._ensure_character_columns(db)
@@ -1102,6 +1110,44 @@ class Database:
             {"quest_key": str(row["quest_key"]), "status": str(row["status"]), "current_step": row["current_step"]}
             for row in rows
         ]
+
+    def get_tracked_quest(self, character_id: int) -> str | None:
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT quest_key FROM character_tracked_quest WHERE character_id = ?",
+                (character_id,),
+            ).fetchone()
+        return str(row["quest_key"]) if row is not None else None
+
+    def set_tracked_quest(self, character_id: int, quest_key: str) -> bool:
+        with self.connect() as db:
+            quest = db.execute(
+                """
+                SELECT 1
+                FROM character_quests
+                WHERE character_id = ? AND quest_key = ? AND status = 'active'
+                """,
+                (character_id, quest_key),
+            ).fetchone()
+            if quest is None:
+                return False
+            db.execute(
+                """
+                INSERT INTO character_tracked_quest (character_id, quest_key)
+                VALUES (?, ?)
+                ON CONFLICT(character_id)
+                DO UPDATE SET quest_key = excluded.quest_key
+                """,
+                (character_id, quest_key),
+            )
+        return True
+
+    def clear_tracked_quest(self, character_id: int) -> None:
+        with self.connect() as db:
+            db.execute(
+                "DELETE FROM character_tracked_quest WHERE character_id = ?",
+                (character_id,),
+            )
 
     def advance_quest(self, character_id: int, quest_key: str, current_step: str) -> None:
         with self.connect() as db:

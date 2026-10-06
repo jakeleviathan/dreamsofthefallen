@@ -189,7 +189,15 @@ def _quest_snapshot(session) -> dict:
             active.append(entry)
         else:
             completed.append(entry)
-    return {"active": active, "completed_count": len(completed)}
+    tracked_key = session.database.get_tracked_quest(session.character.id)
+    tracked = next(
+        (entry for entry in active if entry["key"] == tracked_key),
+        None,
+    )
+    if tracked is None and active:
+        tracked = active[0]
+
+    return {"active": active, "tracked": tracked, "completed_count": len(completed)}
 
 
 def _ability_target_mode(ability) -> str:

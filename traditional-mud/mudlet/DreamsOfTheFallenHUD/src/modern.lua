@@ -752,8 +752,9 @@ end
 
 function H.renderQuestPanel()
   if not H.modernBuilt then return end
-  local active = (H.state.quests or {}).active or {}
-  local quest = active[1]
+  local quests = H.state.quests or {}
+  local active = quests.active or {}
+  local quest = quests.tracked or active[1]
   if not quest then
     H.questTitle:echo("NO ACTIVE QUEST")
     H.questObjective:echo("The road is yours. Exploration, hunting, crafting, and social play continue without a quest marker.")
