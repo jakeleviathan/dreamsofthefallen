@@ -537,32 +537,31 @@ function H.buildModern()
     height = 34,
   }, H.questPane)
 
-  H.questPrev = label(H.questNav, "DreamsHUD.QuestPrev", 0, 0, 34, 34, BUTTON_STYLE)
+  -- Three isolated regions so the title can never overlap either arrow.
+  H.questPrevBox = Geyser.Container:new({
+    name = "DreamsHUD.QuestPrevBox",
+    x = 0, y = 0, width = 40, height = 34,
+  }, H.questNav)
+
+  H.questTitleBox = Geyser.Container:new({
+    name = "DreamsHUD.QuestTitleBox",
+    x = 48, y = 0, width = -96, height = 34,
+  }, H.questNav)
+
+  H.questNextBox = Geyser.Container:new({
+    name = "DreamsHUD.QuestNextBox",
+    x = -40, y = 0, width = 40, height = 34,
+  }, H.questNav)
+
+  H.questPrev = label(H.questPrevBox, "DreamsHUD.QuestPrev", 0, 0, "100%", "100%", BUTTON_STYLE)
   H.questPrev:echo("<center>‹</center>")
   H.questPrev:setClickCallback("DreamsHUD.shiftQuest", "prev")
 
-  H.questTitle = label(H.questNav, "DreamsHUD.QuestTitle", 44, 0, -88, 34, QUEST_TITLE_TEXT)
+  H.questTitle = label(H.questTitleBox, "DreamsHUD.QuestTitle", 0, 0, "100%", "100%", QUEST_TITLE_TEXT)
 
-  H.questNext = label(H.questNav, "DreamsHUD.QuestNext", -34, 0, 34, 34, BUTTON_STYLE)
+  H.questNext = label(H.questNextBox, "DreamsHUD.QuestNext", 0, 0, "100%", "100%", BUTTON_STYLE)
   H.questNext:echo("<center>›</center>")
-
-  -- Dedicated topmost hit targets. These exactly cover the visible arrow
-  -- buttons so the entire 34x34 rectangle behaves like a normal button.
-  H.questPrevHit = label(H.questNav, "DreamsHUD.QuestPrevHit", 0, 0, 34, 34, [[
-    QLabel {
-      background-color: transparent;
-      border: 0px;
-    }
-  ]])
-  H.questPrevHit:setClickCallback("DreamsHUD.shiftQuest", "prev")
-
-  H.questNextHit = label(H.questNav, "DreamsHUD.QuestNextHit", -34, 0, 34, 34, [[
-    QLabel {
-      background-color: transparent;
-      border: 0px;
-    }
-  ]])
-  H.questNextHit:setClickCallback("DreamsHUD.shiftQuest", "next")
+  H.questNext:setClickCallback("DreamsHUD.shiftQuest", "next")
 
   H.questObjective = label(H.questPane, "DreamsHUD.QuestObjective", 8, 60, -16, 168, QUEST_OBJECTIVE_TEXT)
   H.questMore = label(H.questPane, "DreamsHUD.QuestMore", 8, 246, -16, 60, QUEST_MORE_TEXT)
