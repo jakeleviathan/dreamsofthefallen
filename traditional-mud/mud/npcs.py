@@ -176,6 +176,7 @@ class RegionalSpawnDefinition:
     refill_min_ticks: int = REGIONAL_REFILL_TICKS
     refill_max_ticks: int = REGIONAL_REFILL_TICKS
     player_pressure_scaling: bool = True
+    source_minimum: int = 0
 
 
 # Content-specific tuning lives beside the generic population engine rather than
@@ -198,6 +199,7 @@ _REGIONAL_POOL_OVERRIDES: dict[tuple[str, str], dict[str, object]] = {
         "refill_min_ticks": 7,
         "refill_max_ticks": 14,
         "player_pressure_scaling": True,
+        "source_minimum": 2,
     },
 }
 
@@ -646,6 +648,7 @@ class MobileNpcManager:
                 player_pressure_scaling=bool(
                     override.get("player_pressure_scaling", True)
                 ),
+                source_minimum=max(0, int(override.get("source_minimum", 0))),
             )
         return pools
 
@@ -986,16 +989,24 @@ class MobileNpcManager:
             )
         return rng.choices(candidates, weights=weights, k=1)[0]
 
-    def _spawn_regional_instance(
+    def _spawn_regional_instance_at_room(
         self,
         pool: RegionalSpawnDefinition,
+        spawn_room: str,
         *,
-        player_room_keys: Iterable[str],
         rng: random.Random,
         rare: bool = False,
     ) -> MobileNpcState | None:
-        spawn_room = self._choose_regional_spawn_room(pool, player_room_keys, rng)
-        if spawn_room is None:
+        if spawn_room not in pool.room_keys:
+            return None
+        room_population = sum(
+            1
+            for state in self.states.values()
+            if state.active
+            and state.current_room_key == spawn_room
+            and self._regional_instance_to_pool.get(state.definition.key) == pool.key
+        )
+        if room_population >= self._pool_room_capacity(pool.key, spawn_room):
             return None
         self._regional_serial += 1
         suffix = "rare" if rare else "common"
@@ -1016,6 +1027,24 @@ class MobileNpcManager:
             self._rare_expiry_tick[instance_key] = self._tick_index + REGIONAL_RARE_TTL_TICKS
         return state
 
+    def _spawn_regional_instance(
+        self,
+        pool: RegionalSpawnDefinition,
+        *,
+        player_room_keys: Iterable[str],
+        rng: random.Random,
+        rare: bool = False,
+    ) -> MobileNpcState | None:
+        spawn_room = self._choose_regional_spawn_room(pool, player_room_keys, rng)
+        if spawn_room is None:
+            return None
+        return self._spawn_regional_instance_at_room(
+            pool,
+            spawn_room,
+            rng=rng,
+            rare=rare,
+        )
+
     def _seed_regional_population(self) -> None:
         if not self.regional_pools:
             return
@@ -1031,15 +1060,46 @@ class MobileNpcManager:
                 pool.key: self.target_population(pool, ())
                 for pool in pools
             }
+            # Tuned source minima make a marquee hunting room immediately
+            # multiplayer-ready. The remaining population is still distributed
+            # regionally, so this never turns every room into a spawn pile.
+            seeded_by_pool = {pool.key: 0 for pool in pools}
+            for pool in sorted(pools, key=lambda value: value.key):
+                wanted = min(pool.source_minimum, targets.get(pool.key, 0))
+                for source_room in pool.source_room_keys:
+                    while (
+                        created < cap
+                        and seeded_by_pool[pool.key] < wanted
+                    ):
+                        if self._spawn_regional_instance_at_room(
+                            pool,
+                            source_room,
+                            rng=rng,
+                        ) is None:
+                            break
+                        seeded_by_pool[pool.key] += 1
+                        created += 1
+                    if seeded_by_pool[pool.key] >= wanted:
+                        break
+
             # Round-robin seeding prevents the first species alphabetically from
             # consuming an entire small-region cap. Ecology-aware targets also
             # mean a restart does not briefly repopulate an overhunted habitat.
-            max_target = max(targets.values(), default=0)
-            for _round in range(max_target):
+            max_remaining = max(
+                (
+                    max(0, targets.get(pool.key, 0) - seeded_by_pool[pool.key])
+                    for pool in pools
+                ),
+                default=0,
+            )
+            for _round in range(max_remaining):
                 for pool in sorted(pools, key=lambda value: value.key):
                     if created >= cap:
                         break
-                    if _round >= targets.get(pool.key, 0):
+                    remaining = max(
+                        0, targets.get(pool.key, 0) - seeded_by_pool[pool.key]
+                    )
+                    if _round >= remaining:
                         continue
                     if self._spawn_regional_instance(
                         pool,
