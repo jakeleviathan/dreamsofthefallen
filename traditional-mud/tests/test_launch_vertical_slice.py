@@ -88,6 +88,8 @@ class LaunchVerticalSliceTests(unittest.TestCase):
         flags.add(WAYMEET_INTRO_COMPLETE_FLAG)
         title, text = journey_stage_for(race_key="human", level=4, flags=flags)
         self.assertEqual(title, "Below the Sealed Door")
+        self.assertIn("Gloam Mouth", text)
+        self.assertIn("TALK SURVEYOR", text)
         self.assertIn("maintenance stays", text)
         self.assertIn("finish the descent solo", text)
         self.assertNotIn("requires another actual player", text)
