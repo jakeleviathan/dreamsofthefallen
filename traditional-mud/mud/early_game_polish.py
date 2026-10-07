@@ -90,6 +90,76 @@ JOURNEY_STEP_TARGETS: dict[tuple[str, str], tuple[str, str]] = {
     ("gravewatch_the_dead_garrison", "open_inner_gate"): ("gravewatch_inner_portcullis", "Inner Portcullis"),
     ("gravewatch_the_dead_garrison", "defeat_castellan"): ("gravewatch_great_hall", "Great Hall"),
     ("gravewatch_the_dead_garrison", "light_beacon"): ("gravewatch_castellans_map_room", "Castellan's Map Room"),
+    # Broken Reach, levels 11-20
+    ("broken_reach_no_smiling_matter", "talk_hesta"): ("broken_reach_ragged_caravanserai", "Ragged Caravanserai"),
+    ("broken_reach_no_smiling_matter", "inspect_wagon"): ("broken_reach_leaning_orchard", "Leaning Orchard"),
+    ("broken_reach_no_smiling_matter", "talk_jory"): ("broken_reach_grinning_camp", "Grinning Camp"),
+    ("broken_reach_no_smiling_matter", "inspect_lanterns"): ("broken_reach_split_lantern_bridge", "Split-Lantern Bridge"),
+    ("broken_reach_no_smiling_matter", "return_hesta"): ("broken_reach_ragged_caravanserai", "Ragged Caravanserai"),
+    ("broken_reach_three_claims", "talk_hesta"): ("broken_reach_ragged_caravanserai", "Ragged Caravanserai"),
+    ("broken_reach_three_claims", "talk_jory"): ("broken_reach_grinning_camp", "Grinning Camp"),
+    ("broken_reach_three_claims", "talk_mira"): ("broken_reach_cinder_ford", "Cinder Ford"),
+    ("broken_reach_three_claims", "inspect_tally"): ("broken_reach_cinder_ford", "Cinder Ford"),
+    ("broken_reach_three_claims", "choose_stance"): ("broken_reach_ragged_caravanserai", "Ragged Caravanserai"),
+    ("broken_reach_house_beneath_hill", "talk_rook"): ("house_beneath_hill_threshold", "Threshold Under the Hill"),
+    ("broken_reach_house_beneath_hill", "read_guestbook"): ("house_beneath_hill_stone_parlour", "Stone Parlour"),
+    ("broken_reach_house_beneath_hill", "examine_hearth"): ("house_beneath_hill_deep_hearth", "Deep Hearth"),
+    ("broken_reach_house_beneath_hill", "defeat_warden"): ("house_beneath_hill_keeper_lock", "Keeper's Lock"),
+    ("broken_reach_house_beneath_hill", "inspect_lock"): ("house_beneath_hill_keeper_lock", "Keeper's Lock"),
+    ("broken_reach_house_beneath_hill", "listen_bell"): ("house_beneath_hill_black_bell_chamber", "Black Bell Chamber"),
+    ("broken_reach_house_beneath_hill", "confront_guest"): ("house_beneath_hill_containment_ring", "Containment Ring"),
+    ("broken_reach_night_the_hill_opened", "talk_hesta"): ("broken_reach_ragged_caravanserai", "Ragged Caravanserai"),
+    ("broken_reach_night_the_hill_opened", "set_anchors"): ("house_beneath_hill_containment_ring", "Containment Ring"),
+    ("broken_reach_night_the_hill_opened", "drop_span"): ("broken_reach_split_lantern_bridge", "Split-Lantern Bridge"),
+    ("broken_reach_night_the_hill_opened", "open_bypass"): ("house_beneath_hill_wake_gate", "Wake Gate"),
+    # Salt Kingdoms, levels 21-30
+    ("salt_kingdoms_road_where_sea_was", "talk_enna"): ("salt_kingdoms_saltwind_gate", "Saltwind Gate"),
+    ("salt_kingdoms_road_where_sea_was", "inspect_sink"): ("salt_kingdoms_tidemark_sink", "Tidemark Sink"),
+    ("salt_kingdoms_road_where_sea_was", "reach_city"): ("keelspire_dry_harbor_gate", "Keelspire Dry Harbor Gate"),
+    ("salt_kingdoms_road_where_sea_was", "read_tidemarks"): ("keelspire_basin_archive", "Basin Archive"),
+    ("salt_kingdoms_road_where_sea_was", "return_enna"): ("salt_kingdoms_saltwind_gate", "Saltwind Gate"),
+    ("salt_kingdoms_ship_that_measures_tide", "talk_orro"): ("keelspire_dry_quays", "Dry Quays"),
+    ("salt_kingdoms_ship_that_measures_tide", "read_log"): ("glass_keel_captains_round", "Captain's Round"),
+    ("salt_kingdoms_ship_that_measures_tide", "defeat_matriarch"): ("glass_keel_ballast_spine", "Ballast Spine"),
+    ("salt_kingdoms_ship_that_measures_tide", "inspect_tideglass"): ("glass_keel_tideglass_hold", "Tideglass Hold"),
+    ("salt_kingdoms_three_thirsts", "talk_crown"): ("keelspire_crown_square", "Crown Square"),
+    ("salt_kingdoms_three_thirsts", "talk_caravan"): ("keelspire_ropemarket", "Ropemarket"),
+    ("salt_kingdoms_three_thirsts", "talk_wells"): ("keelspire_three_wells_court", "Three Wells Court"),
+    ("salt_kingdoms_three_thirsts", "read_rations"): ("keelspire_three_wells_court", "Three Wells Court"),
+    ("salt_kingdoms_three_thirsts", "choose_priority"): ("keelspire_crown_square", "Crown Square"),
+    ("salt_kingdoms_undertide_engine", "talk_tavik"): ("keelspire_harbor_vault", "Harbor Vault"),
+    ("salt_kingdoms_undertide_engine", "read_gauges"): ("undertide_pressure_walk", "Pressure Walk"),
+    ("salt_kingdoms_undertide_engine", "set_counterweight"): ("undertide_counterweight_well", "Counterweight Well"),
+    ("salt_kingdoms_undertide_engine", "defeat_regent"): ("undertide_regent_court", "Regent Court"),
+    ("salt_kingdoms_undertide_engine", "inspect_distributor"): ("undertide_broken_distributor", "Broken Distributor"),
+    ("salt_kingdoms_undertide_engine", "listen_water"): ("undertide_heart", "Undertide Heart"),
+    ("salt_kingdoms_where_the_water_goes", "reach_release"): ("undertide_deep_release_gate", "Deep Release Gate"),
+    ("salt_kingdoms_where_the_water_goes", "choose_water"): ("undertide_deep_release_gate", "Deep Release Gate"),
+    # Crownfire, levels 31-40
+    ("crownfire_smoke_has_orders", "talk_mara"): ("crownfire_marchward_post", "Marchward Post"),
+    ("crownfire_smoke_has_orders", "inspect_wagon"): ("crownfire_burned_toll", "Burned Toll"),
+    ("crownfire_smoke_has_orders", "defeat_scout"): ("crownfire_gallows_mile", "Gallows Mile"),
+    ("crownfire_smoke_has_orders", "read_orders"): ("crownfire_gallows_mile", "Gallows Mile"),
+    ("crownfire_smoke_has_orders", "return_mara"): ("crownfire_marchward_post", "Marchward Post"),
+    ("crownfire_city_under_contract", "talk_iven"): ("morrowgate_council_hall", "Council Hall"),
+    ("crownfire_city_under_contract", "talk_della"): ("morrowgate_healers_row", "Healers' Row"),
+    ("crownfire_city_under_contract", "search_contracts"): ("morrowgate_canvas_market", "Canvas Market"),
+    ("crownfire_city_under_contract", "accuse_varek"): ("morrowgate_canvas_market", "Canvas Market"),
+    ("crownfire_break_brass_redoubt", "talk_sera"): ("morrowgate_east_rampart", "East Rampart"),
+    ("crownfire_break_brass_redoubt", "cut_signal"): ("gilded_redoubt_signal_loft", "Signal Loft"),
+    ("crownfire_break_brass_redoubt", "free_prisoners"): ("gilded_redoubt_prison_cage", "Prison Cage"),
+    ("crownfire_break_brass_redoubt", "defeat_quartermaster"): ("gilded_redoubt_quartermaster_office", "Quartermaster Office"),
+    ("crownfire_price_of_desertion", "talk_lysa"): ("crownfire_refugee_ford", "Refugee Ford"),
+    ("crownfire_price_of_desertion", "read_rolls"): ("gilded_redoubt_quartermaster_office", "Quartermaster Office"),
+    ("crownfire_price_of_desertion", "choose"): ("crownfire_refugee_ford", "Refugee Ford"),
+    ("crownfire_banner_palace", "talk_sera"): ("morrowgate_east_rampart", "East Rampart"),
+    ("crownfire_banner_palace", "break_mirror"): ("banner_palace_signal_stair", "Signal Stair"),
+    ("crownfire_banner_palace", "free_hostages"): ("banner_palace_hostage_wing", "Hostage Wing"),
+    ("crownfire_banner_palace", "read_map"): ("banner_palace_map_room", "Map Room"),
+    ("crownfire_banner_palace", "defeat_captain"): ("banner_palace_command_hall", "Command Hall"),
+    ("crownfire_banner_palace", "take_ledger"): ("banner_palace_command_hall", "Command Hall"),
+    ("crownfire_no_misunderstanding", "confront_dask"): ("banner_palace_treaty_chamber", "Treaty Chamber"),
+    ("crownfire_no_misunderstanding", "choose_aftermath"): ("banner_palace_treaty_chamber", "Treaty Chamber"),
 }
 
 
@@ -342,10 +412,110 @@ def _journey_text(session) -> str:
     sablewater_quests = (LOW_WATER_QUEST_KEY, TOLL_NOBODY_OWES_QUEST_KEY, PRICE_OF_CROSSING_QUEST_KEY)
 
     if level > EARLY_GAME_MAX_LEVEL:
-        return (
-            "\r\nJOURNEY currently covers the opening shared road through level 10. "
-            "Use GOALS for your current objective or JOURNAL for all active quests.\r\n"
+        reach_quests = (
+            "broken_reach_no_smiling_matter",
+            "broken_reach_three_claims",
+            "broken_reach_house_beneath_hill",
+            "broken_reach_night_the_hill_opened",
         )
+        salt_quests = (
+            "salt_kingdoms_road_where_sea_was",
+            "salt_kingdoms_ship_that_measures_tide",
+            "salt_kingdoms_three_thirsts",
+            "salt_kingdoms_undertide_engine",
+            "salt_kingdoms_where_the_water_goes",
+        )
+        crown_quests = (
+            "crownfire_smoke_has_orders",
+            "crownfire_city_under_contract",
+            "crownfire_break_brass_redoubt",
+            "crownfire_price_of_desertion",
+            "crownfire_banner_palace",
+            "crownfire_no_misunderstanding",
+        )
+
+        if "broken_reach_underroad_opened" not in flags:
+            line = _shared_journey_line(session, reach_quests)
+            if line is not None:
+                return line
+            if "broken_reach_house_guest_driven_back" in flags and level < 20:
+                return "\r\nMain journey - Broken Reach: the House is contained for now. Reach level 20 through the Reach's side roads, contracts, discoveries, or combat; then JOURNEY will send you to the region capstone.\r\n"
+            if "broken_reach_house_guest_driven_back" in flags:
+                route = _live_route_hint(session, "broken_reach_ragged_caravanserai", "Ragged Caravanserai")
+                return "\r\nMain journey - Broken Reach capstone: " + route + " TALK HESTA to begin The Night the Hill Opened.\r\n"
+            if "broken_reach_claims_settled" in flags and level < 17:
+                return "\r\nMain journey - Broken Reach: the three claims are settled. Reach level 17 through regional work; the House Beneath the Hill becomes the next main chapter.\r\n"
+            if "broken_reach_claims_settled" in flags:
+                route = _live_route_hint(session, "house_beneath_hill_threshold", "Threshold Under the Hill")
+                return "\r\nMain journey - The House Beneath the Hill: " + route + " TALK ROOK at the threshold.\r\n"
+            if "broken_reach_grinning_truth_known" in flags and level < 14:
+                return "\r\nMain journey - Broken Reach: the caravan disappearances are understood. Reach level 14 through regional work; then the three competing claims become the next main chapter.\r\n"
+            route = _live_route_hint(session, "broken_reach_ragged_caravanserai", "Ragged Caravanserai")
+            return "\r\nMain journey - Broken Reach: " + route + " TALK HESTA. The level 11-20 shared campaign begins here.\r\n"
+
+        if "salt_kingdoms_level_30_complete" not in flags:
+            line = _shared_journey_line(session, salt_quests)
+            if line is not None:
+                return line
+            if level < 21:
+                return "\r\nMain journey - Broken Reach complete: the Underroad is open. Reach level 21, then JOURNEY will route you west into Whitewake and the Salt Kingdoms.\r\n"
+            if "salt_kingdoms_undertide_complete" in flags and level < 30:
+                return "\r\nMain journey - Salt Kingdoms: the Undertide Engine is understood. Reach level 30 through basin work; then return to the Deep Release Gate for the hydraulic capstone.\r\n"
+            if "salt_kingdoms_undertide_complete" in flags:
+                route = _live_route_hint(session, "undertide_deep_release_gate", "Deep Release Gate")
+                return "\r\nMain journey - Where the Water Goes: " + route + " Choose SEND HARBOR, FEED WELLS, or FREE CURRENT.\r\n"
+            if "salt_kingdoms_three_thirsts_complete" in flags and level < 27:
+                return "\r\nMain journey - Salt Kingdoms: the temporary water priority is recorded. Reach level 27; the Undertide Engine is the next main chapter.\r\n"
+            if "salt_kingdoms_three_thirsts_complete" in flags:
+                route = _live_route_hint(session, "keelspire_harbor_vault", "Harbor Vault")
+                return "\r\nMain journey - Undertide Engine: " + route + " TALK TAVIK.\r\n"
+            if "salt_kingdoms_glass_keel_complete" in flags and level < 26:
+                return "\r\nMain journey - Salt Kingdoms: the Glass Keel proved the underground tide is real. Reach level 26; then Keelspire's competing water claims become the next main chapter.\r\n"
+            if "salt_kingdoms_glass_keel_complete" in flags:
+                route = _live_route_hint(session, "keelspire_crown_square", "Crown Square")
+                return "\r\nMain journey - Three Thirsts, One Basin: " + route + " TALK CALDRIN.\r\n"
+            if "salt_kingdoms_arrival_complete" in flags and level < 23:
+                return "\r\nMain journey - Salt Kingdoms: Whitewake's road failure is mapped. Reach level 23; the Glass Keel becomes the next main expedition.\r\n"
+            if "salt_kingdoms_arrival_complete" in flags:
+                route = _live_route_hint(session, "keelspire_dry_quays", "Dry Quays")
+                return "\r\nMain journey - The Glass Keel: " + route + " TALK ORRO.\r\n"
+            route = _live_route_hint(session, "salt_kingdoms_saltwind_gate", "Saltwind Gate")
+            return "\r\nMain journey - Salt Kingdoms: " + route + " TALK ENNA. The level 21-30 campaign begins across Whitewake.\r\n"
+
+        line = _shared_journey_line(session, crown_quests)
+        if line is not None:
+            return line
+        if "crownfire_level_40_complete" in flags:
+            return "\r\nMain journey - Current story complete: Crownfire is resolved and you have reached the authored level-40 campaign ceiling. Optional roads, professions, discoveries, factions, delves, and repeatable content remain open.\r\n"
+        if level < 31:
+            return "\r\nMain journey - Salt Kingdoms complete: your water decision changed Whitewake. Reach level 31, then JOURNEY will route you into Crownfire March.\r\n"
+        if "crownfire_banner_network_broken" in flags and level < 40:
+            return "\r\nMain journey - Crownfire: the Banner Palace is broken. Reach level 40 through March work; Marshal Corven Dask is the final authored campaign confrontation.\r\n"
+        if "crownfire_banner_network_broken" in flags:
+            route = _live_route_hint(session, "banner_palace_treaty_chamber", "Treaty Chamber")
+            return "\r\nMain journey - No Misunderstanding: " + route + " Defeat Marshal Corven Dask and choose the aftermath.\r\n"
+        if "crownfire_deserter_question_settled" in flags and level < 37:
+            return "\r\nMain journey - Crownfire: the deserter question is settled. Reach level 37; the Banner Palace is the next main assault.\r\n"
+        if "crownfire_deserter_question_settled" in flags:
+            route = _live_route_hint(session, "morrowgate_east_rampart", "Morrowgate East Rampart")
+            return "\r\nMain journey - The Banner Palace: " + route + " TALK RENNA.\r\n"
+        if "crownfire_redoubt_broken" in flags and level < 36:
+            return "\r\nMain journey - Crownfire: the Brass Redoubt is broken. Reach level 36; then the deserter testimony becomes the next main chapter.\r\n"
+        if "crownfire_redoubt_broken" in flags:
+            route = _live_route_hint(session, "crownfire_refugee_ford", "Refugee Ford")
+            return "\r\nMain journey - The Price of Desertion: " + route + " TALK LYSA.\r\n"
+        if "crownfire_collaborator_exposed" in flags and level < 34:
+            return "\r\nMain journey - Crownfire: Morrowgate's collaborator is exposed. Reach level 34; then the Brass Redoubt becomes the next main target.\r\n"
+        if "crownfire_collaborator_exposed" in flags:
+            route = _live_route_hint(session, "morrowgate_east_rampart", "Morrowgate East Rampart")
+            return "\r\nMain journey - Break the Brass Redoubt: " + route + " TALK RENNA.\r\n"
+        if "crownfire_false_flag_orders_proven" in flags and level < 33:
+            return "\r\nMain journey - Crownfire: the false-flag orders are proven. Reach level 33; Morrowgate's managed blockade is the next main chapter.\r\n"
+        if "crownfire_false_flag_orders_proven" in flags:
+            route = _live_route_hint(session, "morrowgate_council_hall", "Morrowgate Council Hall")
+            return "\r\nMain journey - A City Under Contract: " + route + " TALK IVEN.\r\n"
+        route = _live_route_hint(session, "crownfire_marchward_post", "Marchward Post")
+        return "\r\nMain journey - Crownfire March: " + route + " TALK EVARA. The level 31-40 campaign begins here.\r\n"
 
     if GLOAMWORKS_COMPLETE_FLAG not in flags:
         line = _shared_journey_line(session, ("waymeet_roads_meet_here", "gloamworks_below_the_sealed_door"))
@@ -458,7 +628,7 @@ def _journey_text(session) -> str:
 
     return (
         "\r\nMain journey - Level 10 reached: the opening shared road through Waymeet, Greywake, Sablewater, and Veyra is established. "
-        "Use HERITAGE to finish your level-10 origin capstone if it remains active, then GOALS or JOURNAL for the roads beyond.\r\n"
+        "Finish any HERITAGE capstone that remains active. At level 11, JOURNEY continues into Broken Reach and remains available through the current level-40 campaign ceiling.\r\n"
     )
 
 
