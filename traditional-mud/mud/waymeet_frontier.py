@@ -1034,18 +1034,46 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
     async def _finish_enemy_defeat(self, enemy) -> None:
         key = enemy.definition.key
         eligible = getattr(self, "active_enemy", None) is enemy
+
+        # Capture meaningful shared-combat participants before the party layer
+        # resolves and removes its encounter. Solo kills simply fall back to the
+        # current session. Quest proof is personal to every participant, not a
+        # killing-blow prize.
+        participants = [self]
+        participant_finder = getattr(self, "party_victory_sessions", None)
+        if callable(participant_finder):
+            shared = list(participant_finder(enemy) or ())
+            if shared:
+                participants = shared
+
         await previous_finish_enemy(self, enemy)
         if not eligible or self.character is None:
             return
+
         if key == THORNBACK_JACKAL_KEY:
-            self.database.add_item(self.character.id, THORNBACK_FANG_KEY, 1)
-            await self.send("Bounty proof: 1x Thornback Fang.\r\n")
+            for member in participants:
+                character = getattr(member, "character", None)
+                database = getattr(member, "database", None)
+                if character is None or database is None:
+                    continue
+                database.add_item(character.id, THORNBACK_FANG_KEY, 1)
+                await member.send("Bounty proof: 1x Thornback Fang.\r\n")
         elif key == SLATEBACK_SKULK_KEY:
-            self.database.add_item(self.character.id, SLATEBACK_CLAW_KEY, 1)
-            await self.send("Bounty proof: 1x Slateback Claw.\r\n")
+            for member in participants:
+                character = getattr(member, "character", None)
+                database = getattr(member, "database", None)
+                if character is None or database is None:
+                    continue
+                database.add_item(character.id, SLATEBACK_CLAW_KEY, 1)
+                await member.send("Bounty proof: 1x Slateback Claw.\r\n")
         elif key == GLOAM_DELVER_KEY:
-            self.database.add_item(self.character.id, GLOAM_RESIDUE_KEY, 1)
-            await self.send("You recover 1x Gloam Residue from the creature's digging claws.\r\n")
+            for member in participants:
+                character = getattr(member, "character", None)
+                database = getattr(member, "database", None)
+                if character is None or database is None:
+                    continue
+                database.add_item(character.id, GLOAM_RESIDUE_KEY, 1)
+                await member.send("You recover 1x Gloam Residue from the creature's digging claws.\r\n")
 
     async def playing_prompt(self) -> None:
         if self.character is None:
