@@ -210,14 +210,14 @@ def _journey_text(session) -> str:
         if TOLLHOUSE_UNLOCKED_FLAG in flags:
             return (
                 "\r\nMain journey - Drowned Tollhouse: return south from Veyra to North Ferry, reach the Tollhouse Mouth, and descend into the old customs complex. "
-                "The Price of Crossing carries this road through levels 8-10.\r\n"
+                "The Price of Crossing carries the shared road through the level 8-9 stretch.\r\n"
             )
         return (
             "\r\nMain journey - Sablewater Reach: leave Veyra south for North Ferry and TALK FERRYMASTER. "
             "The floodplain and Drowned Tollhouse carry the shared road toward level 10.\r\n"
         )
 
-    if UNDERCLOCK_COMPLETE_FLAG not in flags:
+    if level < 10 and UNDERCLOCK_COMPLETE_FLAG not in flags:
         line = _shared_journey_line(session, (UNDERCLOCK_QUEST_KEY,))
         if line is not None:
             return line
