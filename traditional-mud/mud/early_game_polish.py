@@ -63,16 +63,16 @@ JOURNEY_STEP_TARGETS: dict[tuple[str, str], tuple[str, str]] = {
     ("drowned_tollhouse_price_of_crossing", "defeat_auditor"): ("drowned_tollhouse_brass_tribunal", "Brass Tribunal"),
     ("drowned_tollhouse_price_of_crossing", "open_sluice"): ("drowned_tollhouse_collector_well", "Collector's Well"),
     # Veyra arrival and faction service
-    ("veyra_city_larger_than_road", "reach_crossing"): ("veyra_grand_crossing", "Grand Crossing"),
-    ("veyra_city_larger_than_road", "visit_market"): ("veyra_brassmarket", "Brassmarket"),
-    ("veyra_city_larger_than_road", "visit_vault"): ("veyra_keyhouse", "Keyhouse Vault"),
-    ("veyra_city_larger_than_road", "visit_trainers"): ("veyra_five_ways_yard", "Five Ways Yard"),
-    ("veyra_city_larger_than_road", "read_board"): ("veyra_notice_hall", "Notice Hall"),
-    ("veyra_city_larger_than_road", "report_steward"): ("veyra_civic_steps", "Civic Steps"),
-    ("veyra_one_office_one_obligation", "roadwarden_field"): ("veyra_grand_crossing", "Grand Crossing"),
-    ("veyra_one_office_one_obligation", "ledger_field"): ("veyra_brassmarket", "Brassmarket"),
-    ("veyra_one_office_one_obligation", "lantern_water"): ("veyra_north_waterworks", "North Waterworks"),
-    ("veyra_one_office_one_obligation", "lantern_notice"): ("veyra_notice_hall", "Notice Hall"),
+    ("veyra_first_day", "reach_crossing"): ("veyra_grand_crossing", "Grand Crossing"),
+    ("veyra_first_day", "visit_market"): ("veyra_brassmarket", "Brassmarket"),
+    ("veyra_first_day", "visit_vault"): ("veyra_keyhouse_vault", "Keyhouse Vault"),
+    ("veyra_first_day", "visit_trainers"): ("veyra_five_ways_yard", "Five Ways Yard"),
+    ("veyra_first_day", "read_board"): ("veyra_notice_hall", "Notice Hall"),
+    ("veyra_first_day", "report_steward"): ("veyra_civic_steps", "Civic Steps"),
+    ("veyra_faction_service", "roadwarden_field"): ("veyra_grand_crossing", "Grand Crossing"),
+    ("veyra_faction_service", "ledger_field"): ("veyra_brassmarket", "Brassmarket"),
+    ("veyra_faction_service", "lantern_water"): ("veyra_north_waterworks", "North Waterworks"),
+    ("veyra_faction_service", "lantern_notice"): ("veyra_notice_hall", "Notice Hall"),
     # Underclock
     ("veyra_city_between_ticks", "read_cycle"): ("underclock_master_gauge_hall", "Master Gauge Hall"),
     ("veyra_city_between_ticks", "cross_pistons"): ("underclock_piston_gallery", "Piston Gallery"),
@@ -269,13 +269,13 @@ def _journey_target_for_step(session, quest_key: str, step: str) -> tuple[str, s
         if "drowned_vault_seal_found" not in flags:
             return "drowned_tollhouse_coin_vault", "Coin Vault"
         return "drowned_tollhouse_magistrate_room", "Magistrate's Room"
-    if quest_key == "veyra_one_office_one_obligation" and step in {"report_office", "return_office"}:
+    if quest_key == "veyra_faction_service" and step in {"report_office", "return_office"}:
         if "greywake_support_roadwarden" in flags:
-            return "veyra_roadwarden_office", "Roadwarden House"
+            return "veyra_roadwarden_house", "Roadwarden House"
         if "greywake_support_deep_ledger" in flags:
-            return "veyra_ledger_office", "Deep Ledger Exchange"
+            return "veyra_deep_ledger_exchange", "Deep Ledger Exchange"
         if "greywake_support_lantern_oath" in flags:
-            return "veyra_lantern_office", "Lantern Court"
+            return "veyra_lantern_court", "Lantern Court"
     return JOURNEY_STEP_TARGETS.get((quest_key, step))
 
 
