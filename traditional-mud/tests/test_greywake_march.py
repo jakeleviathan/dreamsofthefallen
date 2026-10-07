@@ -33,6 +33,7 @@ from mud.greywake_march import (
     _SURGE_PARTICIPANTS,
     _inspect_site,
     _rally_surge,
+    _record_surge_kill,
     _support_faction,
     _talk_captain,
     greywake_augmentations,
@@ -176,6 +177,23 @@ class GreywakeMarchTests(unittest.TestCase):
             self.assertTrue(SURGE_STATE.record_kill())
             self.assertFalse(SURGE_STATE.active)
             self.assertEqual(SURGE_STATE.remaining, 0)
+        finally:
+            tempdir.cleanup()
+
+    def test_finishing_shared_surge_awards_two_embers_through_sols_balance(self):
+        tempdir, database, session = self._session(level_xp=1500)
+        try:
+            database.start_quest(session.character.id, BELL_BELOW_WIND_QUEST_KEY, "break_surge")
+            SURGE_STATE.start(1)
+            self.assertEqual(database.get_sols(session.character.id), 0)
+            asyncio.run(_record_surge_kill(session))
+            self.assertFalse(SURGE_STATE.active)
+            self.assertEqual(database.get_sols(session.character.id), 20)
+            self.assertIn(GREYWAKE_SURGE_VETERAN_FLAG, database.list_flags(session.character.id))
+            self.assertEqual(
+                database.get_quest(session.character.id, BELL_BELOW_WIND_QUEST_KEY)["current_step"],
+                "report",
+            )
         finally:
             tempdir.cleanup()
 
