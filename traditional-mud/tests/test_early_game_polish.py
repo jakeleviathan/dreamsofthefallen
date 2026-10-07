@@ -156,6 +156,8 @@ class EarlyGamePolishTests(unittest.TestCase):
         self.assertIn("Sablewater Reach", output)
         self.assertIn("Ledger Cut", output)
         self.assertIn("SOUTH", output)
+        self.assertIn("EAST", output)
+        self.assertIn("NORTH", output)
         self.assertIn("North Ferry", output)
         self.assertIn("TALK FERRYMASTER", output)
 
