@@ -8,6 +8,9 @@ import unittest
 from pathlib import Path
 
 from mud.database import Database
+from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+from mud.greywake_march import GREYWAKE_LEDGER_CUT_KEY
+from mud.mechanics import PROGRESSION_RULES
 from mud.sablewater_reach import (
     ALL_SABLEWATER_ROOM_KEYS,
     AUDITOR_AUTHORIZED_FLAG,
@@ -23,6 +26,7 @@ from mud.sablewater_reach import (
     SABLEWATER_BROKEN_LEVEE_KEY,
     SABLEWATER_NORTH_FERRY_KEY,
     SABLEWATER_OLD_CUSTOMS_KEY,
+    SABLEWATER_REED_FARMS_KEY,
     SABLEWATER_ROOM_KEYS,
     SABLEWATER_ROOMS,
     SABLEWATER_TOLLHOUSE_MOUTH_KEY,
@@ -93,6 +97,52 @@ class SablewaterReachTests(unittest.TestCase):
         self.assertEqual(exit_def.destination_key, SABLEWATER_NORTH_FERRY_KEY)
         self.assertIn(VEYRA_RESIDENT_FLAG, exit_def.condition.required_flags)
         self.assertEqual(exit_def.condition.min_level, 6)
+
+    def test_level_six_sablewater_route_branches_from_greywake_without_opening_veyra(self):
+        augmentations = sablewater_augmentations()
+        branch = next(
+            exit_def
+            for exit_def in augmentations[GREYWAKE_LEDGER_CUT_KEY].extra_exits
+            if exit_def.direction == "south"
+        )
+        self.assertEqual(branch.destination_key, SABLEWATER_REED_FARMS_KEY)
+        self.assertEqual(branch.condition.min_level, 6)
+        self.assertIn(GLOAMWORKS_COMPLETE_FLAG, branch.condition.required_flags)
+
+        by_key = {room.key: room for room in SABLEWATER_ROOMS}
+        self.assertEqual(by_key[SABLEWATER_REED_FARMS_KEY].exits["north"], GREYWAKE_LEDGER_CUT_KEY)
+        self.assertNotIn(VEYRA_SOUTH_SPRAWL_KEY, by_key[SABLEWATER_NORTH_FERRY_KEY].exits.values())
+
+        city_return = next(
+            exit_def
+            for exit_def in augmentations[SABLEWATER_NORTH_FERRY_KEY].extra_exits
+            if exit_def.direction == "north"
+        )
+        self.assertEqual(city_return.destination_key, VEYRA_SOUTH_SPRAWL_KEY)
+        self.assertEqual(city_return.condition.min_level, 8)
+        self.assertIn(VEYRA_RESIDENT_FLAG, city_return.condition.required_flags)
+
+    def test_level_six_greywake_player_can_start_low_water_without_veyra_residency(self):
+        tempdir = tempfile.TemporaryDirectory()
+        database = Database(Path(tempdir.name) / "sablewater_level_six.db")
+        try:
+            account = database.create_account("earlyriver", "hash")
+            character = database.create_character(account.id, "Earlyriver", "goblin", "brute")
+            database.add_experience(character.id, PROGRESSION_RULES.cumulative_xp_for_level(6))
+            database.grant_flag(character.id, GLOAMWORKS_COMPLETE_FLAG)
+            database.set_character_room(character.id, SABLEWATER_NORTH_FERRY_KEY)
+            character = database.get_character_by_name("Earlyriver")
+            assert character is not None
+            session = _Session(database, character)
+
+            self.assertNotIn(VEYRA_RESIDENT_FLAG, database.list_flags(character.id))
+            self.assertTrue(asyncio.run(_talk_ferrymaster(session)))
+            self.assertEqual(
+                database.get_quest(character.id, LOW_WATER_QUEST_KEY)["current_step"],
+                "inspect_levee",
+            )
+        finally:
+            tempdir.cleanup()
 
     def test_sablewater_story_is_hydrology_and_obsolete_infrastructure_not_gloam(self):
         tempdir, database, session = self._session()
