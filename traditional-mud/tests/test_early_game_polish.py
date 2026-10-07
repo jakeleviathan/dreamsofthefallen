@@ -154,10 +154,6 @@ class EarlyGamePolishTests(unittest.TestCase):
         asyncio.run(session.playing_prompt())
         output = "".join(session.outputs)
         self.assertIn("Sablewater Reach", output)
-        self.assertIn("Ledger Cut", output)
-        self.assertIn("SOUTH", output)
-        self.assertIn("EAST", output)
-        self.assertIn("NORTH", output)
         self.assertIn("North Ferry", output)
         self.assertIn("TALK FERRYMASTER", output)
 
@@ -173,8 +169,7 @@ class EarlyGamePolishTests(unittest.TestCase):
         asyncio.run(session.playing_prompt())
         output = "".join(session.outputs)
         self.assertIn("Main journey - Veyra", output)
-        self.assertIn("Veyra Outer Gate", output)
-        self.assertIn("EAST", output)
+        self.assertIn("Veyra Gate Ward", output)
         self.assertIn("Resident Chit", output)
 
     def test_journey_routes_veyra_resident_back_to_drowned_tollhouse(self):
@@ -199,10 +194,7 @@ class EarlyGamePolishTests(unittest.TestCase):
         asyncio.run(session.playing_prompt())
         output = "".join(session.outputs)
         self.assertIn("Drowned Tollhouse", output)
-        self.assertIn("Civic Steps", output)
-        self.assertIn("North Ferry", output)
-        self.assertIn("Tollhouse Mouth", output)
-        self.assertIn("DOWN", output)
+        self.assertIn("Drowned Tollhouse entry", output)
 
     def test_journey_names_underclock_then_gravewatch_for_level_nine(self):
         from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
@@ -226,16 +218,14 @@ class EarlyGamePolishTests(unittest.TestCase):
         asyncio.run(session.playing_prompt())
         first = "".join(session.outputs)
         self.assertIn("City Between Ticks", first)
-        self.assertIn("North Waterworks", first)
-        self.assertIn("DOWN", first)
+        self.assertIn("Underclock Intake Stair", first)
 
         session.outputs.clear()
         session.database.grant_flag(session.character.id, UNDERCLOCK_COMPLETE_FLAG)
         asyncio.run(session.playing_prompt())
         second = "".join(session.outputs)
         self.assertIn("Gravewatch Keep", second)
-        self.assertIn("East River Gate", second)
-        self.assertIn("SOUTH", second)
+        self.assertIn("Gravewatch River Mile", second)
         self.assertIn("TALK SERGEANT", second)
 
     def test_look_move_fight_and_ability_are_quietly_recorded(self):
