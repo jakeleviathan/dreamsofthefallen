@@ -49,11 +49,11 @@ class LoginExperienceTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         return database
 
-    def test_gothic_banner_is_ascii_telnet_safe_and_has_two_primary_entries(self):
-        self.assertIn("DREAMS OF THE FALLEN", GOTHIC_WELCOME_BANNER)
-        self.assertIn("ASTRALIS", GOTHIC_WELCOME_BANNER)
-        self.assertIn("LOGIN     CREATE ACCOUNT", GOTHIC_WELCOME_BANNER)
-        self.assertIn("Beneath Astralis, something dreams.", GOTHIC_WELCOME_BANNER)
+    def test_celestial_banner_is_ascii_telnet_safe_and_has_clear_entry_prompt(self):
+        self.assertIn("O F   T H E", GOTHIC_WELCOME_BANNER)
+        self.assertIn("A S T R A L I S", GOTHIC_WELCOME_BANNER)
+        self.assertIn("[ LOGIN / CREATE ACCOUNT ]", GOTHIC_WELCOME_BANNER)
+        self.assertIn("The road remembers every soul that crossed it.", GOTHIC_WELCOME_BANNER)
         GOTHIC_WELCOME_BANNER.encode("ascii")
 
     def test_create_account_requires_matching_confirmation_then_opens_roster(self):

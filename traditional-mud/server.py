@@ -455,11 +455,13 @@ install_brassgut_living_talk_runtime(PlayerSession)
 # Heartseed, Silvermoss and Maelis command handlers.
 install_circle_community_runtime(PlayerSession)
 
-# Post is intentionally the final command wrapper. Its subject/body editor and
-# destructive-action confirmations are modal input: they must see the player's
-# next real line before any inner command wrapper can replay or consume it.
-install_player_mail_runtime(PlayerSession)
+# Both Notepad and Post are modal input surfaces. Install Notepad first, then
+# keep Post as the true outermost command wrapper so mail subject/body lines and
+# confirmations always reach it before any inner replay wrapper can consume them.
+# Notepad records only its safe top-level invocation; its editor body remains
+# outside command telemetry as well.
 install_notepad_runtime(PlayerSession)
+install_player_mail_runtime(PlayerSession)
 
 HOST = "0.0.0.0"
 PORT = 4000

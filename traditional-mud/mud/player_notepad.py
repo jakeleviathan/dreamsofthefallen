@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 
+from mud.alpha_ux import _record_event, _safe_verb
+
 
 NOTE_TITLE_LIMIT = 80
 NOTE_BODY_LIMIT = 6000
@@ -538,6 +540,10 @@ def install_notepad_runtime(player_session_class) -> None:
         normalized = " ".join(stripped.lower().split())
 
         if normalized in {"notepad", "notes"}:
+            # This modal wrapper sits outside final command telemetry so note
+            # editor text is never mistaken for a command. Count only the safe
+            # top-level invocation; note titles and body lines remain private.
+            _record_event(self, "command", verb=_safe_verb(command))
             await _show_notepad(self)
             return
         if normalized.startswith("notepad page ") or normalized.startswith("notes page "):

@@ -90,7 +90,14 @@ def _paint(style: str, text: str) -> str:
 
 
 def _center(text: str) -> str:
-    return text.center(BANNER_WIDTH)
+    # Python's str.center() puts the odd padding column on the right. On an
+    # even-width terminal that shifts the visual axis of odd-width glyphs one
+    # column left. Bias the spare column to the left so |, V and other central
+    # skyline marks sit on BANNER_WIDTH // 2.
+    padding = max(0, BANNER_WIDTH - len(text))
+    left = (padding + 1) // 2
+    right = padding - left
+    return (" " * left) + text + (" " * right)
 
 
 def _visible_width(text: str) -> int:
