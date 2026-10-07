@@ -76,6 +76,12 @@ for race_key, contact in ORIGIN_CONTACTS.items():
         quest = quests.QUESTS_BY_KEY[beat.quest_key(race_key)]
         assert len(route.steps) == 5, (race_key, beat.key)
         assert len(quest.objective_steps) == 6, (race_key, beat.key)
+
+floodgate_features = {
+    feature.key
+    for feature in server.WORLD.augmentations["goblin_floodgate_walk"].features
+}
+assert "first_ten_goblin_foreign_wreck" in floodgate_features
 print("FIRST_TEN_ADVENTURES_PRODUCTION_OK")
 '''
         result = subprocess.run(
@@ -153,6 +159,23 @@ async def main():
     assert arc.act_two.completion_flag("goblin") in level_four.database.flags
     assert level_four.database.xp == [arc.act_two.xp_reward]
     assert "Waymeet" not in " ".join(step.room_key for step in ADVENTURE_ROUTES[("goblin", arc.act_two.key)].steps)
+
+    # Regression: a migrated character can have the routed level-8 quest active
+    # even if the older level-4 completion flag is missing. The live quest row
+    # and HUD objective must still accept the command shown to the player.
+    migrated = FakeSession(8)
+    wider_route = ADVENTURE_ROUTES[("goblin", arc.act_three.key)]
+    wider_key = arc.act_three.quest_key("goblin")
+    migrated.database.quests[wider_key] = {
+        "quest_key": wider_key,
+        "status": "active",
+        "current_step": "adventure_2",
+    }
+    migrated.character.current_room = wider_route.steps[1].room_key
+    handled = await first_ten._handle_arc_command(migrated, "inspect foreign wreck")
+    assert handled
+    assert migrated.database.quests[wider_key]["current_step"] == "adventure_3"
+    assert "axle is gone" in "".join(migrated.messages).lower()
 
     capstone = FakeSession(10)
     capstone.database.flags.add(arc.act_two.completion_flag("goblin"))
