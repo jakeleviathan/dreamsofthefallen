@@ -157,9 +157,13 @@ def visible_target_candidates(session, world_service, *, kind: str) -> tuple[Tar
                     candidates.append(TargetCandidate(npc.key, npc.name, "npc"))
         elif kind == "enemy":
             for enemy_key in scene.enemy_keys:
-                if (
-                    mobile_npcs := getattr(session, "mobile_npcs", None)
-                ) is not None and mobile_npcs.regionalizes_source(room_key, enemy_key):
+                mobile_npcs = getattr(session, "mobile_npcs", None)
+                regionalizes_source = (
+                    getattr(mobile_npcs, "regionalizes_source", None)
+                    if mobile_npcs is not None
+                    else None
+                )
+                if callable(regionalizes_source) and regionalizes_source(room_key, enemy_key):
                     continue
                 enemy = ENEMIES_BY_KEY.get(enemy_key)
                 if enemy is not None:
