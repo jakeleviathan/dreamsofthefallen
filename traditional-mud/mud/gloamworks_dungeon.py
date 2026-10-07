@@ -620,7 +620,7 @@ async def _talk_surveyor(session) -> bool:
         _refresh_character(session)
         await session.send(
             "Dorr listens without interrupting, then circles the eastward marks on the final survey. 'So it continues under the Greywake March. Fine. We stop calling this a mine problem.'\r\n"
-            "Quest complete: Below the Sealed Door. You gain 180 XP and keep a Regent Shard from the survey evidence.\r\n"
+            "Quest complete: Below the Sealed Door. You gain 180 XP and keep a Regent Shard from the survey evidence. Type JOURNEY for the next shared-road step.\r\n"
         )
     else:
         await session.send("Dorr says, 'Bring me the whole route, not half a theory. The survey is still open.'\r\n")
