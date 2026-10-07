@@ -122,6 +122,16 @@ class SablewaterReachTests(unittest.TestCase):
         self.assertEqual(city_return.condition.min_level, 8)
         self.assertIn(VEYRA_RESIDENT_FLAG, city_return.condition.required_flags)
 
+    def test_exact_level_six_critical_path_reaches_level_eight_without_grinding(self):
+        start = PROGRESSION_RULES.cumulative_xp_for_level(6)
+        # Greywake: After the Gloam + Three Claims + surge participation + Bell Below the Wind.
+        greywake_xp = 120 + 140 + 100 + 220
+        # Sablewater 6-7: Low Water, Old Debts + A Toll Nobody Owes.
+        sablewater_xp = 140 + 180
+        final_xp = start + greywake_xp + sablewater_xp
+        self.assertGreaterEqual(final_xp, PROGRESSION_RULES.cumulative_xp_for_level(8))
+        self.assertEqual(PROGRESSION_RULES.level_for_experience(final_xp), 8)
+
     def test_level_six_greywake_player_can_start_low_water_without_veyra_residency(self):
         tempdir = tempfile.TemporaryDirectory()
         database = Database(Path(tempdir.name) / "sablewater_level_six.db")
