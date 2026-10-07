@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from mud.client_gui import (
     CURRENT_MUDLET_HUD_VERSION,
@@ -20,6 +21,7 @@ from mud.modern_client_experience import (
     _ability_snapshot,
     _effects_snapshot,
     _mark_onboarding_command,
+    _mobile_target_snapshot,
     _onboarding_snapshot,
     _room_snapshot,
     push_modern_state,
@@ -99,6 +101,40 @@ class ModernClientExperienceTests(unittest.TestCase):
             self.assertIsInstance(snapshot["exits"], dict)
             self.assertEqual(snapshot["players"], [{"name": "ModernHero (you)", "description": "a Human Brute standing nearby", "is_self": True}])
             self.assertTrue(all(isinstance(value, int) and value > 0 for value in snapshot["exits"].values()))
+
+    def test_duplicate_mobile_creatures_get_distinct_numbered_hud_targets(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session = self._session(Path(temp_dir))
+            room_key = session.character.current_room
+            definition = SimpleNamespace(
+                key="regional::test::jackal",
+                name="Thornback Jackal",
+                short_description="a thorn-backed roadside predator",
+                attackable=True,
+                aggressive=False,
+            )
+            states = (
+                SimpleNamespace(
+                    definition=SimpleNamespace(**vars(definition), key="regional::test::jackal::1"),
+                    engaged_character_id=None,
+                ),
+                SimpleNamespace(
+                    definition=SimpleNamespace(**vars(definition), key="regional::test::jackal::2"),
+                    engaged_character_id=999,
+                ),
+            )
+            session.mobile_npcs = SimpleNamespace(
+                npcs_in_room=lambda requested: states if requested == room_key else ()
+            )
+
+            targets = _mobile_target_snapshot(session)
+
+            self.assertEqual(
+                [target["target_text"] for target in targets],
+                ["Thornback Jackal 1", "Thornback Jackal 2"],
+            )
+            self.assertFalse(targets[0]["engaged"])
+            self.assertTrue(targets[1]["engaged"])
 
     def test_onboarding_is_persistent_and_gets_out_of_the_way(self):
         with tempfile.TemporaryDirectory() as temp_dir:
