@@ -174,8 +174,8 @@ def _journey_text(session) -> str:
             return line
         if SABLEWATER_INTRO_COMPLETE_FLAG not in flags:
             return (
-                "\r\nMain journey - Sablewater Reach: at Greywake's Ledger Cut go SOUTH into the Reed Farms. "
-                "Continue to North Ferry and TALK FERRYMASTER. This is the level 6-7 road while Veyra remains ahead.\r\n"
+                "\r\nMain journey - Sablewater Reach: at Greywake's Ledger Cut go SOUTH into the Reed Farms, EAST to Flood Road, "
+                "then NORTH to North Ferry and TALK FERRYMASTER. This is the level 6-7 road while Veyra remains ahead.\r\n"
             )
         if TOLLHOUSE_UNLOCKED_FLAG not in flags:
             return (
