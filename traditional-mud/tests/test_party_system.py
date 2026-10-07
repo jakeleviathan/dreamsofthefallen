@@ -18,6 +18,7 @@ from mud.party_system import (
     _assist,
     _encounter_for,
     _ensure_encounter,
+    _handoff_mobile_engagement,
     _invite,
     _loot_recipient,
     _party_for_session,
@@ -175,6 +176,27 @@ class PartySystemTests(unittest.TestCase):
             {leader.character.id, member.character.id},
         )
         self.assertNotIn("one character at a time", "".join(member.sent))
+
+    def test_mobile_engagement_owner_hands_off_to_remaining_party_member(self):
+        leader, member = self.sessions[:2]
+        asyncio.run(_invite(leader, member.character.name))
+        asyncio.run(_accept(member))
+        enemy = EnemyState(TEST_ENEMY)
+        mobile_key = "regional::test::jackal::common::1"
+        state = SimpleNamespace(engaged_character_id=leader.character.id)
+        manager = SimpleNamespace(states={mobile_key: state})
+        for session in (leader, member):
+            session.active_enemy = enemy
+            session.active_mobile_npc_key = mobile_key
+            session.mobile_npcs = manager
+
+        async def prepare():
+            encounter = _ensure_encounter(leader, enemy)
+            encounter.participant_ids.add(member.character.id)
+
+        asyncio.run(prepare())
+        _handoff_mobile_engagement(enemy, leader.character.id)
+        self.assertEqual(state.engaged_character_id, member.character.id)
 
     def test_shared_enemy_finish_awards_party_xp_once_and_clears_every_participant(self):
         leader, member = self.sessions[:2]
