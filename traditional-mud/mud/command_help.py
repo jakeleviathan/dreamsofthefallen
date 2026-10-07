@@ -173,7 +173,7 @@ def _quick_help_text(session) -> str:
         "EXAMINE <thing>, SEARCH <thing>, TOUCH <thing>, LISTEN, READ <thing>, and TALK <person> interact with the world.",
         "SAY <message> speaks in the room. CHAT, OOC, TELL, and REPLY handle broader player communication; CHANNELS explains them.",
         "SETTINGS controls prompt style, color/contrast, hint level, Mudlet enhancements, and screen-reader mode.",
-        "QUESTS shows your quest journal. ABILITIES shows your class abilities. RACIAL shows your racial kit.",
+        "QUESTS shows active work and recent completions. QUESTS COMPLETED opens your quest history. ABILITIES shows your class abilities. RACIAL shows your racial kit.",
         "ATTACK <target>, USE <ability>, and FLEE cover the basic combat loop.",
         "INVENTORY and EQUIPMENT show what you carry and wear. DROP leaves an item in the room; GET or TAKE picks a ground item up. Your opening teaches class basics naturally as you progress. BASICS gives the tiny new-player refresher.",
     ]
@@ -247,7 +247,8 @@ def _full_help_text(session) -> str:
         "LORE - race and world identity information",
         "PROGRESS / SKILLS - progression details",
         "ABILITIES - unlocked class abilities",
-        "QUESTS / JOURNAL - quest journal and current objectives",
+        "QUESTS / JOURNAL - active quest dashboard and current objectives",
+        "QUESTS COMPLETED [page] - completed quest history by story area",
         "ACCESS - persistent access and progression gates",
         "BIND / BIND POINT - bind-point information",
         "INVENTORY - carried items",
