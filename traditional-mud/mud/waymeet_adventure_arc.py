@@ -774,7 +774,7 @@ async def _listen(session, target: str = "") -> bool:
                 character_id=session.character.id,
                 character_name=session.character.name,
             )
-            await session.send("You let the court become quiet. What remains is not a new voice. The oldest record says Leviathan spoke everything into being in one breath of life, and the echo simply remains. The Vault offers no promise of a second word. The Vault of the First Echo complete: 320 XP and a First Echo Shard.\r\n")
+            await session.send("You let the court become quiet. What remains is not a new voice. The oldest record says Leviathan spoke everything into being in one breath of life, and the echo simply remains. The Vault offers no promise of a second word.\r\n\r\nQUEST COMPLETE: The Vault of the First Echo\r\nReward: 320 XP and a First Echo Shard.\r\n")
         else:
             await session.send("The court is quiet now. What you hear is only the room returning what already happened.\r\n")
         return True
@@ -890,7 +890,7 @@ async def _examine_carving(session) -> bool:
         session.database.grant_flag(session.character.id, TOLL_SECRET)
     if TOLL_COMPLETE not in _flags(session):
         _complete(session, TOLL_QUEST_KEY, TOLL_COMPLETE, xp=85, item_key=TOLL_KEY_ITEM.key, text="")
-        await session.send("The wall is far older than the tollhouse. Its repeated shape is not a map and not writing you can read, but one open-centered listening mark recurs three times. You copy it before leaving. Under the Old Toll complete: 85 XP and an Old Toll Brass Key.\r\n")
+        await session.send("The wall is far older than the tollhouse. Its repeated shape is not a map and not writing you can read, but one open-centered listening mark recurs three times. You copy it before leaving.\r\n\r\nQUEST COMPLETE: Under the Old Toll\r\nReward: 85 XP and an Old Toll Brass Key.\r\n")
     else:
         await session.send("The older listening mark is unchanged. You already copied it.\r\n")
     return True
@@ -989,12 +989,12 @@ async def _award_boss(session, key: str) -> None:
             member.database.grant_flag(member.character.id, BELL_BOSS_DOWN)
             if BELL_COMPLETE not in flags:
                 _complete(member, BELL_QUEST_KEY, BELL_COMPLETE, xp=115, item_key=BELL_CLAPPER_ITEM.key, text="")
-                await member.send("The Hollow Bellkeeper drops the hammer and the crooked bell settles into silence. The Crooked Bell complete: 115 XP and a Crooked Bell Clapper. The rafters remain worth SEARCHing if you are curious.\r\n")
+                await member.send("The Hollow Bellkeeper drops the hammer and the crooked bell settles into silence. The rafters remain worth SEARCHing if you are curious.\r\n\r\nQUEST COMPLETE: The Crooked Bell\r\nReward: 115 XP and a Crooked Bell Clapper.\r\n")
         elif key == RIFTBACK_MATRIARCH.key and SCAR_BOSS_DOWN not in flags:
             member.database.grant_flag(member.character.id, SCAR_BOSS_DOWN)
             if SCAR_COMPLETE not in flags:
                 _complete(member, SCAR_QUEST_KEY, SCAR_COMPLETE, xp=175, item_key=SCAR_NAIL_ITEM.key, text="")
-                await member.send("The Riftback Matriarch crashes into the spoil slope and does not rise. King's Scar Survey complete: 175 XP and a King's Scar Survey Nail. Caldrin can put a real crew back on the route.\r\n")
+                await member.send("The Riftback Matriarch crashes into the spoil slope and does not rise. Caldrin can put a real crew back on the route.\r\n\r\nQUEST COMPLETE: King's Scar Survey\r\nReward: 175 XP and a King's Scar Survey Nail.\r\n")
         elif key == LISTENER_BELOW.key and LISTENER_DOWN not in flags:
             member.database.grant_flag(member.character.id, LISTENER_DOWN)
             _advance(member, ECHO_QUEST_KEY, "defeat_listener", "hear_first_echo")
