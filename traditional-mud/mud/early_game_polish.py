@@ -70,11 +70,12 @@ def _active_objective(session) -> tuple[str, str] | None:
     database = getattr(session, "database", None)
     if character is None or database is None or not hasattr(database, "list_quests"):
         return None
+    level = int(getattr(character, "level", 1) or 1)
     for row in _rows(database.list_quests(character.id)):
         if row.get("status") != "active":
             continue
         definition = QUESTS_BY_KEY.get(str(row.get("quest_key") or ""))
-        if definition is None:
+        if definition is None or int(getattr(definition, "minimum_level", 1) or 1) > level:
             continue
         objective = definition.objective_for_step(row.get("current_step")) or "Continue the current quest."
         return definition.name, objective
@@ -86,6 +87,7 @@ def _active_objective_for_keys(session, quest_keys: tuple[str, ...]) -> tuple[st
     database = getattr(session, "database", None)
     if character is None or database is None or not hasattr(database, "list_quests"):
         return None
+    level = int(getattr(character, "level", 1) or 1)
     by_key = {
         str(row.get("quest_key") or ""): row
         for row in _rows(database.list_quests(character.id))
@@ -96,7 +98,7 @@ def _active_objective_for_keys(session, quest_keys: tuple[str, ...]) -> tuple[st
         if row is None:
             continue
         definition = QUESTS_BY_KEY.get(quest_key)
-        if definition is None:
+        if definition is None or int(getattr(definition, "minimum_level", 1) or 1) > level:
             continue
         objective = definition.objective_for_step(row.get("current_step")) or "Continue the current quest."
         return definition.name, objective
@@ -167,7 +169,7 @@ def _journey_text(session) -> str:
         )
 
     if level < 8:
-        line = _shared_journey_line(session, sablewater_quests)
+        line = _shared_journey_line(session, (LOW_WATER_QUEST_KEY, TOLL_NOBODY_OWES_QUEST_KEY))
         if line is not None:
             return line
         if SABLEWATER_INTRO_COMPLETE_FLAG not in flags:
@@ -236,8 +238,10 @@ def _goal_text(session) -> str:
         return "\r\nNo character is active.\r\n"
     if int(getattr(character, "level", 1) or 1) <= EARLY_GAME_MAX_LEVEL:
         loop = STARTER_RACE_LOOPS_BY_RACE.get(getattr(character, "race", None))
-        if loop is not None:
+        flags = _character_flags(session)
+        if loop is not None and loop.completion_flag not in flags:
             return f"\r\nCurrent goal - {loop.hook_name}: keep exploring your opening and follow the people, signs, and routes it introduces.\r\n"
+        return "\r\nYou have no level-appropriate active quest objective right now. Type JOURNEY for the next step on the main shared road.\r\n"
     return "\r\nYou have no active quest objective right now. LOOK and EXITS will re-orient you; TALK to local people when you want another lead.\r\n"
 
 
