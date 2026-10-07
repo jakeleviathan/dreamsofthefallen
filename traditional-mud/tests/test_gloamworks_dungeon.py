@@ -31,6 +31,7 @@ from mud.gloamworks_dungeon import (
     _SEAL_HOLDS,
     _attempt_seal_hold,
     _group_ready_for_regent,
+    _talk_surveyor,
     gloamworks_augmentations,
 )
 from mud.waymeet_frontier import WAYMEET_GLOAM_MOUTH_KEY, WAYMEET_INTRO_COMPLETE_FLAG
@@ -110,6 +111,28 @@ class GloamworksDungeonTests(unittest.TestCase):
         self.assertEqual({layer.condition.classes[0] for layer in resonance_layers}, set(CLASS_RESONANCE_TEXT))
         self.assertNotEqual(RACE_FAULT_TEXT["dwarf"], RACE_FAULT_TEXT["sporekin"])
         self.assertNotEqual(CLASS_RESONANCE_TEXT["wizard"], CLASS_RESONANCE_TEXT["druid"])
+
+    def test_surveyor_explains_solo_maintenance_route_instead_of_claiming_two_people_are_required(self):
+        tempdir = tempfile.TemporaryDirectory()
+        try:
+            database = Database(Path(tempdir.name) / "surveyor.db")
+            account = database.create_account("surveyguide", "hash")
+            character = database.create_character(account.id, "SoloGuide", "goblin", "priest")
+            database.add_experience(character.id, 450)
+            database.grant_flag(character.id, WAYMEET_INTRO_COMPLETE_FLAG)
+            database.set_character_room(character.id, WAYMEET_GLOAM_MOUTH_KEY)
+            character = database.get_character_by_name("SoloGuide")
+            assert character is not None
+            session = _Session(database, character)
+
+            self.assertTrue(asyncio.run(_talk_surveyor(session)))
+            text = "".join(session.sent)
+            self.assertIn("maintenance stays", text)
+            self.assertIn("lone surveyor", text)
+            self.assertNotIn("last seal takes two people", text)
+            self.assertNotIn("not negotiable", text)
+        finally:
+            tempdir.cleanup()
 
     def test_twin_seal_supports_cooperative_pair_and_unlocks_both(self):
         tempdir, database, left, right = self._pair()
