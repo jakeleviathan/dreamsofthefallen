@@ -1474,10 +1474,35 @@ class PlayerSession:
         direction, destination = random.choice(exits)
         mobile_key = self.active_mobile_npc_key
         movement: NpcMovement | None = None
+        shared_mobile_handoff = False
         if mobile_key and self.mobile_npcs is not None:
-            movement = self.mobile_npcs.attempt_pursuit_after_flee(
-                mobile_key, self.character.id, destination, random.Random()
-            )
+            # A roaming mob shared by a party must stay with the adventurers who
+            # remain in the fight. If this character leaves, transfer the mobile
+            # manager's engagement anchor before ordinary pursuit logic runs.
+            try:
+                from mud import party_system
+
+                encounter = party_system._encounter_for(self.active_enemy)
+                if encounter is not None:
+                    remaining = [
+                        member
+                        for member in party_system._encounter_sessions(self, self.active_enemy)
+                        if member is not self
+                    ]
+                    if remaining:
+                        party_system._handoff_mobile_engagement(
+                            self.active_enemy, int(self.character.id)
+                        )
+                        encounter.participant_ids.discard(int(self.character.id))
+                        self.active_enemy.hate.threat.pop(int(self.character.id), None)
+                        shared_mobile_handoff = True
+            except Exception:
+                shared_mobile_handoff = False
+
+            if not shared_mobile_handoff:
+                movement = self.mobile_npcs.attempt_pursuit_after_flee(
+                    mobile_key, self.character.id, destination, random.Random()
+                )
 
         self.database.set_character_room(self.character.id, destination)
         refreshed = self.database.get_character_by_name(self.character.name)
