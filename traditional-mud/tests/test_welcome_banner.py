@@ -9,95 +9,55 @@ from pathlib import Path
 
 from mud.welcome_banner import (
     BANNER_WIDTH,
-    CELESTIAL_GATE,
-    DREAMLIGHT,
     DREAMS_WORDMARK,
     FALLEN_WORDMARK,
-    CELESTIAL_SKYLINE,
-    FALLING_SIGIL,
-    GOLD,
-    SHADOW,
-    STARLIGHT,
-    TWILIGHT,
     WELCOME_BANNER,
     plain_welcome_banner,
     visible_banner_widths,
 )
-
 
 ROOT = Path(__file__).resolve().parents[1]
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
 class WelcomeBannerDesignTests(unittest.TestCase):
-    def test_celestial_banner_fits_normal_terminal_width(self):
-        widths = visible_banner_widths()
-        self.assertTrue(widths)
-        self.assertLessEqual(max(widths), BANNER_WIDTH)
-        self.assertLessEqual(BANNER_WIDTH, 78)
+    def test_every_line_fits_traditional_telnet(self):
+        self.assertEqual(BANNER_WIDTH, 78)
+        self.assertLessEqual(max(visible_banner_widths()), 78)
+        self.assertTrue(plain_welcome_banner().isascii())
+        self.assertIn("\r\n", WELCOME_BANNER)
 
-    def test_banner_has_title_gate_celestial_skyline_and_world_identity(self):
+    def test_title_and_all_player_actions_survive(self):
         plain = plain_welcome_banner()
-        self.assertEqual(len(DREAMS_WORDMARK), 5)
-        self.assertEqual(len(FALLEN_WORDMARK), 5)
-        for line in (*DREAMS_WORDMARK, *FALLEN_WORDMARK):
-            self.assertIn(line.strip(), plain)
+        for rows in (DREAMS_WORDMARK, FALLEN_WORDMARK):
+            for row in rows:
+                self.assertIn(row.strip(), plain)
+        for phrase in (
+            "O F   T H E", "A S T R A L I S",
+            "[ LOGIN / CREATE ACCOUNT ]",
+            "Discord: https://discord.gg/MyW5XJWgzW",
+            "Enter your account name below to awaken.",
+            "The road remembers every soul that crossed it.",
+            "RUINS  +  MYSTERY  +  MAGIC",
+        ):
+            self.assertIn(phrase, plain)
 
-        self.assertIn("O F   T H E", plain)
-        self.assertIn("A S T R A L I S", plain)
-        self.assertIn("The road remembers every soul that crossed it.", plain)
-        self.assertIn("[ LOGIN / CREATE ACCOUNT ]", plain)
-        self.assertIn("Discord: https://discord.gg/MyW5XJWgzW", plain)
-        self.assertIn("Enter your account name below to awaken.", plain)
-        self.assertIn(CELESTIAL_GATE[5], plain)
-        self.assertIn(CELESTIAL_SKYLINE[6], plain)
-        self.assertIn("|[]|", plain)
-        self.assertIn("|_______|", plain)
-        self.assertIs(FALLING_SIGIL, CELESTIAL_SKYLINE)
-
-        # The visible splash remains genuine old-client-safe terminal art.
-        plain.encode("ascii")
-
-    def test_celestial_skyline_reads_as_city_and_descends_to_one_axis(self):
-        plain = plain_welcome_banner()
-        lines = plain.replace("\r", "").split("\n")
-        center = BANNER_WIDTH // 2
-
-        # The skyline has towers, windows, a central palace, and a horizon.
-        self.assertIn("|[]|", plain)
-        self.assertIn("/____| [] |", plain)
-        self.assertIn("------------|_______|------------", plain)
-
-        # The descending light remains centered beneath the city.
-        for row in ("\\|/", "V"):
-            candidates = [line for line in lines if line.strip() == row]
-            self.assertTrue(candidates, row)
-            line = candidates[-1]
-            self.assertEqual(line.index(row[len(row) // 2]), center, row)
-
-    def test_palette_is_restrained_celestial_ansi(self):
-        self.assertIn(STARLIGHT, WELCOME_BANNER)
-        self.assertIn(DREAMLIGHT, WELCOME_BANNER)
-        self.assertIn(TWILIGHT, WELCOME_BANNER)
-        self.assertIn(GOLD, WELCOME_BANNER)
-        self.assertIn(SHADOW, WELCOME_BANNER)
+    def test_rich_colored_ansi_and_illustration(self):
         self.assertEqual(ANSI.sub("", WELCOME_BANNER), plain_welcome_banner())
+        self.assertGreater(len(set(ANSI.findall(WELCOME_BANNER))), 8)
+        self.assertIn("[]", plain_welcome_banner())
+        self.assertIn("~~~~", plain_welcome_banner())
+        self.assertGreater(len(WELCOME_BANNER.splitlines()), 35)
 
 
 class ProductionWelcomeBannerTests(unittest.TestCase):
-    def test_production_session_uses_new_banner_and_accessibility_can_strip_ansi(self):
+    def test_server_session_uses_art_and_accessibility_can_strip_ansi(self):
         code = r"""
-import re
 import server
 import mud.session as session_module
 from mud.final_runtime_policy import _presentation_text
-
-assert "The road remembers every soul that crossed it." in session_module.WELCOME_BANNER
-assert "A S T R A L I S" in session_module.WELCOME_BANNER
+assert "RUINS  +  MYSTERY  +  MAGIC" in session_module.WELCOME_BANNER
 assert "[ LOGIN / CREATE ACCOUNT ]" in session_module.WELCOME_BANNER
-assert "------------|_______|------------" in session_module.WELCOME_BANNER
-assert "|[]|" in session_module.WELCOME_BANNER
-assert "Discord: https://discord.gg/MyW5XJWgzW" in session_module.WELCOME_BANNER
 
 class Telnet:
     gmcp_enabled = False
@@ -113,20 +73,15 @@ plain = _presentation_text(Session(), session_module.WELCOME_BANNER)
 assert "\x1b[" not in plain
 assert "A S T R A L I S" in plain
 assert "Discord: https://discord.gg/MyW5XJWgzW" in plain
-assert "Enter your account name below to awaken." in plain
-print("CELESTIAL_BANNER_OK")
+print("ANSI_BANNER_OK")
 """
         result = subprocess.run(
-            [sys.executable, "-c", code],
-            cwd=ROOT,
+            [sys.executable, "-c", code], cwd=ROOT,
             env={**os.environ, "PYTHONPATH": str(ROOT)},
-            capture_output=True,
-            text=True,
-            timeout=45,
-            check=False,
+            capture_output=True, text=True, timeout=45, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("CELESTIAL_BANNER_OK", result.stdout)
+        self.assertIn("ANSI_BANNER_OK", result.stdout)
 
 
 if __name__ == "__main__":
