@@ -117,76 +117,127 @@ def _paint_wordmark(rows: tuple[str, ...], style: str) -> tuple[str, ...]:
     return tuple(_paint(style, (" " * left) + row) for row in rows)
 
 
+# A true terminal illustration: no image escape sequences or Unicode dependency.
+# The artwork is arranged in 76 interior columns between two frame characters.
+# Symbol painting provides much more texture than one ANSI color per text line.
+INK = "\x1b[38;5;238m"
+STONE = "\x1b[38;5;250m"
+BLUE = "\x1b[38;5;33m"
+WATER = "\x1b[38;5;45m"
+VIOLET = "\x1b[38;5;135m"
+PINK = "\x1b[38;5;201m"
+GREEN = "\x1b[38;5;48m"
+FIRE = "\x1b[38;5;214m"
+
+ART = (
+    "    .      +            *       .      .           +          *       .",
+    "        .       .    .-..             +      .         *          .",
+    "     *          .--'    '--.      .           /\\       .         *",
+    "   .       .--'     .       '--.        .    /||\\  .      +",
+    "      *  .'     .--' '--.       '.  .  /\\   /||||\\    .",
+    "   .    /     .'  .     '.  .     \\   /||\\ /|[]||\\     .     *",
+    "       |     /     *      \\        |  |||| |[[][]]| /\\",
+    "   +   \\     \\            /       / /\\|||| |[][][]|/||\\    +",
+    "        '._   '._     _.-'    _.-' /||||||/|[][][]|[||]|",
+    "   .       '--.._'''''__..--'  __/|[][]|| |[][][]|[[]]|_   .",
+    "     /\\   _   /\\  _ /\\   _   /\\  |[][]|| |[][][]|[[]]|| /\\",
+    "    /||\\ |#| /||\\|#|||| |#| /||\\ |[][]||_|[][][]|[[]]||/||\\",
+    " ___|[]|_|#|_|[]||#||||_|#|_|[]|_|[][]|[[]][][][]|[[]]||[]|___",
+    " |___  _  ___  __  ___  _  ___  ___   _  ___   __  ___  _  __|",
+    "   / |  | \\    / |  | \\    / |  | \\   / |  | \\   / |  | \\",
+    " ~~~~~~~=~~~~~==~~~~~==~~~~==~~~~~~==~~~~==~~~~~~==~~~~~~==~~~~",
+)
+
+# Symmetric guardians and banners evoke the reference art in an 80-column client.
+GUARDIANS = (
+    "   /\\                                                  /\\",
+    "  /##\\             +               +                /##\\",
+    "  ||||          [*]                 [*]              ||||",
+    "  ||||           |                   |               ||||",
+    "  ||||         .-^-.               .-^-.             ||||",
+    "  ||||        / ___ \\             / ___ \\            ||||",
+    "  ||||       / /   \\ \\           / /   \\ \\           ||||",
+    "  ||||       | |   | |           | |   | |           ||||",
+    "  ||||       | |___| |           | |___| |           ||||",
+    "  ||||       \\_______/           \\_______/           ||||",
+)
+
+def _symbol_style(char: str, base: str) -> str:
+    if char in "*+":
+        return GOLD
+    if char in "[]#":
+        return FIRE
+    if char in "~=":
+        return WATER
+    if char in "/\\|_":
+        return BLUE
+    if char in ".'-":
+        return TWILIGHT
+    return base
+
+def _mosaic(text: str, base: str = DREAMLIGHT) -> str:
+    """Group adjacent pixels of the same shade, avoiding per-character resets."""
+    result = []
+    last = None
+    for char in text:
+        style = _symbol_style(char, base) if char != " " else last
+        if style != last and style is not None:
+            result.append(style)
+            last = style
+        result.append(char)
+    return "".join(result) + RESET
+
+def _framed(text: str = "", base: str = DREAMLIGHT) -> str:
+    if len(text) > BANNER_WIDTH - 4:
+        raise ValueError("Splash row exceeds a traditional 80-column terminal")
+    inside = text.center(BANNER_WIDTH - 4)
+    return _paint(GOLD, "|") + " " + _mosaic(inside, base) + " " + _paint(GOLD, "|")
+
+def _headline(rows: tuple[str, ...], shades: tuple[str, ...]) -> list[str]:
+    result = []
+    for row in rows:
+        offset = max(0, (BANNER_WIDTH - 4 - len(row)) // 2)
+        pieces = []
+        for index, char in enumerate(row):
+            if char == " ":
+                pieces.append(" ")
+            else:
+                pieces.append(shades[min(len(shades) - 1, index * len(shades) // max(len(row), 1))] + char)
+        visible = " " * offset + "".join(pieces) + RESET
+        pad = BANNER_WIDTH - 4 - offset - len(row)
+        result.append(_paint(GOLD, "|") + " " + visible + " " * pad + " " + _paint(GOLD, "|"))
+    return result
+
 def build_welcome_banner() -> str:
-    """Return the terminal-native celestial Dreams of the Fallen splash."""
-
-    gate = _paint_rows(
-        CELESTIAL_GATE,
-        (
-            GOLD,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            STARLIGHT,
-            DREAMLIGHT,
-            TWILIGHT,
-            GOLD,
-        ),
-    )
-    dreams = _paint_wordmark(DREAMS_WORDMARK, STARLIGHT)
-    fallen = _paint_wordmark(FALLEN_WORDMARK, STARLIGHT)
-    skyline = _paint_rows(
-        CELESTIAL_SKYLINE,
-        (
-            TWILIGHT,
-            GOLD,
-            DREAMLIGHT,
-            STARLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            STARLIGHT,
-            STARLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            TWILIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            DREAMLIGHT,
-            GOLD,
-        ),
-    )
-
-    lines: list[str] = [
+    """A dense 78-column ANSI/ASCII Astralis cityscape for real Telnet clients."""
+    lines = [
         "",
-        *gate,
-        "",
-        *dreams,
-        _paint(GOLD, _center("O F   T H E")),
-        *fallen,
-        "",
-        _paint(TWILIGHT, _center("The road remembers every soul that crossed it.")),
-        "",
-        *skyline,
-        "",
-        _paint(STARLIGHT, _center("A S T R A L I S")),
-        _paint(DREAMLIGHT, _center("-----+-----+-----")),
-        "",
-        _paint(GOLD, _center("[ LOGIN / CREATE ACCOUNT ]")),
-        _paint(DREAMLIGHT, _center("Discord: https://discord.gg/MyW5XJWgzW")),
-        _paint(SHADOW, _center("Enter your account name below to awaken.")),
-        "",
+        _paint(GOLD, "+" + "=" * (BANNER_WIDTH - 2) + "+"),
+        _framed(" .  *     D R E A M S   O F   T H E   F A L L E N      *  ."),
+        _framed("  R E A L M S      Q U E S T S      M A G I C      L E G E N D S ", VIOLET),
+        _paint(GOLD, "+" + "-" * (BANNER_WIDTH - 2) + "+"),
     ]
+    lines.extend(_framed(row) for row in ART[:13])
+    lines.extend(_framed(row, BLUE) for row in GUARDIANS[:4])
+    lines.append(_framed("       *        THE CITY BEYOND THE FALLING STARS        *", GOLD))
+    lines.extend(_headline(DREAMS_WORDMARK, (GOLD, FIRE, PINK, VIOLET)))
+    lines.append(_framed("= = = = = = =    O F   T H E    = = = = = = =", GOLD))
+    lines.extend(_headline(FALLEN_WORDMARK, (STARLIGHT, WATER, BLUE, VIOLET, PINK)))
+    lines.extend(_framed(row, BLUE) for row in GUARDIANS[4:])
+    lines.extend(_framed(row, BLUE) for row in ART[13:])
+    lines.extend([
+        _framed("  A   T E X T - B A S E D   F A N T A S Y   A D V E N T U R E", GOLD),
+        _framed(" < < <     E N T E R   T H E   W O R L D   O F   A S T R A L I S     > > >", WATER),
+        _framed("RUINS  +  MYSTERY  +  MAGIC  +  EXPLORATION  +  COMMUNITY", PINK),
+        _framed("The road remembers every soul that crossed it.", TWILIGHT),
+        _paint(GOLD, "+" + "-" * (BANNER_WIDTH - 2) + "+"),
+        _framed("A S T R A L I S", STARLIGHT),
+        _framed("[ LOGIN / CREATE ACCOUNT ]", GOLD),
+        _framed("Discord: https://discord.gg/MyW5XJWgzW", DREAMLIGHT),
+        _framed("Enter your account name below to awaken.", SHADOW),
+        _paint(GOLD, "+" + "=" * (BANNER_WIDTH - 2) + "+"),
+        "",
+    ])
     return "\r\n".join(lines) + "\r\n"
 
 
@@ -194,7 +245,6 @@ WELCOME_BANNER = build_welcome_banner()
 
 
 def plain_welcome_banner() -> str:
-    """ANSI-free banner used by tests and accessibility presentation."""
     return _ANSI_RE.sub("", WELCOME_BANNER)
 
 
