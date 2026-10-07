@@ -17,6 +17,82 @@ FIGHT_FLAG = "early_polish_fought"
 ABILITY_FLAG = "early_polish_used_ability"
 EXIT_RESCUE_FLAG = "early_polish_exit_rescue_seen"
 
+# Mandatory early-road objectives get a physical destination so JOURNEY can
+# recover a player from wherever they wandered using the live Waymap pathfinder.
+# Keys are stable content IDs on purpose: this guidance layer should not create
+# import cycles between every region it can route through.
+JOURNEY_STEP_TARGETS: dict[tuple[str, str], tuple[str, str]] = {
+    # Waymeet
+    ("waymeet_roads_meet_here", "talk_marshal"): ("waymeet_crossroads", "Waymeet Crossroads"),
+    ("waymeet_roads_meet_here", "inspect_broken_mile"): ("waymeet_broken_mile", "the Broken Mile"),
+    ("waymeet_roads_meet_here", "reach_gloam"): ("waymeet_gloam_mouth", "Gloam Mouth"),
+    ("waymeet_roads_meet_here", "inspect_gloam"): ("waymeet_gloam_mouth", "Gloam Mouth"),
+    ("waymeet_roads_meet_here", "return_marshal"): ("waymeet_crossroads", "Waymeet Crossroads"),
+    # Gloamworks
+    ("gloamworks_below_the_sealed_door", "talk_surveyor"): ("waymeet_gloam_mouth", "Gloam Mouth"),
+    ("gloamworks_below_the_sealed_door", "enter_works"): ("gloamworks_entry_cage", "Gloamworks Entry Cage"),
+    ("gloamworks_below_the_sealed_door", "read_fault"): ("gloamworks_glass_fault", "Glass Fault"),
+    ("gloamworks_below_the_sealed_door", "defeat_brake_saint"): ("gloamworks_brake_chapel", "Brake Chapel"),
+    ("gloamworks_below_the_sealed_door", "defeat_mother_sparks"): ("gloamworks_hollow_dynamo", "Hollow Dynamo"),
+    ("gloamworks_below_the_sealed_door", "sync_seals"): ("gloamworks_twin_seal_vestibule", "Twin-Seal Vestibule"),
+    ("gloamworks_below_the_sealed_door", "defeat_regent"): ("gloamworks_buried_court", "Buried Court"),
+    ("gloamworks_below_the_sealed_door", "return_surveyor"): ("waymeet_gloam_mouth", "Gloam Mouth"),
+    # Greywake
+    ("greywake_after_the_gloam", "reach_camp"): ("greywake_three_banner_camp", "Three-Banner Camp"),
+    ("greywake_after_the_gloam", "inspect_heath"): ("greywake_heath", "Greywake Heath"),
+    ("greywake_after_the_gloam", "inspect_orchard"): ("greywake_resonant_orchard", "Resonant Orchard"),
+    ("greywake_after_the_gloam", "inspect_riftfield"): ("greywake_riftfield", "Riftfield"),
+    ("greywake_after_the_gloam", "return_camp"): ("greywake_three_banner_camp", "Three-Banner Camp"),
+    ("greywake_three_claims", "hear_roadwarden"): ("greywake_warden_post", "Roadwarden Post"),
+    ("greywake_three_claims", "hear_ledger"): ("greywake_ledger_cut", "Ledger Cut"),
+    ("greywake_three_claims", "hear_lantern"): ("greywake_lantern_hospice", "Lantern Hospice"),
+    ("greywake_three_claims", "pledge"): ("greywake_three_banner_camp", "Three-Banner Camp"),
+    ("greywake_bell_below_wind", "rally"): ("greywake_signal_hill", "Signal Hill"),
+    ("greywake_bell_below_wind", "break_surge"): ("greywake_signal_hill", "Signal Hill"),
+    ("greywake_bell_below_wind", "report"): ("greywake_three_banner_camp", "Three-Banner Camp"),
+    # Sablewater / Drowned Tollhouse
+    ("sablewater_low_water_old_debts", "talk_ferrymaster"): ("sablewater_north_ferry", "North Ferry"),
+    ("sablewater_low_water_old_debts", "inspect_levee"): ("sablewater_broken_levee", "Broken Levee"),
+    ("sablewater_low_water_old_debts", "inspect_chain"): ("sablewater_willow_ferry", "Willow Ferry"),
+    ("sablewater_low_water_old_debts", "return_ferrymaster"): ("sablewater_north_ferry", "North Ferry"),
+    ("sablewater_toll_nobody_owes", "inspect_marker"): ("sablewater_old_customs_road", "Old Customs Road"),
+    ("sablewater_toll_nobody_owes", "inspect_gate"): ("sablewater_drowned_tollhouse_mouth", "Drowned Tollhouse Mouth"),
+    ("sablewater_toll_nobody_owes", "talk_diver"): ("sablewater_drowned_tollhouse_mouth", "Drowned Tollhouse Mouth"),
+    ("drowned_tollhouse_price_of_crossing", "defeat_warden"): ("drowned_tollhouse_sluice_chamber", "Sluice Chamber"),
+    ("drowned_tollhouse_price_of_crossing", "present_seals"): ("drowned_tollhouse_brass_tribunal", "Brass Tribunal"),
+    ("drowned_tollhouse_price_of_crossing", "defeat_auditor"): ("drowned_tollhouse_brass_tribunal", "Brass Tribunal"),
+    ("drowned_tollhouse_price_of_crossing", "open_sluice"): ("drowned_tollhouse_collector_well", "Collector's Well"),
+    # Veyra arrival and faction service
+    ("veyra_city_larger_than_road", "reach_crossing"): ("veyra_grand_crossing", "Grand Crossing"),
+    ("veyra_city_larger_than_road", "visit_market"): ("veyra_brassmarket", "Brassmarket"),
+    ("veyra_city_larger_than_road", "visit_vault"): ("veyra_keyhouse", "Keyhouse Vault"),
+    ("veyra_city_larger_than_road", "visit_trainers"): ("veyra_five_ways_yard", "Five Ways Yard"),
+    ("veyra_city_larger_than_road", "read_board"): ("veyra_notice_hall", "Notice Hall"),
+    ("veyra_city_larger_than_road", "report_steward"): ("veyra_civic_steps", "Civic Steps"),
+    ("veyra_one_office_one_obligation", "roadwarden_field"): ("veyra_grand_crossing", "Grand Crossing"),
+    ("veyra_one_office_one_obligation", "ledger_field"): ("veyra_brassmarket", "Brassmarket"),
+    ("veyra_one_office_one_obligation", "lantern_water"): ("veyra_north_waterworks", "North Waterworks"),
+    ("veyra_one_office_one_obligation", "lantern_notice"): ("veyra_notice_hall", "Notice Hall"),
+    # Underclock
+    ("veyra_city_between_ticks", "read_cycle"): ("underclock_master_gauge_hall", "Master Gauge Hall"),
+    ("veyra_city_between_ticks", "cross_pistons"): ("underclock_piston_gallery", "Piston Gallery"),
+    ("veyra_city_between_ticks", "cross_steam"): ("underclock_steam_throat", "Steam Throat"),
+    ("veyra_city_between_ticks", "cross_teeth"): ("underclock_walking_teeth", "Walking Teeth"),
+    ("veyra_city_between_ticks", "calibrate_governor"): ("underclock_governor_gallery", "Governor Gallery"),
+    ("veyra_city_between_ticks", "engage_governor"): ("underclock_governor_gallery", "Governor Gallery"),
+    ("veyra_city_between_ticks", "defeat_governor"): ("underclock_governor_gallery", "Governor Gallery"),
+    ("veyra_city_between_ticks", "restart_lift"): ("underclock_minute_chamber", "Minute Chamber"),
+    # Gravewatch
+    ("gravewatch_the_dead_garrison", "report_sergeant"): ("gravewatch_river_mile", "Gravewatch River Mile"),
+    ("gravewatch_the_dead_garrison", "enter_keep"): ("gravewatch_broken_barbican", "Broken Barbican"),
+    ("gravewatch_the_dead_garrison", "defeat_captain"): ("gravewatch_courtyard_of_standards", "Courtyard of Standards"),
+    ("gravewatch_the_dead_garrison", "silence_chapel"): ("gravewatch_bell_vestry", "Bell Vestry"),
+    ("gravewatch_the_dead_garrison", "open_inner_gate"): ("gravewatch_inner_portcullis", "Inner Portcullis"),
+    ("gravewatch_the_dead_garrison", "defeat_castellan"): ("gravewatch_great_hall", "Great Hall"),
+    ("gravewatch_the_dead_garrison", "light_beacon"): ("gravewatch_castellans_map_room", "Castellan's Map Room"),
+}
+
+
 RACE_VERB_FLAVOR: dict[str, str] = {
     "human": "LOOK at the street, question people, and follow the gate roads; civic life is part of the tutorial.",
     "forest_elf": "Read the forest itself: LOOK, LISTEN, EXAMINE, and then follow the path the signs justify.",
@@ -159,12 +235,70 @@ def _live_route_hint(session, destination_key: str, destination_name: str) -> st
     return f"Route from here to {destination_name}: " + " -> ".join(direction.upper() for direction in route) + "."
 
 
+def _active_journey_row(session, quest_keys: tuple[str, ...]) -> tuple[str, str, str, str] | None:
+    character = getattr(session, "character", None)
+    database = getattr(session, "database", None)
+    if character is None or database is None or not hasattr(database, "list_quests"):
+        return None
+    level = int(getattr(character, "level", 1) or 1)
+    by_key = {
+        str(row.get("quest_key") or ""): row
+        for row in _rows(database.list_quests(character.id))
+        if row.get("status") == "active"
+    }
+    for quest_key in quest_keys:
+        row = by_key.get(quest_key)
+        if row is None:
+            continue
+        definition = QUESTS_BY_KEY.get(quest_key)
+        if definition is None or int(getattr(definition, "minimum_level", 1) or 1) > level:
+            continue
+        step = str(row.get("current_step") or "")
+        objective = definition.objective_for_step(step) or "Continue the current quest."
+        return quest_key, step, definition.name, objective
+    return None
+
+
+def _journey_target_for_step(session, quest_key: str, step: str) -> tuple[str, str] | None:
+    # A few objectives have a destination determined by prior choices or which
+    # sub-objective remains. Resolve those from persistent flags first.
+    flags = _character_flags(session)
+    if quest_key == "drowned_tollhouse_price_of_crossing" and step == "collect_seals":
+        if "drowned_archive_seal_found" not in flags:
+            return "drowned_tollhouse_flooded_archive", "Flooded Archive"
+        if "drowned_vault_seal_found" not in flags:
+            return "drowned_tollhouse_coin_vault", "Coin Vault"
+        return "drowned_tollhouse_magistrate_room", "Magistrate's Room"
+    if quest_key == "veyra_one_office_one_obligation" and step in {"report_office", "return_office"}:
+        if "greywake_support_roadwarden" in flags:
+            return "veyra_roadwarden_office", "Roadwarden House"
+        if "greywake_support_deep_ledger" in flags:
+            return "veyra_ledger_office", "Deep Ledger Exchange"
+        if "greywake_support_lantern_oath" in flags:
+            return "veyra_lantern_office", "Lantern Court"
+    return JOURNEY_STEP_TARGETS.get((quest_key, step))
+
+
+def _journey_step_extra(quest_key: str, step: str) -> str:
+    if quest_key == "greywake_bell_below_wind" and step == "break_surge":
+        return " From Signal Hill, NORTH reaches the Heath, SOUTH the Sunk Causeway, and EAST Riftfield; Riftlings can surface at all three event sites."
+    if quest_key == "gloamworks_below_the_sealed_door" and step == "sync_seals":
+        return " A lone explorer can HOLD LEFT SEAL then HOLD RIGHT SEAL using the maintenance stays; a second explorer may operate the opposite plate instead."
+    if quest_key == "drowned_tollhouse_price_of_crossing" and step == "collect_seals":
+        return " JOURNEY routes to the next seal you have not recovered yet."
+    return ""
+
+
 def _shared_journey_line(session, quest_keys: tuple[str, ...]) -> str | None:
-    active = _active_objective_for_keys(session, quest_keys)
+    active = _active_journey_row(session, quest_keys)
     if active is None:
         return None
-    name, objective = active
-    return f"\r\nMain journey - {name}: {objective}\r\n"
+    quest_key, step, name, objective = active
+    target = _journey_target_for_step(session, quest_key, step)
+    route = ""
+    if target is not None:
+        route = " " + _live_route_hint(session, target[0], target[1])
+    return f"\r\nMain journey - {name}: {objective}{route}{_journey_step_extra(quest_key, step)}\r\n"
 
 
 def _journey_text(session) -> str:
@@ -214,9 +348,12 @@ def _journey_text(session) -> str:
         )
 
     if GLOAMWORKS_COMPLETE_FLAG not in flags:
+        line = _shared_journey_line(session, ("waymeet_roads_meet_here", "gloamworks_below_the_sealed_door"))
+        if line is not None:
+            return line
         return (
-            "\r\nMain journey - Waymeet and Gloamworks: finish the current Waymeet/Gloamworks thread. "
-            "GOALS shows the immediate objective. After Gloamworks, the eastern road from Gloam Mouth opens into Greywake at level 5.\r\n"
+            "\r\nMain journey - Waymeet and Gloamworks: use GOALS for the current local objective and JOURNEY again after accepting the Waymeet or Gloamworks quest. "
+            "After Gloamworks, the eastern road from Gloam Mouth opens into Greywake.\r\n"
         )
 
     if GREYWAKE_CHAIN_COMPLETE_FLAG not in flags:
