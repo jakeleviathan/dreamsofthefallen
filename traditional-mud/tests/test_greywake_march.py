@@ -144,6 +144,9 @@ class GreywakeMarchTests(unittest.TestCase):
     def test_level_seven_greywake_completion_points_to_sablewater_before_veyra(self):
         tempdir, database, session = self._session(level_xp=1500)
         try:
+            # Captain dialogue checks the earlier Greywake quest first, so model the real chain state.
+            database.start_quest(session.character.id, AFTER_GLOAM_QUEST_KEY, "return_camp")
+            database.complete_quest(session.character.id, AFTER_GLOAM_QUEST_KEY)
             database.start_quest(session.character.id, BELL_BELOW_WIND_QUEST_KEY, "report")
             database.grant_flag(session.character.id, GREYWAKE_SURGE_VETERAN_FLAG)
             session.move_to(GREYWAKE_THREE_BANNER_KEY)
