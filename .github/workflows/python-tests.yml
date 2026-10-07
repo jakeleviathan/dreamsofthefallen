@@ -54,7 +54,9 @@ jobs:
           assert "QUEST_OBJECTIVE_TEXT" in embedded_lua
           assert "QUEST_MORE_TEXT" in embedded_lua
           assert "expandAlias(\"baseui hide\", false)" in embedded_lua
-          assert "font-size: 20pt" in embedded_lua
+          # Quest typography currently uses 14pt headings/more text and a
+          # deliberately larger 17pt objective, while general HUD copy remains 12pt.
+          assert "font-size: 14pt" in embedded_lua
           assert "font-size: 17pt" in embedded_lua
           assert "font-size: 12pt" in embedded_lua
           assert "font-size: 9pt" not in embedded_lua
