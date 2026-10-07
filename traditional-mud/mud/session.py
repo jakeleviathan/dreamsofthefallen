@@ -1285,6 +1285,13 @@ class PlayerSession:
         if room is None:
             return None
         for enemy_key in room.enemy_keys:
+            # Once an authored source is owned by a regional population, the
+            # static one-per-room placeholder is no longer a real combatant.
+            if (
+                self.mobile_npcs is not None
+                and self.mobile_npcs.regionalizes_source(room.key, enemy_key)
+            ):
+                continue
             definition = ENEMIES_BY_KEY.get(enemy_key)
             if definition and definition.matches(target_text):
                 return EnemyState(definition)
@@ -1320,7 +1327,13 @@ class PlayerSession:
     def _mobile_npc_in_current_room(self, target_text: str):
         if self.character is None or self.mobile_npcs is None:
             return None
-        normalized = target_text.strip().lower()
+        normalized = " ".join(target_text.strip().lower().split())
+        ordinal: int | None = None
+        parts = normalized.rsplit(" ", 1)
+        if len(parts) == 2 and parts[1].isdigit() and int(parts[1]) > 0:
+            normalized = parts[0]
+            ordinal = int(parts[1])
+
         matches = []
         for state in self.mobile_npcs.npcs_in_room(self.character.current_room or ""):
             definition = state.definition
@@ -1329,9 +1342,14 @@ class PlayerSession:
                 matches.append(state)
         if not matches:
             return None
-        # Multiple regional animals of the same species may share a room. Prefer
-        # an unclaimed individual so two players can hunt side by side instead
-        # of the first engaged instance blocking the whole species name.
+
+        # Explicit ordinals address a physical instance: JACKAL 2 means the
+        # second visible jackal in stable room order. Without an ordinal, prefer
+        # the first unclaimed individual so strangers can hunt side by side
+        # without one player's encounter reserving the species name.
+        if ordinal is not None:
+            index = ordinal - 1
+            return matches[index] if 0 <= index < len(matches) else None
         return next(
             (state for state in matches if state.engaged_character_id is None),
             matches[0],
