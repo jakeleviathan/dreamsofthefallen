@@ -213,17 +213,45 @@ def _quest_snapshot(session) -> dict:
     completed = []
     for row in rows:
         definition = quests.QUESTS_BY_KEY.get(str(row["quest_key"]))
+        step_key = str(row["current_step"] or "")
+        objective = (
+            definition.objective_for_step(step_key)
+            if definition is not None and step_key
+            else None
+        ) or ""
+        progress = None
+        if definition is not None:
+            target = definition.progress_for_step(step_key)
+            if target is not None:
+                required = max(1, int(target.required))
+                quantity = max(
+                    0,
+                    int(
+                        session.database.item_quantity(
+                            session.character.id,
+                            target.item_key,
+                        )
+                    ),
+                )
+                current = min(quantity, required)
+                progress = {
+                    "current": current,
+                    "required": required,
+                    "label": target.label,
+                    "item_key": target.item_key,
+                    "complete": quantity >= required,
+                }
+                prefix = f"{current}/{required} {target.label}"
+                objective = f"{prefix} - {objective}" if objective else prefix
+
         entry = {
             "key": str(row["quest_key"]),
             "name": definition.name if definition is not None else str(row["quest_key"]).replace("_", " ").title(),
             "status": str(row["status"]),
-            "step": str(row["current_step"] or ""),
-            "objective": (
-                definition.objective_for_step(str(row["current_step"]))
-                if definition is not None and row["current_step"] is not None
-                else None
-            ) or "",
+            "step": step_key,
+            "objective": objective,
             "description": definition.description if definition is not None else "",
+            "progress": progress,
         }
         if entry["status"] == "active":
             active.append(entry)
@@ -901,7 +929,10 @@ def install_modern_client_runtime(player_session_class, world) -> None:
 
     async def send_client_state(self) -> None:
         await previous_send_client_state(self)
-        await push_modern_state(self, world, full=False)
+        full = bool(getattr(self, "_modern_full_state_dirty", False))
+        await push_modern_state(self, world, full=full)
+        if full:
+            self._modern_full_state_dirty = False
 
     async def enter_character(self) -> None:
         await previous_enter(self)

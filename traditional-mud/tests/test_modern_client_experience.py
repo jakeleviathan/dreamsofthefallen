@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+import mud.quests as quest_catalog
 from mud.client_gui import (
     CURRENT_MUDLET_HUD_VERSION,
     OFFICIAL_MUDLET_HUD_VERSION,
@@ -23,10 +24,12 @@ from mud.modern_client_experience import (
     _mark_onboarding_command,
     _mobile_target_snapshot,
     _onboarding_snapshot,
+    _quest_snapshot,
     _room_snapshot,
     push_modern_state,
     stable_room_number,
 )
+from mud.quests import QuestDefinition, QuestProgressTarget
 from mud.room_engine import WorldService
 from mud.stats import CharacterStats
 
@@ -101,6 +104,50 @@ class ModernClientExperienceTests(unittest.TestCase):
             self.assertIsInstance(snapshot["exits"], dict)
             self.assertEqual(snapshot["players"], [{"name": "ModernHero (you)", "description": "a Human Brute standing nearby", "is_self": True}])
             self.assertTrue(all(isinstance(value, int) and value > 0 for value in snapshot["exits"].values()))
+
+    def test_quest_snapshot_includes_live_counted_inventory_progress(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session = self._session(Path(temp_dir))
+            quest_key = "modern_counted_objective_test"
+            definition = QuestDefinition(
+                key=quest_key,
+                name="Count What You Carry",
+                style="structured",
+                objective_steps=(("collect", "Bring 3 Bone Chips to the tester."),),
+                progress_targets=(
+                    QuestProgressTarget("collect", "bone_chips", 3, "Bone Chips"),
+                ),
+            )
+            previous = quest_catalog.QUESTS_BY_KEY.get(quest_key)
+            quest_catalog.QUESTS_BY_KEY[quest_key] = definition
+            try:
+                session.database.start_quest(session.character.id, quest_key, "collect")
+                session.database.add_item(session.character.id, "bone_chips", 2)
+
+                first = next(
+                    entry
+                    for entry in _quest_snapshot(session)["active"]
+                    if entry["key"] == quest_key
+                )
+                self.assertEqual(first["progress"]["current"], 2)
+                self.assertEqual(first["progress"]["required"], 3)
+                self.assertFalse(first["progress"]["complete"])
+                self.assertTrue(first["objective"].startswith("2/3 Bone Chips - "))
+
+                session.database.add_item(session.character.id, "bone_chips", 2)
+                second = next(
+                    entry
+                    for entry in _quest_snapshot(session)["active"]
+                    if entry["key"] == quest_key
+                )
+                self.assertEqual(second["progress"]["current"], 3)
+                self.assertTrue(second["progress"]["complete"])
+                self.assertTrue(second["objective"].startswith("3/3 Bone Chips - "))
+            finally:
+                if previous is None:
+                    quest_catalog.QUESTS_BY_KEY.pop(quest_key, None)
+                else:
+                    quest_catalog.QUESTS_BY_KEY[quest_key] = previous
 
     def test_duplicate_mobile_creatures_get_distinct_numbered_hud_targets(self):
         with tempfile.TemporaryDirectory() as temp_dir:

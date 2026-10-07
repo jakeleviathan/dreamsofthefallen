@@ -9,7 +9,7 @@ import mud.quests as quests
 import mud.world as legacy_world
 from mud.combat import EnemyDefinition
 from mud.crafting import ConsumableEffect, ItemDefinition
-from mud.quests import QuestDefinition
+from mud.quests import QuestDefinition, QuestProgressTarget
 from mud.room_engine import DescriptionLayer, ExitDefinition, FeatureDefinition, RoomAugmentation, ViewCondition
 from mud.world import NpcDefinition, RoomDefinition
 
@@ -108,6 +108,10 @@ WAYMEET_JACKAL_QUEST = QuestDefinition(
         ("turn_in", "TALK WARDEN with 3 Thornback Fangs."),
         ("complete", "The road is a little safer for the next caravan. The contract can be taken again."),
     ),
+    progress_targets=(
+        QuestProgressTarget("collect", THORNBACK_FANG_KEY, 3, "Thornback Fangs"),
+        QuestProgressTarget("turn_in", THORNBACK_FANG_KEY, 3, "Thornback Fangs"),
+    ),
     sol_reward=0,
 )
 
@@ -122,6 +126,10 @@ WAYMEET_QUARRY_QUEST = QuestDefinition(
         ("collect", "Defeat Slateback Skulks in the Old Quarry and bring 2 Slateback Claws to Foreman Hedda."),
         ("turn_in", "TALK FOREMAN with 2 Slateback Claws."),
         ("complete", "The quarry crew gets another workable shift. The contract can be taken again."),
+    ),
+    progress_targets=(
+        QuestProgressTarget("collect", SLATEBACK_CLAW_KEY, 2, "Slateback Claws"),
+        QuestProgressTarget("turn_in", SLATEBACK_CLAW_KEY, 2, "Slateback Claws"),
     ),
     sol_reward=0,
 )
@@ -1050,6 +1058,15 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
         if not eligible or self.character is None:
             return
 
+        async def refresh_reference_state(member) -> None:
+            # The base combat layer sends client state before this Waymeet wrapper
+            # awards proof items. Mark the structured inventory/quest surfaces
+            # dirty, then refresh once more so HUD counts change immediately.
+            member._modern_full_state_dirty = True
+            refresh = getattr(member, "send_client_state", None)
+            if callable(refresh):
+                await refresh()
+
         if key == THORNBACK_JACKAL_KEY:
             for member in participants:
                 character = getattr(member, "character", None)
@@ -1058,6 +1075,7 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
                     continue
                 database.add_item(character.id, THORNBACK_FANG_KEY, 1)
                 await member.send("Bounty proof: 1x Thornback Fang.\r\n")
+                await refresh_reference_state(member)
         elif key == SLATEBACK_SKULK_KEY:
             for member in participants:
                 character = getattr(member, "character", None)
@@ -1066,6 +1084,7 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
                     continue
                 database.add_item(character.id, SLATEBACK_CLAW_KEY, 1)
                 await member.send("Bounty proof: 1x Slateback Claw.\r\n")
+                await refresh_reference_state(member)
         elif key == GLOAM_DELVER_KEY:
             for member in participants:
                 character = getattr(member, "character", None)
@@ -1074,6 +1093,7 @@ def install_waymeet_runtime(player_session_class, world_service) -> None:
                     continue
                 database.add_item(character.id, GLOAM_RESIDUE_KEY, 1)
                 await member.send("You recover 1x Gloam Residue from the creature's digging claws.\r\n")
+                await refresh_reference_state(member)
 
     async def playing_prompt(self) -> None:
         if self.character is None:

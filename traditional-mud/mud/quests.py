@@ -6,6 +6,14 @@ from mud.access import ContentGate
 
 
 @dataclass(frozen=True, slots=True)
+class QuestProgressTarget:
+    step_key: str
+    item_key: str
+    required: int
+    label: str
+
+
+@dataclass(frozen=True, slots=True)
 class QuestDefinition:
     key: str
     name: str
@@ -14,6 +22,7 @@ class QuestDefinition:
     gate: ContentGate = ContentGate()
     description: str = ""
     objective_steps: tuple[tuple[str, str], ...] = ()
+    progress_targets: tuple[QuestProgressTarget, ...] = ()
     # Optional explicit payout in sparks. When omitted, the universal Sol
     # economy derives a reward from quest level, style, and story length.
     sol_reward: int | None = None
@@ -22,6 +31,14 @@ class QuestDefinition:
         if step_key is None:
             return None
         return dict(self.objective_steps).get(step_key)
+
+    def progress_for_step(self, step_key: str | None) -> QuestProgressTarget | None:
+        if step_key is None:
+            return None
+        return next(
+            (target for target in self.progress_targets if target.step_key == step_key),
+            None,
+        )
 
 
 @dataclass(frozen=True, slots=True)
