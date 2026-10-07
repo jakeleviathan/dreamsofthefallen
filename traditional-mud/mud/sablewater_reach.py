@@ -7,6 +7,8 @@ import mud.quests as quests
 import mud.world as legacy_world
 from mud.combat import EnemyDefinition, EnemyState
 from mud.crafting import ItemDefinition
+from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+from mud.greywake_march import GREYWAKE_LEDGER_CUT_KEY
 from mud.quests import QuestDefinition
 from mud.room_engine import ExitDefinition, FeatureDefinition, RoomAugmentation, ViewCondition
 from mud.veyra_city import VEYRA_RESIDENT_FLAG, VEYRA_SOUTH_SPRAWL_KEY
@@ -335,9 +337,9 @@ def _room(key: str, name: str, description: str, exits: dict[str, str], *, npcs:
 
 
 SABLEWATER_ROOMS: tuple[RoomDefinition, ...] = (
-    _room(SABLEWATER_NORTH_FERRY_KEY, "North Ferry Steps", "Veyra's timber sprawl gives way to a broad ferry landing where the river divides around reed islands. Depth poles stand in neat rows and every ferryman has a different opinion about yesterday's current.", {"north": VEYRA_SOUTH_SPRAWL_KEY, "south": SABLEWATER_FLOOD_ROAD_KEY, "east": SABLEWATER_EEL_DOCK_KEY}, npcs=(FERRYMASTER_KEY,), tags=("safe", "level_6", "quest_hub")),
+    _room(SABLEWATER_NORTH_FERRY_KEY, "North Ferry Steps", "Veyra's timber sprawl gives way to a broad ferry landing where the river divides around reed islands. Depth poles stand in neat rows and every ferryman has a different opinion about yesterday's current.", {"south": SABLEWATER_FLOOD_ROAD_KEY, "east": SABLEWATER_EEL_DOCK_KEY}, npcs=(FERRYMASTER_KEY,), tags=("safe", "level_6", "quest_hub")),
     _room(SABLEWATER_FLOOD_ROAD_KEY, "Flood Road", "A raised dirt road crosses wet pasture between drainage ditches. Wheel ruts show where traffic moves when the road is dry and where traffic regrets moving when it is not.", {"north": SABLEWATER_NORTH_FERRY_KEY, "west": SABLEWATER_REED_FARMS_KEY, "south": SABLEWATER_BROKEN_LEVEE_KEY}, enemies=(REEDCAT_KEY,), tags=("level_6", "road")),
-    _room(SABLEWATER_REED_FARMS_KEY, "Reed Farms", "Long narrow plots grow basket reed, cotton, cooking greens, and medicinal ditch herbs in strips divided by footpaths no cart could use. Farm families sell to Veyra without pretending the city invented the food.", {"east": SABLEWATER_FLOOD_ROAD_KEY, "south": SABLEWATER_HERON_FLATS_KEY}, enemies=(MUDPLATE_KEY,), tags=("level_6", "gathering")),
+    _room(SABLEWATER_REED_FARMS_KEY, "Reed Farms", "Long narrow plots grow basket reed, cotton, cooking greens, and medicinal ditch herbs in strips divided by footpaths no cart could use. Farm families sell to Veyra without pretending the city invented the food.", {"north": GREYWAKE_LEDGER_CUT_KEY, "east": SABLEWATER_FLOOD_ROAD_KEY, "south": SABLEWATER_HERON_FLATS_KEY}, enemies=(MUDPLATE_KEY,), tags=("level_6", "gathering")),
     _room(SABLEWATER_EEL_DOCK_KEY, "Eelmarket Dock", "A low dock supports smoke sheds, bait tables, ferry repair, and a morning fish market famous for selling animals that still seem undecided about being merchandise.", {"west": SABLEWATER_NORTH_FERRY_KEY, "south": SABLEWATER_WILLOW_FERRY_KEY}, enemies=(ROPEJAW_KEY,), tags=("level_6_7", "river")),
     _room(SABLEWATER_HERON_FLATS_KEY, "Heron Flats", "Shallow water mirrors open sky between sedge hummocks. Tall white herons stalk fish while travelers pick their way along old stone stepping lines revealed only at low water.", {"north": SABLEWATER_REED_FARMS_KEY, "east": SABLEWATER_BROKEN_LEVEE_KEY, "south": SABLEWATER_SALTGRASS_BEND_KEY}, enemies=(REEDCAT_KEY, KNOTJACK_KEY), tags=("level_7", "wetland")),
     _room(SABLEWATER_BROKEN_LEVEE_KEY, "Broken Levee", "A century of repairs has turned the levee into a visible history of flood fear: stone core, timber cribbing, packed clay, Goblin plate, fresh sandbags. One old section has slumped toward a forgotten side channel.", {"north": SABLEWATER_FLOOD_ROAD_KEY, "west": SABLEWATER_HERON_FLATS_KEY, "east": SABLEWATER_WILLOW_FERRY_KEY}, npcs=(LEVEE_KEEPER_KEY,), enemies=(MUDPLATE_KEY,), tags=("level_7", "evidence")),
@@ -402,6 +404,30 @@ def _merge_augmentation(existing: RoomAugmentation | None, extra: RoomAugmentati
 
 def sablewater_augmentations() -> dict[str, RoomAugmentation]:
     return {
+        GREYWAKE_LEDGER_CUT_KEY: RoomAugmentation(
+            extra_exits=(
+                ExitDefinition(
+                    direction="south",
+                    destination_key=SABLEWATER_REED_FARMS_KEY,
+                    name="Sablewater Floodplain",
+                    travel_text="You leave the survey cut and follow the drainage road south into the reed farms of Sablewater.",
+                    condition=ViewCondition(required_flags=(GLOAMWORKS_COMPLETE_FLAG,), min_level=6),
+                    hidden_when_unavailable=True,
+                ),
+            ),
+        ),
+        SABLEWATER_NORTH_FERRY_KEY: RoomAugmentation(
+            extra_exits=(
+                ExitDefinition(
+                    direction="north",
+                    destination_key=VEYRA_SOUTH_SPRAWL_KEY,
+                    name="Veyra South Timber Sprawl",
+                    travel_text="Your resident chit clears the south checkpoint and the ferry road climbs back into Veyra.",
+                    condition=ViewCondition(required_flags=(VEYRA_RESIDENT_FLAG,), min_level=8),
+                    hidden_when_unavailable=True,
+                ),
+            ),
+        ),
         VEYRA_SOUTH_SPRAWL_KEY: RoomAugmentation(
             extra_exits=(
                 ExitDefinition(
@@ -557,8 +583,10 @@ def _refresh(session) -> None:
 def _ensure_low_water(session) -> bool:
     if session.character is None:
         return False
+    if session.character.level < 6:
+        return False
     flags = _flags(session)
-    if VEYRA_RESIDENT_FLAG not in flags or session.character.level < 6:
+    if GLOAMWORKS_COMPLETE_FLAG not in flags and VEYRA_RESIDENT_FLAG not in flags:
         return False
     if SABLEWATER_INTRO_COMPLETE_FLAG in flags:
         return True
@@ -647,7 +675,16 @@ async def _talk_diver(session) -> bool:
         session.database.start_quest(session.character.id, PRICE_OF_CROSSING_QUEST_KEY, "defeat_warden")
     session.database.add_experience(session.character.id, 170)
     _refresh(session)
-    await session.send("Nym clips the descent line to an old mooring ring. 'Down is open. First big maintenance room has a Sluice Warden. It thinks everything living is a blockage.' A Toll Nobody Owes complete: 170 XP. The Drowned Tollhouse is open DOWN.\r\n")
+    if session.character.level < 8:
+        await session.send(
+            "Nym clips the descent line to an old mooring ring. 'The rope is ready, but that machinery is level-8 work. Come back when you are ready for it.' "
+            "A Toll Nobody Owes complete: 170 XP. Type JOURNEY for the next shared-road step.\r\n"
+        )
+    else:
+        await session.send(
+            "Nym clips the descent line to an old mooring ring. 'Down is open. First big maintenance room has a Sluice Warden. It thinks everything living is a blockage.' "
+            "A Toll Nobody Owes complete: 170 XP. The Drowned Tollhouse is open DOWN.\r\n"
+        )
     return True
 
 
@@ -711,7 +748,7 @@ async def _turn_final_sluice(session) -> bool:
     session.database.add_item(session.character.id, AUDITOR_GEAR_KEY, 1)
     session.database.add_experience(session.character.id, 350)
     _refresh(session)
-    await session.send("You put your weight into the final wheel. Old seals split, the bypass gate rises, and riverwater takes the route nobody has used in generations. Upstream pressure drops by inches rather than miracles. The Price of Crossing complete: 350 XP and a Brass Auditor Gear.\r\n")
+    await session.send("You put your weight into the final wheel. Old seals split, the bypass gate rises, and riverwater takes the route nobody has used in generations. Upstream pressure drops by inches rather than miracles. The Price of Crossing complete: 350 XP and a Brass Auditor Gear. Type JOURNEY for the next shared-road step.\r\n")
     return True
 
 

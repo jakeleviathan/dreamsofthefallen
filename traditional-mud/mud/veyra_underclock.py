@@ -537,7 +537,7 @@ async def _start_lift(session) -> bool:
         session.database.add_experience(session.character.id, 360)
         _refresh(session)
         await session.send(
-            "You pull the lift start. Intake, pressure, vent, reset: the four beats settle into the same interval. Far above, water begins climbing toward Veyra's upper basins again. Nothing glows. No prophecy speaks. Somewhere in the city, a tap that would have run dry tomorrow simply keeps working. The City Between Ticks complete: 360 XP.\r\n"
+            "You pull the lift start. Intake, pressure, vent, reset: the four beats settle into the same interval. Far above, water begins climbing toward Veyra's upper basins again. Nothing glows. No prophecy speaks. Somewhere in the city, a tap that would have run dry tomorrow simply keeps working. The City Between Ticks complete: 360 XP. Type JOURNEY for the next shared-road step.\r\n"
         )
         return True
     await session.send("The lift is already running on a stable four-beat cycle.\r\n")

@@ -779,7 +779,7 @@ async def _light_beacon(session) -> bool:
         session.database.add_experience(session.character.id, 420)
         _refresh(session)
         await session.send(
-            "You trim the wick, open the river-facing shutters, and light the Gravewatch relief beacon. A plain yellow point appears above the ruined keep where Veyra's road crews can see it upstream. This is not the end of every restless bone in the fortress; it is the first confirmed full clear, enough to turn a forbidden ruin into a sanctioned repeatable delve. The Dead Garrison complete: 420 XP, a Gravewatch Castellan Signet, and a Gravewatch Relief Surcoat.\r\n"
+            "You trim the wick, open the river-facing shutters, and light the Gravewatch relief beacon. A plain yellow point appears above the ruined keep where Veyra's road crews can see it upstream. This is not the end of every restless bone in the fortress; it is the first confirmed full clear, enough to turn a forbidden ruin into a sanctioned repeatable delve. The Dead Garrison complete: 420 XP, a Gravewatch Castellan Signet, and a Gravewatch Relief Surcoat. Type JOURNEY to see whether anything remains before level 10.\r\n"
         )
         return True
     await session.send("The relief beacon already carries the record of your first clear. Gravewatch remains open for repeat runs and materials.\r\n")

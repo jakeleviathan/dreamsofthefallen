@@ -1207,7 +1207,7 @@ async def _talk_faction_office(session, faction: str) -> bool:
             "ledger": "Your Veyra Exchange active-listing cap rises from 3 to 5.",
             "lantern": "Your Keyhouse vault allotment rises from 40 to 60 item-units.",
         }[faction]
-        await session.send(f"Your city service report is accepted. One Office, One Obligation complete: 180 XP and a Veyra Service Seal. {perk}\r\n")
+        await session.send(f"Your city service report is accepted. One Office, One Obligation complete: 180 XP and a Veyra Service Seal. {perk} Type JOURNEY for the next shared-road step.\r\n")
         return True
     await session.send("Your faction office has no new service step for you right now. FACTION PERK summarizes your current benefit.\r\n")
     return True

@@ -549,7 +549,17 @@ async def _talk_captain(session) -> bool:
         session.database.add_experience(session.character.id, 220)
         session.database.add_item(session.character.id, MARCH_TOKEN_KEY, 1)
         _refresh(session)
-        await session.send("Oryn hears the surge count, then points east. 'Veyra's road is open. Take the result there before the city decides Greywake is only a rumor.' The Bell Below the Wind complete: 220 XP and a Greywake March Token.\r\n")
+        if session.character.level < 8:
+            await session.send(
+                "Oryn hears the surge count, then points east. 'Veyra's road is open, but the city checkpoint will not take you before level 8. "
+                "Ledger Cut has a south road into Sablewater if you want useful work before then.' The Bell Below the Wind complete: 220 XP and a Greywake March Token. "
+                "Type JOURNEY for the next shared-road step.\r\n"
+            )
+        else:
+            await session.send(
+                "Oryn hears the surge count, then points east. 'Veyra's road is open. Take the result there before the city decides Greywake is only a rumor.' "
+                "The Bell Below the Wind complete: 220 XP and a Greywake March Token. Type JOURNEY for the next shared-road step.\r\n"
+            )
         return True
     await session.send("Oryn says, 'The March still has work for you. Check your QUESTS and bring back observations, not guesses.'\r\n")
     return True
@@ -606,10 +616,11 @@ async def _support_faction(session, faction_key: str) -> bool:
     session.database.grant_flag(session.character.id, faction.support_flag)
     session.database.complete_quest(session.character.id, THREE_CLAIMS_QUEST_KEY)
     session.database.start_quest(session.character.id, BELL_BELOW_WIND_QUEST_KEY, "rally")
-    session.database.add_experience(session.character.id, 140)
+    session.database.add_experience(session.character.id, 280)
     _refresh(session)
     await session.send(
-        f"You choose to support the {faction.name} first. The other two banners remain standing beside it; this is a practical alignment, not a declaration that everyone else is evil. Three Claims on One Road complete: 140 XP.\r\n"
+        f"You choose to support the {faction.name} first. The other two banners remain standing beside it; this is a practical alignment, not a declaration that everyone else is evil. Three Claims on One Road complete: 280 XP. "
+        "The Bell Below the Wind is now level-appropriate; head to Signal Hill and RALLY SURGE.\r\n"
     )
     return True
 
@@ -668,7 +679,8 @@ async def _record_surge_kill(session) -> None:
             continue
         explorer.database.grant_flag(character.id, GREYWAKE_SURGE_VETERAN_FLAG)
         explorer.database.add_experience(character.id, 100)
-        explorer.database.add_item(character.id, 2)
+        # Sol balances are stored in sparks; two embers are twenty sparks.
+        explorer.database.add_sols(character.id, 20)
         q = explorer.database.get_quest(character.id, BELL_BELOW_WIND_QUEST_KEY)
         if q and q["status"] == "active" and q["current_step"] == "break_surge":
             explorer.database.advance_quest(character.id, BELL_BELOW_WIND_QUEST_KEY, "report")
@@ -735,16 +747,16 @@ def install_greywake_runtime(player_session_class, world_service) -> None:
         room = self.character.current_room or ""
         handled = False
 
-        if normalized in {"talk captain", "talk oryn", "speak captain"}:
+        if room == GREYWAKE_WARDEN_POST_KEY and normalized in {"talk captain", "talk oryn", "speak captain", "talk roadwarden", "talk roadwarden captain"}:
+            handled = await _talk_faction(self, "roadwarden_compact")
+            if not handled and normalized in {"talk captain", "talk oryn", "speak captain"}:
+                handled = await _talk_captain(self)
+        elif normalized in {"talk captain", "talk oryn", "speak captain"}:
             handled = await _talk_captain(self)
         elif normalized in {"talk factor", "talk merrit", "speak factor"}:
             handled = await _talk_faction(self, "deep_ledger_consortium")
         elif normalized in {"talk keeper", "talk ela", "speak keeper"}:
             handled = await _talk_faction(self, "lantern_oath")
-        elif normalized in {"talk roadwarden", "talk roadwarden captain"} and room == GREYWAKE_WARDEN_POST_KEY:
-            handled = await _talk_faction(self, "roadwarden_compact")
-        elif room == GREYWAKE_WARDEN_POST_KEY and normalized in {"talk captain", "talk oryn"}:
-            handled = await _talk_faction(self, "roadwarden_compact")
         elif room == GREYWAKE_HEATH_KEY and normalized in {"examine grey crust", "examine crust", "look crust"}:
             handled = await _inspect_site(self, GREYWAKE_HEATH_KEY)
         elif room == GREYWAKE_RESONANT_ORCHARD_KEY and normalized in {"examine trees", "look trees", "examine roots"}:

@@ -95,9 +95,9 @@ GLOAMWORKS_QUEST = QuestDefinition(
         ("read_fault", "Reach the Glass Fault and EXAMINE FAULT. Compare what you perceive with other travelers."),
         ("defeat_brake_saint", "Pass the Resonance Shaft and defeat the Brake Saint in the old safety chapel."),
         ("defeat_mother_sparks", "Cross the lower works and defeat Mother-of-Sparks in the Hollow Dynamo."),
-        ("sync_seals", "At the Twin-Seal Vestibule, two players must HOLD LEFT SEAL and HOLD RIGHT SEAL together."),
-        ("defeat_regent", "Keep at least two synchronized explorers in the Buried Court and defeat the Buried Regent."),
-        ("return_surveyor", "Return to Surveyor Dorr at Gloam Mouth with what the group learned."),
+        ("sync_seals", "At the Twin-Seal Vestibule, HOLD LEFT SEAL and HOLD RIGHT SEAL. One explorer can work the old maintenance stays; two explorers can still operate the plates together."),
+        ("defeat_regent", "Enter the Buried Court and defeat the Buried Regent. Additional synchronized explorers can still join the encounter."),
+        ("return_surveyor", "Return to Surveyor Dorr at Gloam Mouth with what the expedition learned."),
         ("complete", "The Gloamworks were an excavation before they became a breach. Something beneath Astralis answered the digging."),
     ),
 )
@@ -218,7 +218,7 @@ SURVEYOR = NpcDefinition(
     dialogue=(
         "Dorr keeps one hand on the old chain. 'The upper works were built by ordinary hands. That is the reassuring part.'",
         "'If two people tell me the deep rooms looked different, I want both reports. Do not average the strange parts away.'",
-        "'And nobody opens the last seal alone. Whatever the old crews feared, they designed that lock to require disagreement with witnesses.'",
+        "'The last seal has two witness plates. Old crews used two people; the maintenance pawls can hold one plate long enough for a lone surveyor to cross to the other.'",
     ),
 )
 
@@ -353,7 +353,7 @@ GLOAMWORKS_ROOMS: tuple[RoomDefinition, ...] = (
         "Buried Court",
         "The final excavation opens into a chamber that no crew built. Black ribs rise from the floor around an old drilling frame. Something enormous has grown through machine and stone together, making the industrial ruin look less invaded than incorporated.",
         {"west": GLOAM_TWIN_SEAL_KEY, "east": GLOAM_BREACH_VAULT_KEY},
-        enemies=(BURIED_REGENT_KEY,), tags=("level_7", "boss", "group_required"),
+        enemies=(BURIED_REGENT_KEY,), tags=("level_7", "boss", "soloable", "cooperative"),
     ),
     _room(
         GLOAM_BREACH_VAULT_KEY,
@@ -482,15 +482,15 @@ def gloamworks_augmentations() -> dict[str, RoomAugmentation]:
                     travel_text="Both handplates remain warm behind you as the circular door rolls aside.",
                     condition=ViewCondition(required_flags=(GLOAMWORKS_TWIN_SEAL_FLAG,), min_level=4),
                     hidden_when_unavailable=True,
-                    failure_text="The circular door has no single-person release. Two explorers must HOLD LEFT SEAL and HOLD RIGHT SEAL together.",
+                    failure_text="The circular door is still sealed. HOLD LEFT SEAL and HOLD RIGHT SEAL; one explorer can use the maintenance stays, or two explorers can operate them together.",
                 ),
             ),
             features=(
                 _feature(
                     "gloam_twin_handplates",
                     "Twin Handplates",
-                    "two widely separated mechanical seals designed for simultaneous witnesses",
-                    "The plates are deliberately beyond one person's reach. Their mechanism is old but mundane: both mechanical locks must carry weight at once. Whatever lies beyond, the builders refused to let one person make the decision alone.",
+                    "two widely separated mechanical seals built for simultaneous witnesses but fitted with old maintenance stays",
+                    "The plates were meant for two workers, but each has a service pawl that can briefly hold the mechanism under load. Two explorers can operate them together; a lone explorer can set one plate, cross the vestibule, and HOLD the other before the stay releases.",
                     ("seals", "handplates", "left seal", "right seal", "plates"),
                 ),
             ),
@@ -567,7 +567,7 @@ def install_gloamworks_content(world_service=None) -> None:
 
 
 _ACTIVE_SESSIONS: weakref.WeakSet = weakref.WeakSet()
-_SEAL_HOLDS: dict[int, str] = {}
+_SEAL_HOLDS: dict[int, set[str]] = {}
 
 
 def _refresh_character(session) -> None:
@@ -620,7 +620,7 @@ async def _talk_surveyor(session) -> bool:
         _refresh_character(session)
         await session.send(
             "Dorr listens without interrupting, then circles the eastward marks on the final survey. 'So it continues under the Greywake March. Fine. We stop calling this a mine problem.'\r\n"
-            "Quest complete: Below the Sealed Door. You gain 180 XP and keep a Regent Shard from the survey evidence.\r\n"
+            "Quest complete: Below the Sealed Door. You gain 180 XP and keep a Regent Shard from the survey evidence. Type JOURNEY for the next shared-road step.\r\n"
         )
     else:
         await session.send("Dorr says, 'Bring me the whole route, not half a theory. The survey is still open.'\r\n")
@@ -659,22 +659,28 @@ async def _attempt_seal_hold(session, side: str, peers: Iterable | None = None) 
     if side not in {"left", "right"}:
         await session.send("Choose HOLD LEFT SEAL or HOLD RIGHT SEAL.\r\n")
         return True
-    _SEAL_HOLDS[session.character.id] = side
+    held = _SEAL_HOLDS.setdefault(session.character.id, set())
+    held.add(side)
     opposite = "right" if side == "left" else "left"
     partner = None
     for other in _sessions_in_room(GLOAM_TWIN_SEAL_KEY, peers):
         if other is session or other.character is None:
             continue
-        if _SEAL_HOLDS.get(other.character.id) == opposite:
+        if opposite in _SEAL_HOLDS.get(other.character.id, set()):
             partner = other
             break
-    if partner is None:
+
+    # The original expedition design accidentally made a level-4 story a hard
+    # multiplayer gate. Keep the cooperative solution, but let one explorer use
+    # the old maintenance stays by operating both plates in sequence.
+    if partner is None and opposite not in held:
         await session.send(
-            f"You lean into the {side} handplate. The mechanism takes your weight, but the opposite lock stays hard. Another player must HOLD {opposite.upper()} SEAL while you remain here.\r\n"
+            f"You lean into the {side} handplate. A maintenance pawl catches and holds it under load. "
+            f"HOLD {opposite.upper()} SEAL to finish the release yourself, or another player can hold the opposite plate.\r\n"
         )
         return True
 
-    pair = (session, partner)
+    pair = (session,) if partner is None else (session, partner)
     for explorer in pair:
         if explorer.character is None:
             continue
@@ -683,7 +689,8 @@ async def _attempt_seal_hold(session, side: str, peers: Iterable | None = None) 
         if q and q["status"] == "active" and q["current_step"] == "sync_seals":
             explorer.database.advance_quest(explorer.character.id, GLOAMWORKS_QUEST_KEY, "defeat_regent")
         await explorer.send(
-            "Both handplates sink at once. Two independent locks answer with the same deep click, and the circular door begins to roll aside. No class, creed, or race was required-only another person willing to hold the other side.\r\n"
+            "Both handplates settle under load. Two independent locks answer with the same deep click, and the circular door begins to roll aside. "
+            "Another explorer can still share the witness mechanism, but the old maintenance stays mean the expedition no longer stops here when you are alone.\r\n"
         )
     return True
 
@@ -691,14 +698,13 @@ async def _attempt_seal_hold(session, side: str, peers: Iterable | None = None) 
 def _group_ready_for_regent(session, peers: Iterable | None = None) -> bool:
     if session.character is None:
         return False
-    ready = 0
     for other in _sessions_in_room(GLOAM_BURIED_COURT_KEY, peers):
         if other.character is None:
             continue
         flags = other.database.list_flags(other.character.id)
         if GLOAMWORKS_TWIN_SEAL_FLAG in flags:
-            ready += 1
-    return ready >= 2
+            return True
+    return False
 
 
 async def _record_enemy_defeat(session, enemy_key: str) -> None:
@@ -799,7 +805,7 @@ def install_gloamworks_runtime(player_session_class, world_service) -> None:
         elif room_key == GLOAM_BURIED_COURT_KEY and normalized.startswith("attack ") and ("regent" in normalized):
             if not _group_ready_for_regent(self):
                 await self.send(
-                    "The Regent's pressure field turns a lone attack aside. The old two-witness seal was a warning as much as a lock: at least two synchronized players must remain in the Buried Court for this encounter.\r\n"
+                    "The Regent's pressure field turns the attack aside. Synchronize the Twin Seal before confronting it; additional explorers can join, but they are not required.\r\n"
                 )
                 handled = True
 

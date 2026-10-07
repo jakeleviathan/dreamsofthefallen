@@ -15,6 +15,7 @@ from mud.early_game_polish import (
     FIGHT_FLAG,
     LOOK_FLAG,
     MOVE_FLAG,
+    JOURNEY_STEP_TARGETS,
     RACE_VERB_FLAVOR,
     install_early_game_polish_runtime,
 )
@@ -128,6 +129,7 @@ class EarlyGamePolishTests(unittest.TestCase):
         asyncio.run(session.enter_character())
         output = "".join(session.outputs)
         self.assertIn("Type GOALS", output)
+        self.assertIn("Type JOURNEY", output)
         self.assertIn("salvage", output.lower())
         self.assertNotIn("1/4", output)
         self.assertNotIn("checklist", output.lower())
@@ -140,6 +142,92 @@ class EarlyGamePolishTests(unittest.TestCase):
         output = "".join(session.outputs)
         self.assertIn("Current goal - Three Bells", output)
         self.assertNotIn("Quest Journal", output)
+
+    def test_journey_points_level_seven_players_from_greywake_into_sablewater(self):
+        from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+        from mud.greywake_march import GREYWAKE_CHAIN_COMPLETE_FLAG
+
+        Session = session_type()
+        session = Session(["journey"])
+        session.character.level = 7
+        session.database.grant_flag(session.character.id, GLOAMWORKS_COMPLETE_FLAG)
+        session.database.grant_flag(session.character.id, GREYWAKE_CHAIN_COMPLETE_FLAG)
+        asyncio.run(session.playing_prompt())
+        output = "".join(session.outputs)
+        self.assertIn("Sablewater Reach", output)
+        self.assertIn("North Ferry", output)
+        self.assertIn("TALK FERRYMASTER", output)
+
+    def test_journey_points_level_eight_players_into_veyra_without_admin_help(self):
+        from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+        from mud.greywake_march import GREYWAKE_CHAIN_COMPLETE_FLAG
+
+        Session = session_type()
+        session = Session(["journey"])
+        session.character.level = 8
+        session.database.grant_flag(session.character.id, GLOAMWORKS_COMPLETE_FLAG)
+        session.database.grant_flag(session.character.id, GREYWAKE_CHAIN_COMPLETE_FLAG)
+        asyncio.run(session.playing_prompt())
+        output = "".join(session.outputs)
+        self.assertIn("Main journey - Veyra", output)
+        self.assertIn("Veyra Gate Ward", output)
+        self.assertIn("Resident Chit", output)
+
+    def test_journey_routes_veyra_resident_back_to_drowned_tollhouse(self):
+        from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+        from mud.greywake_march import GREYWAKE_CHAIN_COMPLETE_FLAG
+        from mud.sablewater_reach import TOLLHOUSE_UNLOCKED_FLAG
+        from mud.veyra_city import VEYRA_FACTION_RANK_FLAG, VEYRA_RESIDENT_FLAG
+
+        Session = session_type()
+        session = Session(["journey"])
+        session.character.level = 8
+        session.character.current_room = "veyra_ledger_office"
+        for flag in (
+            GLOAMWORKS_COMPLETE_FLAG,
+            GREYWAKE_CHAIN_COMPLETE_FLAG,
+            TOLLHOUSE_UNLOCKED_FLAG,
+            VEYRA_RESIDENT_FLAG,
+            VEYRA_FACTION_RANK_FLAG,
+        ):
+            session.database.grant_flag(session.character.id, flag)
+
+        asyncio.run(session.playing_prompt())
+        output = "".join(session.outputs)
+        self.assertIn("Drowned Tollhouse", output)
+        self.assertIn("Drowned Tollhouse entry", output)
+
+    def test_journey_names_underclock_then_gravewatch_for_level_nine(self):
+        from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+        from mud.greywake_march import GREYWAKE_CHAIN_COMPLETE_FLAG
+        from mud.sablewater_reach import DROWNED_TOLLHOUSE_COMPLETE_FLAG
+        from mud.veyra_city import VEYRA_FACTION_RANK_FLAG, VEYRA_RESIDENT_FLAG
+        from mud.veyra_underclock import UNDERCLOCK_COMPLETE_FLAG
+
+        Session = session_type()
+        session = Session(["journey", "journey"])
+        session.character.level = 9
+        for flag in (
+            GLOAMWORKS_COMPLETE_FLAG,
+            GREYWAKE_CHAIN_COMPLETE_FLAG,
+            DROWNED_TOLLHOUSE_COMPLETE_FLAG,
+            VEYRA_RESIDENT_FLAG,
+            VEYRA_FACTION_RANK_FLAG,
+        ):
+            session.database.grant_flag(session.character.id, flag)
+
+        asyncio.run(session.playing_prompt())
+        first = "".join(session.outputs)
+        self.assertIn("City Between Ticks", first)
+        self.assertIn("Underclock Intake Stair", first)
+
+        session.outputs.clear()
+        session.database.grant_flag(session.character.id, UNDERCLOCK_COMPLETE_FLAG)
+        asyncio.run(session.playing_prompt())
+        second = "".join(session.outputs)
+        self.assertIn("Gravewatch Keep", second)
+        self.assertIn("Gravewatch River Mile", second)
+        self.assertIn("TALK SERGEANT", second)
 
     def test_look_move_fight_and_ability_are_quietly_recorded(self):
         Session = session_type()
@@ -171,6 +259,54 @@ class EarlyGamePolishTests(unittest.TestCase):
 
 
 class ProductionEarlyGameContractTests(unittest.TestCase):
+    def test_mandatory_shared_road_xp_reaches_every_level_gate_without_grinding(self):
+        from mud.mechanics import PROGRESSION_RULES
+
+        xp = PROGRESSION_RULES.cumulative_xp_for_level(6)
+        self.assertEqual(PROGRESSION_RULES.level_for_experience(xp), 6)
+
+        # Greywake: After the Gloam + Three Claims + surge participation + Bell report.
+        xp += 120 + 280 + 100 + 220
+        self.assertGreaterEqual(PROGRESSION_RULES.level_for_experience(xp), 7)
+
+        # Sablewater surface chain carries an exact level-six starter through the
+        # level-eight city gate without requiring repeatables or random combat XP.
+        xp += 140 + 170
+        self.assertGreaterEqual(PROGRESSION_RULES.level_for_experience(xp), 8)
+
+        # Drowned Tollhouse + Veyra arrival/service establish level nine.
+        xp += 350 + 250 + 180
+        self.assertGreaterEqual(PROGRESSION_RULES.level_for_experience(xp), 9)
+
+        # The two authored Veyra-side clears finish the opening road at level ten.
+        xp += 360 + 420
+        self.assertGreaterEqual(PROGRESSION_RULES.level_for_experience(xp), 10)
+
+    def test_every_static_journey_target_is_a_real_quest_step_and_live_room(self):
+        root = Path(__file__).resolve().parents[1]
+        code = r'''
+import server
+from mud.early_game_polish import JOURNEY_STEP_TARGETS
+from mud.quests import QUESTS_BY_KEY
+
+for (quest_key, step), (room_key, _name) in JOURNEY_STEP_TARGETS.items():
+    assert quest_key in QUESTS_BY_KEY, (quest_key, step, "missing quest")
+    definition = QUESTS_BY_KEY[quest_key]
+    assert definition.objective_for_step(step), (quest_key, step, "missing step")
+    assert room_key in server.WORLD.legacy_rooms, (quest_key, step, room_key, "missing room")
+print("JOURNEY_TARGET_CONTRACT_OK")
+'''
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            env={**os.environ, "PYTHONPATH": str(root)},
+            timeout=90,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertIn("JOURNEY_TARGET_CONTRACT_OK", result.stdout)
+
     def test_real_production_entrypoint_keeps_all_40_race_class_starts_walkable_to_level_ten(self):
         root = Path(__file__).resolve().parents[1]
         code = r'''

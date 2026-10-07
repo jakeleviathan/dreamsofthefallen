@@ -297,6 +297,23 @@ async def _show_journey(session) -> None:
     character = getattr(session, "character", None)
     if character is None:
         return
+
+    # The launch-slice wrapper is the production owner of JOURNEY. Levels 6-10
+    # need concrete self-guiding directions rather than the older broad horizon,
+    # so delegate that band to the shared-road guide used by early-game polish.
+    if 6 <= int(character.level) <= 10:
+        from mud.early_game_polish import _journey_text
+
+        loop = STARTER_RACE_LOOPS_BY_RACE.get(character.race or "")
+        origin = loop.hook_name if loop is not None else "Your origin"
+        await session.send(
+            "\r\n--- Your Journey ---\r\n"
+            f"Origin: {origin}\r\n"
+            + _journey_text(session).lstrip("\r\n")
+            + "QUESTS shows every active objective; JOURNEY gives the next concrete step on the shared road when you need re-orienting.\r\n"
+        )
+        return
+
     flags = session.database.list_flags(character.id)
     title, text = journey_stage_for(
         race_key=character.race or "",

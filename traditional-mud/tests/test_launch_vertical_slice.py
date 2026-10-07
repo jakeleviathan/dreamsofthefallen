@@ -26,6 +26,7 @@ from mud.launch_vertical_slice import (
     _broadcast_tavern,
     _maybe_send_veyra_arrival,
     _notify_friend_presence,
+    _show_journey,
     journey_stage_for,
 )
 from mud.starter_race_loops import STARTER_RACE_LOOPS, STARTER_RACE_LOOPS_BY_RACE
@@ -100,6 +101,24 @@ class LaunchVerticalSliceTests(unittest.TestCase):
         title, text = journey_stage_for(race_key="human", level=8, flags=flags)
         self.assertEqual(title, "A place in the wider world")
         self.assertIn("order that interests you", text)
+
+    def test_live_journey_owner_uses_concrete_shared_road_guidance_at_level_six(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session = self._session(Path(temp_dir), name="RoadGuide", race="goblin")
+            session.database.add_experience(
+                session.character.id,
+                1000,
+            )
+            session.database.grant_flag(session.character.id, GLOAMWORKS_COMPLETE_FLAG)
+            session.refresh()
+            self.assertEqual(session.character.level, 6)
+
+            asyncio.run(_show_journey(session))
+            output = "".join(session.messages)
+            self.assertIn("--- Your Journey ---", output)
+            self.assertIn("Main journey - Greywake March", output)
+            self.assertIn("Three-Banner Camp", output)
+            self.assertNotIn("horizon, not a mandatory checklist", output)
 
     def test_waymeet_pacing_tuning_is_modest_and_keeps_danger_curve(self):
         authored = {enemy.key: enemy for enemy in waymeet.WAYMEET_ENEMIES}
