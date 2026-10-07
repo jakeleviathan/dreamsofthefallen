@@ -20,15 +20,16 @@ class QuestJournalDashboardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             database = Database(Path(temporary) / "journal.db")
             with database.connect() as db:
-                account = db.execute(
-                    "INSERT INTO accounts (name, password_hash) VALUES (?, ?) RETURNING id",
+                account_cursor = db.execute(
+                    "INSERT INTO accounts (name, password_hash) VALUES (?, ?)",
                     ("journal_test", "hash"),
-                ).fetchone()
-                character = db.execute(
-                    "INSERT INTO characters (account_id, name) VALUES (?, ?) RETURNING id",
-                    (int(account["id"]), "JournalTester"),
-                ).fetchone()
-                character_id = int(character["id"])
+                )
+                account_id = int(account_cursor.lastrowid)
+                character_cursor = db.execute(
+                    "INSERT INTO characters (account_id, name) VALUES (?, ?)",
+                    (account_id, "JournalTester"),
+                )
+                character_id = int(character_cursor.lastrowid)
                 db.execute(
                     """
                     INSERT INTO character_quests
