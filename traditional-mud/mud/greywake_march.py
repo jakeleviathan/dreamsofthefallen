@@ -543,7 +543,10 @@ async def _talk_captain(session) -> bool:
             session.database.start_quest(session.character.id, THREE_CLAIMS_QUEST_KEY, "hear_roadwarden")
             session.database.add_experience(session.character.id, 120)
             _refresh(session)
-            await session.send("Oryn pins all three observations to one line. 'Same family of problem. Now hear what each of us wants to do about it before you help anyone.' After the Gloam complete: 120 XP.\r\n")
+            await session.send(
+                "Oryn pins all three observations to one line. 'Same family of problem. Now hear what each of us wants to do about it before you help anyone.' After the Gloam complete: 120 XP.\r\n"
+                "First stop: go NORTH to the Roadwarden Post and TALK CAPTAIN. After that, the quest will lead you through the other two claims before you choose whom to support.\r\n"
+            )
             return True
     q3 = _quest(session, BELL_BELOW_WIND_QUEST_KEY)
     if q3 and q3["status"] == "active" and q3["current_step"] == "report" and GREYWAKE_SURGE_VETERAN_FLAG in session.database.list_flags(session.character.id):
