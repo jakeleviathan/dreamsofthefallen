@@ -275,7 +275,7 @@ def journey_stage_for(*, race_key: str, level: int, flags: frozenset[str] | set[
     if GLOAMWORKS_COMPLETE_FLAG not in flags:
         return (
             "Below the Sealed Door",
-            "The Gloamworks are the first place Astralis asks you to coordinate rather than merely coexist. The descent begins at Gloam Mouth and eventually requires another actual player.",
+            "The Gloamworks are the first shared descent beneath Waymeet. The Twin Seal supports two explorers working together, while a lone explorer can use the old maintenance stays to operate both plates in sequence.",
         )
     if GREYWAKE_CHAIN_COMPLETE_FLAG not in flags:
         return (
@@ -298,36 +298,20 @@ async def _show_journey(session) -> None:
     if character is None:
         return
 
-    # The launch-slice wrapper is the production owner of JOURNEY. Levels 6-10
-    # need concrete self-guiding directions rather than the older broad horizon,
-    # so delegate that band to the shared-road guide used by early-game polish.
-    if 6 <= int(character.level) <= 10:
-        from mud.early_game_polish import _journey_text
+    # Launch Vertical Slice remains the outer production owner of the command so
+    # older aliases such as STORY and HORIZON stay compatible. The actual
+    # progression answer is authoritative in early_game_polish and now covers the
+    # complete authored 1-40 campaign instead of falling back to a broad horizon
+    # after Veyra.
+    from mud.early_game_polish import _journey_text
 
-        loop = STARTER_RACE_LOOPS_BY_RACE.get(character.race or "")
-        origin = loop.hook_name if loop is not None else "Your origin"
-        await session.send(
-            "\r\n--- Your Journey ---\r\n"
-            f"Origin: {origin}\r\n"
-            + _journey_text(session).lstrip("\r\n")
-            + "QUESTS shows every active objective; JOURNEY gives the next concrete step on the shared road when you need re-orienting.\r\n"
-        )
-        return
-
-    flags = session.database.list_flags(character.id)
-    title, text = journey_stage_for(
-        race_key=character.race or "",
-        level=int(character.level),
-        flags=flags,
-    )
     loop = STARTER_RACE_LOOPS_BY_RACE.get(character.race or "")
     origin = loop.hook_name if loop is not None else "Your origin"
     await session.send(
         "\r\n--- Your Journey ---\r\n"
         f"Origin: {origin}\r\n"
-        f"Now: {title}\r\n"
-        f"{text}\r\n"
-        "This is a horizon, not a mandatory checklist. QUESTS shows concrete objectives; JOURNEY only reminds you how the larger adventure connects.\r\n"
+        + _journey_text(session).lstrip("\r\n")
+        + "QUESTS shows every active objective; JOURNEY gives the next concrete step on the main authored road when you need re-orienting.\r\n"
     )
 
 
