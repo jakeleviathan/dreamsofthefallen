@@ -144,10 +144,13 @@ class WaymeetAdventureArcTests(unittest.TestCase):
         self.assertIn("no second word", text)
         self.assertIn("echo is simply there", text)
 
-    def test_bosses_are_distinct_and_not_static_room_furniture(self):
-        bosses = {arc.TOLLMASTER.key, arc.HOLLOW_BELLKEEPER.key, arc.RIFTBACK_MATRIARCH.key, arc.LISTENER_BELOW.key}
+    def test_tollmaster_is_a_visible_static_boss_spawn(self):
+        counting_room = next(room for room in arc.TOLL_ROOMS if room.key == arc.TOLL_COUNTING)
+        self.assertIn(arc.TOLLMASTER.key, counting_room.enemy_keys)
+
+        scripted_bosses = {arc.HOLLOW_BELLKEEPER.key, arc.RIFTBACK_MATRIARCH.key, arc.LISTENER_BELOW.key}
         static_enemy_keys = {enemy_key for room in arc.ALL_ADVENTURE_ROOMS for enemy_key in room.enemy_keys}
-        self.assertTrue(bosses.isdisjoint(static_enemy_keys))
+        self.assertTrue(scripted_bosses.isdisjoint(static_enemy_keys))
         self.assertEqual(arc.TOLLMASTER.max_hp, 96)
         self.assertEqual(arc.HOLLOW_BELLKEEPER.max_hp, 142)
         self.assertEqual(arc.RIFTBACK_MATRIARCH.max_hp, 210)
