@@ -7,7 +7,7 @@ NOTE_TITLE_LIMIT = 80
 NOTE_BODY_LIMIT = 6000
 NOTE_LINE_LIMIT = 60
 NOTE_COUNT_LIMIT = 100
-NOTE_LIST_LIMIT = 40
+NOTE_LIST_LIMIT = 20
 
 _ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
@@ -65,11 +65,14 @@ def _note_count(session) -> int:
     return int(row["n"])
 
 
-def _note_rows(session, *, limit: int = NOTE_LIST_LIMIT):
+def _note_rows(session, *, page: int = 1, limit: int = NOTE_LIST_LIMIT):
     character = _character(session)
     if character is None:
         return []
     ensure_notepad_schema(session.database)
+    page_size = max(1, min(NOTE_LIST_LIMIT, int(limit)))
+    page_number = max(1, int(page))
+    offset = (page_number - 1) * page_size
     with session.database.connect() as db:
         return db.execute(
             """
@@ -77,9 +80,9 @@ def _note_rows(session, *, limit: int = NOTE_LIST_LIMIT):
             FROM character_notes
             WHERE character_id = ?
             ORDER BY updated_at DESC, id DESC
-            LIMIT ?
+            LIMIT ? OFFSET ?
             """,
-            (character.id, max(1, min(NOTE_LIST_LIMIT, int(limit)))),
+            (character.id, page_size, offset),
         ).fetchall()
 
 
@@ -150,10 +153,15 @@ def _parse_note_id(text: str) -> int | None:
     return int(value) if value.isdigit() and int(value) > 0 else None
 
 
-async def _show_notepad(session) -> None:
-    rows = _note_rows(session)
+async def _show_notepad(session, *, page: int = 1) -> None:
     total = _note_count(session)
-    await session.send("\r\n--- Notepad ---\r\n")
+    page_count = max(1, (total + NOTE_LIST_LIMIT - 1) // NOTE_LIST_LIMIT)
+    page_number = max(1, min(int(page), page_count))
+    rows = _note_rows(session, page=page_number)
+
+    await session.send(
+        f"\r\n--- Notepad · {total} note{'s' if total != 1 else ''} · page {page_number}/{page_count} ---\r\n"
+    )
     if not rows:
         await session.send(
             "No notes yet. NOTEPAD NEW <title> starts one.\r\n"
@@ -163,12 +171,13 @@ async def _show_notepad(session) -> None:
     for row in rows:
         await session.send(f"{row['id']:>3}) {row['title']}\r\n")
 
-    hidden = max(0, total - len(rows))
-    if hidden:
-        await session.send(f"\r\n{hidden} older notes are not shown in this compact list.\r\n")
     await session.send(
         "\r\nNOTEPAD READ <number> · NEW <title> · EDIT <number> · DELETE <number>\r\n"
     )
+    if page_count > 1:
+        await session.send(
+            f"NOTEPAD PAGE <number> browses pages 1-{page_count}.\r\n"
+        )
 
 
 async def _read_note(session, note_id: int) -> None:
@@ -467,7 +476,7 @@ async def _handle_notepad_interaction(session, raw: str) -> bool:
 async def _show_notepad_help(session) -> None:
     await session.send(
         "\r\n--- Notepad Commands ---\r\n"
-        "NOTEPAD / NOTES - list your private character notes.\r\n"
+        "NOTEPAD / NOTES - list your private character notes. NOTEPAD PAGE <number> browses longer lists.\r\n"
         "NOTEPAD NEW <title> - start a multiline note. The title may be entered on the next line if omitted.\r\n"
         "NOTEPAD READ <number> - open a note. NOTEPAD <number> is a shorthand.\r\n"
         "NOTEPAD EDIT <number> - edit title or individual lines, or append new lines.\r\n"
@@ -530,6 +539,13 @@ def install_notepad_runtime(player_session_class) -> None:
 
         if normalized in {"notepad", "notes"}:
             await _show_notepad(self)
+            return
+        if normalized.startswith("notepad page ") or normalized.startswith("notes page "):
+            page_text = stripped.rsplit(" ", 1)[-1].strip()
+            if not page_text.isdigit() or int(page_text) < 1:
+                await self.send("Use NOTEPAD PAGE <number>.\r\n")
+            else:
+                await _show_notepad(self, page=int(page_text))
             return
         if normalized in {"notepad help", "notes help", "help notepad", "help notes"}:
             await _show_notepad_help(self)
