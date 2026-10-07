@@ -270,6 +270,11 @@ class GoblinOuterRouteTests(unittest.TestCase):
         self.assertEqual(finished["status"], "completed")
         self.assertEqual(session.database.item_quantity(91, GOBLIN_ROUTE_TALLY_ITEM_KEY), 0)
         self.assertIn(GOBLIN_OUTER_ROUTE_COMPLETE_FLAG, session.database.list_flags(91))
+        completion_text = "".join(session.outputs)
+        self.assertIn("maintained beginner branches", completion_text)
+        self.assertIn("reach level 2", completion_text)
+        self.assertIn("take WEST along the Waymeet Causeway", completion_text)
+        self.assertIn("Type JOURNEY", completion_text)
 
         # A fresh attempt at the fight uses the quest-specific flood-watch rescue,
         # not normal death handling or XP-loss logic.
