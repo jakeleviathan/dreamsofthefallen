@@ -21,6 +21,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import server
+from mud.alpha_ux import ensure_alpha_ux_schema
 from mud.database import Database
 from mud.sporekin_depth import SPOREKIN_MEMORY_PATH_ROOM_KEY
 from mud.waymeet_frontier import WAYMEET_CROSSROADS_KEY
@@ -44,6 +45,7 @@ MATRIX = (
 async def run_case(index, race, class_name, room_key, command, marker):
     with tempfile.TemporaryDirectory() as tmp:
         database = Database(Path(tmp) / "mud.db")
+        ensure_alpha_ux_schema(database)
         account = database.create_account(f"matrix_{index}", "not-a-real-hash")
         character = database.create_character(
             account.id,
