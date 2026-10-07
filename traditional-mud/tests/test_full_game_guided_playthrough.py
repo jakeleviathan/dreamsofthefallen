@@ -434,6 +434,11 @@ async def main():
         await walk_to(salt.UNDERTIDE_COUNTERWEIGHT_KEY)
         await run("set counterweight")
         await walk_to(salt.UNDERTIDE_REGENT_KEY)
+        blocked = await run("attack regent")
+        assert "VENT EAST" in blocked and "CLOSE HIGH" in blocked and "OPEN RETURN" in blocked, blocked
+        await run("vent east")
+        await run("close high")
+        await run("open return")
         await resolve_fight("attack regent")
         await walk_to(salt.UNDERTIDE_DISTRIBUTOR_KEY)
         await run("examine distributor")
