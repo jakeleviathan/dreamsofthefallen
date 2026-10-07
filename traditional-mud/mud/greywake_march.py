@@ -549,7 +549,17 @@ async def _talk_captain(session) -> bool:
         session.database.add_experience(session.character.id, 220)
         session.database.add_item(session.character.id, MARCH_TOKEN_KEY, 1)
         _refresh(session)
-        await session.send("Oryn hears the surge count, then points east. 'Veyra's road is open. Take the result there before the city decides Greywake is only a rumor.' The Bell Below the Wind complete: 220 XP and a Greywake March Token.\r\n")
+        if session.character.level < 8:
+            await session.send(
+                "Oryn hears the surge count, then points east. 'Veyra's road is open, but the city checkpoint will not take you before level 8. "
+                "Ledger Cut has a south road into Sablewater if you want useful work before then.' The Bell Below the Wind complete: 220 XP and a Greywake March Token. "
+                "Type JOURNEY for the next shared-road step.\r\n"
+            )
+        else:
+            await session.send(
+                "Oryn hears the surge count, then points east. 'Veyra's road is open. Take the result there before the city decides Greywake is only a rumor.' "
+                "The Bell Below the Wind complete: 220 XP and a Greywake March Token. Type JOURNEY for the next shared-road step.\r\n"
+            )
         return True
     await session.send("Oryn says, 'The March still has work for you. Check your QUESTS and bring back observations, not guesses.'\r\n")
     return True
