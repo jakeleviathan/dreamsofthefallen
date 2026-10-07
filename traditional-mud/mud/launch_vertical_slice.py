@@ -275,7 +275,7 @@ def journey_stage_for(*, race_key: str, level: int, flags: frozenset[str] | set[
     if GLOAMWORKS_COMPLETE_FLAG not in flags:
         return (
             "Below the Sealed Door",
-            "The Gloamworks are the first place Astralis asks you to coordinate rather than merely coexist. The descent begins at Gloam Mouth. Two explorers can work the final witness plates together, but a lone explorer can use the old maintenance stays and finish the descent solo.",
+            "The Gloamworks are the first place Astralis asks you to coordinate rather than merely coexist. Go to Gloam Mouth and TALK SURVEYOR to begin the descent. Two explorers can work the final witness plates together, but a lone explorer can use the old maintenance stays and finish the descent solo.",
         )
     if GREYWAKE_CHAIN_COMPLETE_FLAG not in flags:
         return (
