@@ -355,6 +355,10 @@ async def main():
         await walk_to(reach.HOUSE_DEEP_HEARTH_KEY)
         await run("examine hearth")
         await walk_to(reach.HOUSE_KEEPER_LOCK_KEY)
+        blocked = await run("attack warden")
+        assert "RELEASE LEFT BAR" in blocked and "RELEASE RIGHT BAR" in blocked, blocked
+        await run("release left bar")
+        await run("release right bar")
         await resolve_fight("attack warden")
         await run("examine lock")
         await walk_to(reach.HOUSE_BLACK_BELL_KEY)
