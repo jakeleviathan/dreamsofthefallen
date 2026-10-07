@@ -748,7 +748,7 @@ async def _turn_final_sluice(session) -> bool:
     session.database.add_item(session.character.id, AUDITOR_GEAR_KEY, 1)
     session.database.add_experience(session.character.id, 350)
     _refresh(session)
-    await session.send("You put your weight into the final wheel. Old seals split, the bypass gate rises, and riverwater takes the route nobody has used in generations. Upstream pressure drops by inches rather than miracles. The Price of Crossing complete: 350 XP and a Brass Auditor Gear.\r\n")
+    await session.send("You put your weight into the final wheel. Old seals split, the bypass gate rises, and riverwater takes the route nobody has used in generations. Upstream pressure drops by inches rather than miracles. The Price of Crossing complete: 350 XP and a Brass Auditor Gear. Type JOURNEY for the next shared-road step.\r\n")
     return True
 
 
