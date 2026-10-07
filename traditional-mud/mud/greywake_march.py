@@ -558,7 +558,7 @@ async def _talk_captain(session) -> bool:
         if session.character.level < 8:
             await session.send(
                 "Oryn hears the surge count, then points east. 'Veyra's road is open, but the city checkpoint will not take you before level 8. "
-                "Ledger Cut has a south road into Sablewater if you want useful work before then.' The Bell Below the Wind complete: 220 XP and a Greywake March Token. "
+                "Ledger Cut has a south road into Sablewater if you want useful work before then. From Ledger Cut, go south to Reed Farms, east to Flood Road, then north to North Ferry and TALK FERRYMASTER.' The Bell Below the Wind complete: 220 XP and a Greywake March Token. "
                 "Type JOURNEY for the next shared-road step.\r\n"
             )
         else:
