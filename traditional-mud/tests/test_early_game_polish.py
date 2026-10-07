@@ -177,6 +177,40 @@ class EarlyGamePolishTests(unittest.TestCase):
         self.assertIn("EAST", output)
         self.assertIn("Resident Chit", output)
 
+    def test_journey_names_underclock_then_gravewatch_for_level_nine(self):
+        from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+        from mud.greywake_march import GREYWAKE_CHAIN_COMPLETE_FLAG
+        from mud.sablewater_reach import DROWNED_TOLLHOUSE_COMPLETE_FLAG
+        from mud.veyra_city import VEYRA_FACTION_RANK_FLAG, VEYRA_RESIDENT_FLAG
+        from mud.veyra_underclock import UNDERCLOCK_COMPLETE_FLAG
+
+        Session = session_type()
+        session = Session(["journey", "journey"])
+        session.character.level = 9
+        for flag in (
+            GLOAMWORKS_COMPLETE_FLAG,
+            GREYWAKE_CHAIN_COMPLETE_FLAG,
+            DROWNED_TOLLHOUSE_COMPLETE_FLAG,
+            VEYRA_RESIDENT_FLAG,
+            VEYRA_FACTION_RANK_FLAG,
+        ):
+            session.database.grant_flag(session.character.id, flag)
+
+        asyncio.run(session.playing_prompt())
+        first = "".join(session.outputs)
+        self.assertIn("City Between Ticks", first)
+        self.assertIn("North Waterworks", first)
+        self.assertIn("DOWN", first)
+
+        session.outputs.clear()
+        session.database.grant_flag(session.character.id, UNDERCLOCK_COMPLETE_FLAG)
+        asyncio.run(session.playing_prompt())
+        second = "".join(session.outputs)
+        self.assertIn("Gravewatch Keep", second)
+        self.assertIn("East River Gate", second)
+        self.assertIn("SOUTH", second)
+        self.assertIn("TALK SERGEANT", second)
+
     def test_look_move_fight_and_ability_are_quietly_recorded(self):
         Session = session_type()
         session = Session(["look", "north", "attack rat", "use coldfire burst"])
