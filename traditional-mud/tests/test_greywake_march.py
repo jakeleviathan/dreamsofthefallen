@@ -146,6 +146,21 @@ class GreywakeMarchTests(unittest.TestCase):
         finally:
             tempdir.cleanup()
 
+    def test_after_gloam_turn_in_names_first_faction_stop(self):
+        tempdir, database, session = self._session()
+        try:
+            database.start_quest(session.character.id, AFTER_GLOAM_QUEST_KEY, "return_camp")
+            session.move_to(GREYWAKE_THREE_BANNER_KEY)
+            self.assertTrue(asyncio.run(_talk_captain(session)))
+            self.assertIn("Roadwarden Post", session.text())
+            self.assertIn("TALK CAPTAIN", session.text())
+            self.assertEqual(
+                database.get_quest(session.character.id, THREE_CLAIMS_QUEST_KEY)["current_step"],
+                "hear_roadwarden",
+            )
+        finally:
+            tempdir.cleanup()
+
     def test_faction_support_is_a_choice_not_a_good_evil_lock(self):
         tempdir, database, session = self._session()
         try:
