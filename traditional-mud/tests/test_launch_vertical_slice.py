@@ -10,6 +10,7 @@ from pathlib import Path
 
 import mud.social_experience as social
 import mud.waymeet_frontier as waymeet
+import mud.quests as quests
 from mud.database import Database
 from mud.launch_vertical_slice import (
     BRIAR_EYE_CHARM,
@@ -32,7 +33,7 @@ from mud.launch_vertical_slice import (
 from mud.starter_race_loops import STARTER_RACE_LOOPS, STARTER_RACE_LOOPS_BY_RACE
 from mud.veyra_city import VEYRA_GRAND_CROSSING_KEY, VEYRA_PUBLIC_HEARTH_KEY, VEYRA_RESIDENT_FLAG
 from mud.waymeet_frontier import WAYMEET_COMMONHOUSE_KEY, WAYMEET_INTRO_COMPLETE_FLAG
-from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG, GLOAMWORKS_QUEST
 from mud.greywake_march import GREYWAKE_CHAIN_COMPLETE_FLAG
 
 
@@ -114,14 +115,22 @@ class LaunchVerticalSliceTests(unittest.TestCase):
             session.database.grant_flag(session.character.id, WAYMEET_INTRO_COMPLETE_FLAG)
             session.database.start_quest(
                 session.character.id,
-                "gloamworks_below_the_sealed_door",
+                GLOAMWORKS_QUEST.key,
                 "read_fault",
             )
             session.database.set_character_room(session.character.id, "gloamworks_entry_cage")
             session.refresh()
             self.assertEqual(session.character.level, 4)
 
-            asyncio.run(_show_journey(session))
+            old_definition = quests.QUESTS_BY_KEY.get(GLOAMWORKS_QUEST.key)
+            quests.QUESTS_BY_KEY[GLOAMWORKS_QUEST.key] = GLOAMWORKS_QUEST
+            try:
+                asyncio.run(_show_journey(session))
+            finally:
+                if old_definition is None:
+                    quests.QUESTS_BY_KEY.pop(GLOAMWORKS_QUEST.key, None)
+                else:
+                    quests.QUESTS_BY_KEY[GLOAMWORKS_QUEST.key] = old_definition
             output = "".join(session.messages)
             self.assertIn("--- Your Journey ---", output)
             self.assertIn("Main journey - Below the Sealed Door", output)
