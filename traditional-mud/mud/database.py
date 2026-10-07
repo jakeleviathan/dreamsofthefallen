@@ -1103,11 +1103,22 @@ class Database:
     def list_quests(self, character_id: int) -> list[dict[str, str | None]]:
         with self.connect() as db:
             rows = db.execute(
-                "SELECT quest_key, status, current_step FROM character_quests WHERE character_id = ? ORDER BY started_at, quest_key",
+                """
+                SELECT quest_key, status, current_step, started_at, completed_at
+                FROM character_quests
+                WHERE character_id = ?
+                ORDER BY started_at, quest_key
+                """,
                 (character_id,),
             ).fetchall()
         return [
-            {"quest_key": str(row["quest_key"]), "status": str(row["status"]), "current_step": row["current_step"]}
+            {
+                "quest_key": str(row["quest_key"]),
+                "status": str(row["status"]),
+                "current_step": row["current_step"],
+                "started_at": row["started_at"],
+                "completed_at": row["completed_at"],
+            }
             for row in rows
         ]
 
