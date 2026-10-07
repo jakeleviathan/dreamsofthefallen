@@ -176,7 +176,7 @@ def _journey_text(session) -> str:
             return line
         if SABLEWATER_INTRO_COMPLETE_FLAG not in flags:
             return (
-                "\r\nMain journey - Sablewater Reach: at Greywake's Ledger Cut go SOUTH into the Reed Farms, EAST to Flood Road, "
+                "\r\nMain journey - Sablewater Reach: from Three-Banner Camp go SOUTH to Ledger Cut, SOUTH into the Reed Farms, EAST to Flood Road, "
                 "then NORTH to North Ferry and TALK FERRYMASTER. This is the level 6-7 road while Veyra remains ahead.\r\n"
             )
         if TOLLHOUSE_UNLOCKED_FLAG not in flags:
@@ -194,8 +194,9 @@ def _journey_text(session) -> str:
         if line is not None:
             return line
         return (
-            "\r\nMain journey - Veyra: travel east through Greywake to Veyra Outer Gate and go EAST through the checkpoint. "
-            "At level 8, your completed Greywake chain opens the city. Follow the arrival tour until you receive a Resident Chit.\r\n"
+            "\r\nMain journey - Veyra: if you are in Sablewater, return to North Ferry, then go SOUTH to Flood Road, WEST to Reed Farms, and NORTH to Greywake's Ledger Cut. "
+            "From Ledger Cut the city road is straight: EAST through Sunk Causeway, Riftfield, Old Veyra Aqueduct, Veyra Gate Road, and Veyra Outer Gate; go EAST once more through the checkpoint. "
+            "Follow the arrival tour until you receive a Resident Chit.\r\n"
         )
 
     if VEYRA_FACTION_RANK_FLAG not in flags:
