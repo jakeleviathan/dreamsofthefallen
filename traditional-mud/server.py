@@ -63,6 +63,7 @@ from mud.class_world_integration import install_class_world_integration_runtime
 from mud.launch_vertical_slice import install_launch_vertical_slice_runtime
 from mud.living_world import install_living_world_runtime
 from mud.player_mail import install_player_mail_runtime
+from mud.player_notepad import install_notepad_runtime
 from mud.living_world_depth import install_living_world_depth_runtime
 from mud.living_world_depth_tuning import apply_living_world_depth_tuning
 from mud.living_world_continuity import install_living_world_continuity_runtime
@@ -458,6 +459,7 @@ install_circle_community_runtime(PlayerSession)
 # destructive-action confirmations are modal input: they must see the player's
 # next real line before any inner command wrapper can replay or consume it.
 install_player_mail_runtime(PlayerSession)
+install_notepad_runtime(PlayerSession)
 
 HOST = "0.0.0.0"
 PORT = 4000
