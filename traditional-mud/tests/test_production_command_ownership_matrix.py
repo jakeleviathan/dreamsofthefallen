@@ -37,6 +37,7 @@ MATRIX = (
     ("goblin", "priest", "goblin_clattergate", "commands", "Categories: basics, character, combat"),
     ("human", "priest", WAYMEET_CROSSROADS_KEY, "help", "The same command catalog powers HELP and COMMANDS"),
     ("human", "brute", WAYMEET_CROSSROADS_KEY, "sit", "You settle down and rest"),
+    ("goblin", "priest", "goblin_clattergate", "notepad", "--- Notepad"),
 )
 
 
@@ -110,7 +111,7 @@ print("PRODUCTION_COMMAND_OWNERSHIP_MATRIX_OK", len(MATRIX))
             timeout=120,
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
-        self.assertIn("PRODUCTION_COMMAND_OWNERSHIP_MATRIX_OK 6", result.stdout)
+        self.assertIn("PRODUCTION_COMMAND_OWNERSHIP_MATRIX_OK 7", result.stdout)
 
 
 if __name__ == "__main__":
