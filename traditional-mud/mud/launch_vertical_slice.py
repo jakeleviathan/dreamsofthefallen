@@ -299,9 +299,18 @@ async def _show_journey(session) -> None:
         return
 
     # The launch-slice wrapper is the production owner of JOURNEY. Levels 6-10
-    # need concrete self-guiding directions rather than the older broad horizon,
-    # so delegate that band to the shared-road guide used by early-game polish.
-    if 6 <= int(character.level) <= 10:
+    # always need concrete self-guiding directions. Earlier shared-road quests
+    # need the same treatment while they are active, otherwise a level 2-5
+    # player can be sent backward to the chapter's starting instruction.
+    level = int(character.level)
+    active_shared_quest = False
+    if 2 <= level <= 5:
+        for quest_key in ("waymeet_roads_meet_here", "gloamworks_below_the_sealed_door"):
+            quest = session.database.get_quest(character.id, quest_key)
+            if quest is not None and quest.get("status") == "active":
+                active_shared_quest = True
+                break
+    if 6 <= level <= 10 or active_shared_quest:
         from mud.early_game_polish import _journey_text
 
         loop = STARTER_RACE_LOOPS_BY_RACE.get(character.race or "")
