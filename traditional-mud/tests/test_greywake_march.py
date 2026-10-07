@@ -20,6 +20,9 @@ from mud.greywake_march import (
     GREYWAKE_ROOM_KEYS,
     GREYWAKE_ROOMS,
     GREYWAKE_SIGNAL_HILL_KEY,
+    GREYWAKE_WARDEN_POST_KEY,
+    GREYWAKE_LEDGER_CUT_KEY,
+    GREYWAKE_LANTERN_HOSPICE_KEY,
     GREYWAKE_SURGE_VETERAN_FLAG,
     GREYWAKE_THREE_BANNER_KEY,
     GREYWAKE_VEYRA_GATE_KEY,
@@ -36,6 +39,7 @@ from mud.greywake_march import (
     _record_surge_kill,
     _support_faction,
     _talk_captain,
+    _talk_faction,
     greywake_augmentations,
 )
 from mud.waymeet_frontier import WAYMEET_GLOAM_MOUTH_KEY
@@ -158,6 +162,32 @@ class GreywakeMarchTests(unittest.TestCase):
                 database.get_quest(session.character.id, THREE_CLAIMS_QUEST_KEY)["current_step"],
                 "hear_roadwarden",
             )
+        finally:
+            tempdir.cleanup()
+
+    def test_faction_conversations_name_each_next_stop(self):
+        tempdir, database, session = self._session()
+        try:
+            database.start_quest(session.character.id, THREE_CLAIMS_QUEST_KEY, "hear_roadwarden")
+
+            session.move_to(GREYWAKE_WARDEN_POST_KEY)
+            self.assertTrue(asyncio.run(_talk_faction(session, "roadwarden_compact")))
+            self.assertIn("Ledger Cut", session.text())
+            self.assertIn("TALK FACTOR", session.text())
+
+            session.sent.clear()
+            session.move_to(GREYWAKE_LEDGER_CUT_KEY)
+            self.assertTrue(asyncio.run(_talk_faction(session, "deep_ledger_consortium")))
+            self.assertIn("Lantern Hospice", session.text())
+            self.assertIn("TALK KEEPER", session.text())
+
+            session.sent.clear()
+            session.move_to(GREYWAKE_LANTERN_HOSPICE_KEY)
+            self.assertTrue(asyncio.run(_talk_faction(session, "lantern_oath")))
+            self.assertIn("Three-Banner Camp", session.text())
+            self.assertIn("SUPPORT ROADWARDEN", session.text())
+            self.assertIn("SUPPORT LEDGER", session.text())
+            self.assertIn("SUPPORT LANTERN", session.text())
         finally:
             tempdir.cleanup()
 
