@@ -705,6 +705,12 @@ def _install_help_catalog() -> None:
             ),
             CommandEntry(
                 "combat",
+                "LOOT ALL",
+                "Gather all currently accessible loot from every corpse in the room.",
+                ("corpse", "drops", "remains", "cleanup"),
+            ),
+            CommandEntry(
+                "combat",
                 "GET / TAKE ALL FROM <corpse or enemy>",
                 "Take all available loot from a defeated enemy corpse.",
                 ("corpse", "loot", "drops"),
