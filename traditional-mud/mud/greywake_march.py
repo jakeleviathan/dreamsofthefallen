@@ -745,16 +745,16 @@ def install_greywake_runtime(player_session_class, world_service) -> None:
         room = self.character.current_room or ""
         handled = False
 
-        if normalized in {"talk captain", "talk oryn", "speak captain"}:
+        if room == GREYWAKE_WARDEN_POST_KEY and normalized in {"talk captain", "talk oryn", "speak captain", "talk roadwarden", "talk roadwarden captain"}:
+            handled = await _talk_faction(self, "roadwarden_compact")
+            if not handled and normalized in {"talk captain", "talk oryn", "speak captain"}:
+                handled = await _talk_captain(self)
+        elif normalized in {"talk captain", "talk oryn", "speak captain"}:
             handled = await _talk_captain(self)
         elif normalized in {"talk factor", "talk merrit", "speak factor"}:
             handled = await _talk_faction(self, "deep_ledger_consortium")
         elif normalized in {"talk keeper", "talk ela", "speak keeper"}:
             handled = await _talk_faction(self, "lantern_oath")
-        elif normalized in {"talk roadwarden", "talk roadwarden captain"} and room == GREYWAKE_WARDEN_POST_KEY:
-            handled = await _talk_faction(self, "roadwarden_compact")
-        elif room == GREYWAKE_WARDEN_POST_KEY and normalized in {"talk captain", "talk oryn"}:
-            handled = await _talk_faction(self, "roadwarden_compact")
         elif room == GREYWAKE_HEATH_KEY and normalized in {"examine grey crust", "examine crust", "look crust"}:
             handled = await _inspect_site(self, GREYWAKE_HEATH_KEY)
         elif room == GREYWAKE_RESONANT_ORCHARD_KEY and normalized in {"examine trees", "look trees", "examine roots"}:
