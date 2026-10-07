@@ -177,6 +177,33 @@ class EarlyGamePolishTests(unittest.TestCase):
         self.assertIn("EAST", output)
         self.assertIn("Resident Chit", output)
 
+    def test_journey_routes_veyra_resident_back_to_drowned_tollhouse(self):
+        from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+        from mud.greywake_march import GREYWAKE_CHAIN_COMPLETE_FLAG
+        from mud.sablewater_reach import TOLLHOUSE_UNLOCKED_FLAG
+        from mud.veyra_city import VEYRA_FACTION_RANK_FLAG, VEYRA_RESIDENT_FLAG
+
+        Session = session_type()
+        session = Session(["journey"])
+        session.character.level = 8
+        session.character.current_room = "veyra_ledger_office"
+        for flag in (
+            GLOAMWORKS_COMPLETE_FLAG,
+            GREYWAKE_CHAIN_COMPLETE_FLAG,
+            TOLLHOUSE_UNLOCKED_FLAG,
+            VEYRA_RESIDENT_FLAG,
+            VEYRA_FACTION_RANK_FLAG,
+        ):
+            session.database.grant_flag(session.character.id, flag)
+
+        asyncio.run(session.playing_prompt())
+        output = "".join(session.outputs)
+        self.assertIn("Drowned Tollhouse", output)
+        self.assertIn("Civic Steps", output)
+        self.assertIn("North Ferry", output)
+        self.assertIn("Tollhouse Mouth", output)
+        self.assertIn("DOWN", output)
+
     def test_journey_names_underclock_then_gravewatch_for_level_nine(self):
         from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
         from mud.greywake_march import GREYWAKE_CHAIN_COMPLETE_FLAG
