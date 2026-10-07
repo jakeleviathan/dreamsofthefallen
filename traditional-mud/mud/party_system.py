@@ -287,8 +287,51 @@ async def _decline(session, inviter_name: str = "") -> None:
         await inviter.send(f"{character.name} declines your party invitation.\r\n")
 
 
+def _handoff_mobile_engagement(enemy: EnemyState, departing_character_id: int) -> None:
+    """Keep a shared roaming mob anchored when its current owner leaves combat."""
+    encounter = _encounter_for(enemy)
+    if encounter is None:
+        return
+
+    mobile_key = None
+    manager = None
+    for character_id in tuple(encounter.participant_ids):
+        member = _session_for_character_id(character_id)
+        if member is None or getattr(member, "active_enemy", None) is not enemy:
+            continue
+        candidate_key = getattr(member, "active_mobile_npc_key", None)
+        candidate_manager = getattr(member, "mobile_npcs", None)
+        if candidate_key and candidate_manager is not None:
+            mobile_key = candidate_key
+            manager = candidate_manager
+            break
+    if mobile_key is None or manager is None:
+        return
+
+    state = manager.states.get(mobile_key)
+    if state is None or state.engaged_character_id != int(departing_character_id):
+        return
+
+    for character_id in encounter.party.member_ids:
+        if character_id == int(departing_character_id):
+            continue
+        if character_id not in encounter.participant_ids:
+            continue
+        member = _session_for_character_id(character_id)
+        member_character = _character(member) if member is not None else None
+        if (
+            member_character is None
+            or getattr(member, "active_enemy", None) is not enemy
+            or getattr(member, "active_mobile_npc_key", None) != mobile_key
+        ):
+            continue
+        state.engaged_character_id = int(member_character.id)
+        return
+
+
 def _remove_from_encounters(character_id: int) -> None:
     for encounter in tuple(_PARTY_ENCOUNTERS.values()):
+        _handoff_mobile_engagement(encounter.enemy, character_id)
         encounter.participant_ids.discard(character_id)
         encounter.enemy.hate.threat.pop(character_id, None)
 
@@ -564,6 +607,7 @@ async def _party_combat_loop(session, enemy: EnemyState) -> None:
                             await target._stop_combat()
                         else:
                             fallen_id = int(target.character.id)
+                            _handoff_mobile_engagement(enemy, fallen_id)
                             encounter.participant_ids.discard(fallen_id)
                             enemy.hate.threat.pop(fallen_id, None)
                             await target._handle_character_death(enemy.definition.name)
