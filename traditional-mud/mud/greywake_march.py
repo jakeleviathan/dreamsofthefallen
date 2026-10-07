@@ -679,7 +679,8 @@ async def _record_surge_kill(session) -> None:
             continue
         explorer.database.grant_flag(character.id, GREYWAKE_SURGE_VETERAN_FLAG)
         explorer.database.add_experience(character.id, 100)
-        explorer.database.add_item(character.id, 2)
+        # Sol balances are stored in sparks; two embers are twenty sparks.
+        explorer.database.add_sols(character.id, 20)
         q = explorer.database.get_quest(character.id, BELL_BELOW_WIND_QUEST_KEY)
         if q and q["status"] == "active" and q["current_step"] == "break_surge":
             explorer.database.advance_quest(character.id, BELL_BELOW_WIND_QUEST_KEY, "report")
