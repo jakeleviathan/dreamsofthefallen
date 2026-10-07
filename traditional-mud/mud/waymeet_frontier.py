@@ -864,6 +864,7 @@ async def _talk_marshal(session) -> bool:
             "Aven listens without interrupting. When you mention the cold draft and the knocking below the sealed door, the strings between his maps suddenly look less decorative.\r\n"
             "'Then the Gloamworks are our first shared problem, not somebody else's old ruin.'\r\n"
             "Quest complete: Where the Roads Meet. Reward: 70 XP and 2 embers in Sols.\r\n"
+            "Next: if you are below level 4, work the Broken Mile with Korr, the quarry with Hedda, or hunt, gather, trade, and craft around Waymeet. At level 4, return to Gloam Mouth and TALK SURVEYOR to begin the Gloamworks descent. Type JOURNEY whenever you want the main road again.\r\n"
         )
         if gained:
             await session.send(f"You gained {gained} level.\r\n")
