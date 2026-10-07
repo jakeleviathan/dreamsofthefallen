@@ -259,6 +259,29 @@ class EarlyGamePolishTests(unittest.TestCase):
 
 
 class ProductionEarlyGameContractTests(unittest.TestCase):
+    def test_mandatory_shared_road_xp_reaches_every_level_gate_without_grinding(self):
+        from mud.mechanics import PROGRESSION_RULES
+
+        xp = PROGRESSION_RULES.cumulative_xp_for_level(6)
+        self.assertEqual(PROGRESSION_RULES.level_for_experience(xp), 6)
+
+        # Greywake: After the Gloam + Three Claims + surge participation + Bell report.
+        xp += 120 + 280 + 100 + 220
+        self.assertGreaterEqual(PROGRESSION_RULES.level_for_experience(xp), 7)
+
+        # Sablewater surface chain carries an exact level-six starter through the
+        # level-eight city gate without requiring repeatables or random combat XP.
+        xp += 140 + 170
+        self.assertGreaterEqual(PROGRESSION_RULES.level_for_experience(xp), 8)
+
+        # Drowned Tollhouse + Veyra arrival/service establish level nine.
+        xp += 350 + 250 + 180
+        self.assertGreaterEqual(PROGRESSION_RULES.level_for_experience(xp), 9)
+
+        # The two authored Veyra-side clears finish the opening road at level ten.
+        xp += 360 + 420
+        self.assertGreaterEqual(PROGRESSION_RULES.level_for_experience(xp), 10)
+
     def test_every_static_journey_target_is_a_real_quest_step_and_live_room(self):
         root = Path(__file__).resolve().parents[1]
         code = r'''
