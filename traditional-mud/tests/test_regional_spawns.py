@@ -230,6 +230,7 @@ assert pool.max_population == 7
 assert pool.room_soft_cap == 3
 assert pool.refill_min_ticks == 7
 assert pool.refill_max_ticks == 14
+assert pool.source_minimum == 2
 assert set(pool.room_keys) == {
     "waymeet_broken_mile",
     "waymeet_briarcut_fields",
@@ -239,6 +240,10 @@ assert set(pool.room_keys) == {
 assert manager.regionalizes_source(
     "waymeet_broken_mile", "waymeet_thornback_jackal"
 )
+assert sum(
+    1 for state in manager.npcs_in_room("waymeet_broken_mile")
+    if state.definition.combat_enemy_key == "waymeet_thornback_jackal"
+) >= 2
 assert manager.target_population(pool, ("waymeet_broken_mile",)) == 4
 assert manager.target_population(
     pool, ("waymeet_broken_mile", "waymeet_briarcut_fields")
