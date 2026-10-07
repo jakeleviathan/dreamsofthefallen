@@ -616,10 +616,11 @@ async def _support_faction(session, faction_key: str) -> bool:
     session.database.grant_flag(session.character.id, faction.support_flag)
     session.database.complete_quest(session.character.id, THREE_CLAIMS_QUEST_KEY)
     session.database.start_quest(session.character.id, BELL_BELOW_WIND_QUEST_KEY, "rally")
-    session.database.add_experience(session.character.id, 140)
+    session.database.add_experience(session.character.id, 280)
     _refresh(session)
     await session.send(
-        f"You choose to support the {faction.name} first. The other two banners remain standing beside it; this is a practical alignment, not a declaration that everyone else is evil. Three Claims on One Road complete: 140 XP.\r\n"
+        f"You choose to support the {faction.name} first. The other two banners remain standing beside it; this is a practical alignment, not a declaration that everyone else is evil. Three Claims on One Road complete: 280 XP. "
+        "The Bell Below the Wind is now level-appropriate; head to Signal Hill and RALLY SURGE.\r\n"
     )
     return True
 
