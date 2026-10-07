@@ -371,10 +371,12 @@ def render_room_lines(
     # They therefore belong under Creatures. Only mobile definitions explicitly
     # marked aggressive appear under Hostile.
     for enemy_key, spawn_key in iter_static_enemy_spawns(scene.enemy_keys):
-        if (
-            mobile_npcs is not None
-            and mobile_npcs.regionalizes_source(view.key, enemy_key)
-        ):
+        regionalizes_source = (
+            getattr(mobile_npcs, "regionalizes_source", None)
+            if mobile_npcs is not None
+            else None
+        )
+        if callable(regionalizes_source) and regionalizes_source(view.key, enemy_key):
             continue
         enemy = ENEMIES_BY_KEY.get(enemy_key)
         if enemy is not None and static_enemy_available(
