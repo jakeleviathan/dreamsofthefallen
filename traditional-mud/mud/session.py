@@ -1979,7 +1979,7 @@ class PlayerSession:
             return
 
         completed_match = re.fullmatch(
-            r"(?:quests|quest|journal) completed(?: (\\d+))?",
+            r"(?:quests|quest|journal) completed(?: (\d+))?",
             verb,
         )
         if completed_match:
