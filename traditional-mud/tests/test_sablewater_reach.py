@@ -127,7 +127,7 @@ class SablewaterReachTests(unittest.TestCase):
         # Greywake: After the Gloam + Three Claims + surge participation + Bell Below the Wind.
         greywake_xp = 120 + 280 + 100 + 220
         # Sablewater 6-7: Low Water, Old Debts + A Toll Nobody Owes.
-        sablewater_xp = 140 + 180
+        sablewater_xp = 140 + 170
         final_xp = start + greywake_xp + sablewater_xp
         self.assertGreaterEqual(final_xp, PROGRESSION_RULES.cumulative_xp_for_level(8))
         self.assertEqual(PROGRESSION_RULES.level_for_experience(final_xp), 8)
