@@ -440,6 +440,7 @@ async def _talk_ruskle(session) -> bool:
             "'There. One span out, one problem handled, one thing brought home. The city is loud enough that people forget how quickly it stops being safe.'\r\n"
             "He points north with the tally before letting it swing on its hook. 'Next time you cross the paint, nobody gets to pretend you weren't warned.'\r\n"
             "\r\nQuest complete: Beyond the Painted Line.\r\n"
+            "Next: the maintained beginner branches from the First Piling now open NORTH, EAST, and WEST. Use them to hunt, gather, and learn the swamp until you reach level 2. Then return to Floodgate Walk and take WEST along the Waymeet Causeway. Type JOURNEY any time you want the larger road again.\r\n"
         )
         return True
 
