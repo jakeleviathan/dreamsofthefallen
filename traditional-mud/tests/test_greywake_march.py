@@ -34,6 +34,7 @@ from mud.greywake_march import (
     _inspect_site,
     _rally_surge,
     _support_faction,
+    _talk_captain,
     greywake_augmentations,
 )
 from mud.waymeet_frontier import WAYMEET_GLOAM_MOUTH_KEY
@@ -137,6 +138,21 @@ class GreywakeMarchTests(unittest.TestCase):
             self.assertEqual(database.get_quest(session.character.id, THREE_CLAIMS_QUEST_KEY)["status"], "completed")
             self.assertEqual(database.get_quest(session.character.id, BELL_BELOW_WIND_QUEST_KEY)["current_step"], "rally")
             self.assertIn("other two banners remain standing", session.text())
+        finally:
+            tempdir.cleanup()
+
+    def test_level_seven_greywake_completion_points_to_sablewater_before_veyra(self):
+        tempdir, database, session = self._session(level_xp=1500)
+        try:
+            database.start_quest(session.character.id, BELL_BELOW_WIND_QUEST_KEY, "report")
+            database.grant_flag(session.character.id, GREYWAKE_SURGE_VETERAN_FLAG)
+            session.move_to(GREYWAKE_THREE_BANNER_KEY)
+            self.assertEqual(session.character.level, 7)
+            self.assertTrue(asyncio.run(_talk_captain(session)))
+            self.assertIn(GREYWAKE_CHAIN_COMPLETE_FLAG, database.list_flags(session.character.id))
+            self.assertIn("level 8", session.text())
+            self.assertIn("Sablewater", session.text())
+            self.assertIn("JOURNEY", session.text())
         finally:
             tempdir.cleanup()
 
