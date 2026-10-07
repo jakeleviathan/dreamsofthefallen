@@ -1688,7 +1688,7 @@ class PlayerSession:
         if verb in {"help", "?"}:
             await self.send(
                 "Commands: LOOK [target], APPEARANCE, REFLECTION, EXITS, NORTH/SOUTH/EAST/WEST/NORTHEAST/NORTHWEST/SOUTHEAST/SOUTHWEST, SCORE, STATS, HEALTH, LORE, SKILLS, ABILITIES, ABILITIES ALL, "
-                "TARGET <name>, CLEAR TARGET, ATTACK/KILL <target>, USE/CAST <ability>, FLEE, BIND, ACCESS, INVENTORY, READ, QUESTS, TALK, "
+                "TARGET <name>, CLEAR TARGET, ATTACK/KILL <target>, USE/CAST <ability>, FLEE, BIND, ACCESS, INVENTORY, READ, QUESTS, NOTEPAD, TALK, "
                 "EXAMINE, TOUCH, LISTEN, "
                 "TRADES, PROFESSIONS, RECIPES, CRAFT, PERFUMERY, FOOD, EAT, POTIONS, DRINK, PERFUMES, SPRAY, MINE, HARVEST, HERBALISM, SOLS, SHOP, BUY, SELL, VALUE, MENU, QUIT\r\n"
                 "Mining is node-based; actual nodes will be placed into rooms when the room world is authored. "
