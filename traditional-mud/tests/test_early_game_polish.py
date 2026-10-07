@@ -128,6 +128,7 @@ class EarlyGamePolishTests(unittest.TestCase):
         asyncio.run(session.enter_character())
         output = "".join(session.outputs)
         self.assertIn("Type GOALS", output)
+        self.assertIn("Type JOURNEY", output)
         self.assertIn("salvage", output.lower())
         self.assertNotIn("1/4", output)
         self.assertNotIn("checklist", output.lower())
@@ -140,6 +141,39 @@ class EarlyGamePolishTests(unittest.TestCase):
         output = "".join(session.outputs)
         self.assertIn("Current goal - Three Bells", output)
         self.assertNotIn("Quest Journal", output)
+
+    def test_journey_points_level_seven_players_from_greywake_into_sablewater(self):
+        from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+        from mud.greywake_march import GREYWAKE_CHAIN_COMPLETE_FLAG
+
+        Session = session_type()
+        session = Session(["journey"])
+        session.character.level = 7
+        session.database.grant_flag(session.character.id, GLOAMWORKS_COMPLETE_FLAG)
+        session.database.grant_flag(session.character.id, GREYWAKE_CHAIN_COMPLETE_FLAG)
+        asyncio.run(session.playing_prompt())
+        output = "".join(session.outputs)
+        self.assertIn("Sablewater Reach", output)
+        self.assertIn("Ledger Cut", output)
+        self.assertIn("SOUTH", output)
+        self.assertIn("North Ferry", output)
+        self.assertIn("TALK FERRYMASTER", output)
+
+    def test_journey_points_level_eight_players_into_veyra_without_admin_help(self):
+        from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+        from mud.greywake_march import GREYWAKE_CHAIN_COMPLETE_FLAG
+
+        Session = session_type()
+        session = Session(["journey"])
+        session.character.level = 8
+        session.database.grant_flag(session.character.id, GLOAMWORKS_COMPLETE_FLAG)
+        session.database.grant_flag(session.character.id, GREYWAKE_CHAIN_COMPLETE_FLAG)
+        asyncio.run(session.playing_prompt())
+        output = "".join(session.outputs)
+        self.assertIn("Main journey - Veyra", output)
+        self.assertIn("Veyra Outer Gate", output)
+        self.assertIn("EAST", output)
+        self.assertIn("Resident Chit", output)
 
     def test_look_move_fight_and_ability_are_quietly_recorded(self):
         Session = session_type()
