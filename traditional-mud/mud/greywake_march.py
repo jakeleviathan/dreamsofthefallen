@@ -533,7 +533,10 @@ async def _talk_captain(session) -> bool:
     if q1 and q1["status"] == "active":
         if q1["current_step"] == "reach_camp":
             session.database.advance_quest(session.character.id, AFTER_GLOAM_QUEST_KEY, "inspect_heath")
-            await session.send("Oryn spreads Pell's copied map beside three new surface reports. 'Good. Check the heath crust, the orchard roots, and Riftfield. Same cause or three different problems-we need to know.'\r\n")
+            await session.send(
+                "Oryn spreads Pell's copied map beside three new surface reports. 'Good. Check the heath crust, the orchard roots, and Riftfield. Same cause or three different problems-we need to know.'\r\n"
+                "Start at Greywake Heath, east of the Roadwarden Post, and EXAMINE GREY CRUST.\r\n"
+            )
             return True
         if q1["current_step"] == "return_camp":
             session.database.complete_quest(session.character.id, AFTER_GLOAM_QUEST_KEY)
@@ -572,9 +575,21 @@ async def _inspect_site(session, site: str) -> bool:
     if not q or q["status"] != "active":
         return False
     steps = {
-        GREYWAKE_HEATH_KEY: ("inspect_heath", "inspect_orchard", "The grey crust is underground-first growth: it lifts living roots instead of coating them."),
-        GREYWAKE_RESONANT_ORCHARD_KEY: ("inspect_orchard", "inspect_riftfield", "The orchard is healthy, but every affected root system independently avoids the same buried line."),
-        GREYWAKE_RIFTFIELD_KEY: ("inspect_riftfield", "return_camp", "Riftfield confirms the line reaches the surface without an open crack. The effect continues east."),
+        GREYWAKE_HEATH_KEY: (
+            "inspect_heath",
+            "inspect_orchard",
+            "The grey crust is underground-first growth: it lifts living roots instead of coating them. Next, go to the Resonant Orchard and EXAMINE TREES.",
+        ),
+        GREYWAKE_RESONANT_ORCHARD_KEY: (
+            "inspect_orchard",
+            "inspect_riftfield",
+            "The orchard is healthy, but every affected root system independently avoids the same buried line. Next, go to Riftfield and EXAMINE SEAM.",
+        ),
+        GREYWAKE_RIFTFIELD_KEY: (
+            "inspect_riftfield",
+            "return_camp",
+            "Riftfield confirms the line reaches the surface without an open crack. The effect continues east. Return to Three-Banner Camp and TALK CAPTAIN.",
+        ),
     }
     expected, next_step, text = steps[site]
     if q["current_step"] != expected:
