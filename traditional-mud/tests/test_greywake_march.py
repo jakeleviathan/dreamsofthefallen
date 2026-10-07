@@ -221,6 +221,10 @@ class GreywakeMarchTests(unittest.TestCase):
             self.assertIn(GREYWAKE_CHAIN_COMPLETE_FLAG, database.list_flags(session.character.id))
             self.assertIn("level 8", session.text())
             self.assertIn("Sablewater", session.text())
+            self.assertIn("Reed Farms", session.text())
+            self.assertIn("Flood Road", session.text())
+            self.assertIn("North Ferry", session.text())
+            self.assertIn("TALK FERRYMASTER", session.text())
             self.assertIn("JOURNEY", session.text())
         finally:
             tempdir.cleanup()
