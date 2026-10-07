@@ -15,6 +15,7 @@ from mud.early_game_polish import (
     FIGHT_FLAG,
     LOOK_FLAG,
     MOVE_FLAG,
+    JOURNEY_STEP_TARGETS,
     RACE_VERB_FLAVOR,
     install_early_game_polish_runtime,
 )
@@ -258,6 +259,31 @@ class EarlyGamePolishTests(unittest.TestCase):
 
 
 class ProductionEarlyGameContractTests(unittest.TestCase):
+    def test_every_static_journey_target_is_a_real_quest_step_and_live_room(self):
+        root = Path(__file__).resolve().parents[1]
+        code = r'''
+import server
+from mud.early_game_polish import JOURNEY_STEP_TARGETS
+from mud.quests import QUESTS_BY_KEY
+
+for (quest_key, step), (room_key, _name) in JOURNEY_STEP_TARGETS.items():
+    assert quest_key in QUESTS_BY_KEY, (quest_key, step, "missing quest")
+    definition = QUESTS_BY_KEY[quest_key]
+    assert definition.objective_for_step(step), (quest_key, step, "missing step")
+    assert room_key in server.WORLD.legacy_rooms, (quest_key, step, room_key, "missing room")
+print("JOURNEY_TARGET_CONTRACT_OK")
+'''
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            env={**os.environ, "PYTHONPATH": str(root)},
+            timeout=90,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertIn("JOURNEY_TARGET_CONTRACT_OK", result.stdout)
+
     def test_real_production_entrypoint_keeps_all_40_race_class_starts_walkable_to_level_ten(self):
         root = Path(__file__).resolve().parents[1]
         code = r'''
