@@ -180,6 +180,64 @@ class SablewaterReachTests(unittest.TestCase):
         finally:
             tempdir.cleanup()
 
+    def test_sablewater_story_handoffs_are_actionable_without_journey(self):
+        tempdir, database, session = self._session()
+        try:
+            self.assertTrue(asyncio.run(_talk_ferrymaster(session)))
+            self.assertIn("SOUTH to Flood Road", session.text())
+            self.assertIn("SOUTH again to Broken Levee", session.text())
+            self.assertIn("EXAMINE BREACH", session.text())
+
+            session.sent.clear()
+            session.move_to(SABLEWATER_BROKEN_LEVEE_KEY)
+            self.assertTrue(asyncio.run(_inspect_levee(session)))
+            self.assertIn("EAST to Willow Ferry", session.text())
+            self.assertIn("EXAMINE FERRY CHAIN", session.text())
+
+            session.sent.clear()
+            session.move_to(SABLEWATER_WILLOW_FERRY_KEY)
+            self.assertTrue(asyncio.run(_inspect_chain(session)))
+            self.assertIn("NORTH to Eelmarket Dock", session.text())
+            self.assertIn("WEST to North Ferry", session.text())
+            self.assertIn("TALK FERRYMASTER", session.text())
+
+            session.sent.clear()
+            session.move_to(SABLEWATER_NORTH_FERRY_KEY)
+            self.assertTrue(asyncio.run(_talk_ferrymaster(session)))
+            self.assertIn("EAST to Eelmarket Dock", session.text())
+            self.assertIn("SOUTH to Willow Ferry", session.text())
+            self.assertIn("SOUTH again to Old Customs Road", session.text())
+            self.assertIn("EXAMINE TOLL MARKER", session.text())
+
+            session.sent.clear()
+            session.move_to(SABLEWATER_OLD_CUSTOMS_KEY)
+            self.assertTrue(asyncio.run(_inspect_marker(session)))
+            self.assertIn("EAST to Toll Island", session.text())
+            self.assertIn("EAST again to Drowned Tollhouse Mouth", session.text())
+            self.assertIn("EXAMINE SUNKEN GATE", session.text())
+
+            database.start_quest(session.character.id, PRICE_OF_CROSSING_QUEST_KEY, "collect_seals")
+            session.sent.clear()
+            session.move_to(DROWNED_FLOODED_ARCHIVE_KEY)
+            self.assertTrue(asyncio.run(_search_seal(session, "archive")))
+            self.assertIn("EAST to Coin Vault", session.text())
+            self.assertIn("SEARCH COIN VAULT", session.text())
+
+            session.sent.clear()
+            session.move_to(DROWNED_COIN_VAULT_KEY)
+            self.assertTrue(asyncio.run(_search_seal(session, "vault")))
+            self.assertIn("EAST to Magistrate's Room", session.text())
+            self.assertIn("SEARCH MAGISTRATE DESK", session.text())
+
+            session.sent.clear()
+            session.move_to(DROWNED_MAGISTRATE_ROOM_KEY)
+            self.assertTrue(asyncio.run(_search_seal(session, "magistrate")))
+            self.assertIn("EAST to Clock Chamber", session.text())
+            self.assertIn("EAST to Brass Tribunal", session.text())
+            self.assertIn("PRESENT SEALS", session.text())
+        finally:
+            tempdir.cleanup()
+
     def test_dungeon_requires_three_obsolete_seals_before_auditor_becomes_legal_target(self):
         tempdir, database, session = self._session()
         try:
