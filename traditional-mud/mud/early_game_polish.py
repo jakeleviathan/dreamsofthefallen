@@ -65,18 +65,50 @@ def _grant(session, flag: str) -> None:
     database.grant_flag(character.id, flag)
 
 
+def _local_quest_prefixes(room_key: str) -> tuple[str, ...]:
+    if room_key.startswith("greywake_"):
+        return ("greywake_",)
+    if room_key.startswith("sablewater_"):
+        return ("sablewater_", "drowned_tollhouse_")
+    if room_key.startswith("drowned_tollhouse_"):
+        return ("drowned_tollhouse_", "sablewater_")
+    if room_key.startswith("veyra_"):
+        return ("veyra_",)
+    if room_key.startswith("underclock_"):
+        return ("veyra_city_",)
+    if room_key.startswith("gravewatch_"):
+        return ("gravewatch_",)
+    if room_key.startswith("gloamworks_"):
+        return ("gloamworks_", "waymeet_")
+    if room_key.startswith("waymeet_"):
+        return ("waymeet_", "adventure_", "gloamworks_")
+    return ()
+
+
 def _active_objective(session) -> tuple[str, str] | None:
     character = getattr(session, "character", None)
     database = getattr(session, "database", None)
     if character is None or database is None or not hasattr(database, "list_quests"):
         return None
     level = int(getattr(character, "level", 1) or 1)
+    eligible: list[tuple[dict, object]] = []
     for row in _rows(database.list_quests(character.id)):
         if row.get("status") != "active":
             continue
         definition = QUESTS_BY_KEY.get(str(row.get("quest_key") or ""))
         if definition is None or int(getattr(definition, "minimum_level", 1) or 1) > level:
             continue
+        eligible.append((row, definition))
+
+    local_prefixes = _local_quest_prefixes(str(getattr(character, "current_room", "") or ""))
+    if local_prefixes:
+        eligible.sort(
+            key=lambda item: 0
+            if str(item[0].get("quest_key") or "").startswith(local_prefixes)
+            else 1
+        )
+
+    for row, definition in eligible:
         objective = definition.objective_for_step(row.get("current_step")) or "Continue the current quest."
         return definition.name, objective
     return None
