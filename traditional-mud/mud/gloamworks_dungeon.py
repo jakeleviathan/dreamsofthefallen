@@ -610,7 +610,7 @@ async def _talk_surveyor(session) -> bool:
     if q["current_step"] == "talk_surveyor":
         session.database.advance_quest(session.character.id, GLOAMWORKS_QUEST_KEY, "enter_works")
         await session.send(
-            "Dorr clips a second safety line to the cage. 'Upper levels first. If the deep rooms disagree with your eyes, report what you actually perceived. And the last seal takes two people. That part is not negotiable.'\r\n"
+            "Dorr clips a second safety line to the cage. 'Upper levels first. If the deep rooms disagree with your eyes, report what you actually perceived. The last seal was built for two people, but the maintenance stays can hold one plate long enough for a lone surveyor to cross and work the other.'\r\n"
         )
     elif q["current_step"] == "return_surveyor":
         session.database.complete_quest(session.character.id, GLOAMWORKS_QUEST_KEY)
