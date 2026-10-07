@@ -1287,10 +1287,12 @@ class PlayerSession:
         for enemy_key in room.enemy_keys:
             # Once an authored source is owned by a regional population, the
             # static one-per-room placeholder is no longer a real combatant.
-            if (
-                self.mobile_npcs is not None
-                and self.mobile_npcs.regionalizes_source(room.key, enemy_key)
-            ):
+            regionalizes_source = (
+                getattr(self.mobile_npcs, "regionalizes_source", None)
+                if self.mobile_npcs is not None
+                else None
+            )
+            if callable(regionalizes_source) and regionalizes_source(room.key, enemy_key):
                 continue
             definition = ENEMIES_BY_KEY.get(enemy_key)
             if definition and definition.matches(target_text):
