@@ -137,6 +137,28 @@ def _active_objective_for_keys(session, quest_keys: tuple[str, ...]) -> tuple[st
     return None
 
 
+def _live_route_hint(session, destination_key: str, destination_name: str) -> str:
+    character = getattr(session, "character", None)
+    if character is None:
+        return f"Destination: {destination_name}."
+    start = str(getattr(character, "current_room", "") or "")
+    if not start:
+        return f"Destination: {destination_name}."
+
+    # Reuse the same live passability-aware pathfinder as marked waymaps. This
+    # keeps JOURNEY aligned with final topology normalization, gates, doors,
+    # weather and character flags instead of duplicating compass directions.
+    from mud.room_runtime import WORLD
+    from mud.waymaps import shortest_route
+
+    route = shortest_route(WORLD, session, start, destination_key)
+    if route is None:
+        return f"Destination: {destination_name}. No fully traversable route is visible from here yet."
+    if not route:
+        return f"You are already at {destination_name}."
+    return f"Route from here to {destination_name}: " + " -> ".join(direction.upper() for direction in route) + "."
+
+
 def _shared_journey_line(session, quest_keys: tuple[str, ...]) -> str | None:
     active = _active_objective_for_keys(session, quest_keys)
     if active is None:
@@ -157,13 +179,16 @@ def _journey_text(session) -> str:
         AFTER_GLOAM_QUEST_KEY,
         BELL_BELOW_WIND_QUEST_KEY,
         GREYWAKE_CHAIN_COMPLETE_FLAG,
+        GREYWAKE_THREE_BANNER_KEY,
         THREE_CLAIMS_QUEST_KEY,
     )
     from mud.sablewater_reach import (
+        DROWNED_ENTRY_KEY,
         DROWNED_TOLLHOUSE_COMPLETE_FLAG,
         LOW_WATER_QUEST_KEY,
         PRICE_OF_CROSSING_QUEST_KEY,
         SABLEWATER_INTRO_COMPLETE_FLAG,
+        SABLEWATER_NORTH_FERRY_KEY,
         TOLLHOUSE_UNLOCKED_FLAG,
         TOLL_NOBODY_OWES_QUEST_KEY,
     )
@@ -171,10 +196,11 @@ def _journey_text(session) -> str:
         VEYRA_ARRIVAL_QUEST_KEY,
         VEYRA_FACTION_RANK_FLAG,
         VEYRA_FACTION_SERVICE_QUEST_KEY,
+        VEYRA_GATE_WARD_KEY,
         VEYRA_RESIDENT_FLAG,
     )
-    from mud.veyra_underclock import UNDERCLOCK_COMPLETE_FLAG, UNDERCLOCK_QUEST_KEY
-    from mud.gravewatch_keep import GRAVEWATCH_COMPLETE_FLAG, GRAVEWATCH_QUEST_KEY
+    from mud.veyra_underclock import UNDERCLOCK_COMPLETE_FLAG, UNDERCLOCK_INTAKE_KEY, UNDERCLOCK_QUEST_KEY
+    from mud.gravewatch_keep import GRAVEWATCH_COMPLETE_FLAG, GRAVEWATCH_QUEST_KEY, GRAVEWATCH_RIVER_MILE_KEY
 
     level = int(getattr(character, "level", 1) or 1)
     flags = _character_flags(session)
@@ -197,9 +223,10 @@ def _journey_text(session) -> str:
         line = _shared_journey_line(session, greywake_quests)
         if line is not None:
             return line
+        route = _live_route_hint(session, GREYWAKE_THREE_BANNER_KEY, "Three-Banner Camp")
         return (
-            "\r\nMain journey - Greywake March: from Gloam Mouth go EAST onto Greywake West Mile, "
-            "reach Three-Banner Camp, and TALK CAPTAIN.\r\n"
+            "\r\nMain journey - Greywake March: " + route + " "
+            "At Three-Banner Camp, TALK CAPTAIN.\r\n"
         )
 
     if level < 8:
@@ -207,9 +234,10 @@ def _journey_text(session) -> str:
         if line is not None:
             return line
         if SABLEWATER_INTRO_COMPLETE_FLAG not in flags:
+            route = _live_route_hint(session, SABLEWATER_NORTH_FERRY_KEY, "North Ferry")
             return (
-                "\r\nMain journey - Sablewater Reach: from Three-Banner Camp go SOUTH to Ledger Cut, SOUTH into the Reed Farms, EAST to Flood Road, "
-                "then NORTH to North Ferry and TALK FERRYMASTER. This is the level 6-7 road while Veyra remains ahead.\r\n"
+                "\r\nMain journey - Sablewater Reach: " + route + " "
+                "At North Ferry, TALK FERRYMASTER. This is the level 6-7 road while Veyra remains ahead.\r\n"
             )
         if TOLLHOUSE_UNLOCKED_FLAG not in flags:
             return (
@@ -225,10 +253,10 @@ def _journey_text(session) -> str:
         line = _shared_journey_line(session, (VEYRA_ARRIVAL_QUEST_KEY,))
         if line is not None:
             return line
+        route = _live_route_hint(session, VEYRA_GATE_WARD_KEY, "Veyra Gate Ward")
         return (
-            "\r\nMain journey - Veyra: if you are in Sablewater, return to North Ferry, then go SOUTH to Flood Road, WEST to Reed Farms, and NORTH to Greywake's Ledger Cut. "
-            "From Ledger Cut the city road is straight: EAST through Sunk Causeway, Riftfield, Old Veyra Aqueduct, Veyra Gate Road, and Veyra Outer Gate; go EAST once more through the checkpoint. "
-            "Follow the arrival tour until you receive a Resident Chit.\r\n"
+            "\r\nMain journey - Veyra: " + route + " "
+            "Once inside the Gate Ward, follow the arrival tour until you receive a Resident Chit.\r\n"
         )
 
     if VEYRA_FACTION_RANK_FLAG not in flags:
@@ -245,10 +273,9 @@ def _journey_text(session) -> str:
                 if active is not None
                 else ""
             )
+            route = _live_route_hint(session, DROWNED_ENTRY_KEY, "Drowned Tollhouse entry")
             return (
-                "\r\nMain journey - Drowned Tollhouse: return to Civic Steps from wherever you are in Veyra. "
-                "From Civic Steps go WEST to Grand Crossing, WEST to Caravan Court, WEST to Gate Ward, SOUTH to South Timber Sprawl, then SOUTH to North Ferry. "
-                "From North Ferry go SOUTH to Flood Road, SOUTH to Broken Levee, EAST to Willow Ferry, SOUTH to Old Customs Road, EAST to Toll Island, EAST to the Tollhouse Mouth, then DOWN. "
+                "\r\nMain journey - Drowned Tollhouse: " + route
                 + objective
                 + "\r\n"
             )
@@ -256,8 +283,9 @@ def _journey_text(session) -> str:
         if line is not None:
             return line
         if TOLLHOUSE_UNLOCKED_FLAG in flags:
+            route = _live_route_hint(session, DROWNED_ENTRY_KEY, "Drowned Tollhouse entry")
             return (
-                "\r\nMain journey - Drowned Tollhouse: return south from Veyra to North Ferry, reach the Tollhouse Mouth, and descend into the old customs complex. "
+                "\r\nMain journey - Drowned Tollhouse: " + route + " "
                 "The Price of Crossing carries the shared road through the level 8-9 stretch.\r\n"
             )
         return (
@@ -269,8 +297,9 @@ def _journey_text(session) -> str:
         line = _shared_journey_line(session, (UNDERCLOCK_QUEST_KEY,))
         if line is not None:
             return line
+        route = _live_route_hint(session, UNDERCLOCK_INTAKE_KEY, "Underclock Intake Stair")
         return (
-            "\r\nMain journey - The City Between Ticks: go to Veyra's North Waterworks and take the maintenance stair DOWN into the Underclock. "
+            "\r\nMain journey - The City Between Ticks: " + route + " "
             "Once the quest starts, GOALS gives the current machine step.\r\n"
         )
 
@@ -278,9 +307,10 @@ def _journey_text(session) -> str:
         line = _shared_journey_line(session, (GRAVEWATCH_QUEST_KEY,))
         if line is not None:
             return line
+        route = _live_route_hint(session, GRAVEWATCH_RIVER_MILE_KEY, "Gravewatch River Mile")
         return (
-            "\r\nMain journey - Gravewatch Keep: go to Veyra's East River Gate, take the road SOUTH to the River Mile, and TALK SERGEANT. "
-            "The Dead Garrison is the next full clear on the road to level 10.\r\n"
+            "\r\nMain journey - Gravewatch Keep: " + route + " "
+            "At the River Mile, TALK SERGEANT. The Dead Garrison is the next full clear on the road to level 10.\r\n"
         )
 
     if level < 10:
