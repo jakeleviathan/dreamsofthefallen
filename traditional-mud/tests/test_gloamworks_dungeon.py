@@ -111,7 +111,7 @@ class GloamworksDungeonTests(unittest.TestCase):
         self.assertNotEqual(RACE_FAULT_TEXT["dwarf"], RACE_FAULT_TEXT["sporekin"])
         self.assertNotEqual(CLASS_RESONANCE_TEXT["wizard"], CLASS_RESONANCE_TEXT["druid"])
 
-    def test_twin_seal_requires_two_distinct_players_and_unlocks_both(self):
+    def test_twin_seal_supports_cooperative_pair_and_unlocks_both(self):
         tempdir, database, left, right = self._pair()
         try:
             peers = [left, right]
@@ -128,11 +128,27 @@ class GloamworksDungeonTests(unittest.TestCase):
         finally:
             tempdir.cleanup()
 
-    def test_boss_door_is_character_gated_by_successful_cooperative_seal(self):
+    def test_twin_seal_has_a_solo_maintenance_solution_for_early_progression(self):
+        tempdir, database, left, _right = self._pair()
+        try:
+            peers = [left]
+            self.assertTrue(asyncio.run(_attempt_seal_hold(left, "left", peers)))
+            self.assertNotIn(GLOAMWORKS_TWIN_SEAL_FLAG, database.list_flags(left.character.id))
+            self.assertIn("maintenance pawl", "".join(left.sent))
+            self.assertTrue(asyncio.run(_attempt_seal_hold(left, "right", peers)))
+            self.assertIn(GLOAMWORKS_TWIN_SEAL_FLAG, database.list_flags(left.character.id))
+            self.assertEqual(database.get_quest(left.character.id, GLOAMWORKS_QUEST_KEY)["current_step"], "defeat_regent")
+            left.move_to(GLOAM_BURIED_COURT_KEY)
+            self.assertTrue(_group_ready_for_regent(left, peers))
+        finally:
+            tempdir.cleanup()
+
+    def test_boss_door_is_character_gated_by_successful_seal_sync(self):
         augmentation = gloamworks_augmentations()[GLOAM_TWIN_SEAL_KEY]
         east = next(item for item in augmentation.exit_overrides if item.direction == "east")
         self.assertIn(GLOAMWORKS_TWIN_SEAL_FLAG, east.condition.required_flags)
-        self.assertIn("Two explorers", east.failure_text)
+        self.assertIn("HOLD LEFT SEAL", east.failure_text)
+        self.assertIn("maintenance stays", east.failure_text)
 
     def test_production_server_assembles_gloamworks_after_waymeet(self):
         project_root = Path(__file__).resolve().parents[1]
