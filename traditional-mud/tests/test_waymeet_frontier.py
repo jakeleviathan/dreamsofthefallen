@@ -153,7 +153,11 @@ class WaymeetFrontierTests(unittest.TestCase):
             self.assertEqual(quest["status"], "completed")
             self.assertIn(WAYMEET_INTRO_COMPLETE_FLAG, database.list_flags(session.character.id))
             self.assertEqual(database.get_sols(session.character.id), 20)
-            self.assertIn("Gloamworks", session.text())
+            completion_text = session.text()
+            self.assertIn("Gloamworks", completion_text)
+            self.assertIn("below level 4", completion_text)
+            self.assertIn("TALK SURVEYOR", completion_text)
+            self.assertIn("Type JOURNEY", completion_text)
         finally:
             tempdir.cleanup()
 
