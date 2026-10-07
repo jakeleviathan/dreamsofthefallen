@@ -371,6 +371,11 @@ def render_room_lines(
     # They therefore belong under Creatures. Only mobile definitions explicitly
     # marked aggressive appear under Hostile.
     for enemy_key, spawn_key in iter_static_enemy_spawns(scene.enemy_keys):
+        if (
+            mobile_npcs is not None
+            and mobile_npcs.regionalizes_source(view.key, enemy_key)
+        ):
+            continue
         enemy = ENEMIES_BY_KEY.get(enemy_key)
         if enemy is not None and static_enemy_available(
             view.key,
@@ -415,21 +420,26 @@ def render_room_lines(
     )
     corpse_entries: list[dict] = []
     if corpses:
-        counts: dict[str, int] = {}
+        grouped: dict[str, list] = {}
         for corpse in corpses:
-            counts[corpse.enemy_name] = counts.get(corpse.enemy_name, 0) + 1
-        seen: dict[str, int] = {}
+            grouped.setdefault(corpse.enemy_name, []).append(corpse)
+
         corpse_lines: list[str] = []
-        for corpse in corpses:
-            seen[corpse.enemy_name] = seen.get(corpse.enemy_name, 0) + 1
-            suffix = f" #{seen[corpse.enemy_name]}" if counts[corpse.enemy_name] > 1 else ""
-            decay = corpse_decay_label(corpse, now=current)
+        for enemy_name, group in grouped.items():
+            newest = group[0]
+            decay = corpse_decay_label(newest, now=current)
+            if len(group) == 1:
+                label = f"Corpse of {enemy_name} ({decay})"
+            else:
+                label = f"{enemy_name} corpses ({len(group)})"
             corpse_entries.append({
-                "id": int(corpse.id), "name": corpse.enemy_name + suffix, "decay": decay,
+                "id": int(newest.id),
+                "ids": [int(corpse.id) for corpse in group],
+                "name": enemy_name,
+                "count": len(group),
+                "decay": decay,
             })
-            corpse_lines.append(
-                f"  {_paint(CORPSE, f'Corpse of {corpse.enemy_name}{suffix} ({decay})')}"
-            )
+            corpse_lines.append(f"  {_paint(CORPSE, label)}")
         lines.extend(["", _section_header("Corpses", CORPSE), *corpse_lines])
 
     business_lines: list[str] = []
