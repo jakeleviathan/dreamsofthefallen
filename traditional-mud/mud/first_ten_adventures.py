@@ -8,6 +8,7 @@ import mud.quests as quests
 import mud.world as legacy_world
 from mud.crafting import ItemDefinition
 from mud.quests import QuestDefinition
+from mud.room_engine import FeatureDefinition, RoomAugmentation, ViewCondition
 from mud.starter_race_loops import STARTER_RACE_LOOPS_BY_RACE
 from mud.waymeet_frontier import (
     WAYMEET_CROSSROADS_KEY,
@@ -425,6 +426,53 @@ def _install_contacts(world_service=None) -> None:
                 cache.pop(start, None)
 
 
+def _append_feature(world_service, room_key: str, feature: FeatureDefinition) -> None:
+    existing = world_service.augmentations.get(room_key, RoomAugmentation())
+    features = {item.key: item for item in existing.features}
+    features[feature.key] = feature
+    world_service.augmentations[room_key] = RoomAugmentation(
+        exit_overrides=existing.exit_overrides,
+        extra_exits=existing.extra_exits,
+        features=tuple(features.values()),
+        description_layers=existing.description_layers,
+    )
+    cache = getattr(world_service, "_scene_cache", None)
+    if cache is not None:
+        cache.pop(room_key, None)
+
+
+def _install_adventure_features(world_service) -> None:
+    if world_service is None:
+        return
+
+    goblin_arc = first_ten.RACE_FIRST_TEN_ARCS["goblin"]
+    _append_feature(
+        world_service,
+        ORIGIN_CONTACTS["goblin"].outbound_room_key,
+        FeatureDefinition(
+            key="first_ten_goblin_foreign_wreck",
+            name="Foreign Wreck",
+            aliases=("wreck", "foreign wagon", "wrecked wagon", "cargo frame", "map case"),
+            summary="a road-wrecked foreign wagon waiting under temporary salvage protection",
+            examine_text=(
+                "The wreck is a foreign road wagon with its axle torn away. The cargo frame is still sound, "
+                "and a battered map case has been tied off separately from the tempting brass fittings. "
+                "Temporary claim marks warn local salvagers not to strip anything until ownership is settled."
+            ),
+            search_text=(
+                "The obvious brass is not the valuable part. The map case carries family notes and route marks, "
+                "which explains why the owner keeps watching it instead of the polished hardware."
+            ),
+            condition=ViewCondition(
+                races=("goblin",),
+                min_level=goblin_arc.act_three.unlock_level,
+                required_flags=(goblin_arc.act_two.completion_flag("goblin"),),
+                forbidden_flags=(goblin_arc.act_three.completion_flag("goblin"),),
+            ),
+        ),
+    )
+
+
 def install_first_ten_adventure_content(world_service=None) -> None:
     # Keep the original first-ten contract as the source of level gates, XP, and
     # class capstones; this layer turns each compact milestone into a real route.
@@ -437,6 +485,7 @@ def install_first_ten_adventure_content(world_service=None) -> None:
     crafting.ITEMS_BY_KEY.update({item.key: item for item in HERITAGE_REWARDS})
 
     _install_contacts(world_service)
+    _install_adventure_features(world_service)
 
     for race_key, arc in first_ten.RACE_FIRST_TEN_ARCS.items():
         for beat in arc.beats:
@@ -572,6 +621,36 @@ async def _complete_adventure_step(session, arc, beat, route: AdventureRoute, st
     )
 
 
+def _step_command_aliases(command: str) -> frozenset[str]:
+    normalized = _normalized(command)
+    aliases = {normalized}
+    if normalized.startswith("inspect "):
+        target = normalized.removeprefix("inspect ").strip()
+        if target:
+            aliases.add(f"examine {target}")
+            aliases.add(f"look {target}")
+    return frozenset(aliases)
+
+
+def _active_adventure_command(session, arc, normalized: str):
+    """Resolve the command against the quest row the player is actually seeing.
+
+    Completion flags normally identify the current heritage beat, but older saves
+    can contain a live routed quest whose previous completion flag predates the
+    routed-adventure migration. In that case the quest journal is authoritative.
+    """
+    for beat in arc.beats:
+        state = session.database.get_quest(session.character.id, beat.quest_key(arc.race_key))
+        if state is None or state.get("status") != "active":
+            continue
+        route = ADVENTURE_ROUTES[(arc.race_key, beat.key)]
+        state = _normalize_legacy_state(session, beat, route, state)
+        step = _route_step_for_state(route, state)
+        if normalized in _step_command_aliases(step.command):
+            return beat, route, step
+    return None
+
+
 async def _handle_adventure_command(session, command) -> bool:
     if session.character is None:
         return False
@@ -579,6 +658,22 @@ async def _handle_adventure_command(session, command) -> bool:
     if normalized in {"heritage", "origin arc", "first ten", "1-10"}:
         await _show_adventure_heritage(session)
         return True
+
+    arc = first_ten.RACE_FIRST_TEN_ARCS.get(session.character.race or "")
+    if arc is not None:
+        active = _active_adventure_command(session, arc, normalized)
+        if active is not None:
+            beat, route, step = active
+            if session.character.level < beat.unlock_level:
+                return False
+            if session.character.current_room != step.room_key:
+                await session.send(
+                    f"That is part of {beat.title}, but not here. Go to {_room_name(step.room_key)} first.\r\n"
+                    f"HERITAGE will remind you of the current destination.\r\n"
+                )
+                return True
+            await _complete_adventure_step(session, arc, beat, route, step)
+            return True
 
     current = first_ten._current_beat(session)
     if current is None:
@@ -594,7 +689,7 @@ async def _handle_adventure_command(session, command) -> bool:
     state = _normalize_legacy_state(session, beat, route, state)
     step = _route_step_for_state(route, state)
 
-    if normalized != _normalized(step.command):
+    if normalized not in _step_command_aliases(step.command):
         return False
     if session.character.current_room != step.room_key:
         await session.send(
