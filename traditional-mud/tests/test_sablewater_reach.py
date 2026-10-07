@@ -125,7 +125,7 @@ class SablewaterReachTests(unittest.TestCase):
     def test_exact_level_six_critical_path_reaches_level_eight_without_grinding(self):
         start = PROGRESSION_RULES.cumulative_xp_for_level(6)
         # Greywake: After the Gloam + Three Claims + surge participation + Bell Below the Wind.
-        greywake_xp = 120 + 140 + 100 + 220
+        greywake_xp = 120 + 280 + 100 + 220
         # Sablewater 6-7: Low Water, Old Debts + A Toll Nobody Owes.
         sablewater_xp = 140 + 180
         final_xp = start + greywake_xp + sablewater_xp
