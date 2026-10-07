@@ -107,6 +107,28 @@ class LaunchVerticalSliceTests(unittest.TestCase):
         self.assertEqual(title, "A place in the wider world")
         self.assertIn("order that interests you", text)
 
+    def test_live_journey_owner_uses_active_gloamworks_objective_at_level_four(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session = self._session(Path(temp_dir), name="GloamGuide", race="goblin")
+            session.database.add_experience(session.character.id, 450)
+            session.database.grant_flag(session.character.id, WAYMEET_INTRO_COMPLETE_FLAG)
+            session.database.start_quest(
+                session.character.id,
+                "gloamworks_below_the_sealed_door",
+                "read_fault",
+            )
+            session.database.set_character_room(session.character.id, "gloamworks_entry_cage")
+            session.refresh()
+            self.assertEqual(session.character.level, 4)
+
+            asyncio.run(_show_journey(session))
+            output = "".join(session.messages)
+            self.assertIn("--- Your Journey ---", output)
+            self.assertIn("Main journey - Below the Sealed Door", output)
+            self.assertIn("Glass Fault", output)
+            self.assertNotIn("TALK SURVEYOR", output)
+            self.assertNotIn("horizon, not a mandatory checklist", output)
+
     def test_live_journey_owner_uses_concrete_shared_road_guidance_at_level_six(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             session = self._session(Path(temp_dir), name="RoadGuide", race="goblin")
