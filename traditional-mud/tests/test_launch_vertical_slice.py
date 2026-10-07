@@ -86,8 +86,11 @@ class LaunchVerticalSliceTests(unittest.TestCase):
         self.assertEqual(title, "Where the Roads Meet")
 
         flags.add(WAYMEET_INTRO_COMPLETE_FLAG)
-        title, _ = journey_stage_for(race_key="human", level=4, flags=flags)
+        title, text = journey_stage_for(race_key="human", level=4, flags=flags)
         self.assertEqual(title, "Below the Sealed Door")
+        self.assertIn("maintenance stays", text)
+        self.assertIn("finish the descent solo", text)
+        self.assertNotIn("requires another actual player", text)
 
         flags.add(GLOAMWORKS_COMPLETE_FLAG)
         title, _ = journey_stage_for(race_key="human", level=5, flags=flags)
