@@ -618,7 +618,12 @@ async def _talk_faction(session, faction_key: str) -> bool:
         return False
     faction = FACTIONS_BY_KEY[faction_key]
     session.database.advance_quest(session.character.id, THREE_CLAIMS_QUEST_KEY, next_step)
-    await session.send(f"{faction.name}: {faction.belief} Risk: {faction.risk}\r\n")
+    next_guidance = {
+        "roadwarden_compact": "Next: return to Three-Banner Camp, go SOUTH to Ledger Cut, and TALK FACTOR.",
+        "deep_ledger_consortium": "Next: return to Three-Banner Camp, go EAST to Lantern Hospice, and TALK KEEPER.",
+        "lantern_oath": "Next: return to Three-Banner Camp and choose SUPPORT ROADWARDEN, SUPPORT LEDGER, or SUPPORT LANTERN.",
+    }[faction_key]
+    await session.send(f"{faction.name}: {faction.belief} Risk: {faction.risk}\r\n{next_guidance}\r\n")
     return True
 
 
