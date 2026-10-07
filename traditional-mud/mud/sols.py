@@ -591,7 +591,7 @@ async def _flush_quest_events(session) -> None:
     pending = list(events.pop(int(character.id), []))
     for quest_name, reward in pending:
         await session.send(
-            f"Quest Sol reward - {quest_name}: {format_sols(int(reward))}.\r\n"
+            f"Reward received: {quest_name} · {format_sols(int(reward))}.\r\n"
         )
 
 
@@ -640,6 +640,11 @@ def install_sols_runtime(player_session_class, database_class) -> None:
         if self.character is None:
             await previous_prompt(self)
             return
+
+        # Flush any reward left over from a previous completion before drawing
+        # the next command's output. This keeps deferred currency messages from
+        # visually attaching themselves to unrelated screens such as QUESTS.
+        await _flush_quest_events(self)
 
         command = await self.prompt("\r\n> ")
         if command is None:
