@@ -96,8 +96,11 @@ class LaunchVerticalSliceTests(unittest.TestCase):
         self.assertNotIn("requires another actual player", text)
 
         flags.add(GLOAMWORKS_COMPLETE_FLAG)
-        title, _ = journey_stage_for(race_key="human", level=5, flags=flags)
+        title, text = journey_stage_for(race_key="human", level=5, flags=flags)
         self.assertEqual(title, "The Greywake road")
+        self.assertIn("Three-Banner Camp", text)
+        self.assertIn("TALK CAPTAIN", text)
+        self.assertIn("EAST from Gloam Mouth", text)
 
         flags.add(GREYWAKE_CHAIN_COMPLETE_FLAG)
         title, _ = journey_stage_for(race_key="human", level=8, flags=flags)
