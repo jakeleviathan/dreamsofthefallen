@@ -106,6 +106,36 @@ _ABILITY_UI_PROGRESS = "\x1b[92m"
 _ABILITY_UI_DIM = "\x1b[90m"
 _ABILITY_UI_UNLOCKED = "\x1b[92m"
 
+_QUEST_RECENT_COMPLETIONS = 3
+_QUEST_ARCHIVE_PAGE_SIZE = 18
+_QUEST_JOURNAL_GROUPS = (
+    (("goblin_",), "Goblin Homeland"),
+    (("human_",), "Veyra"),
+    (("forest_elf_",), "Forest Elf Homeland"),
+    (("moon_elf_",), "Moon Elf Homeland"),
+    (("dwarf_",), "Dwarven Homeland"),
+    (("troll_",), "Troll Homeland"),
+    (("undead_",), "Necropolis"),
+    (("sporekin_",), "Sporekin Homeland"),
+    (("waymeet_", "adventure_"), "Waymeet & Outer Roads"),
+    (("broken_reach_",), "Broken Reach"),
+    (("salt_",), "Salt Kingdoms"),
+)
+
+
+def _quest_journal_name(row) -> str:
+    quest_key = str(row.get("quest_key", ""))
+    definition = QUESTS_BY_KEY.get(quest_key)
+    return definition.name if definition else quest_key.replace("_", " ").title()
+
+
+def _quest_journal_group(quest_key: str) -> str:
+    normalized = str(quest_key or "").lower()
+    for prefixes, label in _QUEST_JOURNAL_GROUPS:
+        if normalized.startswith(prefixes):
+            return label
+    return "Other Adventures"
+
 
 def _session_weather(session) -> tuple[str, bool]:
     weather_getter = getattr(session, "current_weather", None)
@@ -1948,20 +1978,113 @@ class PlayerSession:
                     await self.send(f"Current objective: {objective}\r\n")
             return
 
-        if verb in {"quests", "quest", "journal"}:
+        completed_match = re.fullmatch(
+            r"(?:quests|quest|journal) completed(?: (\\d+))?",
+            verb,
+        )
+        if completed_match:
             rows = self.database.list_quests(self.character.id)
+            completed_rows = [
+                row for row in rows
+                if row.get("status") == "completed"
+            ]
+            completed_rows.sort(
+                key=lambda row: str(row.get("completed_at") or row.get("started_at") or ""),
+                reverse=True,
+            )
+
+            await self.send("\r\n--- Completed Quests ---\r\n")
+            if not completed_rows:
+                await self.send("You have not completed any quests yet.\r\n")
+                return
+
+            grouped: dict[str, list[dict[str, str | None]]] = {}
+            for row in completed_rows:
+                group = _quest_journal_group(str(row.get("quest_key", "")))
+                grouped.setdefault(group, []).append(row)
+
+            ordered_groups = [label for _prefixes, label in _QUEST_JOURNAL_GROUPS]
+            ordered_groups.append("Other Adventures")
+            ordered_rows: list[tuple[str, dict[str, str | None]]] = []
+            for group in ordered_groups:
+                ordered_rows.extend((group, row) for row in grouped.get(group, ()))
+
+            page_count = max(
+                1,
+                (len(ordered_rows) + _QUEST_ARCHIVE_PAGE_SIZE - 1)
+                // _QUEST_ARCHIVE_PAGE_SIZE,
+            )
+            requested_page = int(completed_match.group(1) or "1")
+            page = max(1, min(requested_page, page_count))
+            start = (page - 1) * _QUEST_ARCHIVE_PAGE_SIZE
+            page_rows = ordered_rows[start:start + _QUEST_ARCHIVE_PAGE_SIZE]
+
+            current_group = None
+            for group, row in page_rows:
+                if group != current_group:
+                    if current_group is not None:
+                        await self.send("\r\n")
+                    group_total = len(grouped.get(group, ()))
+                    await self.send(f"{group.upper()} · {group_total}\r\n")
+                    current_group = group
+                await self.send(f"  ✓ {_quest_journal_name(row)}\r\n")
+
+            await self.send(
+                f"\r\nPage {page} of {page_count} · {len(completed_rows)} completed total.\r\n"
+            )
+            if page < page_count:
+                await self.send(f"QUESTS COMPLETED {page + 1} for the next page.\r\n")
+            elif page_count > 1:
+                await self.send("You are on the last page.\r\n")
+            await self.send("Type QUESTS to return to active quests.\r\n")
+            return
+
+        if verb in {
+            "quests", "quest", "journal",
+            "quests active", "quest active", "journal active",
+        }:
+            rows = self.database.list_quests(self.character.id)
+            active_rows = [
+                row for row in rows
+                if row.get("status") == "active"
+            ]
+            completed_rows = [
+                row for row in rows
+                if row.get("status") == "completed"
+            ]
+            completed_rows.sort(
+                key=lambda row: str(row.get("completed_at") or row.get("started_at") or ""),
+                reverse=True,
+            )
+
             await self.send("\r\n--- Quest Journal ---\r\n")
-            if not rows:
-                await self.send("No quests.\r\n")
-            for row in rows:
-                definition = QUESTS_BY_KEY.get(str(row["quest_key"]))
-                name = definition.name if definition else str(row["quest_key"])
-                status = str(row["status"]).upper()
-                await self.send(f"{name} [{status}]\r\n")
-                if definition and row.get("status") == "active":
-                    objective = definition.objective_for_step(row.get("current_step"))
-                    if objective:
-                        await self.send(f"  Objective: {objective}\r\n")
+            await self.send(f"ACTIVE QUESTS · {len(active_rows)}\r\n")
+            if not active_rows:
+                await self.send("  No active quests.\r\n")
+            else:
+                for index, row in enumerate(active_rows):
+                    if index:
+                        await self.send("\r\n")
+                    name = _quest_journal_name(row)
+                    await self.send(f"{name}\r\n")
+                    definition = QUESTS_BY_KEY.get(str(row.get("quest_key", "")))
+                    if definition:
+                        objective = definition.objective_for_step(row.get("current_step"))
+                        if objective:
+                            await self.send(f"  {objective}\r\n")
+
+            if completed_rows:
+                await self.send("\r\nRECENTLY COMPLETED\r\n")
+                recent = completed_rows[:_QUEST_RECENT_COMPLETIONS]
+                for row in recent:
+                    await self.send(f"  ✓ {_quest_journal_name(row)}\r\n")
+                hidden = len(completed_rows) - len(recent)
+                if hidden > 0:
+                    await self.send(
+                        f"\r\n{hidden} more completed quest"
+                        f"{'s' if hidden != 1 else ''} hidden.\r\n"
+                    )
+                await self.send("Type QUESTS COMPLETED to view your history.\r\n")
             return
 
         if verb in {"talk high acolyte", "talk to high acolyte", "talk acolyte", "talk to acolyte"}:
