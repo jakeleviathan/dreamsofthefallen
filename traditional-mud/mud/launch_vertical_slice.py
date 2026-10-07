@@ -280,7 +280,7 @@ def journey_stage_for(*, race_key: str, level: int, flags: frozenset[str] | set[
     if GREYWAKE_CHAIN_COMPLETE_FLAG not in flags:
         return (
             "The Greywake road",
-            "What came out of the Gloamworks points east. Greywake turns one dungeon discovery into a regional argument about roads, risk, trade, and public safety-and lets you choose whose approach you support.",
+            "What came out of the Gloamworks points east. If you are below level 5, finish nearby Waymeet work first. At level 5, take EAST from Gloam Mouth to Three-Banner Camp and TALK CAPTAIN. Greywake turns one dungeon discovery into a regional argument about roads, risk, trade, and public safety-and lets you choose whose approach you support.",
         )
     if VEYRA_RESIDENT_FLAG not in flags:
         return (
