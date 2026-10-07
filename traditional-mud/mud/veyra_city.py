@@ -630,9 +630,9 @@ def _advance_arrival_by_room(session) -> str | None:
     if not q or q["status"] != "active":
         return None
     transitions = {
-        ("reach_crossing", VEYRA_GRAND_CROSSING_KEY): ("visit_market", "Grand Crossing turns the city from a gate into a network. Next: visit Brassmarket."),
-        ("visit_market", VEYRA_BRASSMARKET_KEY): ("visit_vault", "Brassmarket shows why specialization works here: there are enough buyers and sellers for materials to move. Next: visit the Keyhouse Vault."),
-        ("visit_vault", VEYRA_KEYHOUSE_KEY): ("visit_trainers", "Vell points out the dry storage cages. VAULT, DEPOSIT, and WITHDRAW are persistent here. Next: visit Five Ways Yard."),
+        ("reach_crossing", VEYRA_GRAND_CROSSING_KEY): ("visit_market", "Grand Crossing turns the city from a gate into a network. Go WEST to Caravan Court, then SOUTH to Brassmarket."),
+        ("visit_market", VEYRA_BRASSMARKET_KEY): ("visit_vault", "Brassmarket shows why specialization works here: there are enough buyers and sellers for materials to move. Go NORTH to Caravan Court, then NORTH again to the Keyhouse Vault."),
+        ("visit_vault", VEYRA_KEYHOUSE_KEY): ("visit_trainers", "Vell points out the dry storage cages. VAULT, DEPOSIT, and WITHDRAW are persistent here. Go SOUTH to Caravan Court, EAST to Grand Crossing, EAST to Civic Steps, then NORTH to Five Ways Yard and TRAIN."),
         ("visit_trainers", VEYRA_FIVE_WAYS_KEY): ("visit_trainers", "Five class circles share one yard. Use TRAIN here to review your current toolkit."),
         ("read_board", VEYRA_NOTICE_HALL_KEY): ("read_board", "The Notice Hall is where Veyra turns changing world state into public information. READ BOARD when you are ready."),
     }
@@ -1124,6 +1124,7 @@ async def _train(session) -> bool:
     q = _quest(session, VEYRA_ARRIVAL_QUEST_KEY)
     if q and q["status"] == "active" and q["current_step"] == "visit_trainers":
         session.database.advance_quest(session.character.id, VEYRA_ARRIVAL_QUEST_KEY, "read_board")
+        await session.send("Next: go SOUTH to Civic Steps, then EAST to Notice Hall and READ BOARD.\r\n")
     return True
 
 
@@ -1146,6 +1147,7 @@ async def _read_board(session) -> bool:
     q = _quest(session, VEYRA_ARRIVAL_QUEST_KEY)
     if q and q["status"] == "active" and q["current_step"] == "read_board":
         session.database.advance_quest(session.character.id, VEYRA_ARRIVAL_QUEST_KEY, "report_steward")
+        await session.send("Next: go WEST to Civic Steps and TALK STEWARD.\r\n")
     return True
 
 
@@ -1163,8 +1165,14 @@ async def _talk_steward(session) -> bool:
     if _quest(session, VEYRA_FACTION_SERVICE_QUEST_KEY) is None:
         session.database.start_quest(session.character.id, VEYRA_FACTION_SERVICE_QUEST_KEY, "report_office")
     _refresh(session)
+    faction_handoff = {
+        "roadwarden": "Go SOUTH to Three Offices Court, then WEST to Roadwarden House and TALK WARDEN.",
+        "ledger": "Go SOUTH to Three Offices Court, then SOUTH to Deep Ledger Exchange and TALK FACTOR.",
+        "lantern": "Go SOUTH to Three Offices Court, then EAST to Lantern Court and TALK KEEPER.",
+    }.get(_supported_faction(session), "Go SOUTH to Three Offices Court and report to the faction office matching your Greywake support.")
     await session.send(
-        "Ossa punches a resident chit and slides it across the desk. 'Now you know where to put things, trade things, learn things, and find out what changed while you were gone. That is enough to start belonging.' A City Larger Than the Road complete: 250 XP and a Veyra Resident Chit. Your Greywake faction now has a city-service quest.\r\n"
+        "Ossa punches a resident chit and slides it across the desk. 'Now you know where to put things, trade things, learn things, and find out what changed while you were gone. That is enough to start belonging.' "
+        f"A City Larger Than the Road complete: 250 XP and a Veyra Resident Chit. {faction_handoff}\r\n"
     )
     return True
 
@@ -1190,9 +1198,9 @@ async def _talk_faction_office(session, faction: str) -> bool:
         next_step = {"roadwarden": "roadwarden_field", "ledger": "ledger_field", "lantern": "lantern_water"}[faction]
         session.database.advance_quest(session.character.id, VEYRA_FACTION_SERVICE_QUEST_KEY, next_step)
         text = {
-            "roadwarden": "Nera hands you an inspection slip. 'Grand Crossing. Do not tell me the bridge looks sturdy. INSPECT BRIDGE PINS and tell me which bearing is wearing first.'",
-            "ledger": "Ilyr points toward Brassmarket. 'APPRAISE CARGO on the mixed lot. Value what is actually there, including uncertainty.'",
-            "lantern": "Amel hands you a blank public test form. 'INSPECT WATER at North Waterworks. If the evidence is clean, we still publish the evidence.'",
+            "roadwarden": "Nera hands you an inspection slip. 'Go EAST to Three Offices Court, NORTH to Civic Steps, then WEST to Grand Crossing. INSPECT BRIDGE PINS and tell me which bearing is wearing first.'",
+            "ledger": "Ilyr points toward Brassmarket. 'Go NORTH to Three Offices Court, NORTH to Civic Steps, WEST to Grand Crossing, WEST to Caravan Court, then SOUTH to Brassmarket. APPRAISE CARGO on the mixed lot.'",
+            "lantern": "Amel hands you a blank public test form. 'Go WEST to Three Offices Court, NORTH to Civic Steps, WEST to Grand Crossing, NORTH to Riversteps, then NORTH to North Waterworks. INSPECT WATER there.'",
         }[faction]
         await session.send(text + "\r\n")
         return True
@@ -1207,7 +1215,10 @@ async def _talk_faction_office(session, faction: str) -> bool:
             "ledger": "Your Veyra Exchange active-listing cap rises from 3 to 5.",
             "lantern": "Your Keyhouse vault allotment rises from 40 to 60 item-units.",
         }[faction]
-        await session.send(f"Your city service report is accepted. One Office, One Obligation complete: 180 XP and a Veyra Service Seal. {perk} Type JOURNEY for the next shared-road step.\r\n")
+        await session.send(
+            f"Your city service report is accepted. One Office, One Obligation complete: 180 XP and a Veyra Service Seal. {perk} "
+            "Next shared road: the Drowned Tollhouse. Reach South Timber Sprawl, go SOUTH to North Ferry, return to Drowned Tollhouse Mouth, then go DOWN.\r\n"
+        )
         return True
     await session.send("Your faction office has no new service step for you right now. FACTION PERK summarizes your current benefit.\r\n")
     return True
@@ -1222,19 +1233,19 @@ async def _do_faction_fieldwork(session, action: str) -> bool:
     step = q["current_step"]
     if action == "bridge" and session.character.current_room == VEYRA_GRAND_CROSSING_KEY and step == "roadwarden_field":
         session.database.advance_quest(session.character.id, VEYRA_FACTION_SERVICE_QUEST_KEY, "return_office")
-        await session.send("You inspect polishing, end grain, iron collars, and the chalk datum. The west bearing pin is wearing faster than its twin, not dangerously yet but enough to schedule replacement before freight season. You record the fact instead of waiting for a dramatic failure.\r\n")
+        await session.send("You inspect polishing, end grain, iron collars, and the chalk datum. The west bearing pin is wearing faster than its twin, not dangerously yet but enough to schedule replacement before freight season. Return to Roadwarden House: go EAST to Civic Steps, SOUTH to Three Offices Court, then WEST and TALK WARDEN.\r\n")
         return True
     if action == "cargo" and session.character.current_room == VEYRA_BRASSMARKET_KEY and step == "ledger_field":
         session.database.advance_quest(session.character.id, VEYRA_FACTION_SERVICE_QUEST_KEY, "return_office")
-        await session.send("You separate price from usefulness: common ore is sound, cloth is ordinary, salvage is repairable, and the sealed herb crate carries value only if its dry-chain claim can be verified. Your appraisal includes the uncertainty instead of hiding it.\r\n")
+        await session.send("You separate price from usefulness: common ore is sound, cloth is ordinary, salvage is repairable, and the sealed herb crate carries value only if its dry-chain claim can be verified. Return to Deep Ledger Exchange: go NORTH to Caravan Court, EAST to Grand Crossing, EAST to Civic Steps, SOUTH to Three Offices Court, then SOUTH and TALK FACTOR.\r\n")
         return True
     if action == "water" and session.character.current_room == VEYRA_NORTH_WATERWORKS_KEY and step == "lantern_water":
         session.database.advance_quest(session.character.id, VEYRA_FACTION_SERVICE_QUEST_KEY, "lantern_notice")
-        await session.send("You trace source gate, settling basin, reed bed, smell, residue, and the date of the last upstream repair. The channel is clean by every check available today. The next step is not silence: POST NOTICE at Notice Hall.\r\n")
+        await session.send("You trace source gate, settling basin, reed bed, smell, residue, and the date of the last upstream repair. The channel is clean by every check available today. Go SOUTH to Riversteps, SOUTH to Grand Crossing, EAST to Civic Steps, then EAST to Notice Hall and POST NOTICE.\r\n")
         return True
     if action == "notice" and session.character.current_room == VEYRA_NOTICE_HALL_KEY and step == "lantern_notice":
         session.database.advance_quest(session.character.id, VEYRA_FACTION_SERVICE_QUEST_KEY, "return_office")
-        await session.send("You post the clean-water result with date, method, and the limits of what was tested. The notice does not say TRUST US. It says what was checked and when it should be checked again.\r\n")
+        await session.send("You post the clean-water result with date, method, and the limits of what was tested. Return to Lantern Court: go WEST to Civic Steps, SOUTH to Three Offices Court, then EAST and TALK KEEPER.\r\n")
         return True
     return False
 
