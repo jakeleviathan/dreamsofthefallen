@@ -141,6 +141,8 @@ def _journey_text(session) -> str:
         VEYRA_FACTION_SERVICE_QUEST_KEY,
         VEYRA_RESIDENT_FLAG,
     )
+    from mud.veyra_underclock import UNDERCLOCK_COMPLETE_FLAG, UNDERCLOCK_QUEST_KEY
+    from mud.gravewatch_keep import GRAVEWATCH_COMPLETE_FLAG, GRAVEWATCH_QUEST_KEY
 
     level = int(getattr(character, "level", 1) or 1)
     flags = _character_flags(session)
@@ -215,10 +217,28 @@ def _journey_text(session) -> str:
             "The floodplain and Drowned Tollhouse carry the shared road toward level 10.\r\n"
         )
 
+    if UNDERCLOCK_COMPLETE_FLAG not in flags:
+        line = _shared_journey_line(session, (UNDERCLOCK_QUEST_KEY,))
+        if line is not None:
+            return line
+        return (
+            "\r\nMain journey - The City Between Ticks: go to Veyra's North Waterworks and take the maintenance stair DOWN into the Underclock. "
+            "Once the quest starts, GOALS gives the current machine step.\r\n"
+        )
+
+    if level < 10 and GRAVEWATCH_COMPLETE_FLAG not in flags:
+        line = _shared_journey_line(session, (GRAVEWATCH_QUEST_KEY,))
+        if line is not None:
+            return line
+        return (
+            "\r\nMain journey - Gravewatch Keep: go to Veyra's East River Gate, take the road SOUTH to the River Mile, and TALK SERGEANT. "
+            "The Dead Garrison is the next full clear on the road to level 10.\r\n"
+        )
+
     if level < 10:
         return (
-            "\r\nMain journey - Veyra: the Greywake and Sablewater chains are secure. Continue Veyra work, class commissions, and nearby delves toward level 10. "
-            "Use HERITAGE for your origin story and GOALS for the next active objective.\r\n"
+            "\r\nMain journey - Level 10 approach: the shared Greywake, Sablewater, Underclock, and Gravewatch route is complete. "
+            "Use HERITAGE for your level-8 origin story, then GOALS for any remaining level-appropriate objective; ordinary combat and city work can close any XP left by earlier optional choices.\r\n"
         )
 
     return (
