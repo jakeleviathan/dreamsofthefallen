@@ -205,6 +205,21 @@ def _journey_text(session) -> str:
             return line
 
     if DROWNED_TOLLHOUSE_COMPLETE_FLAG not in flags:
+        current_room = str(getattr(character, "current_room", "") or "")
+        if current_room.startswith("veyra_") and TOLLHOUSE_UNLOCKED_FLAG in flags:
+            active = _active_objective_for_keys(session, (PRICE_OF_CROSSING_QUEST_KEY,))
+            objective = (
+                f" Current objective: {active[1]}"
+                if active is not None
+                else ""
+            )
+            return (
+                "\r\nMain journey - Drowned Tollhouse: return to Civic Steps from wherever you are in Veyra. "
+                "From Civic Steps go WEST to Grand Crossing, WEST to Caravan Court, WEST to Gate Ward, SOUTH to South Timber Sprawl, then SOUTH to North Ferry. "
+                "From North Ferry go SOUTH to Flood Road, SOUTH to Broken Levee, EAST to Willow Ferry, SOUTH to Old Customs Road, EAST to Toll Island, EAST to the Tollhouse Mouth, then DOWN. "
+                + objective
+                + "\r\n"
+            )
         line = _shared_journey_line(session, sablewater_quests)
         if line is not None:
             return line
