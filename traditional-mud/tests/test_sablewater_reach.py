@@ -180,6 +180,36 @@ class SablewaterReachTests(unittest.TestCase):
         finally:
             tempdir.cleanup()
 
+    def test_level_eight_tollhouse_unlock_points_main_road_to_veyra(self):
+        tempdir, database, session = self._session()
+        try:
+            target = PROGRESSION_RULES.cumulative_xp_for_level(8)
+            if session.character.experience < target:
+                database.add_experience(
+                    session.character.id,
+                    target - session.character.experience,
+                )
+                updated = database.get_character_by_name(session.character.name)
+                assert updated is not None
+                session.character = updated
+            database.start_quest(
+                session.character.id,
+                TOLL_NOBODY_OWES_QUEST_KEY,
+                "talk_diver",
+            )
+            session.move_to(SABLEWATER_TOLLHOUSE_MOUTH_KEY)
+
+            self.assertTrue(asyncio.run(_talk_diver(session)))
+            self.assertIn("Drowned Tollhouse remains open DOWN", session.text())
+            self.assertIn("main road", session.text())
+            self.assertIn("North Ferry", session.text())
+            self.assertIn("Ledger Cut", session.text())
+            self.assertIn("Old Veyra Aqueduct", session.text())
+            self.assertIn("Veyra Outer Gate", session.text())
+            self.assertIn("EAST into Gate Ward", session.text())
+        finally:
+            tempdir.cleanup()
+
     def test_sablewater_story_handoffs_are_actionable_without_journey(self):
         tempdir, database, session = self._session()
         try:
