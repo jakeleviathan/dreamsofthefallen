@@ -204,7 +204,11 @@ async def main():
         await move("east", GREYWAKE_LANTERN_HOSPICE_KEY)
         await run("talk keeper")
         await move("west", GREYWAKE_THREE_BANNER_KEY)
-        await run("support ledger")
+        text = await run("support ledger")
+        assert session.character.level == 7, session.character.experience
+        assert "Signal Hill" in text and "RALLY SURGE" in text, text
+        text = await run("journey")
+        assert "Bell Below the Wind" in text and "RALLY SURGE" in text, text
 
         await move("south", GREYWAKE_LEDGER_CUT_KEY)
         await move("east", GREYWAKE_SUNK_CAUSEWAY_KEY)
