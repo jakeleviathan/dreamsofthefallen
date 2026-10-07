@@ -477,7 +477,7 @@ async def _show_notepad_help(session) -> None:
     await session.send(
         "\r\n--- Notepad Commands ---\r\n"
         "NOTEPAD / NOTES - list your private character notes. NOTEPAD PAGE <number> browses longer lists.\r\n"
-        "NOTEPAD NEW <title> - start a multiline note. The title may be entered on the next line if omitted.\r\n"
+        "NOTEPAD NEW <title> / NOTEPAD WRITE <title> - start a multiline note. The title may be entered on the next line if omitted.\r\n"
         "NOTEPAD READ <number> - open a note. NOTEPAD <number> is a shorthand.\r\n"
         "NOTEPAD EDIT <number> - edit title or individual lines, or append new lines.\r\n"
         "NOTEPAD DELETE <number> - permanently delete a note after confirmation.\r\n"
@@ -551,7 +551,7 @@ def install_notepad_runtime(player_session_class) -> None:
             await _show_notepad_help(self)
             return
 
-        if normalized in {"notepad new", "notes new"}:
+        if normalized in {"notepad new", "notes new", "notepad write", "notes write"}:
             await _begin_new_note(self, "")
             return
         if normalized.startswith("notepad new "):
@@ -559,6 +559,12 @@ def install_notepad_runtime(player_session_class) -> None:
             return
         if normalized.startswith("notes new "):
             await _begin_new_note(self, stripped[len("notes new "):])
+            return
+        if normalized.startswith("notepad write "):
+            await _begin_new_note(self, stripped[len("notepad write "):])
+            return
+        if normalized.startswith("notes write "):
+            await _begin_new_note(self, stripped[len("notes write "):])
             return
 
         read_arg = None
