@@ -26,6 +26,7 @@ from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
 from mud.mechanics import CombatantState, PROGRESSION_RULES
 from mud.session import SessionState
 from mud.stats import starting_armor_class
+from mud.starter_race_loops import STARTER_RACE_LOOPS_BY_RACE
 from mud.waymeet_frontier import WAYMEET_GLOAM_MOUTH_KEY
 from mud.greywake_march import (
     GREYWAKE_CHAIN_COMPLETE_FLAG,
@@ -97,6 +98,11 @@ async def main():
             character.id,
             PROGRESSION_RULES.cumulative_xp_for_level(6),
         )
+        loop = STARTER_RACE_LOOPS_BY_RACE["goblin"]
+        database.grant_flag(character.id, loop.completion_flag)
+        opening = database.get_quest(character.id, loop.first_quest_key)
+        if opening and opening.get("status") == "active":
+            database.complete_quest(character.id, loop.first_quest_key)
         database.grant_flag(character.id, GLOAMWORKS_COMPLETE_FLAG)
         database.set_character_room(character.id, WAYMEET_GLOAM_MOUTH_KEY)
         character = database.get_character_by_name(character.name)
