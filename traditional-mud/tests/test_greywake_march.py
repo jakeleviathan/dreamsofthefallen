@@ -117,12 +117,32 @@ class GreywakeMarchTests(unittest.TestCase):
             session.move_to(GREYWAKE_HEATH_KEY)
             self.assertTrue(asyncio.run(_inspect_site(session, GREYWAKE_HEATH_KEY)))
             self.assertEqual(database.get_quest(session.character.id, AFTER_GLOAM_QUEST_KEY)["current_step"], "inspect_orchard")
+            self.assertIn("Resonant Orchard", session.text())
+            self.assertIn("EXAMINE TREES", session.text())
+
+            session.sent.clear()
             session.move_to(GREYWAKE_RESONANT_ORCHARD_KEY)
             self.assertTrue(asyncio.run(_inspect_site(session, GREYWAKE_RESONANT_ORCHARD_KEY)))
             self.assertEqual(database.get_quest(session.character.id, AFTER_GLOAM_QUEST_KEY)["current_step"], "inspect_riftfield")
+            self.assertIn("Riftfield", session.text())
+            self.assertIn("EXAMINE SEAM", session.text())
+
+            session.sent.clear()
             session.move_to(GREYWAKE_RIFTFIELD_KEY)
             self.assertTrue(asyncio.run(_inspect_site(session, GREYWAKE_RIFTFIELD_KEY)))
             self.assertEqual(database.get_quest(session.character.id, AFTER_GLOAM_QUEST_KEY)["current_step"], "return_camp")
+            self.assertIn("Three-Banner Camp", session.text())
+            self.assertIn("TALK CAPTAIN", session.text())
+        finally:
+            tempdir.cleanup()
+
+    def test_after_gloam_captain_names_the_first_field_stop(self):
+        tempdir, database, session = self._session()
+        try:
+            database.start_quest(session.character.id, AFTER_GLOAM_QUEST_KEY, "reach_camp")
+            self.assertTrue(asyncio.run(_talk_captain(session)))
+            self.assertIn("Greywake Heath", session.text())
+            self.assertIn("EXAMINE GREY CRUST", session.text())
         finally:
             tempdir.cleanup()
 
