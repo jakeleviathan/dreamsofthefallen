@@ -59,6 +59,9 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("character", "PROFESSIONS / TRADESKILLS", "Open the crafting-and-gathering character sheet with skill bars, tiers, recipe counts, and next milestones."),
     CommandEntry("character", "QUESTS", "Show the active quest dashboard plus your three most recent completions."),
     CommandEntry("character", "QUESTS COMPLETED [page]", "Browse completed quest history, grouped by major story area."),
+    CommandEntry("character", "NOTEPAD / NOTES", "Open your private, persistent character notepad."),
+    CommandEntry("character", "NOTEPAD NEW <title>", "Write a multiline personal note; enter a single . to save."),
+    CommandEntry("character", "NOTEPAD READ / EDIT / DELETE <number>", "Read, revise, or permanently remove one of your notes."),
     CommandEntry("character", "ACCESS", "Show major authored access flags and level gates."),
     CommandEntry("character", "BIND", "Use an available bind service where the room supports one."),
 
