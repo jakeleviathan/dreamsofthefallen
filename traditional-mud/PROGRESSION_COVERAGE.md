@@ -5,15 +5,15 @@ This document answers a narrow production question: **how far can a character ac
 ## Bottom line
 
 - There is currently **no hard character level cap** in the XP engine. `level_for_experience()` keeps calculating levels as XP increases.
-- The authored class progression has a deliberate major milestone at **level 20**. The original level 1-9 kits remain the foundation, and every class receives a new defining level-20 tool.
-- Current authored zone/combat content reaches through **level 20**.
+- The authored class progression now extends through **level 40**, while the level-20 abilities remain the first major midgame milestones.
+- Current authored zone/combat content reaches through **level 40**.
 - Levels 12-15 now have **eight culturally distinct regional roads**, one rooted in each playable people: Troll, Dwarf, Moon Elf, Human, Forest Elf, Goblin, Undead, and Sporekin. None is race-locked; the cultural identity belongs to the region rather than restricting who may explore it.
 - At levels 15-16 those roads overlap around **Ashcross**, a rough multi-racial frontier settlement surrounded by dangerous roads, deep-forest pockets, abandoned causeways, salvage cuts, old funerary approaches, and hidden underways.
 - At levels 17-18, Ashcross opens the **Meridian Outerworks**, a looping dungeon layer beneath the frontier. Its flood loop and fossil-root loop both return to a central survey gallery, leading to the Outerworks Lockwarden and a shortcut back to town for reporting and re-entry.
 - At levels 19-20, the completed Outerworks route plus **any three independent regional witness threads** open the deeper **Meridian Vault**. Players are not forced to complete one specific trio of cultures before continuing.
-- Levels **21-60 are mechanically reachable but are not yet a complete authored progression ladder**. A character can earn the XP, but those levels still need level-specific regions, encounters, rewards, and later class milestones.
+- Levels **41-60 are mechanically reachable but are not yet a complete authored progression ladder**. A character can earn the XP, but those levels still need level-specific regions, encounters, rewards, and later class milestones.
 
-Dreams of the Fallen should therefore be described as an authored **level 1-20 game today**, with the engine and XP audit continuing through level 60.
+Dreams of the Fallen should therefore be described as an authored **level 1-40 game today**, with the engine and XP audit continuing through level 60.
 
 ## What was audited
 
@@ -35,23 +35,13 @@ The XP curve works past level 20 and has no hard stop. Exact cumulative XP landm
 | 50 | 3,633,600 |
 | 60 | 7,122,475 |
 
-The formula itself is valid through level 60 and beyond. That is **mechanical reachability**, not proof of authored content after level 20.
+The formula itself is valid through level 60 and beyond. That is **mechanical reachability**, not proof of authored content after level 40.
 
 ### Five-class level sweep, 1-60
 
 All five classes are checked at every level from 1 through 60. Priest is checked for all three spiritual paths.
 
-Current final class unlocks are:
-
-| Class | Last authored unlock |
-| --- | --- |
-| Brute | Level 20 - **Unbroken Stance**, a major threat/survival stance that seizes attention, restores health, and hardens the front line |
-| Wizard | Level 20 - **Starbreaker**, a high-impact single-target arcane strike |
-| Druid | Level 20 - **Deep Roots**, a party-wide recovery and protection pulse |
-| Priest | Level 20 - **Last Light**, a stronger party recovery and sanctuary effect available across all Priest paths |
-| Necromancer | Level 20 - **Raise Grave Knight**, upgrading the persistent undead-servant identity beyond the early Skeleton |
-
-Existing abilities still improve through the use-based ability progression system. Level 20 is intentionally a noticeable class milestone rather than simply another numerical level.
+Production now treats **level 40** as the authored class-ability ceiling. The exact upper-level unlocks live in the upper/late class progression modules and are covered by regression tests; this audit deliberately avoids duplicating that catalog here so the document cannot drift from executable class data again. Level 20 remains a meaningful milestone, but it is no longer the final authored unlock band.
 
 ### Stats
 
@@ -62,16 +52,12 @@ Leveling still does **not** grant automatic innate stat points or a generic leve
 | Level band | Current authored content |
 | --- | --- |
 | 1 | Eight distinct racial openings, all 40 race/class starting moments, starter economies and local culture |
-| 2-5 | Waymeet shared frontier, contracts, Old Toll, Crooked Bell, Gloamworks and surrounding adventure content |
-| 5-7 | Greywake March, Blackreed Holdfast, King's Scar and stronger shared/group encounters |
-| 6-8 | Sablewater Reach and the road/faction progression toward Veyra |
-| 8-10 | Veyra, Underclock, Gravewatch Keep, Vault of the First Echo, five class field commissions and broader midgame systems |
-| 8-11 | Drowned Tollhouse and the upper edge of the original Veyra-era combat ladder |
-| 12-15 | **Eight Roads regional journey**: Thornwake Troll country, Deepwheel Dwarven industrial travel, Counterstar Moon Elf highroad, Blackglass Human march, Alderwake Forest Elf road, Rattlechain Goblin salvage run, Pale Undead pilgrim road, and the Rainroot Sporekin threadway |
-| 15-16 | **Ashcross shared frontier**: all eight cultural approaches can physically feed the same rough frontier network without erasing their regional identity; the town retains race-aware presentation, optional pockets, and shared contracts |
-| 17-18 | **Meridian Outerworks**: a first substantial frontier dungeon beneath Ashcross with a Flood Ring loop, Root Gallery loop, survey objectives, the Outerworks Lockwarden, a return winch, and a required report-back before the deeper route is trusted |
-| 19-20 | **Meridian Vault**: the completed Outerworks route plus any three independent regional witnesses identify and open the deeper impossible coordinate, leading to the Nameless Custodian and the level-20 class milestone |
-| 21-60 | No complete authored level-specific progression ladder yet |
+| 2-5 | Waymeet shared frontier, Old Toll, Crooked Bell, Gloamworks and surrounding adventure content |
+| 5-10 | Greywake, Sablewater, Veyra, Drowned Tollhouse, Underclock, Gravewatch and class/origin progression |
+| 11-20 | **Broken Reach shared campaign**, plus the Eight Roads, Ashcross, Meridian Outerworks and Meridian Vault |
+| 21-30 | **Salt Kingdoms / Whitewake Basin**: Keelspire, Glass Keel, Three Thirsts, Undertide Engine and the level-30 water-routing map change |
+| 31-40 | **Crownfire March**: Morrowgate, the Gilded Host campaign, Brass Redoubt, Banner Palace, Marshal Corven Dask and the level-40 aftermath |
+| 41-60 | Mechanically reachable, but no complete authored level-specific progression ladder yet |
 
 ## The eight level-12 regional roads
 
@@ -104,10 +90,10 @@ The level 12-20 game has four distinct phases rather than one guided corridor.
 
 This structure creates two useful player behaviors at once: there is a clear minimum route to progress, but the other five witness stories remain real optional regional content rather than becoming obsolete because the player already unlocked Meridian.
 
-There are also level-agnostic systems-crafting, economy, social play, collectibles, hidden planes, living-world events, secrets, repeatables and exploration-that continue to add breadth around the progression ladder. They complement the 1-20 path rather than replacing future 21-60 authored progression.
+There are also level-agnostic systems-crafting, economy, social play, collectibles, hidden planes, living-world events, secrets, repeatables and exploration-that continue to add breadth around the progression ladder. They complement the 1-40 path rather than replacing future 41-60 authored progression.
 
 ## Production guardrail
 
-`mud/progression_coverage.py` records the current coverage boundary explicitly. The regression suite sweeps levels 1-60 for XP reversibility and all five classes, including all Priest paths. Dedicated midgame regressions verify the Eight Roads production assembly, five new Veyra departures, forty new regional rooms, five additional bosses and witness items, Ashcross convergence, the any-three witness rule, both Outerworks loops, level gates, and live-server installation.
+`mud/progression_coverage.py` records the current coverage boundary explicitly. The regression suite sweeps levels 1-60 for XP reversibility and all five classes, including all Priest paths. Dedicated regressions verify the Eight Roads and Broken Reach, Salt Kingdoms, Crownfire, level gates, persistent map changes, upper class progression, and live-server installation through level 40.
 
 If somebody later claims a higher content ceiling, the correct process is to expand the authored content first and then deliberately raise the coverage constants and tests. This file should be updated whenever a new level band becomes genuinely playable end to end.
