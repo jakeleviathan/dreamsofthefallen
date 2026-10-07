@@ -673,9 +673,18 @@ async def _talk_diver(session) -> bool:
     session.database.grant_flag(session.character.id, TOLLHOUSE_UNLOCKED_FLAG)
     if _quest(session, PRICE_OF_CROSSING_QUEST_KEY) is None:
         session.database.start_quest(session.character.id, PRICE_OF_CROSSING_QUEST_KEY, "defeat_warden")
-    session.database.add_experience(session.character.id, 170)
+    session.database.add_experience(session.character.id, 180)
     _refresh(session)
-    await session.send("Nym clips the descent line to an old mooring ring. 'Down is open. First big maintenance room has a Sluice Warden. It thinks everything living is a blockage.' A Toll Nobody Owes complete: 170 XP. The Drowned Tollhouse is open DOWN.\r\n")
+    if session.character.level < 8:
+        await session.send(
+            "Nym clips the descent line to an old mooring ring. 'The rope is ready, but that machinery is level-8 work. Come back when you are ready for it.' "
+            "A Toll Nobody Owes complete: 180 XP. Type JOURNEY for the next shared-road step.\r\n"
+        )
+    else:
+        await session.send(
+            "Nym clips the descent line to an old mooring ring. 'Down is open. First big maintenance room has a Sluice Warden. It thinks everything living is a blockage.' "
+            "A Toll Nobody Owes complete: 180 XP. The Drowned Tollhouse is open DOWN.\r\n"
+        )
     return True
 
 
