@@ -106,20 +106,22 @@ class ModernClientExperienceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             session = self._session(Path(temp_dir))
             room_key = session.character.current_room
-            definition = SimpleNamespace(
-                key="regional::test::jackal",
-                name="Thornback Jackal",
-                short_description="a thorn-backed roadside predator",
-                attackable=True,
-                aggressive=False,
-            )
+            def jackal(key: str):
+                return SimpleNamespace(
+                    key=key,
+                    name="Thornback Jackal",
+                    short_description="a thorn-backed roadside predator",
+                    attackable=True,
+                    aggressive=False,
+                )
+
             states = (
                 SimpleNamespace(
-                    definition=SimpleNamespace(**vars(definition), key="regional::test::jackal::1"),
+                    definition=jackal("regional::test::jackal::1"),
                     engaged_character_id=None,
                 ),
                 SimpleNamespace(
-                    definition=SimpleNamespace(**vars(definition), key="regional::test::jackal::2"),
+                    definition=jackal("regional::test::jackal::2"),
                     engaged_character_id=999,
                 ),
             )
