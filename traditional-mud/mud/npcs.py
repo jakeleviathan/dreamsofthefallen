@@ -1179,7 +1179,11 @@ class MobileNpcManager:
                 player_room_keys=player_rooms,
                 rng=rng,
             ) is not None:
-                self._regional_next_spawn_tick[pool.key] = self._tick_index + REGIONAL_REFILL_TICKS
+                refill_delay = rng.randint(
+                    min(pool.refill_min_ticks, pool.refill_max_ticks),
+                    max(pool.refill_min_ticks, pool.refill_max_ticks),
+                )
+                self._regional_next_spawn_tick[pool.key] = self._tick_index + refill_delay
 
         # Occasional tougher visitors are generated only in regions that contain
         # active players, capped at one rare at a time per region.
