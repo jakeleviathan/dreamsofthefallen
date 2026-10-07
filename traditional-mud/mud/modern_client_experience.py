@@ -62,6 +62,45 @@ def _room_context(session, world) -> PlayerRoomContext | None:
     )
 
 
+def _mobile_target_snapshot(session) -> list[dict]:
+    """Return distinct attackable mobile instances with player-facing ordinals."""
+    character = getattr(session, "character", None)
+    manager = getattr(session, "mobile_npcs", None)
+    if character is None or manager is None or not character.current_room:
+        return []
+
+    states = [
+        state
+        for state in manager.npcs_in_room(character.current_room)
+        if bool(getattr(state.definition, "attackable", False))
+        or bool(getattr(state.definition, "aggressive", False))
+    ]
+    totals: dict[str, int] = {}
+    for state in states:
+        totals[state.definition.name] = totals.get(state.definition.name, 0) + 1
+
+    seen: dict[str, int] = {}
+    result: list[dict] = []
+    for state in states:
+        name = state.definition.name
+        seen[name] = seen.get(name, 0) + 1
+        ordinal = seen[name]
+        count = totals[name]
+        target_text = f"{name} {ordinal}" if count > 1 else name
+        result.append(
+            {
+                "key": state.definition.key,
+                "name": name,
+                "description": state.definition.short_description,
+                "ordinal": ordinal,
+                "count": count,
+                "target_text": target_text,
+                "engaged": getattr(state, "engaged_character_id", None) is not None,
+            }
+        )
+    return result
+
+
 def _room_snapshot(session, world) -> dict | None:
     character = getattr(session, "character", None)
     if character is None or not character.current_room:
@@ -121,6 +160,7 @@ def _room_snapshot(session, world) -> dict | None:
         "exits": exits,
         "exit_keys": exit_keys,
         "features": features,
+        "targets": _mobile_target_snapshot(session),
         "players": [
             {"name": name, "description": description, "is_self": name.endswith(" (you)")}
             for name, description in room_player_entries(session)
@@ -600,14 +640,54 @@ def _context_actions(session, world, room: dict | None) -> dict:
             npc = NPCS_BY_KEY.get(npc_key)
             if npc is not None:
                 actions.append({"label": f"Talk: {npc.name}", "command": f"TALK {npc.name}", "kind": "talk"})
-        for enemy_key in scene.enemy_keys[:1]:
-            enemy = combat.ENEMIES_BY_KEY.get(enemy_key)
-            if enemy is not None and getattr(session, "active_enemy", None) is None:
-                selected = getattr(session, "selected_enemy", None)
-                if selected is not None and selected.definition.key == enemy.key:
-                    actions.append({"label": f"Attack {enemy.name}", "command": "ATTACK", "kind": "combat"})
+
+        # Mobile population instances are first-class HERE actions. When several
+        # identical creatures share a room, every button points at a stable
+        # player-facing ordinal rather than an internal instance id.
+        mobile_targets = room.get("targets", []) if room is not None else []
+        if mobile_targets and getattr(session, "active_enemy", None) is None:
+            selected_key = getattr(session, "selected_mobile_npc_key", None)
+            for target in mobile_targets[:4]:
+                target_text = str(target.get("target_text") or target.get("name") or "")
+                if not target_text:
+                    continue
+                if selected_key and selected_key == target.get("key"):
+                    actions.append(
+                        {
+                            "label": f"Attack {target_text}",
+                            "command": "ATTACK",
+                            "kind": "combat",
+                            "description": target.get("description", ""),
+                        }
+                    )
                 else:
-                    actions.append({"label": f"Target {enemy.name}", "command": f"TARGET {enemy.name}", "kind": "target"})
+                    actions.append(
+                        {
+                            "label": f"Target {target_text}",
+                            "command": f"TARGET {target_text}",
+                            "kind": "target",
+                            "description": target.get("description", ""),
+                        }
+                    )
+        elif getattr(session, "active_enemy", None) is None:
+            for enemy_key in scene.enemy_keys[:1]:
+                manager = getattr(session, "mobile_npcs", None)
+                regionalizes_source = (
+                    getattr(manager, "regionalizes_source", None)
+                    if manager is not None
+                    else None
+                )
+                if callable(regionalizes_source) and regionalizes_source(
+                    character.current_room or "", enemy_key
+                ):
+                    continue
+                enemy = combat.ENEMIES_BY_KEY.get(enemy_key)
+                if enemy is not None:
+                    selected = getattr(session, "selected_enemy", None)
+                    if selected is not None and selected.definition.key == enemy.key:
+                        actions.append({"label": f"Attack {enemy.name}", "command": "ATTACK", "kind": "combat"})
+                    else:
+                        actions.append({"label": f"Target {enemy.name}", "command": f"TARGET {enemy.name}", "kind": "target"})
 
     for feature in room.get("features", [])[:2]:
         action = _feature_action(feature)
