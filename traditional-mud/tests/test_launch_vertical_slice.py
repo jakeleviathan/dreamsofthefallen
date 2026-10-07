@@ -117,8 +117,7 @@ class LaunchVerticalSliceTests(unittest.TestCase):
             output = "".join(session.messages)
             self.assertIn("--- Your Journey ---", output)
             self.assertIn("Main journey - Greywake March", output)
-            self.assertIn("Gloam Mouth", output)
-            self.assertIn("EAST", output)
+            self.assertIn("Three-Banner Camp", output)
             self.assertNotIn("horizon, not a mandatory checklist", output)
 
     def test_waymeet_pacing_tuning_is_modest_and_keeps_danger_curve(self):
