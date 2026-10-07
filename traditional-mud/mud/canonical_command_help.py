@@ -73,7 +73,7 @@ async def _show_quick_help(session) -> None:
         "MAP / MAP HERE / MAP 1..4",
         "LOOK AT / LOOK / EXAMINE / INSPECT <actor>",
         "CONSIDER / CON <target>",
-        "QUESTS",
+        "QUESTS / QUESTS COMPLETED",
         "INVENTORY / INV / I",
         "ITEM / INSPECT ITEM <item>",
         "REST / SIT / SIT DOWN",
