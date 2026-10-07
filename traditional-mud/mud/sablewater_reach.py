@@ -603,7 +603,7 @@ async def _talk_ferrymaster(session) -> bool:
     q = _quest(session, LOW_WATER_QUEST_KEY)
     if q and q["status"] == "active" and q["current_step"] == "talk_ferrymaster":
         session.database.advance_quest(session.character.id, LOW_WATER_QUEST_KEY, "inspect_levee")
-        await session.send("Jessa moves two depth pebbles downstream. 'Broken Levee first. EXAMINE BREACH. Then check the Willow Ferry chain. I want to know whether the river moved, the road moved, or we did something stupid.'\r\n")
+        await session.send("Jessa moves two depth pebbles downstream. 'Broken Levee first. From North Ferry, go SOUTH to Flood Road, then SOUTH again to Broken Levee and EXAMINE BREACH. After that, go EAST to Willow Ferry and EXAMINE FERRY CHAIN. I want to know whether the river moved, the road moved, or we did something stupid.'\r\n")
         return True
     if q and q["status"] == "active" and q["current_step"] == "return_ferrymaster":
         session.database.complete_quest(session.character.id, LOW_WATER_QUEST_KEY)
@@ -612,7 +612,7 @@ async def _talk_ferrymaster(session) -> bool:
         if _quest(session, TOLL_NOBODY_OWES_QUEST_KEY) is None:
             session.database.start_quest(session.character.id, TOLL_NOBODY_OWES_QUEST_KEY, "inspect_marker")
         _refresh(session)
-        await session.send("Jessa redraws the side channel on her board. 'There. Not a curse. Neglect with excellent masonry.' Low Water, Old Debts complete: 140 XP. Follow the Old Customs Road for the next problem.\r\n")
+        await session.send("Jessa redraws the side channel on her board. 'There. Not a curse. Neglect with excellent masonry.' Low Water, Old Debts complete: 140 XP. From North Ferry, go EAST to Eelmarket Dock, SOUTH to Willow Ferry, then SOUTH again to Old Customs Road and EXAMINE TOLL MARKER.\r\n")
         return True
     await session.send("Jessa says, 'Depth changes. Notes help. Check your current Sablewater objective.'\r\n")
     return True
@@ -625,7 +625,7 @@ async def _inspect_levee(session) -> bool:
     if not q or q["status"] != "active" or q["current_step"] != "inspect_levee":
         return False
     session.database.advance_quest(session.character.id, LOW_WATER_QUEST_KEY, "inspect_chain")
-    await session.send("The new breach is only the visible symptom. Old customs stone narrowed the abandoned side channel until flood pressure shifted against this levee. Next: Willow Ferry.\r\n")
+    await session.send("The new breach is only the visible symptom. Old customs stone narrowed the abandoned side channel until flood pressure shifted against this levee. Go EAST to Willow Ferry and EXAMINE FERRY CHAIN.\r\n")
     return True
 
 
@@ -636,7 +636,7 @@ async def _inspect_chain(session) -> bool:
     if not q or q["status"] != "active" or q["current_step"] != "inspect_chain":
         return False
     session.database.advance_quest(session.character.id, LOW_WATER_QUEST_KEY, "return_ferrymaster")
-    await session.send("The live ferry chain is being pulled off-line by an obsolete customs guide chain exposed by low water. Two separate old systems are now fighting the river together. Return to Jessa.\r\n")
+    await session.send("The live ferry chain is being pulled off-line by an obsolete customs guide chain exposed by low water. Two separate old systems are now fighting the river together. Return to Jessa: go NORTH to Eelmarket Dock, then WEST to North Ferry and TALK FERRYMASTER.\r\n")
     return True
 
 
@@ -647,7 +647,7 @@ async def _inspect_marker(session) -> bool:
     if not q or q["status"] != "active" or q["current_step"] != "inspect_marker":
         return False
     session.database.advance_quest(session.character.id, TOLL_NOBODY_OWES_QUEST_KEY, "inspect_gate")
-    await session.send("The marker records the toll's abolition in chisel work newer than the original tariff list. The legal change is clear. Something downstream is simply older than the amendment.\r\n")
+    await session.send("The marker records the toll's abolition in chisel work newer than the original tariff list. The legal change is clear. Go EAST to Toll Island, then EAST again to Drowned Tollhouse Mouth and EXAMINE SUNKEN GATE.\r\n")
     return True
 
 
@@ -683,7 +683,7 @@ async def _talk_diver(session) -> bool:
     else:
         await session.send(
             "Nym clips the descent line to an old mooring ring. 'Down is open. First big maintenance room has a Sluice Warden. It thinks everything living is a blockage.' "
-            "A Toll Nobody Owes complete: 170 XP. The Drowned Tollhouse is open DOWN.\r\n"
+            "A Toll Nobody Owes complete: 170 XP. Go DOWN into Submerged Entry, then EAST through Toll Hall and Ledger Gallery to Sluice Chamber. ATTACK WARDEN.\r\n"
         )
     return True
 
@@ -711,12 +711,37 @@ async def _search_seal(session, source: str) -> bool:
         return True
     session.database.grant_flag(session.character.id, flag)
     session.database.add_item(session.character.id, CUSTOMS_SEAL_KEY, 1)
-    found = len(_seal_flags(session))
+    found_flags = _seal_flags(session)
+    found = len(found_flags)
     if found >= 3:
         session.database.advance_quest(session.character.id, PRICE_OF_CROSSING_QUEST_KEY, "present_seals")
-        text += " You now have all three obsolete seals. Take them to the Brass Tribunal and PRESENT SEALS."
+        tribunal_routes = {
+            "archive": "Go EAST to Coin Vault, EAST to Magistrate's Room, EAST to Clock Chamber, then EAST to Brass Tribunal",
+            "vault": "Go EAST to Magistrate's Room, EAST to Clock Chamber, then EAST to Brass Tribunal",
+            "magistrate": "Go EAST to Clock Chamber, then EAST to Brass Tribunal",
+        }
+        text += f" You now have all three obsolete seals. {tribunal_routes[source]} and PRESENT SEALS."
     else:
-        text += f" Seal {found}/3 recovered."
+        next_seals = (
+            (ARCHIVE_SEAL_FLAG, "archive", "Flooded Archive", "SEARCH LEDGERS"),
+            (VAULT_SEAL_FLAG, "vault", "Coin Vault", "SEARCH COIN VAULT"),
+            (MAGISTRATE_SEAL_FLAG, "magistrate", "Magistrate's Room", "SEARCH MAGISTRATE DESK"),
+        )
+        _flag, next_source, next_room, next_command = next(
+            item for item in next_seals if item[0] not in found_flags
+        )
+        route_hints = {
+            ("archive", "vault"): "Go EAST to Coin Vault",
+            ("archive", "magistrate"): "Go EAST to Coin Vault, then EAST to Magistrate's Room",
+            ("vault", "archive"): "Go WEST to Flooded Archive",
+            ("vault", "magistrate"): "Go EAST to Magistrate's Room",
+            ("magistrate", "archive"): "Go NORTH to Coin Vault, then WEST to Flooded Archive",
+            ("magistrate", "vault"): "Go NORTH to Coin Vault",
+        }
+        text += (
+            f" Seal {found}/3 recovered. {route_hints[(source, next_source)]} "
+            f"and {next_command}."
+        )
     await session.send(text + "\r\n")
     return True
 
@@ -796,7 +821,7 @@ def install_sablewater_runtime(player_session_class, world_service) -> None:
         if key == SLUICE_WARDEN_KEY and q and q["status"] == "active" and q["current_step"] == "defeat_warden":
             self.database.grant_flag(self.character.id, SLUICE_WARDEN_DEFEATED_FLAG)
             self.database.advance_quest(self.character.id, PRICE_OF_CROSSING_QUEST_KEY, "collect_seals")
-            await self.send("The Sluice Warden locks in place with both paddle arms raised. The deeper customs interlock still runs. Recover the three obsolete authority seals.\r\n")
+            await self.send("The Sluice Warden locks in place with both paddle arms raised. The deeper customs interlock still runs. Start with the first obsolete authority seal: go WEST to Ledger Gallery, NORTH to Flooded Archive, and SEARCH LEDGERS.\r\n")
         elif key == BRASS_AUDITOR_KEY and q and q["status"] == "active" and q["current_step"] == "defeat_auditor":
             self.database.grant_flag(self.character.id, AUDITOR_DEFEATED_FLAG)
             self.database.advance_quest(self.character.id, PRICE_OF_CROSSING_QUEST_KEY, "open_sluice")
