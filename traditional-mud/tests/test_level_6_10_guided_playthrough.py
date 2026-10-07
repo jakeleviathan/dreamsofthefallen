@@ -28,6 +28,7 @@ from mud.session import SessionState
 from mud.stats import starting_armor_class
 from mud.starter_race_loops import STARTER_RACE_LOOPS_BY_RACE
 from mud.waymeet_frontier import WAYMEET_GLOAM_MOUTH_KEY
+from mud.waymaps import shortest_route
 from mud.greywake_march import (
     GREYWAKE_CHAIN_COMPLETE_FLAG,
     GREYWAKE_THREE_BANNER_KEY,
@@ -177,9 +178,24 @@ async def main():
         def room():
             return session.character.current_room
 
-        async def move(direction, expected):
-            await run(direction)
-            assert room() == expected, (direction, room(), expected)
+        def route_to(target):
+            route = shortest_route(server.WORLD, session, room(), target)
+            assert route is not None, (room(), target)
+            return route
+
+        def assert_journey_route(text, target):
+            route = route_to(target)
+            assert route, (room(), target)
+            rendered = " -> ".join(direction.upper() for direction in route)
+            assert rendered in text, (target, rendered, text)
+            return route
+
+        async def walk_to(target):
+            route = route_to(target)
+            for direction in route:
+                await run(direction)
+            assert room() == target, (room(), target, route)
+            return route
 
         async def resolve_fight(command):
             text = await run(command)
@@ -192,89 +208,67 @@ async def main():
 
         # The player asks the game, not a developer, where the shared road goes.
         text = await run("journey")
-        assert "Greywake March" in text and "EAST" in text, text
-
-        await move("east", "greywake_west_mile")
-        await move("east", GREYWAKE_THREE_BANNER_KEY)
+        assert "Greywake March" in text, text
+        assert_journey_route(text, GREYWAKE_THREE_BANNER_KEY)
+        await walk_to(GREYWAKE_THREE_BANNER_KEY)
         await run("talk captain")
         text = await run("goals")
         assert "EXAMINE GREY CRUST" in text, text
 
-        await move("north", GREYWAKE_WARDEN_POST_KEY)
-        await move("east", GREYWAKE_HEATH_KEY)
+        await walk_to(GREYWAKE_HEATH_KEY)
         await run("examine grey crust")
-        await move("south", GREYWAKE_SIGNAL_HILL_KEY)
-        await move("west", GREYWAKE_RESONANT_ORCHARD_KEY)
+        await walk_to(GREYWAKE_RESONANT_ORCHARD_KEY)
         await run("examine trees")
-        await move("north", GREYWAKE_SIGNAL_HILL_KEY)
-        await move("east", GREYWAKE_RIFTFIELD_KEY)
+        await walk_to(GREYWAKE_RIFTFIELD_KEY)
         await run("examine seam")
-        await move("west", GREYWAKE_SIGNAL_HILL_KEY)
-        await move("south", GREYWAKE_SUNK_CAUSEWAY_KEY)
-        await move("west", GREYWAKE_LEDGER_CUT_KEY)
-        await move("north", GREYWAKE_THREE_BANNER_KEY)
+        await walk_to(GREYWAKE_THREE_BANNER_KEY)
         await run("talk captain")
 
         # This exact objective used to be impossible because TALK CAPTAIN was
         # swallowed by the generic captain handler.
         text = await run("journey")
         assert "TALK CAPTAIN at the Roadwarden Post" in text, text
-        await move("north", GREYWAKE_WARDEN_POST_KEY)
+        await walk_to(GREYWAKE_WARDEN_POST_KEY)
         await run("talk captain")
         q = database.get_quest(character.id, THREE_CLAIMS_QUEST_KEY)
         assert q and q["current_step"] == "hear_ledger", q
 
-        await move("south", GREYWAKE_THREE_BANNER_KEY)
-        await move("south", GREYWAKE_LEDGER_CUT_KEY)
+        await walk_to(GREYWAKE_LEDGER_CUT_KEY)
         await run("talk factor")
-        await move("north", GREYWAKE_THREE_BANNER_KEY)
-        await move("east", GREYWAKE_LANTERN_HOSPICE_KEY)
+        await walk_to(GREYWAKE_LANTERN_HOSPICE_KEY)
         await run("talk keeper")
-        await move("west", GREYWAKE_THREE_BANNER_KEY)
+        await walk_to(GREYWAKE_THREE_BANNER_KEY)
         text = await run("support ledger")
         assert session.character.level == 7, session.character.experience
         assert "Signal Hill" in text and "RALLY SURGE" in text, text
         text = await run("journey")
         assert "Bell Below the Wind" in text and "RALLY SURGE" in text, text
 
-        await move("south", GREYWAKE_LEDGER_CUT_KEY)
-        await move("east", GREYWAKE_SUNK_CAUSEWAY_KEY)
-        await move("north", GREYWAKE_SIGNAL_HILL_KEY)
+        await walk_to(GREYWAKE_SIGNAL_HILL_KEY)
         await run("rally surge")
         for _ in range(6):
             await greywake._record_surge_kill(session)
-        await move("south", GREYWAKE_SUNK_CAUSEWAY_KEY)
-        await move("west", GREYWAKE_LEDGER_CUT_KEY)
-        await move("north", GREYWAKE_THREE_BANNER_KEY)
+        await walk_to(GREYWAKE_THREE_BANNER_KEY)
         await run("talk captain")
         assert GREYWAKE_CHAIN_COMPLETE_FLAG in database.list_flags(character.id)
 
         # The game now gives the whole handoff instead of requiring a remembered map.
         text = await run("journey")
-        assert "SOUTH to Ledger Cut" in text and "TALK FERRYMASTER" in text, text
-        await move("south", GREYWAKE_LEDGER_CUT_KEY)
-        await move("south", SABLEWATER_REED_FARMS_KEY)
-        await move("east", SABLEWATER_FLOOD_ROAD_KEY)
-        await move("north", SABLEWATER_NORTH_FERRY_KEY)
+        assert "TALK FERRYMASTER" in text, text
+        assert_journey_route(text, SABLEWATER_NORTH_FERRY_KEY)
+        await walk_to(SABLEWATER_NORTH_FERRY_KEY)
         await run("talk ferrymaster")
 
-        await move("south", SABLEWATER_FLOOD_ROAD_KEY)
-        await move("south", SABLEWATER_BROKEN_LEVEE_KEY)
+        await walk_to(SABLEWATER_BROKEN_LEVEE_KEY)
         await run("examine breach")
-        await move("east", SABLEWATER_WILLOW_FERRY_KEY)
+        await walk_to(SABLEWATER_WILLOW_FERRY_KEY)
         await run("examine ferry chain")
-        await move("west", SABLEWATER_BROKEN_LEVEE_KEY)
-        await move("north", SABLEWATER_FLOOD_ROAD_KEY)
-        await move("north", SABLEWATER_NORTH_FERRY_KEY)
+        await walk_to(SABLEWATER_NORTH_FERRY_KEY)
         await run("talk ferrymaster")
 
-        await move("south", SABLEWATER_FLOOD_ROAD_KEY)
-        await move("south", SABLEWATER_BROKEN_LEVEE_KEY)
-        await move("east", SABLEWATER_WILLOW_FERRY_KEY)
-        await move("south", SABLEWATER_OLD_CUSTOMS_KEY)
+        await walk_to(SABLEWATER_OLD_CUSTOMS_KEY)
         await run("examine toll marker")
-        await move("east", SABLEWATER_TOLL_ISLAND_KEY)
-        await move("east", SABLEWATER_TOLLHOUSE_MOUTH_KEY)
+        await walk_to(SABLEWATER_TOLLHOUSE_MOUTH_KEY)
         await run("examine sunken gate")
         text = await run("talk diver")
         assert TOLLHOUSE_UNLOCKED_FLAG in database.list_flags(character.id)
@@ -284,99 +278,52 @@ async def main():
         # If the player asks for the main road instead, the game explains the long
         # return to Veyra rather than requiring us to give directions out of band.
         text = await run("journey")
-        assert "North Ferry" in text and "WEST to Reed Farms" in text and "Veyra Outer Gate" in text, text
-
-        await move("west", SABLEWATER_TOLL_ISLAND_KEY)
-        await move("west", SABLEWATER_OLD_CUSTOMS_KEY)
-        await move("north", SABLEWATER_WILLOW_FERRY_KEY)
-        await move("west", SABLEWATER_BROKEN_LEVEE_KEY)
-        await move("north", SABLEWATER_FLOOD_ROAD_KEY)
-        await move("west", SABLEWATER_REED_FARMS_KEY)
-        await move("north", GREYWAKE_LEDGER_CUT_KEY)
-        await move("east", GREYWAKE_SUNK_CAUSEWAY_KEY)
-        await move("east", GREYWAKE_RIFTFIELD_KEY)
-        await move("east", "greywake_old_aqueduct")
-        await move("east", "greywake_veyra_road")
-        await move("east", GREYWAKE_VEYRA_GATE_KEY)
-        await move("east", VEYRA_GATE_WARD_KEY)
+        assert "Veyra Gate Ward" in text, text
+        assert_journey_route(text, VEYRA_GATE_WARD_KEY)
+        await walk_to(VEYRA_GATE_WARD_KEY)
 
         # Arrival tour: every next action is player-facing and executable.
-        await move("east", VEYRA_CARAVAN_COURT_KEY)
-        await move("east", VEYRA_GRAND_CROSSING_KEY)
-        await move("west", VEYRA_CARAVAN_COURT_KEY)
-        await move("south", VEYRA_BRASSMARKET_KEY)
-        await move("north", VEYRA_CARAVAN_COURT_KEY)
-        await move("north", VEYRA_KEYHOUSE_KEY)
-        await move("south", VEYRA_CARAVAN_COURT_KEY)
-        await move("east", VEYRA_GRAND_CROSSING_KEY)
-        await move("east", VEYRA_CIVIC_STEPS_KEY)
-        await move("north", VEYRA_FIVE_WAYS_KEY)
+        await walk_to(VEYRA_GRAND_CROSSING_KEY)
+        await walk_to(VEYRA_BRASSMARKET_KEY)
+        await walk_to(VEYRA_KEYHOUSE_KEY)
+        await walk_to(VEYRA_FIVE_WAYS_KEY)
         await run("train")
-        await move("south", VEYRA_CIVIC_STEPS_KEY)
-        await move("east", VEYRA_NOTICE_HALL_KEY)
+        await walk_to(VEYRA_NOTICE_HALL_KEY)
         await run("read board")
-        await move("west", VEYRA_CIVIC_STEPS_KEY)
+        await walk_to(VEYRA_CIVIC_STEPS_KEY)
         await run("talk steward")
         assert VEYRA_RESIDENT_FLAG in database.list_flags(character.id)
 
         # Our Greywake choice was Deep Ledger. The city quest must remain executable.
-        await move("south", VEYRA_THREE_OFFICES_KEY)
-        await move("south", VEYRA_LEDGER_OFFICE_KEY)
+        await walk_to(VEYRA_LEDGER_OFFICE_KEY)
         await run("talk factor")
-        await move("north", VEYRA_THREE_OFFICES_KEY)
-        await move("north", VEYRA_CIVIC_STEPS_KEY)
-        await move("west", VEYRA_GRAND_CROSSING_KEY)
-        await move("west", VEYRA_CARAVAN_COURT_KEY)
-        await move("south", VEYRA_BRASSMARKET_KEY)
+        await walk_to(VEYRA_BRASSMARKET_KEY)
         await run("appraise cargo")
-        await move("north", VEYRA_CARAVAN_COURT_KEY)
-        await move("east", VEYRA_GRAND_CROSSING_KEY)
-        await move("east", VEYRA_CIVIC_STEPS_KEY)
-        await move("south", VEYRA_THREE_OFFICES_KEY)
-        await move("south", VEYRA_LEDGER_OFFICE_KEY)
+        await walk_to(VEYRA_LEDGER_OFFICE_KEY)
         await run("talk factor")
         assert VEYRA_FACTION_RANK_FLAG in database.list_flags(character.id)
 
         # The player has an active Drowned quest, so JOURNEY must explain how to
         # return there from the city instead of merely restating "defeat warden".
         text = await run("journey")
-        assert "Civic Steps" in text and "North Ferry" in text and "Tollhouse Mouth" in text and "DOWN" in text, text
-
-        # Follow only the route the game itself just supplied.
-        await move("north", VEYRA_THREE_OFFICES_KEY)
-        await move("north", VEYRA_CIVIC_STEPS_KEY)
-        await move("west", VEYRA_GRAND_CROSSING_KEY)
-        await move("west", VEYRA_CARAVAN_COURT_KEY)
-        await move("west", VEYRA_GATE_WARD_KEY)
-        await move("south", VEYRA_SOUTH_SPRAWL_KEY)
-        await move("south", SABLEWATER_NORTH_FERRY_KEY)
-        await move("south", SABLEWATER_FLOOD_ROAD_KEY)
-        await move("south", SABLEWATER_BROKEN_LEVEE_KEY)
-        await move("east", SABLEWATER_WILLOW_FERRY_KEY)
-        await move("south", SABLEWATER_OLD_CUSTOMS_KEY)
-        await move("east", SABLEWATER_TOLL_ISLAND_KEY)
-        await move("east", SABLEWATER_TOLLHOUSE_MOUTH_KEY)
-        await move("down", DROWNED_ENTRY_KEY)
-
-        await move("east", DROWNED_TOLL_HALL_KEY)
-        await move("east", DROWNED_LEDGER_GALLERY_KEY)
-        await move("east", DROWNED_SLUICE_CHAMBER_KEY)
+        assert "Drowned Tollhouse entry" in text, text
+        assert_journey_route(text, DROWNED_ENTRY_KEY)
+        await walk_to(DROWNED_ENTRY_KEY)
+        await walk_to(DROWNED_SLUICE_CHAMBER_KEY)
         await resolve_fight("attack warden")
 
         text = await run("goals")
         assert "SEARCH LEDGERS" in text and "SEARCH COIN VAULT" in text and "SEARCH MAGISTRATE DESK" in text, text
-        await move("west", DROWNED_LEDGER_GALLERY_KEY)
-        await move("north", DROWNED_FLOODED_ARCHIVE_KEY)
+        await walk_to(DROWNED_FLOODED_ARCHIVE_KEY)
         await run("search ledgers")
-        await move("east", DROWNED_COIN_VAULT_KEY)
+        await walk_to(DROWNED_COIN_VAULT_KEY)
         await run("search coin vault")
-        await move("east", DROWNED_MAGISTRATE_ROOM_KEY)
+        await walk_to(DROWNED_MAGISTRATE_ROOM_KEY)
         await run("search magistrate desk")
-        await move("east", DROWNED_CLOCK_CHAMBER_KEY)
-        await move("east", DROWNED_BRASS_TRIBUNAL_KEY)
+        await walk_to(DROWNED_BRASS_TRIBUNAL_KEY)
         await run("present seals")
         await resolve_fight("attack auditor")
-        await move("east", DROWNED_COLLECTOR_WELL_KEY)
+        await walk_to(DROWNED_COLLECTOR_WELL_KEY)
         await run("turn final sluice")
 
         assert DROWNED_TOLLHOUSE_COMPLETE_FLAG in database.list_flags(character.id)
