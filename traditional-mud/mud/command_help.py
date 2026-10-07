@@ -249,6 +249,8 @@ def _full_help_text(session) -> str:
         "ABILITIES - unlocked class abilities",
         "QUESTS / JOURNAL - active quest dashboard and current objectives",
         "QUESTS COMPLETED [page] - completed quest history by story area",
+        "NOTEPAD / NOTES - private persistent character notes",
+        "NOTEPAD NEW <title> / READ <number> / EDIT <number> / DELETE <number> - manage notes",
         "ACCESS - persistent access and progression gates",
         "BIND / BIND POINT - bind-point information",
         "INVENTORY - carried items",
