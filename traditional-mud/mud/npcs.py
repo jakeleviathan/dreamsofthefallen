@@ -700,7 +700,7 @@ class MobileNpcManager:
         }
 
     def _pool_room_capacity(self, pool_key: str, room_key: str) -> int:
-        pool = self.regional_pools.get(pool_key)
+        pool = getattr(self, "regional_pools", {}).get(pool_key)
         if pool is not None and pool.room_soft_cap is not None:
             return max(1, min(REGIONAL_MAX_DYNAMIC_PER_ROOM, pool.room_soft_cap))
         depth = self._regional_room_depths.get(pool_key, {}).get(room_key, 0)
