@@ -462,12 +462,14 @@ async def _assist(session, target_name: str = "") -> bool:
     target = candidates[0]
     target_character = _character(target)
     enemy = target.active_enemy
-    if getattr(target, "active_mobile_npc_key", None) is not None:
-        await session.send("ASSIST currently joins shared room-enemy encounters; roaming NPC fights still resolve one character at a time.\r\n")
-        return True
+    mobile_key = getattr(target, "active_mobile_npc_key", None)
 
+    # Regional wildlife is a real shared instance, so a party member assisting
+    # another player must join that same EnemyState rather than creating a
+    # private copy. The mobile manager keeps the creature anchored while the
+    # existing party encounter owns shared HP, threat, participation and XP.
     session.active_enemy = enemy
-    session.active_mobile_npc_key = None
+    session.active_mobile_npc_key = mobile_key
     if getattr(session, "combatant", None) is None:
         await session.send("Your combat state is not ready.\r\n")
         session.active_enemy = None
