@@ -392,7 +392,7 @@ TOLL_ROOMS = (
     _room(TOLL_SMUGGLER_CUT, "Smuggler Cut", TOLL_REGION_KEY, "A rough newer tunnel bypasses the old toll rooms and joins the back of the cellar. Pick marks stop abruptly where older fitted stone begins again.", {"west": TOLL_RAT_RUN, "north": TOLL_KENNEL}, enemies=(BURROW_HOUND.key,), tags=("dungeon", "side_route")),
     _room(TOLL_LEDGER, "Account Room", TOLL_REGION_KEY, "A warped desk supports two ledgers: one ancient and illegible, one recent enough that several victims are still in Waymeet complaining. SEARCH LEDGER is the obvious next move.", {"north": TOLL_STORAGE, "south": TOLL_KENNEL}, enemies=(ROAD_THIEF.key,), tags=("dungeon", "clue")),
     _room(TOLL_KENNEL, "Burrow Kennel", TOLL_REGION_KEY, "Clay-streaked hounds sleep in collapsed toll cubbies. Beyond them, a reinforced door leads toward the old counting room.", {"north": TOLL_LEDGER, "west": TOLL_SMUGGLER_CUT, "south": TOLL_COUNTING}, enemies=(BURROW_HOUND.key,), tags=("dungeon",)),
-    _room(TOLL_COUNTING, "Counting Room", TOLL_REGION_KEY, "The cellar thieves have made their camp around an old ironbound counting table. One wall looks oddly cleaner than the others, as if crates were moved away from it only recently.", {"north": TOLL_KENNEL}, tags=("dungeon", "boss", "secret")),
+    _room(TOLL_COUNTING, "Counting Room", TOLL_REGION_KEY, "The cellar thieves have made their camp around an old ironbound counting table. One wall looks oddly cleaner than the others, as if crates were moved away from it only recently.", {"north": TOLL_KENNEL}, enemies=(TOLLMASTER.key,), tags=("dungeon", "boss", "secret")),
     _room(TOLL_HIDDEN_STAIR, "Hidden Survey Stair", TOLL_REGION_KEY, "A narrow stair predates the tollhouse above it. The steps descend only a short distance before opening into a chamber cut with tools much finer than the thieves own.", {"up": TOLL_COUNTING, "down": TOLL_CARVED_SUBLEVEL}, tags=("dungeon", "secret")),
     _room(TOLL_CARVED_SUBLEVEL, "Carved Sublevel", TOLL_REGION_KEY, "The chamber is empty except for one long wall carved with repeated wave-like lines around a single open shape. Nothing here matches the tollhouse architecture. EXAMINE CARVED WALL is deliberately obvious.", {"up": TOLL_HIDDEN_STAIR}, tags=("dungeon", "secret", "lore")),
 )
@@ -1037,6 +1037,7 @@ def install_waymeet_adventure_runtime(player_session_class, world_service) -> No
     previous_prompt = player_session_class.playing_prompt
     previous_finish = player_session_class._finish_enemy_defeat
     previous_use_ability = player_session_class.use_ability
+    previous_start_combat = player_session_class.start_combat
 
     async def enter_character(self) -> None:
         await previous_enter(self)
@@ -1050,6 +1051,14 @@ def install_waymeet_adventure_runtime(player_session_class, world_service) -> No
         if self.character.current_room != before:
             _start_quest_for_room(self)
             await _maybe_open_deep_secret(self)
+
+    async def start_combat(self, target_text: str) -> None:
+        before = getattr(self, "active_enemy", None)
+        await previous_start_combat(self, target_text)
+        enemy = getattr(self, "active_enemy", None)
+        if before is None and enemy is not None and enemy.definition.key == TOLLMASTER.key:
+            self._adventure_reaction = "brace"
+            await self.send("Vesk kicks the counting table aside and raises his hooked cudgel over one shoulder. TELEGRAPH: BRACE will soften his opening punishment, but your normal class abilities remain the real fight.\r\n")
 
     async def use_ability(self, ability_text: str) -> None:
         enemy_before = getattr(self, "active_enemy", None)
@@ -1098,11 +1107,12 @@ def install_waymeet_adventure_runtime(player_session_class, world_service) -> No
             handled = await _touch(self, stripped[5:].strip() if len(stripped) > 5 else "")
         elif normalized in {"examine carved wall", "examine carving", "look carved wall", "read carved wall"}:
             handled = await _examine_carving(self)
-        elif normalized in {"attack tollmaster", "attack vesk", "fight tollmaster"} and self.character.current_room == TOLL_COUNTING:
+        elif normalized in {"attack tollmaster", "attack tollmaster vesk", "attack vesk", "fight tollmaster", "fight tollmaster vesk", "fight vesk"} and self.character.current_room == TOLL_COUNTING:
             if TOLL_BOSS_DOWN in _flags(self):
                 await self.send("Tollmaster Vesk is already down on this clear. SEARCH WALL if you have not investigated the counting room.\r\n")
                 return
-            handled = await _engage_boss(self, TOLLMASTER)
+            await self.start_combat("tollmaster")
+            return
         elif normalized in {"attack bellkeeper", "attack keeper", "fight bellkeeper"} and self.character.current_room == BELL_BELFRY:
             if BELL_BOSS_DOWN in _flags(self):
                 await self.send("The Hollow Bellkeeper is already down. SEARCH RAFTERS if you are curious.\r\n")
@@ -1140,6 +1150,7 @@ def install_waymeet_adventure_runtime(player_session_class, world_service) -> No
 
     player_session_class.enter_character = enter_character
     player_session_class.move_character = move_character
+    player_session_class.start_combat = start_combat
     player_session_class.use_ability = use_ability
     player_session_class._finish_enemy_defeat = finish_enemy
     player_session_class.playing_prompt = playing_prompt
