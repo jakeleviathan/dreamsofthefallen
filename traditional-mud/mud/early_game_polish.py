@@ -8,6 +8,7 @@ from mud.starter_race_loops import STARTER_RACE_LOOPS_BY_RACE
 
 EARLY_GAME_MAX_LEVEL = 10
 GOAL_ALIASES = frozenset({"goal", "goals", "objective", "objectives", "what now", "what next"})
+JOURNEY_ALIASES = frozenset({"journey", "main journey", "main road", "progression road"})
 DIRECTION_COMMANDS = frozenset({"north", "south", "east", "west", "up", "down", "n", "s", "e", "w", "u", "d"})
 
 LOOK_FLAG = "early_polish_looked"
@@ -78,6 +79,150 @@ def _active_objective(session) -> tuple[str, str] | None:
         objective = definition.objective_for_step(row.get("current_step")) or "Continue the current quest."
         return definition.name, objective
     return None
+
+
+def _active_objective_for_keys(session, quest_keys: tuple[str, ...]) -> tuple[str, str] | None:
+    character = getattr(session, "character", None)
+    database = getattr(session, "database", None)
+    if character is None or database is None or not hasattr(database, "list_quests"):
+        return None
+    by_key = {
+        str(row.get("quest_key") or ""): row
+        for row in _rows(database.list_quests(character.id))
+        if row.get("status") == "active"
+    }
+    for quest_key in quest_keys:
+        row = by_key.get(quest_key)
+        if row is None:
+            continue
+        definition = QUESTS_BY_KEY.get(quest_key)
+        if definition is None:
+            continue
+        objective = definition.objective_for_step(row.get("current_step")) or "Continue the current quest."
+        return definition.name, objective
+    return None
+
+
+def _shared_journey_line(session, quest_keys: tuple[str, ...]) -> str | None:
+    active = _active_objective_for_keys(session, quest_keys)
+    if active is None:
+        return None
+    name, objective = active
+    return f"\r\nMain journey - {name}: {objective}\r\n"
+
+
+def _journey_text(session) -> str:
+    character = getattr(session, "character", None)
+    if character is None:
+        return "\r\nNo character is active.\r\n"
+
+    # Imported lazily because this guidance layer is also used by isolated early-game tests.
+    # In production these modules are fully assembled before a player can type JOURNEY.
+    from mud.gloamworks_dungeon import GLOAMWORKS_COMPLETE_FLAG
+    from mud.greywake_march import (
+        AFTER_GLOAM_QUEST_KEY,
+        BELL_BELOW_WIND_QUEST_KEY,
+        GREYWAKE_CHAIN_COMPLETE_FLAG,
+        THREE_CLAIMS_QUEST_KEY,
+    )
+    from mud.sablewater_reach import (
+        DROWNED_TOLLHOUSE_COMPLETE_FLAG,
+        LOW_WATER_QUEST_KEY,
+        PRICE_OF_CROSSING_QUEST_KEY,
+        SABLEWATER_INTRO_COMPLETE_FLAG,
+        TOLLHOUSE_UNLOCKED_FLAG,
+        TOLL_NOBODY_OWES_QUEST_KEY,
+    )
+    from mud.veyra_city import (
+        VEYRA_ARRIVAL_QUEST_KEY,
+        VEYRA_FACTION_RANK_FLAG,
+        VEYRA_FACTION_SERVICE_QUEST_KEY,
+        VEYRA_RESIDENT_FLAG,
+    )
+
+    level = int(getattr(character, "level", 1) or 1)
+    flags = _character_flags(session)
+    greywake_quests = (AFTER_GLOAM_QUEST_KEY, THREE_CLAIMS_QUEST_KEY, BELL_BELOW_WIND_QUEST_KEY)
+    sablewater_quests = (LOW_WATER_QUEST_KEY, TOLL_NOBODY_OWES_QUEST_KEY, PRICE_OF_CROSSING_QUEST_KEY)
+
+    if level > EARLY_GAME_MAX_LEVEL:
+        return (
+            "\r\nJOURNEY currently covers the opening shared road through level 10. "
+            "Use GOALS for your current objective or JOURNAL for all active quests.\r\n"
+        )
+
+    if GLOAMWORKS_COMPLETE_FLAG not in flags:
+        return (
+            "\r\nMain journey - Waymeet and Gloamworks: finish the current Waymeet/Gloamworks thread. "
+            "GOALS shows the immediate objective. After Gloamworks, the eastern road from Gloam Mouth opens into Greywake at level 5.\r\n"
+        )
+
+    if GREYWAKE_CHAIN_COMPLETE_FLAG not in flags:
+        line = _shared_journey_line(session, greywake_quests)
+        if line is not None:
+            return line
+        return (
+            "\r\nMain journey - Greywake March: from Gloam Mouth go EAST onto Greywake West Mile, "
+            "reach Three-Banner Camp, and TALK CAPTAIN.\r\n"
+        )
+
+    if level < 8:
+        line = _shared_journey_line(session, sablewater_quests)
+        if line is not None:
+            return line
+        if SABLEWATER_INTRO_COMPLETE_FLAG not in flags:
+            return (
+                "\r\nMain journey - Sablewater Reach: at Greywake's Ledger Cut go SOUTH into the Reed Farms. "
+                "Continue to North Ferry and TALK FERRYMASTER. This is the level 6-7 road while Veyra remains ahead.\r\n"
+            )
+        if TOLLHOUSE_UNLOCKED_FLAG not in flags:
+            return (
+                "\r\nMain journey - Sablewater Reach: continue south and east through the floodplain toward Old Customs Road. "
+                "Follow A Toll Nobody Owes until the Drowned Tollhouse descent is opened.\r\n"
+            )
+        return (
+            "\r\nMain journey - Veyra approach: you have opened the Drowned Tollhouse. Keep working the Greywake/Sablewater roads until level 8; "
+            "then return to Veyra Outer Gate and go EAST into the city.\r\n"
+        )
+
+    if VEYRA_RESIDENT_FLAG not in flags:
+        line = _shared_journey_line(session, (VEYRA_ARRIVAL_QUEST_KEY,))
+        if line is not None:
+            return line
+        return (
+            "\r\nMain journey - Veyra: travel east through Greywake to Veyra Outer Gate and go EAST through the checkpoint. "
+            "At level 8, your completed Greywake chain opens the city. Follow the arrival tour until you receive a Resident Chit.\r\n"
+        )
+
+    if VEYRA_FACTION_RANK_FLAG not in flags:
+        line = _shared_journey_line(session, (VEYRA_FACTION_SERVICE_QUEST_KEY,))
+        if line is not None:
+            return line
+
+    if DROWNED_TOLLHOUSE_COMPLETE_FLAG not in flags:
+        line = _shared_journey_line(session, sablewater_quests)
+        if line is not None:
+            return line
+        if TOLLHOUSE_UNLOCKED_FLAG in flags:
+            return (
+                "\r\nMain journey - Drowned Tollhouse: return south from Veyra to North Ferry, reach the Tollhouse Mouth, and descend into the old customs complex. "
+                "The Price of Crossing carries this road through levels 8-10.\r\n"
+            )
+        return (
+            "\r\nMain journey - Sablewater Reach: leave Veyra south for North Ferry and TALK FERRYMASTER. "
+            "The floodplain and Drowned Tollhouse carry the shared road toward level 10.\r\n"
+        )
+
+    if level < 10:
+        return (
+            "\r\nMain journey - Veyra: the Greywake and Sablewater chains are secure. Continue Veyra work, class commissions, and nearby delves toward level 10. "
+            "Use HERITAGE for your origin story and GOALS for the next active objective.\r\n"
+        )
+
+    return (
+        "\r\nMain journey - Level 10 reached: the opening shared road through Waymeet, Greywake, Sablewater, and Veyra is established. "
+        "Use HERITAGE to finish your level-10 origin capstone if it remains active, then GOALS or JOURNAL for the roads beyond.\r\n"
+    )
 
 
 def _goal_text(session) -> str:
@@ -155,7 +300,8 @@ def install_early_game_polish_runtime(player_session_class, world) -> None:
             if flavor:
                 await self.send(
                     f"\r\n{flavor}\r\n"
-                    "Type GOALS whenever you forget what you were doing; it gives one current objective without spoiling the road ahead.\r\n"
+                    "Type GOALS whenever you forget what you were doing; it gives one current objective without spoiling the road ahead. "
+                    "Type JOURNEY when you want the next step on the main shared progression road.\r\n"
                 )
             self._early_polish_flavor_shown = True
 
@@ -175,6 +321,9 @@ def install_early_game_polish_runtime(player_session_class, world) -> None:
         normalized = _normalize(command)
         if normalized in GOAL_ALIASES:
             await self.send(_goal_text(self))
+            return
+        if normalized in JOURNEY_ALIASES:
+            await self.send(_journey_text(self))
             return
 
         had_prompt = "prompt" in self.__dict__
