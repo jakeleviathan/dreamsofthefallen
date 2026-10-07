@@ -51,6 +51,17 @@ from mud.sablewater_reach import (
     SABLEWATER_TOLL_ISLAND_KEY,
     SABLEWATER_TOLLHOUSE_MOUTH_KEY,
     TOLLHOUSE_UNLOCKED_FLAG,
+    DROWNED_ENTRY_KEY,
+    DROWNED_TOLL_HALL_KEY,
+    DROWNED_LEDGER_GALLERY_KEY,
+    DROWNED_SLUICE_CHAMBER_KEY,
+    DROWNED_FLOODED_ARCHIVE_KEY,
+    DROWNED_COIN_VAULT_KEY,
+    DROWNED_MAGISTRATE_ROOM_KEY,
+    DROWNED_CLOCK_CHAMBER_KEY,
+    DROWNED_BRASS_TRIBUNAL_KEY,
+    DROWNED_COLLECTOR_WELL_KEY,
+    DROWNED_TOLLHOUSE_COMPLETE_FLAG,
 )
 from mud.veyra_city import (
     VEYRA_GATE_WARD_KEY,
@@ -63,6 +74,7 @@ from mud.veyra_city import (
     VEYRA_NOTICE_HALL_KEY,
     VEYRA_THREE_OFFICES_KEY,
     VEYRA_LEDGER_OFFICE_KEY,
+    VEYRA_SOUTH_SPRAWL_KEY,
     VEYRA_RESIDENT_FLAG,
     VEYRA_FACTION_RANK_FLAG,
 )
@@ -162,6 +174,15 @@ async def main():
         async def move(direction, expected):
             await run(direction)
             assert room() == expected, (direction, room(), expected)
+
+        async def resolve_fight(command):
+            text = await run(command)
+            enemy = session.active_enemy
+            assert enemy is not None, (command, text)
+            enemy.take_damage(enemy.current_hp)
+            await session._finish_enemy_defeat(enemy)
+            assert session.active_enemy is None, command
+            return text
 
         # The player asks the game, not a developer, where the shared road goes.
         text = await run("journey")
@@ -310,7 +331,54 @@ async def main():
         await run("talk factor")
         assert VEYRA_FACTION_RANK_FLAG in database.list_flags(character.id)
 
-        print("GUIDED_6_10_PLAYTHROUGH_REACHED_VEYRA", session.character.level, session.character.experience)
+        # The player has an active Drowned quest, so JOURNEY must explain how to
+        # return there from the city instead of merely restating "defeat warden".
+        text = await run("journey")
+        assert "Civic Steps" in text and "North Ferry" in text and "Tollhouse Mouth" in text and "DOWN" in text, text
+
+        # Follow only the route the game itself just supplied.
+        await move("north", VEYRA_THREE_OFFICES_KEY)
+        await move("north", VEYRA_CIVIC_STEPS_KEY)
+        await move("west", VEYRA_GRAND_CROSSING_KEY)
+        await move("west", VEYRA_CARAVAN_COURT_KEY)
+        await move("west", VEYRA_GATE_WARD_KEY)
+        await move("south", VEYRA_SOUTH_SPRAWL_KEY)
+        await move("south", SABLEWATER_NORTH_FERRY_KEY)
+        await move("south", SABLEWATER_FLOOD_ROAD_KEY)
+        await move("south", SABLEWATER_BROKEN_LEVEE_KEY)
+        await move("east", SABLEWATER_WILLOW_FERRY_KEY)
+        await move("south", SABLEWATER_OLD_CUSTOMS_KEY)
+        await move("east", SABLEWATER_TOLL_ISLAND_KEY)
+        await move("east", SABLEWATER_TOLLHOUSE_MOUTH_KEY)
+        await move("down", DROWNED_ENTRY_KEY)
+
+        await move("east", DROWNED_TOLL_HALL_KEY)
+        await move("east", DROWNED_LEDGER_GALLERY_KEY)
+        await move("east", DROWNED_SLUICE_CHAMBER_KEY)
+        await resolve_fight("attack warden")
+
+        text = await run("goals")
+        assert "SEARCH LEDGERS" in text and "SEARCH COIN VAULT" in text and "SEARCH MAGISTRATE DESK" in text, text
+        await move("west", DROWNED_LEDGER_GALLERY_KEY)
+        await move("north", DROWNED_FLOODED_ARCHIVE_KEY)
+        await run("search ledgers")
+        await move("east", DROWNED_COIN_VAULT_KEY)
+        await run("search coin vault")
+        await move("east", DROWNED_MAGISTRATE_ROOM_KEY)
+        await run("search magistrate desk")
+        await move("east", DROWNED_CLOCK_CHAMBER_KEY)
+        await move("east", DROWNED_BRASS_TRIBUNAL_KEY)
+        await run("present seals")
+        await resolve_fight("attack auditor")
+        await move("east", DROWNED_COLLECTOR_WELL_KEY)
+        await run("turn final sluice")
+
+        assert DROWNED_TOLLHOUSE_COMPLETE_FLAG in database.list_flags(character.id)
+        assert session.character.level >= 10, (session.character.level, session.character.experience)
+        text = await run("journey")
+        assert "Level 10 reached" in text, text
+
+        print("GUIDED_6_10_PLAYTHROUGH_COMPLETE", session.character.level, session.character.experience)
 
 asyncio.run(main())
 '''
@@ -323,7 +391,7 @@ asyncio.run(main())
             timeout=150,
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
-        self.assertIn("GUIDED_6_10_PLAYTHROUGH_REACHED_VEYRA", result.stdout)
+        self.assertIn("GUIDED_6_10_PLAYTHROUGH_COMPLETE", result.stdout)
 
 
 if __name__ == "__main__":
