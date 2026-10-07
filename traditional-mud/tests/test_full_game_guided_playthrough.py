@@ -318,11 +318,15 @@ async def main():
         await run("turn final sluice")
         assert sable.DROWNED_TOLLHOUSE_COMPLETE_FLAG in database.list_flags(session.character.id)
         assert session.character.level >= 10
+        text = await run("journey")
+        assert "level 11" in text.lower() and "Broken Reach" in text, text
 
         # ------------------------------------------------------------------
         # LEVELS 11-20: Broken Reach. Raise only at authored chapter gates.
         # ------------------------------------------------------------------
         raise_to(11)
+        text = await run("journey")
+        assert "Broken Reach" in text and "Ragged Caravanserai" in text, text
         await walk_to(reach.OLD_TOLL_ROAD_KEY)
         await walk_to(reach.CARAVANSERAI_KEY)
         await run("talk hesta")
@@ -382,6 +386,8 @@ async def main():
         # LEVELS 21-30: Salt Kingdoms.
         # ------------------------------------------------------------------
         raise_to(21)
+        text = await run("journey")
+        assert "Salt Kingdoms" in text and "Saltwind Gate" in text, text
         await walk_to(salt.SALTWIND_GATE_KEY)
         await run("talk enna")
         await walk_to(salt.TIDEMARK_SINK_KEY)
@@ -440,6 +446,8 @@ async def main():
         # LEVELS 31-40: Crownfire March and current authored ending.
         # ------------------------------------------------------------------
         raise_to(31)
+        text = await run("journey")
+        assert "Crownfire March" in text and "Marchward Post" in text, text
         await walk_to(crown.MARCHWARD_POST_KEY)
         await run("talk evara")
         await walk_to(crown.BURNED_TOLL_KEY)
@@ -502,6 +510,8 @@ async def main():
         assert crown.CAPSTONE_COMPLETE_FLAG in database.list_flags(session.character.id)
         assert crown.TRIAL_ENDING_FLAG in database.list_flags(session.character.id)
         assert session.character.level >= 40
+        text = await run("journey")
+        assert "Current story complete" in text and "level-40 campaign ceiling" in text, text
 
         print(
             "FULL_GAME_GUIDED_PLAYTHROUGH_COMPLETE",
