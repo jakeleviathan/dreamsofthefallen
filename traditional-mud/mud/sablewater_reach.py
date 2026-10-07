@@ -683,7 +683,7 @@ async def _talk_diver(session) -> bool:
     else:
         await session.send(
             "Nym clips the descent line to an old mooring ring. 'Down is open. First big maintenance room has a Sluice Warden. It thinks everything living is a blockage.' "
-            "A Toll Nobody Owes complete: 170 XP. Drowned Tollhouse is open DOWN. On the main road, return through North Ferry to Ledger Cut, then follow the eastbound Greywake road through Old Veyra Aqueduct to Veyra Outer Gate and go EAST into Veyra Gate Ward.\r\n"
+            "A Toll Nobody Owes complete: 170 XP. The Drowned Tollhouse remains open DOWN. On the main road, return through North Ferry to Ledger Cut, then follow the eastbound Greywake road through Old Veyra Aqueduct to Veyra Outer Gate and go EAST into Veyra Gate Ward.\r\n"
         )
     return True
 
