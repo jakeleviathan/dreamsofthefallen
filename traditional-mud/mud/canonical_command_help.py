@@ -74,6 +74,7 @@ async def _show_quick_help(session) -> None:
         "LOOK AT / LOOK / EXAMINE / INSPECT <actor>",
         "CONSIDER / CON <target>",
         "QUESTS / QUESTS COMPLETED",
+        "NOTEPAD / NOTES",
         "INVENTORY / INV / I",
         "ITEM / INSPECT ITEM <item>",
         "REST / SIT / SIT DOWN",
