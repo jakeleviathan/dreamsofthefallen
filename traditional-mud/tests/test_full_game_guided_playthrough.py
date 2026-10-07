@@ -405,6 +405,10 @@ async def main():
         await walk_to(salt.GLASS_KEEL_CAPTAIN_KEY)
         await run("read log")
         await walk_to(salt.GLASS_KEEL_BALLAST_KEY)
+        blocked = await run("attack matriarch")
+        assert "CUT PORT WEIGHT" in blocked and "CUT STARBOARD WEIGHT" in blocked, blocked
+        await run("cut port weight")
+        await run("cut starboard weight")
         await resolve_fight("attack matriarch")
         await walk_to(salt.GLASS_KEEL_TIDEHOLD_KEY)
         await run("examine tideglass")
