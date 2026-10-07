@@ -273,7 +273,7 @@ async def main():
         text = await run("talk diver")
         assert TOLLHOUSE_UNLOCKED_FLAG in database.list_flags(character.id)
         assert session.character.level >= 8, session.character.experience
-        assert "Drowned Tollhouse is open DOWN" in text, text
+        assert "Drowned Tollhouse remains open DOWN" in text, text
 
         # If the player asks for the main road instead, the game explains the long
         # return to Veyra rather than requiring us to give directions out of band.

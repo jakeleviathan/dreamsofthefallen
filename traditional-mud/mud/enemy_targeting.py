@@ -298,8 +298,46 @@ async def _engage_selected_enemy(session, *, announce: bool = True) -> bool:
     mobile_key = getattr(session, "selected_mobile_npc_key", None)
     if mobile_key:
         mobile_npcs = getattr(session, "mobile_npcs", None)
-        if mobile_npcs is None or not mobile_npcs.engage(mobile_key, character.id):
+        if mobile_npcs is None:
             await session.send(f"{enemy.definition.name} is no longer available to engage.\r\n")
+            await _clear_enemy_selection(session)
+            await session.send_client_state()
+            return False
+
+        state = mobile_npcs.states.get(mobile_key)
+        claimed_by = getattr(state, "engaged_character_id", None) if state is not None else None
+        if claimed_by not in {None, int(character.id)}:
+            # A party member may already own this physical regional instance.
+            # Join that shared encounter rather than rejecting the selected mob
+            # or creating a second private HP pool.
+            try:
+                from mud import party_system
+
+                party = party_system._party_for_session(session)
+                if party is not None:
+                    for other in party_system._member_sessions(party):
+                        other_character = getattr(other, "character", None)
+                        if (
+                            other is not session
+                            and other_character is not None
+                            and int(other_character.id) == int(claimed_by)
+                            and getattr(other, "active_mobile_npc_key", None) == mobile_key
+                            and getattr(other, "active_enemy", None) is not None
+                        ):
+                            await party_system._assist(session, other_character.name)
+                            if getattr(session, "active_enemy", None) is not None:
+                                session.selected_enemy = session.active_enemy
+                                session.selected_enemy_room_key = character.current_room
+                                session.selected_target_kind = "enemy"
+                                return True
+            except Exception:
+                pass
+
+        if not mobile_npcs.engage(mobile_key, character.id):
+            await session.send(
+                f"{enemy.definition.name} is already engaged. "
+                "Choose another visible instance, such as TARGET <name> 2.\r\n"
+            )
             await _clear_enemy_selection(session)
             await session.send_client_state()
             return False

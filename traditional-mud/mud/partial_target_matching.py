@@ -157,6 +157,14 @@ def visible_target_candidates(session, world_service, *, kind: str) -> tuple[Tar
                     candidates.append(TargetCandidate(npc.key, npc.name, "npc"))
         elif kind == "enemy":
             for enemy_key in scene.enemy_keys:
+                mobile_npcs = getattr(session, "mobile_npcs", None)
+                regionalizes_source = (
+                    getattr(mobile_npcs, "regionalizes_source", None)
+                    if mobile_npcs is not None
+                    else None
+                )
+                if callable(regionalizes_source) and regionalizes_source(room_key, enemy_key):
+                    continue
                 enemy = ENEMIES_BY_KEY.get(enemy_key)
                 if enemy is not None:
                     candidates.append(
@@ -258,6 +266,12 @@ def resolve_target_command(session, command: str, world_service) -> TargetResolu
 
     verb, raw_target, kind = parsed
     query = normalize_target(raw_target)
+    ordinal_suffix = ""
+    if kind == "enemy":
+        parts = query.rsplit(" ", 1)
+        if len(parts) == 2 and parts[1].isdigit() and int(parts[1]) > 0:
+            query = parts[0]
+            ordinal_suffix = f" {int(parts[1])}"
     if not query:
         return TargetResolution(command)
 
@@ -296,7 +310,7 @@ def resolve_target_command(session, command: str, world_service) -> TargetResolu
                 return TargetResolution(command)
             return TargetResolution(canonical, matched_name=candidate.name)
 
-    canonical = f"{verb} {candidate.name}"
+    canonical = f"{verb} {candidate.name}{ordinal_suffix}"
     # Leave an already-canonical command alone. This matters for telemetry and
     # prevents cosmetic rewrites from making ordinary full-name input look new.
     if normalize_target(command) == normalize_target(canonical):

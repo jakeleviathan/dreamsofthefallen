@@ -103,7 +103,7 @@ class RegionalPopulationTests(unittest.TestCase):
         pool = next(iter(manager.regional_pools.values()))
         self.assertEqual(
             manager.target_population(pool, ("wild_a", "wild_b")),
-            min(pool.max_population, npcs.REGIONAL_BASE_POPULATION + 2),
+            min(pool.max_population, npcs.REGIONAL_BASE_POPULATION + 1),
         )
 
         with patch.object(npcs, "REGIONAL_RARE_ROLL_PER_TICK", 0.0):
@@ -117,7 +117,7 @@ class RegionalPopulationTests(unittest.TestCase):
         common = manager._regional_states(pool.key, include_rare=False)
         self.assertEqual(
             len(common),
-            min(pool.max_population, npcs.REGIONAL_BASE_POPULATION + 2),
+            min(pool.max_population, npcs.REGIONAL_BASE_POPULATION + 1),
         )
         self.assertLessEqual(
             len(manager._regional_states(pool.key)),
@@ -142,10 +142,11 @@ class RegionalPopulationTests(unittest.TestCase):
         manager.ecology = ecology
         pool = next(iter(manager.regional_pools.values()))
 
-        # Active players no longer manufacture wildlife when ecology is enabled.
+        # Ecology owns the baseline, while crowd pressure may widen supply by a
+        # small bounded amount so a healthy multiplayer hunt does not bottleneck.
         self.assertEqual(
             manager.target_population(pool, ("wild_a", "wild_b", "wild_c")),
-            1,
+            2,
         )
         self.assertEqual(ecology.last_region, "test_frontier")
         self.assertEqual(ecology.last_definition, "field_jackal")
@@ -214,6 +215,61 @@ class RegionalPopulationTests(unittest.TestCase):
 
 
 class ProductionRegionalPopulationContractTests(unittest.TestCase):
+    def test_broken_mile_uses_tuned_shared_jackal_pack(self):
+        code = r"""
+import server
+from mud.npcs import MobileNpcManager
+
+manager = MobileNpcManager()
+pool = next(
+    pool for pool in manager.regional_pools.values()
+    if pool.enemy_key == "waymeet_thornback_jackal"
+)
+assert pool.base_population == 4
+assert pool.max_population == 7
+assert pool.room_soft_cap == 3
+assert pool.refill_min_ticks == 7
+assert pool.refill_max_ticks == 14
+assert pool.source_minimum == 2
+assert set(pool.room_keys) == {
+    "waymeet_broken_mile",
+    "waymeet_briarcut_fields",
+    "waymeet_old_quarry",
+    "adventure_old_toll_road",
+}
+assert manager.regionalizes_source(
+    "waymeet_broken_mile", "waymeet_thornback_jackal"
+)
+assert sum(
+    1 for state in manager.npcs_in_room("waymeet_broken_mile")
+    if state.definition.combat_enemy_key == "waymeet_thornback_jackal"
+) >= 2
+assert manager.target_population(pool, ("waymeet_broken_mile",)) == 4
+assert manager.target_population(
+    pool, ("waymeet_broken_mile", "waymeet_briarcut_fields")
+) == 5
+assert manager.target_population(
+    pool,
+    (
+        "waymeet_broken_mile",
+        "waymeet_briarcut_fields",
+        "waymeet_old_quarry",
+        "adventure_old_toll_road",
+    ),
+) == 6
+print("WAYMEET_JACKAL_PACK_OK")
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            env={**os.environ, "PYTHONPATH": str(ROOT)},
+            timeout=90,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertIn("WAYMEET_JACKAL_PACK_OK", result.stdout)
+
     def test_production_assembly_builds_regional_goblin_hunting_pools(self):
         code = r"""
 import server

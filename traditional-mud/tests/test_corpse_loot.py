@@ -21,6 +21,8 @@ from mud.corpse_loot import (
     list_corpse_items,
     list_corpses,
     loot_all_command,
+    loot_everything_here_command,
+    _resolve_corpse,
     register_loot_table,
     roll_loot_table,
     transfer_all_corpse_loot_to_inventory,
@@ -220,6 +222,56 @@ class CorpseLootTests(unittest.TestCase):
         )
         self.assertEqual(sum(row.quantity for row in moved), 2)
         self.assertEqual(self.db.item_quantity(self.other.id, "bone_chips"), 2)
+
+    def test_species_ordinal_selects_a_specific_matching_corpse(self):
+        first_id, _ = create_corpse(
+            self.db,
+            self.room_key,
+            "sewer_rat",
+            "Sewer Rat",
+            owner_character_id=self.killer.id,
+            death_key="test:rat:first",
+        )
+        second_id, _ = create_corpse(
+            self.db,
+            self.room_key,
+            "sewer_rat",
+            "Sewer Rat",
+            owner_character_id=self.killer.id,
+            death_key="test:rat:second",
+        )
+
+        self.assertEqual(_resolve_corpse(self.db, self.room_key, "rat").id, second_id)
+        self.assertEqual(_resolve_corpse(self.db, self.room_key, "sewer rat 2").id, first_id)
+        self.assertIsNone(_resolve_corpse(self.db, self.room_key, "rat 3"))
+
+    def test_loot_all_gathers_every_accessible_corpse_in_the_room(self):
+        first_id, _ = create_corpse(
+            self.db,
+            self.room_key,
+            "sewer_rat",
+            "Sewer Rat",
+            owner_character_id=self.killer.id,
+            death_key="test:loot-all:first",
+        )
+        second_id, _ = create_corpse(
+            self.db,
+            self.room_key,
+            "sewer_rat",
+            "Sewer Rat",
+            owner_character_id=self.killer.id,
+            death_key="test:loot-all:second",
+        )
+        add_corpse_item(self.db, first_id, "bone_chips", 1, self.killer.id)
+        add_corpse_item(self.db, second_id, "bone_chips", 2, self.killer.id)
+        session = FakeSession(self.db, self.killer)
+
+        asyncio.run(loot_everything_here_command(session))
+
+        self.assertEqual(self.db.item_quantity(self.killer.id, "bone_chips"), 3)
+        self.assertEqual(list_corpse_items(self.db, first_id), [])
+        self.assertEqual(list_corpse_items(self.db, second_id), [])
+        self.assertIn("3x Bone Chips", "".join(session.outputs))
 
     def test_loot_command_leaves_items_on_corpse_when_capacity_hook_blocks_them(self):
         corpse_id, _ = create_corpse(

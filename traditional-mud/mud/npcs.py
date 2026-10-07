@@ -33,7 +33,7 @@ NPC_TICK_SECONDS = 5.0
 # the habitat. Ecology still owns the final carrying capacity.
 REGIONAL_BASE_POPULATION = 5
 REGIONAL_MAX_POPULATION = 14
-REGIONAL_REFILL_TICKS = 4  # 20 real seconds; replacements still arrive out of sight.
+REGIONAL_REFILL_TICKS = 4  # Default 20-second refill for ordinary regional populations.
 REGIONAL_HABITAT_DEPTH = 4
 REGIONAL_RARE_ROLL_PER_TICK = 0.0025
 REGIONAL_RARE_TTL_TICKS = 72  # Six minutes before an unseen rare moves on.
@@ -172,6 +172,36 @@ class RegionalSpawnDefinition:
     source_room_keys: tuple[str, ...]
     base_population: int = REGIONAL_BASE_POPULATION
     max_population: int = REGIONAL_MAX_POPULATION
+    room_soft_cap: int | None = None
+    refill_min_ticks: int = REGIONAL_REFILL_TICKS
+    refill_max_ticks: int = REGIONAL_REFILL_TICKS
+    player_pressure_scaling: bool = True
+    source_minimum: int = 0
+
+
+# Content-specific tuning lives beside the generic population engine rather than
+# in combat or room scripts. Rooms remain the authoring source for a species,
+# while a tuned pool can widen that species into a coherent hunting habitat.
+# The Broken Mile pack is the first explicit MMO population: four animals at
+# normal load, up to seven under player pressure, no more than three in one room,
+# and a 35-70 second gradual refill window.
+_REGIONAL_POOL_OVERRIDES: dict[tuple[str, str], dict[str, object]] = {
+    ("waymeet_frontier", "waymeet_thornback_jackal"): {
+        "room_keys": (
+            "waymeet_broken_mile",
+            "waymeet_briarcut_fields",
+            "waymeet_old_quarry",
+            "adventure_old_toll_road",
+        ),
+        "base_population": 4,
+        "max_population": 7,
+        "room_soft_cap": 3,
+        "refill_min_ticks": 7,
+        "refill_max_ticks": 14,
+        "player_pressure_scaling": True,
+        "source_minimum": 2,
+    },
+}
 
 
 @dataclass(slots=True)
@@ -574,14 +604,23 @@ class MobileNpcManager:
         for room in ROOMS_BY_KEY.values():
             for enemy_key in getattr(room, "enemy_keys", ()):
                 enemy = combat.ENEMIES_BY_KEY.get(enemy_key)
-                if enemy is None or not self._regional_source_is_eligible(room, enemy):
+                override = _REGIONAL_POOL_OVERRIDES.get((room.region_key, enemy_key))
+                if enemy is None:
+                    continue
+                if override is None and not self._regional_source_is_eligible(room, enemy):
                     continue
                 sources.setdefault((room.region_key, enemy_key), set()).add(room.key)
 
         pools: dict[str, RegionalSpawnDefinition] = {}
         for (region_key, enemy_key), source_keys in sorted(sources.items()):
             source_tuple = tuple(sorted(source_keys))
-            habitat = self._regional_habitat(region_key, source_tuple)
+            override = _REGIONAL_POOL_OVERRIDES.get((region_key, enemy_key), {})
+            authored_rooms = tuple(
+                room_key
+                for room_key in tuple(override.get("room_keys", ()))
+                if room_key in ROOMS_BY_KEY
+            )
+            habitat = authored_rooms or self._regional_habitat(region_key, source_tuple)
             # A one-room encounter stays static. Regional populations only exist
             # when the creature has somewhere real to roam.
             if len(habitat) < 2:
@@ -593,6 +632,23 @@ class MobileNpcManager:
                 enemy_key=enemy_key,
                 room_keys=habitat,
                 source_room_keys=source_tuple,
+                base_population=int(override.get("base_population", REGIONAL_BASE_POPULATION)),
+                max_population=int(override.get("max_population", REGIONAL_MAX_POPULATION)),
+                room_soft_cap=(
+                    int(override["room_soft_cap"])
+                    if override.get("room_soft_cap") is not None
+                    else None
+                ),
+                refill_min_ticks=max(
+                    1, int(override.get("refill_min_ticks", REGIONAL_REFILL_TICKS))
+                ),
+                refill_max_ticks=max(
+                    1, int(override.get("refill_max_ticks", REGIONAL_REFILL_TICKS))
+                ),
+                player_pressure_scaling=bool(
+                    override.get("player_pressure_scaling", True)
+                ),
+                source_minimum=max(0, int(override.get("source_minimum", 0))),
             )
         return pools
 
@@ -644,10 +700,28 @@ class MobileNpcManager:
         }
 
     def _pool_room_capacity(self, pool_key: str, room_key: str) -> int:
+        pool = getattr(self, "regional_pools", {}).get(pool_key)
+        if pool is not None and pool.room_soft_cap is not None:
+            return max(1, min(REGIONAL_MAX_DYNAMIC_PER_ROOM, pool.room_soft_cap))
         depth = self._regional_room_depths.get(pool_key, {}).get(room_key, 0)
         # The fringe remains readable at two roaming threats. Every step inward
         # adds room for another creature until deep hunting rooms can hold six.
         return max(2, min(REGIONAL_MAX_DYNAMIC_PER_ROOM, 2 + depth))
+
+    def regional_pool_for_source(self, room_key: str, enemy_key: str) -> RegionalSpawnDefinition | None:
+        """Return the shared population that owns an authored room-enemy source."""
+        return next(
+            (
+                pool
+                for pool in self.regional_pools.values()
+                if pool.enemy_key == enemy_key and room_key in pool.source_room_keys
+            ),
+            None,
+        )
+
+    def regionalizes_source(self, room_key: str, enemy_key: str) -> bool:
+        """True when a static room spawn has been replaced by shared instances."""
+        return self.regional_pool_for_source(room_key, enemy_key) is not None
 
     def hunting_room_depth(self, room_key: str) -> int:
         return max(
@@ -723,34 +797,43 @@ class MobileNpcManager:
         )
         return max(8, min(48, room_capacity))
 
+    @staticmethod
+    def _player_pressure_bonus(player_count: int) -> int:
+        """Gently widen supply during crowding without mirroring player count."""
+        if player_count <= 1:
+            return 0
+        if player_count <= 3:
+            return 1
+        if player_count <= 6:
+            return 2
+        return 3
+
     def target_population(
         self,
         pool: RegionalSpawnDefinition,
         player_room_keys: Iterable[str] = (),
     ) -> int:
-        player_count = 0
-        for room_key in player_room_keys:
-            room = ROOMS_BY_KEY.get(room_key)
-            if room is not None and room.region_key == pool.region_key:
-                player_count += 1
-        legacy_target = min(pool.max_population, pool.base_population + player_count)
-        if self.ecology is None:
-            return legacy_target
-        definition = combat.ENEMIES_BY_KEY.get(pool.enemy_key)
-        if definition is None:
-            return legacy_target
-        multiplier = self.ecology.creature_population_multiplier(
-            pool.region_key,
-            definition,
+        # Count players using this habitat rather than every player in the broad
+        # region. Tuned habitats may intentionally cross an authored region seam.
+        player_count = sum(1 for room_key in player_room_keys if room_key in pool.room_keys)
+        pressure_bonus = (
+            self._player_pressure_bonus(player_count)
+            if pool.player_pressure_scaling
+            else 0
         )
-        # In ecology mode, online player count no longer creates animals out of
-        # thin air. Regional carrying capacity comes from habitat state instead.
-        # The existing max population remains the hard content/safety ceiling.
-        capacity_span = max(2, pool.max_population - pool.base_population)
-        ecological_target = pool.base_population + round(
-            (multiplier - 1.0) * capacity_span
-        )
-        return max(1, min(pool.max_population, ecological_target))
+        baseline = pool.base_population
+        if self.ecology is not None:
+            definition = combat.ENEMIES_BY_KEY.get(pool.enemy_key)
+            if definition is not None:
+                multiplier = self.ecology.creature_population_multiplier(
+                    pool.region_key,
+                    definition,
+                )
+                capacity_span = max(2, pool.max_population - pool.base_population)
+                baseline = pool.base_population + round(
+                    (multiplier - 1.0) * capacity_span
+                )
+        return max(1, min(pool.max_population, baseline + pressure_bonus))
 
     def _regional_definition(
         self,
@@ -906,16 +989,24 @@ class MobileNpcManager:
             )
         return rng.choices(candidates, weights=weights, k=1)[0]
 
-    def _spawn_regional_instance(
+    def _spawn_regional_instance_at_room(
         self,
         pool: RegionalSpawnDefinition,
+        spawn_room: str,
         *,
-        player_room_keys: Iterable[str],
         rng: random.Random,
         rare: bool = False,
     ) -> MobileNpcState | None:
-        spawn_room = self._choose_regional_spawn_room(pool, player_room_keys, rng)
-        if spawn_room is None:
+        if spawn_room not in pool.room_keys:
+            return None
+        room_population = sum(
+            1
+            for state in self.states.values()
+            if state.active
+            and state.current_room_key == spawn_room
+            and self._regional_instance_to_pool.get(state.definition.key) == pool.key
+        )
+        if room_population >= self._pool_room_capacity(pool.key, spawn_room):
             return None
         self._regional_serial += 1
         suffix = "rare" if rare else "common"
@@ -936,6 +1027,24 @@ class MobileNpcManager:
             self._rare_expiry_tick[instance_key] = self._tick_index + REGIONAL_RARE_TTL_TICKS
         return state
 
+    def _spawn_regional_instance(
+        self,
+        pool: RegionalSpawnDefinition,
+        *,
+        player_room_keys: Iterable[str],
+        rng: random.Random,
+        rare: bool = False,
+    ) -> MobileNpcState | None:
+        spawn_room = self._choose_regional_spawn_room(pool, player_room_keys, rng)
+        if spawn_room is None:
+            return None
+        return self._spawn_regional_instance_at_room(
+            pool,
+            spawn_room,
+            rng=rng,
+            rare=rare,
+        )
+
     def _seed_regional_population(self) -> None:
         if not self.regional_pools:
             return
@@ -951,15 +1060,46 @@ class MobileNpcManager:
                 pool.key: self.target_population(pool, ())
                 for pool in pools
             }
+            # Tuned source minima make a marquee hunting room immediately
+            # multiplayer-ready. The remaining population is still distributed
+            # regionally, so this never turns every room into a spawn pile.
+            seeded_by_pool = {pool.key: 0 for pool in pools}
+            for pool in sorted(pools, key=lambda value: value.key):
+                wanted = min(pool.source_minimum, targets.get(pool.key, 0))
+                for source_room in pool.source_room_keys:
+                    while (
+                        created < cap
+                        and seeded_by_pool[pool.key] < wanted
+                    ):
+                        if self._spawn_regional_instance_at_room(
+                            pool,
+                            source_room,
+                            rng=rng,
+                        ) is None:
+                            break
+                        seeded_by_pool[pool.key] += 1
+                        created += 1
+                    if seeded_by_pool[pool.key] >= wanted:
+                        break
+
             # Round-robin seeding prevents the first species alphabetically from
             # consuming an entire small-region cap. Ecology-aware targets also
             # mean a restart does not briefly repopulate an overhunted habitat.
-            max_target = max(targets.values(), default=0)
-            for _round in range(max_target):
+            max_remaining = max(
+                (
+                    max(0, targets.get(pool.key, 0) - seeded_by_pool[pool.key])
+                    for pool in pools
+                ),
+                default=0,
+            )
+            for _round in range(max_remaining):
                 for pool in sorted(pools, key=lambda value: value.key):
                     if created >= cap:
                         break
-                    if _round >= targets.get(pool.key, 0):
+                    remaining = max(
+                        0, targets.get(pool.key, 0) - seeded_by_pool[pool.key]
+                    )
+                    if _round >= remaining:
                         continue
                     if self._spawn_regional_instance(
                         pool,
@@ -1039,7 +1179,11 @@ class MobileNpcManager:
                 player_room_keys=player_rooms,
                 rng=rng,
             ) is not None:
-                self._regional_next_spawn_tick[pool.key] = self._tick_index + REGIONAL_REFILL_TICKS
+                refill_delay = rng.randint(
+                    min(pool.refill_min_ticks, pool.refill_max_ticks),
+                    max(pool.refill_min_ticks, pool.refill_max_ticks),
+                )
+                self._regional_next_spawn_tick[pool.key] = self._tick_index + refill_delay
 
         # Occasional tougher visitors are generated only in regions that contain
         # active players, capped at one rare at a time per region.
@@ -1162,9 +1306,13 @@ class MobileNpcManager:
             # makes a kill reduce the real regional count and guarantees refill
             # observes its cooldown and out-of-sight placement rules.
             self._despawn_regional_instance(npc_key)
+            delay = random.randint(
+                min(pool.refill_min_ticks, pool.refill_max_ticks),
+                max(pool.refill_min_ticks, pool.refill_max_ticks),
+            )
             self._regional_next_spawn_tick[pool_key] = max(
                 self._regional_next_spawn_tick.get(pool_key, 0),
-                self._tick_index + REGIONAL_REFILL_TICKS,
+                self._tick_index + delay,
             )
             return
 
@@ -1225,6 +1373,26 @@ class MobileNpcManager:
         ]
         if state.definition.key not in self._regional_instance_to_pool:
             return legal
+
+        # Regional habitats are physical areas rather than one-way script edges.
+        # If an allowed neighboring room authors the return edge (for example
+        # Old Toll Road -> Broken Mile while the player-facing south exit is an
+        # augmentation), infer the reverse leg for wildlife roaming.
+        known_destinations = {destination for _direction, destination in legal}
+        for neighbor_key in allowed:
+            if neighbor_key == state.current_room_key or neighbor_key in known_destinations:
+                continue
+            neighbor = ROOMS_BY_KEY.get(neighbor_key)
+            if neighbor is None:
+                continue
+            for neighbor_direction, destination in neighbor.exits.items():
+                if destination != state.current_room_key:
+                    continue
+                legal.append(
+                    (REVERSE_DIRECTIONS.get(neighbor_direction, "nearby"), neighbor_key)
+                )
+                known_destinations.add(neighbor_key)
+                break
 
         pool_key = self._regional_instance_to_pool.get(state.definition.key)
         if pool_key is None:

@@ -447,6 +447,12 @@ def _resolve_corpse(database, room_key: str, target: str) -> CorpseRecord | None
         return corpses[index] if 0 <= index < len(corpses) else None
 
     wanted_enemy = _corpse_target_text(wanted)
+    ordinal = 1
+    target_parts = wanted_enemy.rsplit(" ", 1)
+    if len(target_parts) == 2 and target_parts[1].isdigit() and int(target_parts[1]) > 0:
+        wanted_enemy = target_parts[0]
+        ordinal = int(target_parts[1])
+
     exact: list[CorpseRecord] = []
     partial: list[CorpseRecord] = []
     for corpse in corpses:
@@ -456,9 +462,11 @@ def _resolve_corpse(database, room_key: str, target: str) -> CorpseRecord | None
         elif any(wanted_enemy and wanted_enemy in alias for alias in aliases):
             partial.append(corpse)
     if exact:
-        return exact[0]
+        index = ordinal - 1
+        return exact[index] if 0 <= index < len(exact) else None
     if partial:
-        return partial[0]
+        index = ordinal - 1
+        return partial[index] if 0 <= index < len(partial) else None
     return None
 
 
@@ -697,6 +705,12 @@ def _install_help_catalog() -> None:
             ),
             CommandEntry(
                 "combat",
+                "LOOT ALL",
+                "Gather all currently accessible loot from every corpse in the room.",
+                ("corpse", "drops", "remains", "cleanup"),
+            ),
+            CommandEntry(
+                "combat",
                 "GET / TAKE ALL FROM <corpse or enemy>",
                 "Take all available loot from a defeated enemy corpse.",
                 ("corpse", "loot", "drops"),
@@ -824,14 +838,14 @@ async def _show_corpses(session) -> None:
     if not corpses:
         return
     await session.send("\r\nRemains:\r\n")
-    counts: dict[str, int] = {}
+    grouped: dict[str, int] = {}
     for corpse in corpses:
-        counts[corpse.enemy_name] = counts.get(corpse.enemy_name, 0) + 1
-    seen: dict[str, int] = {}
-    for corpse in corpses:
-        seen[corpse.enemy_name] = seen.get(corpse.enemy_name, 0) + 1
-        suffix = f" #{seen[corpse.enemy_name]}" if counts[corpse.enemy_name] > 1 else ""
-        await session.send(f"  Corpse of {corpse.enemy_name}{suffix}\r\n")
+        grouped[corpse.enemy_name] = grouped.get(corpse.enemy_name, 0) + 1
+    for enemy_name, count in grouped.items():
+        if count == 1:
+            await session.send(f"  Corpse of {enemy_name}\r\n")
+        else:
+            await session.send(f"  {enemy_name} corpses ({count})\r\n")
 
 
 async def inspect_corpse_command(session, target: str = "corpse") -> None:
@@ -1059,6 +1073,78 @@ def _parse_from_command(body: str) -> tuple[str, str] | None:
     return item_text, corpse_target
 
 
+async def loot_everything_here_command(session) -> None:
+    """Loot every accessible corpse in the room without flattening corpse ownership."""
+    character = getattr(session, "character", None)
+    if character is None or not character.current_room:
+        return
+    if getattr(session, "active_enemy", None) is not None:
+        await session.send("You cannot stop to loot corpses while fighting.\r\n")
+        return
+
+    corpses = list_corpses(session.database, character.current_room)
+    if not corpses:
+        await session.send("There are no corpses here to loot.\r\n")
+        return
+
+    item_totals: dict[str, int] = {}
+    blocked_totals: dict[str, int] = {}
+    coin_total = 0
+    protected = 0
+    current = time()
+
+    for corpse in corpses:
+        public = current >= corpse.protection_expires_at
+        if not corpse_access_allowed(
+            session.database, corpse, int(character.id), now=current
+        ):
+            protected += 1
+            continue
+        moved, blocked = transfer_all_corpse_loot_to_inventory(
+            session.database,
+            int(character.id),
+            corpse.id,
+            public=public,
+            can_receive=lambda item_key, quantity: _can_receive(
+                session, item_key, quantity
+            ),
+        )
+        for item in moved:
+            item_totals[item.item_key] = item_totals.get(item.item_key, 0) + item.quantity
+        for item in blocked:
+            blocked_totals[item.item_key] = (
+                blocked_totals.get(item.item_key, 0) + item.quantity
+            )
+        coin_total += _loot_currency(session, corpse, public=public)
+
+    names = [
+        f"{quantity}x {_item_name(item_key)}"
+        for item_key, quantity in item_totals.items()
+    ]
+    if coin_total:
+        names.append(f"{coin_total} coin{'s' if coin_total != 1 else ''}")
+    if names:
+        await session.send(
+            "You gather from the nearby corpses: " + ", ".join(names) + ".\r\n"
+        )
+    elif not blocked_totals and protected == 0:
+        await session.send("You search the nearby corpses, but find nothing useful.\r\n")
+
+    if blocked_totals:
+        await session.send(
+            "Left behind because you cannot carry it: "
+            + ", ".join(
+                f"{quantity}x {_item_name(item_key)}"
+                for item_key, quantity in blocked_totals.items()
+            )
+            + ".\r\n"
+        )
+    if protected:
+        await session.send(
+            f"{protected} protected corpse{'s were' if protected != 1 else ' was'} left untouched.\r\n"
+        )
+
+
 async def _handle_corpse_command(session, command: str) -> bool:
     normalized = _normalize(command)
     if not normalized:
@@ -1086,8 +1172,12 @@ async def _handle_corpse_command(session, command: str) -> bool:
 
     if normalized == "loot":
         await session.send(
-            "Loot what? Use LOOT CORPSE, LOOT <enemy>, or GET ALL FROM <enemy>.\r\n"
+            "Loot what? Use LOOT ALL, LOOT CORPSE, LOOT <enemy>, or GET ALL FROM <enemy>.\r\n"
         )
+        return True
+
+    if normalized in {"loot all", "loot everything"}:
+        await loot_everything_here_command(session)
         return True
 
     if normalized.startswith("loot "):

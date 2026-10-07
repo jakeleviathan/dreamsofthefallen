@@ -1285,6 +1285,15 @@ class PlayerSession:
         if room is None:
             return None
         for enemy_key in room.enemy_keys:
+            # Once an authored source is owned by a regional population, the
+            # static one-per-room placeholder is no longer a real combatant.
+            regionalizes_source = (
+                getattr(self.mobile_npcs, "regionalizes_source", None)
+                if self.mobile_npcs is not None
+                else None
+            )
+            if callable(regionalizes_source) and regionalizes_source(room.key, enemy_key):
+                continue
             definition = ENEMIES_BY_KEY.get(enemy_key)
             if definition and definition.matches(target_text):
                 return EnemyState(definition)
@@ -1320,7 +1329,13 @@ class PlayerSession:
     def _mobile_npc_in_current_room(self, target_text: str):
         if self.character is None or self.mobile_npcs is None:
             return None
-        normalized = target_text.strip().lower()
+        normalized = " ".join(target_text.strip().lower().split())
+        ordinal: int | None = None
+        parts = normalized.rsplit(" ", 1)
+        if len(parts) == 2 and parts[1].isdigit() and int(parts[1]) > 0:
+            normalized = parts[0]
+            ordinal = int(parts[1])
+
         matches = []
         for state in self.mobile_npcs.npcs_in_room(self.character.current_room or ""):
             definition = state.definition
@@ -1329,9 +1344,14 @@ class PlayerSession:
                 matches.append(state)
         if not matches:
             return None
-        # Multiple regional animals of the same species may share a room. Prefer
-        # an unclaimed individual so two players can hunt side by side instead
-        # of the first engaged instance blocking the whole species name.
+
+        # Explicit ordinals address a physical instance: JACKAL 2 means the
+        # second visible jackal in stable room order. Without an ordinal, prefer
+        # the first unclaimed individual so strangers can hunt side by side
+        # without one player's encounter reserving the species name.
+        if ordinal is not None:
+            index = ordinal - 1
+            return matches[index] if 0 <= index < len(matches) else None
         return next(
             (state for state in matches if state.engaged_character_id is None),
             matches[0],
@@ -1454,10 +1474,35 @@ class PlayerSession:
         direction, destination = random.choice(exits)
         mobile_key = self.active_mobile_npc_key
         movement: NpcMovement | None = None
+        shared_mobile_handoff = False
         if mobile_key and self.mobile_npcs is not None:
-            movement = self.mobile_npcs.attempt_pursuit_after_flee(
-                mobile_key, self.character.id, destination, random.Random()
-            )
+            # A roaming mob shared by a party must stay with the adventurers who
+            # remain in the fight. If this character leaves, transfer the mobile
+            # manager's engagement anchor before ordinary pursuit logic runs.
+            try:
+                from mud import party_system
+
+                encounter = party_system._encounter_for(self.active_enemy)
+                if encounter is not None:
+                    remaining = [
+                        member
+                        for member in party_system._encounter_sessions(self, self.active_enemy)
+                        if member is not self
+                    ]
+                    if remaining:
+                        party_system._handoff_mobile_engagement(
+                            self.active_enemy, int(self.character.id)
+                        )
+                        encounter.participant_ids.discard(int(self.character.id))
+                        self.active_enemy.hate.threat.pop(int(self.character.id), None)
+                        shared_mobile_handoff = True
+            except Exception:
+                shared_mobile_handoff = False
+
+            if not shared_mobile_handoff:
+                movement = self.mobile_npcs.attempt_pursuit_after_flee(
+                    mobile_key, self.character.id, destination, random.Random()
+                )
 
         self.database.set_character_room(self.character.id, destination)
         refreshed = self.database.get_character_by_name(self.character.name)

@@ -92,6 +92,10 @@ class PartialTargetMatchingTests(unittest.TestCase):
             session = _Session()
             self.assertEqual(resolve_target_command(session, "kill rat", world).command, "kill Sewer Rat")
             self.assertEqual(resolve_target_command(session, "attack sew", world).command, "attack Sewer Rat")
+            self.assertEqual(
+                resolve_target_command(session, "target rat 2", world).command,
+                "target Sewer Rat 2",
+            )
 
     def test_ambiguous_abbreviation_is_never_guessed(self):
         first = NpcDefinition(
