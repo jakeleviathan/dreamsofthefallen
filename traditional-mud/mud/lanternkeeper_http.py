@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 import os
 import html
+import ipaddress
 import threading
 import time
 from collections import defaultdict, deque
@@ -21,28 +22,36 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
     public_origin = os.environ.get("DOTF_BILLING_ORIGIN", "").rstrip("/")
     if not public_origin.startswith("https://") or urlsplit(public_origin).path not in ("", "/"):
         raise RuntimeError("DOTF_BILLING_ORIGIN must be an HTTPS origin")
+    if host not in ("127.0.0.1", "::1", "localhost"):
+        raise ValueError("Billing service must bind to loopback")
     database = Database()
-    # Account-scoped throttling avoids treating all Caddy-proxied users as one IP.\n    # Edge-level IP throttling is still required before enabling public billing.
+    # Caddy must overwrite X-Lanternkeeper-Client-IP with {client_ip}.
+    # No user-supplied X-Forwarded-For / CF-Connecting-IP headers are trusted.
+    # Per-account and per-visitor throttling complement edge WAF limits.
     attempts = defaultdict(deque)
     attempts_lock = threading.Lock()
     window_seconds = 900
-    max_attempts = 5
+    max_account_attempts = 5
+    max_ip_attempts = 50
 
-    def blocked(account):
+    def blocked(account, client_ip):
         now = time.monotonic()
         with attempts_lock:
-            for key in (("account", account.casefold()),):
+            for key, limit in (
+                (("account", account.casefold()), max_account_attempts),
+                (("ip", client_ip), max_ip_attempts),
+            ):
                 recent = attempts[key]
                 while recent and recent[0] <= now - window_seconds:
                     recent.popleft()
-                if len(recent) >= max_attempts:
+                if len(recent) >= limit:
                     return True
-            return False
+        return False
 
-    def record_failure(account):
+    def record_failure(account, client_ip):
         now = time.monotonic()
         with attempts_lock:
-            for key in (("account", account.casefold()),):
+            for key in (("account", account.casefold()), ("ip", client_ip)):
                 recent = attempts[key]
                 while recent and recent[0] <= now - window_seconds:
                     recent.popleft()
@@ -50,6 +59,16 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
 
 
     class Handler(BaseHTTPRequestHandler):
+        def trusted_client_ip(self):
+            # The listener is loopback-only; the header must be overwritten by Caddy.
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                return None
+            value = self.headers.get("X-Lanternkeeper-Client-IP", "")
+            try:
+                return str(ipaddress.ip_address(value))
+            except ValueError:
+                return None
+
         def reply(self, code, body):
             data = body.encode("utf-8")
             self.send_response(code)
@@ -136,12 +155,15 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
                 name, password = params["account"][0], params["password"][0]
                 if not name or not password or len(name) > 80 or len(password) > 256:
                     return self.reply(400, "Invalid credentials")
-                if blocked(name):
+                client_ip = self.trusted_client_ip()
+                if client_ip is None:
+                    return self.reply(503, "Billing proxy configuration unavailable")
+                if blocked(name, client_ip):
                     return self.reply(429, "Too many login attempts; try again later")
                 with database.connect() as db:
                     row = db.execute("SELECT id,password_hash FROM accounts WHERE name=? COLLATE NOCASE", (name,)).fetchone()
                 if row is None or not verify_password(password, row["password_hash"]):
-                    record_failure(name)
+                    record_failure(name, client_ip)
                     return self.reply(401, "Invalid account or password")
                 account_id = int(row["id"])
                 if path.endswith("/checkout"):
