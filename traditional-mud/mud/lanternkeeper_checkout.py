@@ -179,7 +179,9 @@ def create_checkout(database, account_id: int, success_url: str, cancel_url: str
                 raise ValueError("Open Checkout session has no payment link")
             return session.url
         if session.status == "complete":
-            subscription = session.subscription
+            # Completed sessions can omit subscription while Stripe is processing.
+            # Without an ID, we cannot prove this is a safely terminated purchase.
+            subscription = getattr(session, "subscription", None)
             if not isinstance(subscription, str):
                 subscription = getattr(subscription, "id", None)
             _replace_completed_cancelled(database, account_id, request_id, saved_id, subscription)
