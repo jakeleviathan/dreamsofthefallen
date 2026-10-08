@@ -18,7 +18,9 @@ def create_checkout(database, account_id: int, success_url: str, cancel_url: str
         account = db.execute("SELECT id FROM accounts WHERE id=?", (account_id,)).fetchone()
         if account is None:
             raise ValueError("Unknown account")
-        row = db.execute("SELECT stripe_customer_id FROM lanternkeeper_memberships WHERE account_id=?", (account_id,)).fetchone()
+        row = db.execute("SELECT stripe_customer_id,stripe_subscription_id,stripe_status FROM lanternkeeper_memberships WHERE account_id=?", (account_id,)).fetchone()
+    if row and row["stripe_subscription_id"] and row["stripe_status"] in ("active", "trialing", "past_due", "unpaid", "incomplete", "paused"):
+        raise ValueError("Existing Lanternkeeper subscription: use the billing portal")
     args = dict(mode="subscription", line_items=[{"price": PRICE_ID, "quantity": 1}],
                 success_url=success_url, cancel_url=cancel_url,
                 client_reference_id=str(account_id),
