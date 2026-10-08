@@ -22,6 +22,7 @@ if not hasattr(crafting, "register_item"):
     crafting.register_item = _register_item
 
 from mud.server import MudServer, PlayerSession, WORLD
+from mud.who_display import start_who_display_server
 from mud.trade_experience import install_trade_experience_runtime
 from mud.economy_loop import install_economy_loop_runtime, install_fresh_water_sources
 from mud.economy_balance import install_economy_balance_runtime
@@ -473,6 +474,14 @@ except ValueError:
 WIKI_ENABLED = os.environ.get("DOTF_WIKI_ENABLED", "1").strip().casefold() not in {"0", "false", "no", "off"}
 
 async def main() -> None:
+    who_display = None
+    try:
+        who_display = start_who_display_server(host="127.0.0.1", port=8765)
+        print("Private WHO display listening on http://127.0.0.1:8765/who")
+    except OSError as exc:
+        # The private display is auxiliary and must never prevent the MUD from starting.
+        print(f"Private WHO display could not bind 127.0.0.1:8765: {exc}")
+
     wiki = None
     if WIKI_ENABLED:
         try:
@@ -488,6 +497,9 @@ async def main() -> None:
     finally:
         if wiki is not None:
             wiki.close()
+        if who_display is not None:
+            who_display.shutdown()
+            who_display.server_close()
 
 if __name__ == "__main__":
     try:

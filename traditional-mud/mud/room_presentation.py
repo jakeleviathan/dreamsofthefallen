@@ -378,6 +378,31 @@ def render_room_lines(
         )
         if callable(regionalizes_source) and regionalizes_source(view.key, enemy_key):
             continue
+        # The Riftback Matriarch is an authored Breaker Pit presence so players
+        # can actually see the boss before choosing to engage it. Once the
+        # first-clear boss flag is set, remove her from both text and GMCP room
+        # presentation instead of leaving a phantom creature behind.
+        try:
+            from mud.waymeet_adventure_arc import (
+                RIFTBACK_MATRIARCH,
+                SCAR_BOSS_DOWN,
+                SCAR_BREAKER_PIT,
+            )
+
+            if (
+                view.key == SCAR_BREAKER_PIT
+                and enemy_key == RIFTBACK_MATRIARCH.key
+            ):
+                character = getattr(session, "character", None)
+                database = getattr(session, "database", None)
+                if (
+                    character is not None
+                    and database is not None
+                    and SCAR_BOSS_DOWN in database.list_flags(character.id)
+                ):
+                    continue
+        except Exception:
+            pass
         enemy = ENEMIES_BY_KEY.get(enemy_key)
         if enemy is not None and static_enemy_available(
             view.key,
