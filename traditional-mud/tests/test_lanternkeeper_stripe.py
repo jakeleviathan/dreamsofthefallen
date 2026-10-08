@@ -63,6 +63,22 @@ class LanternkeeperStripeTests(unittest.TestCase):
             self.assertTrue(process_stripe_webhook(self.db, payload, header))
         self.assertTrue(membership(self.db, self.account_id).active())
 
+    def test_real_signed_event_with_item_level_period_end(self):
+        secret = "whsec_offline_test"
+        event = self.event(end=None)
+        event["data"]["object"]["items"]["data"][0]["current_period_end"] = 4102444800
+        payload = json.dumps(event).encode()
+        timestamp = int(time.time())
+        signature = hmac.new(
+            secret.encode(), str(timestamp).encode() + b"." + payload,
+            hashlib.sha256,
+        ).hexdigest()
+        with patch.dict(os.environ, {"DOTF_STRIPE_WEBHOOK_SECRET": secret}):
+            self.assertTrue(process_stripe_webhook(
+                self.db, payload, f"t={timestamp},v1={signature}"
+            ))
+        self.assertTrue(membership(self.db, self.account_id).active())
+
     def test_invalid_signature_rejected_without_entitlement(self):
         payload = json.dumps(self.event()).encode()
         timestamp = int(time.time())
