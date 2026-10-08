@@ -74,23 +74,94 @@ def room_wisp_lines(database, room_key, online_character_ids=None):
             lines.append(f"{row['name']}'s wisp drifts nearby, glowing {wisp.color}.")
     return lines
 
+def lanternkeeper_information(member, ready=False):
+    """Player-facing membership overview; no account or payment secrets."""
+    status = "ACTIVE" if member.active() else member.stripe_status.upper()
+    if status in ("INACTIVE", ""):
+        status = "NOT SUBSCRIBED"
+    return (
+        "\r\n== LANTERNKEEPER | KEEP A LIGHT BURNING ==\r\n"
+        "Help sustain Astralis and receive a personal Lantern Wisp.\r\n"
+        "Membership: $4.99 USD each month. Cancel anytime.\r\n"
+        "This is cosmetic only: no combat bonuses, XP boosts, or advantages.\r\n"
+        "Your Wisp can be named and customized with colors and appearances.\r\n"
+        "Your support helps Dreams of the Fallen grow.\r\n"
+        f"Account status: {status}.\r\n"
+        "Commands: LANTERNKEEPER STATUS | SUBSCRIBE | MANAGE | HELP\r\n"
+        "Wisp commands: WISP STATUS | SUMMON | DISMISS | COLOR | NAME | APPEARANCE\r\n"
+        + ("The subscription service is not open yet.\r\n" if not ready else "")
+        + "Payment and cancellation are completed securely in your browser, never in telnet.\r\n"
+    )
+
+
+def lanternkeeper_status(member):
+    if member.active():
+        end = member.current_period_end
+        until = end.strftime("%Y-%m-%d") if end else "unknown"
+        return (
+            "Lanternkeeper: ACTIVE. Your cosmetic Lantern Wisp is available.\r\n"
+            f"Current paid period ends: {until} (UTC).\r\n"
+            "Use WISP SUMMON and LANTERNKEEPER MANAGE for billing.\r\n"
+        )
+    if member.stripe_status not in ("", "inactive"):
+        return (
+            f"Lanternkeeper: {member.stripe_status.upper().replace('_', ' ')}.\r\n"
+            "The Lantern Wisp is dormant unless membership is active.\r\n"
+            "Use LANTERNKEEPER MANAGE to review billing, or SUBSCRIBE if canceled.\r\n"
+        )
+    return (
+        "Lanternkeeper: NOT SUBSCRIBED.\r\n"
+        "Use LANTERNKEEPER INFO for benefits or SUBSCRIBE to join.\r\n"
+    )
+
+
+def _lanternkeeper_billing_action(database, member, account_id, action):
+    from mud.lanternkeeper_links import issue_action_link, links_enabled
+
+    if not links_enabled():
+        return "Lanternkeeper billing is not open yet. Please check again later.\r\n"
+    if action == "subscribe" and member.stripe_subscription_id and member.stripe_status in (
+        "active", "trialing", "past_due", "unpaid", "incomplete", "paused"
+    ):
+        return "You already have a Lanternkeeper subscription. Use LANTERNKEEPER MANAGE.\r\n"
+    if action == "manage" and not member.stripe_customer_id:
+        return "No linked billing account yet. Use LANTERNKEEPER SUBSCRIBE first.\r\n"
+    try:
+        url = issue_action_link(database, account_id, action)
+    except ValueError:
+        return "Unable to prepare a billing link. Try again or contact game staff.\r\n"
+    except (RuntimeError, OSError):
+        return "Secure billing is temporarily unavailable. Please try again later.\r\n"
+    purpose = "join Lanternkeeper" if action == "subscribe" else "manage your membership"
+    return (
+        f"Your private link to {purpose} (expires in 10 minutes):\r\n"
+        f"{url}\r\n"
+        "Open it in a browser and confirm your choice. "
+        "Never enter payment details in the MUD.\r\n"
+        "Treat this link like a password: do not share it.\r\n"
+    )
+
+
 def install_lanternkeeper_runtime(player_session_class):
     if getattr(player_session_class, "_lanternkeeper_installed", False):
         return
     previous = player_session_class.playing_prompt
+
     async def playing_prompt(self):
         if getattr(self, "character", None) is None:
             return await previous(self)
+
         async def replay(_prompt):
             return command
-        # Capture only one prompt and delegate unrelated commands unchanged.
+
         command = await self.prompt("\r\n> ")
         if command is None:
             state = getattr(self, "state", None)
             if state is not None and hasattr(type(state), "DISCONNECTED"):
                 self.state = type(state).DISCONNECTED
             return
-        words=command.strip().split(maxsplit=2)
+
+        words = command.strip().split(maxsplit=2)
         if not words or words[0].lower() not in ("wisp", "lanternkeeper"):
             old_prompt = self.__dict__.get("prompt")
             had_prompt = "prompt" in self.__dict__
@@ -98,23 +169,53 @@ def install_lanternkeeper_runtime(player_session_class):
             try:
                 return await previous(self)
             finally:
-                if had_prompt: self.prompt=old_prompt
-                else: self.__dict__.pop("prompt",None)
-        character=self.character
-        member=membership(self.database,character.account_id)
-        wisp=load_wisp(self.database,character.id)
-        action=words[1].lower() if len(words)>1 else "status"
-        arg=words[2] if len(words)>2 else ""
-        if words[0].lower()=="lanternkeeper":
-            message="Lanternkeeper: active ($4.99/month)." if member.active() else "Lanternkeeper: inactive. Subscribe through the official website."
-        elif action=="summon": message=wisp.summon(member)
-        elif action=="dismiss": message=wisp.dismiss()
-        elif action=="color": message=wisp.set_color(arg)
-        elif action=="name": message=wisp.set_name(arg)
-        elif action=="appearance": message=wisp.set_appearance(arg)
-        elif action=="status": message=wisp.status(member)
-        else: message="WISP SUMMON | DISMISS | STATUS | COLOR <color> | NAME <name> | APPEARANCE <style>"
-        save_wisp(self.database,character.id,wisp)
-        await self.send(message+"\r\n")
-    player_session_class.playing_prompt=playing_prompt
-    player_session_class._lanternkeeper_installed=True
+                if had_prompt:
+                    self.prompt = old_prompt
+                else:
+                    self.__dict__.pop("prompt", None)
+
+        character = self.character
+        member = membership(self.database, character.account_id)
+        action = words[1].lower() if len(words) > 1 else "info"
+        arg = words[2] if len(words) > 2 else ""
+
+        if words[0].lower() == "lanternkeeper":
+            from mud.lanternkeeper_links import links_enabled
+            if action in ("info", "about", "benefits"):
+                message = lanternkeeper_information(member, links_enabled())
+            elif action in ("status", "check"):
+                message = lanternkeeper_status(member)
+            elif action in ("subscribe", "join", "buy"):
+                message = _lanternkeeper_billing_action(
+                    self.database, member, character.account_id, "subscribe"
+                )
+            elif action in ("manage", "billing", "cancel", "payment"):
+                message = _lanternkeeper_billing_action(
+                    self.database, member, character.account_id, "manage"
+                )
+            else:
+                message = (
+                    "LANTERNKEEPER INFO | STATUS | SUBSCRIBE | MANAGE\r\n"
+                    "Billing changes open securely in your browser.\r\n"
+                )
+        else:
+            wisp = load_wisp(self.database, character.id)
+            if action == "summon":
+                message = wisp.summon(member)
+            elif action == "dismiss":
+                message = wisp.dismiss()
+            elif action == "color":
+                message = wisp.set_color(arg)
+            elif action == "name":
+                message = wisp.set_name(arg)
+            elif action == "appearance":
+                message = wisp.set_appearance(arg)
+            elif action == "status" or action == "info":
+                message = wisp.status(member)
+            else:
+                message = "WISP SUMMON | DISMISS | STATUS | COLOR <color> | NAME <name> | APPEARANCE <style>"
+            save_wisp(self.database, character.id, wisp)
+        await self.send(message + "\r\n")
+
+    player_session_class.playing_prompt = playing_prompt
+    player_session_class._lanternkeeper_installed = True
