@@ -286,20 +286,13 @@ def install_login_experience(player_session_class) -> None:
         if lowered in {"buy slot", "buy slots", "purchase slot"}:
             url = purchase_link_for_account(self.account.id)
             if not url:
-                await self.send("\r
-Extra slot purchases are not available yet. Please check back later.\r
-")
+                await self.send("\r\nExtra slot purchases are not available yet. Please check back later.\r\n")
             else:
                 await self.send(
-                    "\r
-Extra Character Slot - $1 USD (one-time).\r
-"
-                    "Adds one permanent account slot, independent of Lantern Keeper.\r
-"
-                    f"Secure checkout: {url}\r
-"
-                    "Your roster will reflect the slot after Stripe confirms payment.\r
-"
+                    "\r\nExtra Character Slot - $1 USD (one-time).\r\n"
+                    "Adds one permanent account slot, independent of Lantern Keeper.\r\n"
+                    f"Secure checkout: {url}\r\n"
+                    "Your roster will reflect the slot after Stripe confirms payment.\r\n"
                 )
             return
         if lowered in {"create", "new", "new character", "c"}:
