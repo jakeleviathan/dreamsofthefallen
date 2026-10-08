@@ -57,6 +57,21 @@ The billing worker must run with the stripe-enabled venv; the existing MUD
 service does not require `DOTF_BILLING_ENABLED=1` when a separate worker runs.
 **Do not add live credentials or activate the worker yet.**
 
+## Predeployment staging smoke test
+
+Run the standalone billing subprocess test using the isolated worktree and
+Stripe-enabled venv, **without any Stripe API key or live database**:
+
+```bash
+cd ~/dotf-lanternkeeper-test/traditional-mud
+~/dotf-lanternkeeper-venv/bin/python -m unittest tests.test_lanternkeeper_service -v
+```
+
+This test creates a temporary SQLite database, binds a randomly selected
+loopback-only port using `DOTF_BILLING_PORT`, confirms the billing HTML is
+served, and shuts the subprocess down cleanly. Production uses the default
+port 8766. The staging process does not activate billing or contact Stripe.
+
 ## Standalone billing worker
 
 The feature branch includes `mud.lanternkeeper_service` and a sample
