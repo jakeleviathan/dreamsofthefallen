@@ -18,6 +18,10 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
                              "customer.subscription.deleted"):
         return False
     sub = event["data"]["object"]
+    expected_price = "price_1UOAp3LnIVgW4g5mj4rNdD7P"
+    items = ((sub.get("items") or {}).get("data") or [])
+    if not any((item.get("price") or {}).get("id") == expected_price for item in items):
+        raise ValueError("Subscription does not include the Lanternkeeper price")
     account_id = (sub.get("metadata") or {}).get("dotf_account_id")
     if not account_id or not str(account_id).isdigit():
         raise ValueError("Subscription missing trusted DOTF account mapping")
@@ -39,6 +43,9 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
                               (sub["id"],)).fetchone()
         if existing and existing["account_id"] != account_id:
             raise ValueError("Subscription already belongs to another account")
+        linked = db.execute("SELECT stripe_subscription_id FROM lanternkeeper_memberships WHERE account_id=?", (account_id,)).fetchone()
+        if linked and linked["stripe_subscription_id"] and linked["stripe_subscription_id"] != sub["id"]:
+            raise ValueError("Different subscription already linked to account")
         customer = sub.get("customer")
         if not isinstance(customer, str):
             raise ValueError("Invalid Stripe customer")
