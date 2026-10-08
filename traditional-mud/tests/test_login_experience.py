@@ -182,5 +182,44 @@ class LoginExperienceTests(unittest.TestCase):
         self.assertTrue(session.creation_called)
 
 
+    def test_unsubscribed_accounts_can_open_one_dollar_slot_checkout(self):
+        from unittest.mock import patch
+
+        database = self._db()
+        account = database.create_account("NonSubscriber", "hash")
+        session = FakeSession(database, ["buy slot"])
+        session.account = account
+        session.state = SessionState.CHARACTER_MENU
+        config = {
+            "DOTF_STRIPE_SECRET_KEY": "sk_test_placeholder",
+            "DOTF_SLOT_STRIPE_PRICE_ID": "price_test_slot",
+            "DOTF_SLOT_STRIPE_WEBHOOK_SECRET": "whsec_placeholder",
+            "DOTF_SLOT_LINK_SECRET": "test-signature-key",
+            "DOTF_SLOT_PUBLIC_BASE_URL": "https://mud.lvthn.io",
+        }
+        with patch.dict("os.environ", config, clear=True):
+            asyncio.run(session.character_menu())
+        output = "".join(session.outputs)
+        self.assertIn("BUY SLOT", output)
+        self.assertIn("$1 USD", output)
+        self.assertIn("https://mud.lvthn.io/slots/checkout?token=", output)
+        self.assertEqual(database.character_slot_limit(account.id), 8)
+
+    def test_paid_ninth_slot_appears_in_roster_without_lanternkeeper(self):
+        database = self._db()
+        account = database.create_account("NinthSlot", "hash")
+        for index in range(8):
+            database.create_character(account.id, f"NinthAlt{index}", "human", "wizard")
+        database.record_character_slot_purchase(account.id, "cs_test_ninth_slot")
+        session = FakeSession(database, ["help"])
+        session.account = account
+        session.state = SessionState.CHARACTER_MENU
+        asyncio.run(session.character_menu())
+        output = "".join(session.outputs)
+        self.assertIn("Slots used: 8/9", output)
+        self.assertEqual(output.count("[ Empty ]"), 1)
+        self.assertIn("BUY SLOT", output)
+
+
 if __name__ == "__main__":
     unittest.main()
