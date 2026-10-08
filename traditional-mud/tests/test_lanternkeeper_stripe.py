@@ -60,7 +60,7 @@ class LanternkeeperStripeTests(unittest.TestCase):
         self.assertTrue(self.deliver(new_event))
         current = membership(self.db, self.account_id)
         self.assertTrue(current.active())
-        self.assertEqual(current.subscription_id, "sub_lanternkeeper_rejoined")
+        self.assertEqual(current.stripe_subscription_id, "sub_lanternkeeper_rejoined")
 
     def test_late_retired_subscription_event_cannot_disable_rejoined_member(self):
         self.deliver(self.event(status="canceled", event_type="customer.subscription.deleted", created=101))
@@ -71,7 +71,7 @@ class LanternkeeperStripeTests(unittest.TestCase):
         self.assertFalse(self.deliver(old_event))
         current = membership(self.db, self.account_id)
         self.assertTrue(current.active())
-        self.assertEqual(current.subscription_id, "sub_lanternkeeper_rejoined")
+        self.assertEqual(current.stripe_subscription_id, "sub_lanternkeeper_rejoined")
 
     def test_active_member_cannot_be_replaced_by_different_subscription(self):
         self.deliver(self.event(status="active", created=101))
