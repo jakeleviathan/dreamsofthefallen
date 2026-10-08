@@ -132,6 +132,7 @@ from mud.enemy_targeting import install_enemy_targeting_runtime
 from mud.health_regeneration import install_health_regeneration_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
+from mud.character_slot_payments import start_character_slot_payment_server
 from mud.collective_wiki import start_collective_wiki_server
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
@@ -491,10 +492,22 @@ async def main() -> None:
             # A web-port problem must never take the Telnet game down with it.
             print(f"Living wiki could not bind {WIKI_HOST}:{WIKI_PORT}: {exc}")
 
+    slot_payments = None
+    try:
+        slot_payments = start_character_slot_payment_server(Database())
+        if slot_payments is not None:
+            print("Character slot checkout/webhook listening on http://127.0.0.1:8768/slots/")
+    except OSError as exc:
+        # Payments are optional; never prevent the Telnet game from starting.
+        print(f"Character slot payment listener could not start: {exc}")
+
     mud = MudServer(host=HOST, port=PORT)
     try:
         await mud.run()
     finally:
+        if slot_payments is not None:
+            slot_payments.shutdown()
+            slot_payments.server_close()
         if wiki is not None:
             wiki.close()
         if who_display is not None:
