@@ -58,10 +58,10 @@ class TelnetConnection:
         from html import escape
         # MXP secure line mode; quote and escape all dynamic attributes.
         markup = (
-            "\\x1b[1z"
+            "\x1b[1z"
             + '<A HREF="' + escape(url, quote=True) + '">'
             + escape(label) + '</A>'
-            + "\\x1b[0z\\r\\n"
+            + "\x1b[0z\r\n"
         )
         await self.send_text(markup)
         return True
