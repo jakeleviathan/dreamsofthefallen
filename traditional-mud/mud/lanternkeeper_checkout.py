@@ -109,6 +109,34 @@ def _replace_verified_expired(database, account_id, request_id, session_id):
         )
 
 
+def _replace_completed_cancelled(database, account_id, request_id, session_id, subscription_id):
+    """Permit rejoining only when the completed Session belongs to a terminated subscription."""
+    if not isinstance(subscription_id, str) or not subscription_id.startswith("sub_"):
+        raise ValueError("Previous checkout completed; wait for subscription confirmation")
+    now = int(time.time())
+    with database.connect() as db:
+        db.execute("BEGIN IMMEDIATE")
+        membership = _membership_row(db, account_id)
+        if (not membership or membership["stripe_status"] not in ("canceled", "incomplete_expired")
+                or membership["stripe_subscription_id"] != subscription_id):
+            raise ValueError("Previous checkout completed; wait for subscription confirmation")
+        row = db.execute(
+            "SELECT request_id,stripe_session_id FROM lanternkeeper_checkout_reservations "
+            "WHERE account_id=?", (account_id,)
+        ).fetchone()
+        if not row:
+            raise ValueError("Missing previous checkout reservation")
+        if row["request_id"] != request_id:
+            return
+        if row["stripe_session_id"] != session_id:
+            raise ValueError("Checkout reservation changed during reconciliation")
+        db.execute(
+            "UPDATE lanternkeeper_checkout_reservations SET request_id=?,expires_at=?,"
+            "stripe_session_id=NULL WHERE account_id=?",
+            (uuid.uuid4().hex, now + RESERVATION_SECONDS, account_id),
+        )
+
+
 def _record_session(database, account_id, request_id, session_id):
     if not isinstance(session_id, str) or not session_id.startswith("cs_"):
         raise ValueError("Stripe returned an invalid Checkout session")
@@ -146,10 +174,14 @@ def create_checkout(database, account_id: int, success_url: str, cancel_url: str
                 raise ValueError("Open Checkout session has no payment link")
             return session.url
         if session.status == "complete":
-            raise ValueError("Previous checkout completed; wait for subscription confirmation")
-        if session.status != "expired":
+            subscription = session.subscription
+            if not isinstance(subscription, str):
+                subscription = getattr(subscription, "id", None)
+            _replace_completed_cancelled(database, account_id, request_id, saved_id, subscription)
+        elif session.status == "expired":
+            _replace_verified_expired(database, account_id, request_id, saved_id)
+        else:
             raise ValueError("Cannot verify previous Checkout session status")
-        _replace_verified_expired(database, account_id, request_id, saved_id)
 
     request_id, customer_id = _reserve_checkout(database, account_id)
     args = dict(
