@@ -19,6 +19,7 @@ SE = 240
 
 # Generic Mud Communication Protocol (GMCP).
 GMCP = 201
+MXP = 91  # Mud eXtension Protocol
 
 
 @dataclass(slots=True)
@@ -33,6 +34,7 @@ class TelnetConnection:
     reader: asyncio.StreamReader
     writer: asyncio.StreamWriter
     gmcp_enabled: bool = False
+    mxp_enabled: bool = False
     client_name: str | None = None
     client_version: str | None = None
     gmcp_packages: set[str] = field(default_factory=set)
@@ -42,12 +44,27 @@ class TelnetConnection:
 
     async def begin_negotiation(self) -> None:
         # Advertise server-side GMCP support. A supporting client replies DO GMCP.
-        self.writer.write(bytes((IAC, WILL, GMCP)))
+        self.writer.write(bytes((IAC, WILL, GMCP, IAC, WILL, MXP)))
         await self.writer.drain()
 
     async def send_text(self, text: str) -> None:
         self.writer.write(text.encode("utf-8", errors="replace"))
         await self.writer.drain()
+
+    async def send_mxp_link(self, label: str, url: str) -> bool:
+        """Render a clickable external URL only for MXP-negotiated clients."""
+        if not self.mxp_enabled:
+            return False
+        from html import escape
+        # MXP secure line mode; quote and escape all dynamic attributes.
+        markup = (
+            "\x1b[1z"
+            + '<A HREF="' + escape(url, quote=True) + '">'
+            + escape(label) + '</A>'
+            + "\x1b[0z\r\n"
+        )
+        await self.send_text(markup)
+        return True
 
     def set_gmcp_send_policy(self, callback: Callable[[str, object], bool] | None) -> None:
         """Install the supported per-connection GMCP send policy callback."""
@@ -155,6 +172,12 @@ class TelnetConnection:
             if not option_b:
                 return
             option = option_b[0]
+            if option == MXP:
+                if command == DO:
+                    self.mxp_enabled = True
+                elif command in {DONT, WONT}:
+                    self.mxp_enabled = False
+                return
             if option == GMCP:
                 if command == DO:
                     # This is the critical moment for Mudlet: it has accepted

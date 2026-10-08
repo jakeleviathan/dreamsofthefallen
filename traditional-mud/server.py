@@ -22,7 +22,13 @@ if not hasattr(crafting, "register_item"):
     crafting.register_item = _register_item
 
 from mud.server import MudServer, PlayerSession, WORLD
-from mud.who_display import start_who_display_server
+try:
+    from mud.who_display import start_who_display_server
+except ModuleNotFoundError as exc:
+    if exc.name != "mud.who_display":
+        raise
+    # The private WHO display is optional in source-only deployments.
+    start_who_display_server = None
 from mud.trade_experience import install_trade_experience_runtime
 from mud.economy_loop import install_economy_loop_runtime, install_fresh_water_sources
 from mud.economy_balance import install_economy_balance_runtime
@@ -132,6 +138,7 @@ from mud.enemy_targeting import install_enemy_targeting_runtime
 from mud.health_regeneration import install_health_regeneration_runtime
 from mud.mechanics import PRIEST_DEITY_ABILITIES
 from mud.database import Database
+from mud.character_slot_payments import start_character_slot_payment_server
 from mud.collective_wiki import start_collective_wiki_server
 from mud.character_options import RACES_BY_KEY
 from mud.quests import QUESTS_BY_KEY
@@ -475,12 +482,13 @@ WIKI_ENABLED = os.environ.get("DOTF_WIKI_ENABLED", "1").strip().casefold() not i
 
 async def main() -> None:
     who_display = None
-    try:
-        who_display = start_who_display_server(host="127.0.0.1", port=8765)
-        print("Private WHO display listening on http://127.0.0.1:8765/who")
-    except OSError as exc:
-        # The private display is auxiliary and must never prevent the MUD from starting.
-        print(f"Private WHO display could not bind 127.0.0.1:8765: {exc}")
+    if start_who_display_server is not None:
+        try:
+            who_display = start_who_display_server(host="127.0.0.1", port=8765)
+            print("Private WHO display listening on http://127.0.0.1:8765/who")
+        except OSError as exc:
+            # The private display is auxiliary and must never prevent the MUD from starting.
+            print(f"Private WHO display could not bind 127.0.0.1:8765: {exc}")
 
     wiki = None
     if WIKI_ENABLED:
@@ -491,10 +499,22 @@ async def main() -> None:
             # A web-port problem must never take the Telnet game down with it.
             print(f"Living wiki could not bind {WIKI_HOST}:{WIKI_PORT}: {exc}")
 
+    slot_payments = None
+    try:
+        slot_payments = start_character_slot_payment_server(Database())
+        if slot_payments is not None:
+            print("Character slot checkout/webhook listening on http://127.0.0.1:8768/slots/")
+    except OSError as exc:
+        # Payments are optional; never prevent the Telnet game from starting.
+        print(f"Character slot payment listener could not start: {exc}")
+
     mud = MudServer(host=HOST, port=PORT)
     try:
         await mud.run()
     finally:
+        if slot_payments is not None:
+            slot_payments.shutdown()
+            slot_payments.server_close()
         if wiki is not None:
             wiki.close()
         if who_display is not None:
