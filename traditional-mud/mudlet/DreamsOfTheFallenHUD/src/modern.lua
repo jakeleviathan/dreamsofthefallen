@@ -1,5 +1,5 @@
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.13
+-- Version 2.2.14
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -7,7 +7,7 @@
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.13"
+H.version = "2.2.14"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -28,7 +28,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.13"
+local MODERN_UI_VERSION = "2.2.14"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -46,6 +46,8 @@ if H.modernUiVersion ~= MODERN_UI_VERSION then
   H.bottomFrame = nil
   H.eventBanner = nil
   H.effectsOverlay = nil
+  H.effectsOverlayHeader = nil
+  H.effectsOverlayList = nil
   H.mapWidget = nil
   H.mapFallback = nil
   H.modernBuilt = false
@@ -483,6 +485,24 @@ function H.buildModern()
   if H.modernBuilt then return end
   H.build()
 
+  -- Place the actual Geyser roots after initialization. Negative coordinates
+  -- are relative to their immediate parent and were not reliably moving the
+  -- base widgets in the live profile; absolute viewport positions avoid this.
+  local screenWidth = 1650
+  if getMainWindowSize then
+    local ok, width = pcall(getMainWindowSize)
+    if ok and type(width) == "number" and width > 900 then screenWidth = width end
+  end
+  local right = math.max(940, screenWidth - 14)
+  if H.topFrame then
+    H.topFrame:move(right - 600, 8)
+    H.topFrame:resize(600, 126)
+  end
+  if H.targetFrame then
+    H.targetFrame:move(right - 476, 442)
+    H.targetFrame:resize(476, 116)
+  end
+
   setBorderTop(math.max(getBorderTop(), 142))
   setBorderRight(math.max(getBorderRight(), 340))
   setBorderBottom(math.max(getBorderBottom(), 154))
@@ -491,7 +511,7 @@ function H.buildModern()
   -- dock lives below it and uses tabs instead of trying to show every list at
   -- once on smaller laptop/projector displays.
   H.sideFrame = Geyser.Label:new({
-    name = "DreamsHUD.SideFrame", x = -330, y = 150, width = 316, height = 285,
+    name = "DreamsHUD.SideFrame", x = right - 316, y = 150, width = 316, height = 285,
   })
   H.sideFrame:setStyleSheet(PANEL_STYLE)
 
@@ -602,7 +622,7 @@ function H.buildModern()
   -- Bottom command deck: one short onboarding line, then the eight active
   -- ability hotkeys and a matching row of per-slot assignment controls.
   H.bottomFrame = Geyser.Label:new({
-    name = "DreamsHUD.BottomFrame", x = 8, y = -146, width = -350, height = 136,
+    name = "DreamsHUD.BottomFrame", x = 346, y = -146, width = right - 696, height = 136,
   })
   H.bottomFrame:setStyleSheet(PANEL_STYLE)
 
@@ -628,7 +648,7 @@ function H.buildModern()
   -- Top-middle effects panel is independent of the quest/party/pack dock.
   -- Both widgets use the same GMCP state, but have distinct screen regions.
   H.effectsOverlay = Geyser.Label:new({
-    name = "DreamsHUD.EffectsOverlay", x = -950, y = 54, width = 320, height = 82,
+    name = "DreamsHUD.EffectsOverlay", x = right - 930, y = 54, width = 320, height = 82,
   })
   H.effectsOverlay:setStyleSheet(PANEL_STYLE)
   H.effectsOverlayHeader = label(H.effectsOverlay, "DreamsHUD.EffectsOverlayHeader", 10, 8, -20, 26, GOLD_TEXT)
