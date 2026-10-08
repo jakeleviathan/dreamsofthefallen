@@ -67,6 +67,21 @@ class LanternkeeperStripeTests(unittest.TestCase):
         self.assertFalse(self.deliver(self.event(price="price_unrelated")))
         self.assertFalse(membership(self.db, self.account_id).active())
 
+    def test_item_level_period_end_activates_membership(self):
+        event = self.event(end=None)
+        item = event["data"]["object"]["items"]["data"][0]
+        item["current_period_end"] = 4102444800
+        self.assertTrue(self.deliver(event))
+        self.assertTrue(membership(self.db, self.account_id).active())
+
+    def test_item_level_period_end_for_other_price_is_ignored(self):
+        event = self.event(end=None)
+        event["data"]["object"]["items"]["data"].append(
+            {"price": {"id": "price_other"}, "current_period_end": 4102444800}
+        )
+        self.assertTrue(self.deliver(event))
+        self.assertFalse(membership(self.db, self.account_id).active())
+
     def test_missing_period_end_is_not_active(self):
         self.deliver(self.event(end=None))
         self.assertFalse(membership(self.db, self.account_id).active())
