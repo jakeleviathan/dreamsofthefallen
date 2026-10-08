@@ -84,6 +84,42 @@ alongside a **sandbox** `STRIPE_SECRET_KEY`. Never put this Price ID or test
 secret in the live service environment, and never use a live key in staging.
 Later, set up sandbox webhooks separately with their own signing secret.
 
+## First sandbox payment — isolated local Checkout
+
+The staging sandbox Price ID is
+`price_1UOBtYLsIp78ZNViq1uuSgZf`.
+After the read-only Price verification succeeds, the checkout harness uses
+the same authenticated HTTP billing handler and Checkout creation code as
+production, but binds **only a random localhost port** and writes **only to**
+`~/dotf-lanternkeeper-staging/sandbox.sqlite3`. It does not change Caddy,
+the production MUD database, or the live `dotf` process.
+
+```bash
+cd ~/dotf-lanternkeeper-test/traditional-mud
+~/dotf-lanternkeeper-venv/bin/python -m unittest tests.test_lanternkeeper_sandbox_checkout -q
+~/dotf-lanternkeeper-venv/bin/python -m mud.lanternkeeper_sandbox_checkout
+```
+
+The harness asks for a **new, unique staging-only MUD account password**
+(minimum 12 characters) and the sandbox's **sk_test_ secret**, both through
+hidden prompts; it does not save either plaintext secret. The staging account
+is called `lanternkeeper_staging` and its password is stored only as a hash
+in the isolated database. Repeat runs can reuse the same password and will
+resume the open Checkout session instead of creating another.
+
+Copy the resulting Stripe-hosted Checkout URL to your browser and complete
+it using only Stripe's **test card** `4242 4242 4242 4242`, a future
+expiration date, and any three-digit CVC. Do **not** use a real payment card.
+The sandbox transaction moves no money. Do **not** share the Checkout URL.
+The Stripe success redirect goes to
+`https://mud.lvthn.io/lanternkeeper/success`, which may not be online yet;
+that does **not** prove payment failed. Check the resulting sandbox
+subscription in Stripe Dashboard; note its status, but do not share keys.
+
+**This step validates Checkout only.** It does not deliver Stripe webhooks,
+grant a Wisp in the staging DB, test the production proxy, or activate live
+billing. Those are subsequent milestones before launch.
+
 ## Predeployment staging smoke test
 
 Run the standalone billing subprocess test using the isolated worktree and
