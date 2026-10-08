@@ -422,7 +422,7 @@ SCAR_ROOMS = (
     _room(SCAR_DEEP_FACE, "Deep Face", SCAR_REGION_KEY, "The last worked quarry face is covered in survey marks from several eras. Some marks are fresh chalk; one much older cluster has been deliberately chipped almost away. SEARCH SURVEY MARKS may reward curiosity.", {"west": SCAR_FLOODED, "east": SCAR_KINGS_TOOTH}, enemies=(QUARRY_SKITTER.key,), tags=("dungeon", "secret")),
     _room(SCAR_KINGS_TOOTH, "King's Tooth", SCAR_REGION_KEY, "A triangular pillar of untouched stone divides two quarry cuts. Workers nicknamed it the King's Tooth and built the freight brake around its base.", {"west": SCAR_DEEP_FACE, "east": SCAR_WINCH}, enemies=(STONEBORER.key,), tags=("dungeon",)),
     _room(SCAR_WINCH, "Freight Winch Chamber", SCAR_REGION_KEY, "A geared brake drum fills the wall. The release lever is rusted but intact. PULL BRAKE will either solve the route problem or make a memorable noise.", {"west": SCAR_KINGS_TOOTH}, tags=("dungeon", "puzzle")),
-    _room(SCAR_BREAKER_PIT, "Breaker Pit", SCAR_REGION_KEY, "Beyond the restored freight bridge, the quarry ends in a circular pit gouged by a single enormous burrower. Loose stone trembles each time the creature turns beneath it.", {"west": SCAR_WINCH}, tags=("dungeon", "boss")),
+    _room(SCAR_BREAKER_PIT, "Breaker Pit", SCAR_REGION_KEY, "Beyond the restored freight bridge, the quarry ends in a circular pit gouged by a single enormous burrower. Loose stone trembles each time the creature turns beneath it.", {"west": SCAR_WINCH}, enemies=(RIFTBACK_MATRIARCH.key,), tags=("dungeon", "boss")),
 )
 
 ECHO_ROOMS = (
@@ -1059,6 +1059,9 @@ def install_waymeet_adventure_runtime(player_session_class, world_service) -> No
         if before is None and enemy is not None and enemy.definition.key == TOLLMASTER.key:
             self._adventure_reaction = "brace"
             await self.send("Vesk kicks the counting table aside and raises his hooked cudgel over one shoulder. TELEGRAPH: BRACE will soften his opening punishment, but your normal class abilities remain the real fight.\r\n")
+        elif before is None and enemy is not None and enemy.definition.key == RIFTBACK_MATRIARCH.key:
+            self._adventure_reaction = "step aside"
+            await self.send("The Matriarch lowers its crown-like horn and paws stone out of the pit. TELEGRAPH: STEP ASIDE to take the charge off-center.\r\n")
 
     async def use_ability(self, ability_text: str) -> None:
         enemy_before = getattr(self, "active_enemy", None)
@@ -1122,7 +1125,8 @@ def install_waymeet_adventure_runtime(player_session_class, world_service) -> No
             if SCAR_BOSS_DOWN in _flags(self):
                 await self.send("The Riftback Matriarch is already down on your first clear.\r\n")
                 return
-            handled = await _engage_boss(self, RIFTBACK_MATRIARCH)
+            await self.start_combat("matriarch")
+            return
         elif normalized in {"attack listener", "attack listener below", "fight listener"} and self.character.current_room == ECHO_LISTENER_COURT:
             if LISTENER_DOWN in _flags(self):
                 await self.send("The Listener Below is already silent. LISTEN to the court.\r\n")

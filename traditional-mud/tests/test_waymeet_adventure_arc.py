@@ -148,13 +148,19 @@ class WaymeetAdventureArcTests(unittest.TestCase):
         counting_room = next(room for room in arc.TOLL_ROOMS if room.key == arc.TOLL_COUNTING)
         self.assertIn(arc.TOLLMASTER.key, counting_room.enemy_keys)
 
-        scripted_bosses = {arc.HOLLOW_BELLKEEPER.key, arc.RIFTBACK_MATRIARCH.key, arc.LISTENER_BELOW.key}
+        scripted_bosses = {arc.HOLLOW_BELLKEEPER.key, arc.LISTENER_BELOW.key}
         static_enemy_keys = {enemy_key for room in arc.ALL_ADVENTURE_ROOMS for enemy_key in room.enemy_keys}
         self.assertTrue(scripted_bosses.isdisjoint(static_enemy_keys))
         self.assertEqual(arc.TOLLMASTER.max_hp, 96)
         self.assertEqual(arc.HOLLOW_BELLKEEPER.max_hp, 142)
         self.assertEqual(arc.RIFTBACK_MATRIARCH.max_hp, 210)
         self.assertEqual(arc.LISTENER_BELOW.max_hp, 360)
+
+    def test_matriarch_is_a_visible_static_boss_spawn(self):
+        pit = next(room for room in arc.SCAR_ROOMS if room.key == arc.SCAR_BREAKER_PIT)
+        self.assertEqual(pit.enemy_keys, (arc.RIFTBACK_MATRIARCH.key,))
+        self.assertTrue(arc.RIFTBACK_MATRIARCH.matches("matriarch"))
+        self.assertTrue(arc.RIFTBACK_MATRIARCH.matches("riftback matriarch"))
 
     def test_production_server_installs_arc_inside_modern_client(self):
         root = Path(__file__).resolve().parents[1]
