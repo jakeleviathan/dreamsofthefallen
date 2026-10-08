@@ -130,6 +130,16 @@ local MOVE_BACK = [[
   border: 1px solid #23492d;
   border-radius: 5px;
 ]]
+local XP_FRONT = [[
+  background-color: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #360957, stop:0.45 #7832b7, stop:1 #b16ae8);
+  border: 1px solid #d1a4f2;
+  border-radius: 5px;
+]]
+local XP_BACK = [[
+  background-color: #140b1e;
+  border: 1px solid #513269;
+  border-radius: 5px;
+]]
 local TARGET_FRONT = [[
   background-color: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #3a0710, stop:0.55 #821527, stop:1 #c52e42);
   border: 1px solid #c88978;
@@ -195,31 +205,38 @@ function H.build()
 
   H.character = Geyser.Label:new({
     name = "DreamsHUD.Character",
-    x = "5%", y = 24,
+    x = "5%", y = 22,
     width = "90%", height = 17,
   }, H.topInner)
   H.character:setStyleSheet(SUBTITLE_STYLE)
 
   H.hp = Geyser.Gauge:new({
     name = "DreamsHUD.Health",
-    x = "6%", y = 43,
-    width = "88%", height = 18,
+    x = "6%", y = 40,
+    width = "88%", height = 16,
   }, H.topInner)
   styleGauge(H.hp, HP_FRONT, HP_BACK)
 
   H.mana = Geyser.Gauge:new({
     name = "DreamsHUD.Mana",
-    x = "6%", y = 66,
-    width = "88%", height = 18,
+    x = "6%", y = 58,
+    width = "88%", height = 16,
   }, H.topInner)
   styleGauge(H.mana, MANA_FRONT, MANA_BACK)
 
   H.movement = Geyser.Gauge:new({
     name = "DreamsHUD.Movement",
-    x = "6%", y = 89,
-    width = "88%", height = 18,
+    x = "6%", y = 76,
+    width = "88%", height = 16,
   }, H.topInner)
   styleGauge(H.movement, MOVE_FRONT, MOVE_BACK)
+
+  H.experience = Geyser.Gauge:new({
+    name = "DreamsHUD.Experience",
+    x = "6%", y = 94,
+    width = "88%", height = 16,
+  }, H.topInner)
+  styleGauge(H.experience, XP_FRONT, XP_BACK)
 
   H.targetFrame = Geyser.Label:new({
     name = "DreamsHUD.TargetFrame",
@@ -301,6 +318,18 @@ function H.renderVitals()
   H.mana.text:echo(string.format("<center>MANA  %d / %d</center>", s.mana, s.max_mana))
   H.movement:setValue(s.movement, s.max_movement)
   H.movement.text:echo(string.format("<center>MOVEMENT  %d / %d</center>", s.movement, s.max_movement))
+
+  -- The server reports progress within the current level. Until it does, show
+  -- an unknown XP state rather than a misleading empty progress bar.
+  if s.xp_known and tonumber(s.xp_to_next_level) and s.xp_to_next_level > 0 then
+    local needed = safeMax(s.xp_to_next_level)
+    local earned = clamp(s.xp_into_level, 0, needed)
+    H.experience:setValue(earned, needed)
+    H.experience.text:echo(string.format("<center>EXPERIENCE  %d / %d</center>", earned, needed))
+  else
+    H.experience:setValue(0, 1)
+    H.experience.text:echo("<center>EXPERIENCE  --</center>")
+  end
 end
 
 function H.renderCharacter()
@@ -351,6 +380,11 @@ function H.onVitals()
   H.state.max_mana = tonumber(v.max_mana) or H.state.max_mana
   H.state.movement = tonumber(v.movement) or H.state.movement
   H.state.max_movement = tonumber(v.max_movement) or H.state.max_movement
+  if tonumber(v.xp_into_level) and tonumber(v.xp_to_next_level) then
+    H.state.xp_into_level = tonumber(v.xp_into_level)
+    H.state.xp_to_next_level = tonumber(v.xp_to_next_level)
+    H.state.xp_known = true
+  end
   H.renderVitals()
 end
 
