@@ -36,6 +36,19 @@ class LanternkeeperCheckoutTests(unittest.TestCase):
                 self.assertEqual(kwargs["subscription_data"]["metadata"]["dotf_account_id"], str(self.account_id))
                 self.assertTrue(kwargs["idempotency_key"].startswith("dotf-lanternkeeper-"))
 
+    def test_sandbox_price_override_is_sent_to_stripe(self):
+        with patch.dict(os.environ, {
+            "STRIPE_SECRET_KEY": "sk_test_offline",
+            "DOTF_LANTERNKEEPER_PRICE_ID": "price_sandbox_test",
+        }):
+            with patch("stripe.checkout.Session.create", return_value=SimpleNamespace(
+                id="cs_test_sandbox", url="https://checkout.stripe.com/test"
+            )) as create:
+                create_checkout(self.db, self.account_id, "https://example.test/success", "https://example.test/cancel")
+                self.assertEqual(
+                    create.call_args.kwargs["line_items"][0]["price"], "price_sandbox_test"
+                )
+
     def test_repeated_checkout_resumes_saved_open_session(self):
         original = SimpleNamespace(id="cs_test_first", url="https://checkout.stripe.com/first")
         with patch.dict(os.environ, {"STRIPE_SECRET_KEY": "sk_test_offline"}):
