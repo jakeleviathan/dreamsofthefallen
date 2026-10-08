@@ -130,22 +130,23 @@ GREEN = "\x1b[38;5;48m"
 FIRE = "\x1b[38;5;214m"
 
 ART = (
-    "    .      +            *       .      .           +          *       .",
-    "        .       .    .-..             +      .         *          .",
-    "     *          .--'    '--.      .           /\\       .         *",
-    "   .       .--'     .       '--.        .    /||\\  .      +",
-    "      *  .'     .--' '--.       '.  .  /\\   /||||\\    .",
-    "   .    /     .'  .     '.  .     \\   /||\\ /|[]||\\     .     *",
-    "       |     /     *      \\        |  |||| |[[][]]| /\\",
-    "   +   \\     \\            /       / /\\|||| |[][][]|/||\\    +",
-    "        '._   '._     _.-'    _.-' /||||||/|[][][]|[||]|",
-    "   .       '--.._'''''__..--'  __/|[][]|| |[][][]|[[]]|_   .",
-    "     /\\   _   /\\  _ /\\   _   /\\  |[][]|| |[][][]|[[]]|| /\\",
-    "    /||\\ |#| /||\\|#|||| |#| /||\\ |[][]||_|[][][]|[[]]||/||\\",
-    " ___|[]|_|#|_|[]||#||||_|#|_|[]|_|[][]|[[]][][][]|[[]]||[]|___",
-    " |___  _  ___  __  ___  _  ___  ___   _  ___   __  ___  _  __|",
-    "   / |  | \\    / |  | \\    / |  | \\   / |  | \\   / |  | \\",
-    " ~~~~~~~=~~~~~==~~~~~==~~~~==~~~~~~==~~~~==~~~~~~==~~~~~~==~~~~",
+    "       .       *     .                 *     .    +          .       ",
+    "    *      .       .----.               .        /\\     .          ",
+    "         .       .'      '.       *           /\\ /||\\       *      ",
+    "  +             /   .--.   \\            /\\  /||\\||||\\   +          ",
+    "      *         |  /    \\  |       .   /||\\ ||[]||||[]|             ",
+    "   .            \\  \\    /  /       /\\  |||| ||[]||||[]|   .         ",
+    "           +     '._'--'_.'  *    /||\\ |||| ||[]||||[]|         *   ",
+    "       .             ''       /\\  |[]| ||[]||||[]|||||    .         ",
+    "    *          +          /\\ /||\\ |[]| ||[]||||[]|||||             ",
+    "           /\\         /\\ /||\\|[]| |[]| ||[]||||[]|||||      /\\     ",
+    "     /\\   /||\\  /\\   /||\\|[]||[]|_|[]|_||[]||||[]||||| /\\  /||\\   ",
+    "   _/||\\__|[]|__|[]|_|[]||[]||[][][][][][][][][][][][]|_|[]|__|[]|_",
+    "   |[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]|",
+    "   |___    ____    ____    ____    ____    ____    ____    ____ __|",
+    "       |  |    |  |    |  |    |  |    |  |    |  |    |  |       ",
+    "  ~~~~~|~~|~~~~|~~|~~~~|~~|~~~~|~~|~~~~|~~|~~~~|~~|~~~~|~~~~~~~~",
+    "  ~=~~~==~~~~==~~~==~~~~==~~~~==~~~~==~~~~==~~~~==~~~~==~~~~==~~~",
 )
 
 # Symmetric guardians and banners evoke the reference art in an 80-column client.
@@ -217,14 +218,14 @@ def build_welcome_banner() -> str:
         _framed("  R E A L M S      Q U E S T S      M A G I C      L E G E N D S ", VIOLET),
         _paint(GOLD, "+" + "-" * (BANNER_WIDTH - 2) + "+"),
     ]
-    lines.extend(_framed(row) for row in ART[:13])
+    lines.extend(_framed(row, (GOLD if i < 7 and 13 <= row.find(".") <= 25 else (WATER if i >= 14 else DREAMLIGHT))) for i, row in enumerate(ART[:13]))
     lines.extend(_framed(row, BLUE) for row in GUARDIANS[:4])
     lines.append(_framed("       *        THE CITY BEYOND THE FALLING STARS        *", GOLD))
     lines.extend(_headline(DREAMS_WORDMARK, (GOLD, FIRE, PINK, VIOLET)))
     lines.append(_framed("= = = = = = =    O F   T H E    = = = = = = =", GOLD))
     lines.extend(_headline(FALLEN_WORDMARK, (STARLIGHT, WATER, BLUE, VIOLET, PINK)))
     lines.extend(_framed(row, BLUE) for row in GUARDIANS[4:])
-    lines.extend(_framed(row, BLUE) for row in ART[13:])
+    lines.extend(_framed(row, WATER) for row in ART[13:])
     lines.extend([
         _framed("  A   T E X T - B A S E D   F A N T A S Y   A D V E N T U R E", GOLD),
         _framed(" < < <     E N T E R   T H E   W O R L D   O F   A S T R A L I S     > > >", WATER),
