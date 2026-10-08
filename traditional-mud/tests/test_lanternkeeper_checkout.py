@@ -82,6 +82,44 @@ class LanternkeeperCheckoutTests(unittest.TestCase):
                         create_checkout(self.db, self.account_id, "https://example.test/success", "https://example.test/cancel")
                 create.assert_called_once()
 
+    def test_canceled_member_can_start_new_checkout_after_old_completed_session(self):
+        original = SimpleNamespace(id="cs_test_first", url="https://checkout.stripe.com/first")
+        fresh = SimpleNamespace(id="cs_test_second", url="https://checkout.stripe.com/second")
+        with patch.dict(os.environ, {"STRIPE_SECRET_KEY": "sk_test_offline"}):
+            with patch("stripe.checkout.Session.create", side_effect=[original, fresh]) as create:
+                create_checkout(self.db, self.account_id, "https://example.test/success", "https://example.test/cancel")
+                with self.db.connect() as conn:
+                    conn.execute(
+                        "INSERT INTO lanternkeeper_memberships(account_id,stripe_subscription_id,stripe_status) "
+                        "VALUES(?,?,?)", (self.account_id, "sub_old", "canceled")
+                    )
+                with patch("stripe.checkout.Session.retrieve", return_value=SimpleNamespace(
+                    id=original.id, status="complete", subscription="sub_old", url=None
+                )):
+                    url = create_checkout(self.db, self.account_id, "https://example.test/success", "https://example.test/cancel")
+                self.assertEqual(url, fresh.url)
+                self.assertNotEqual(
+                    create.call_args_list[0].kwargs["idempotency_key"],
+                    create.call_args_list[1].kwargs["idempotency_key"]
+                )
+
+    def test_completed_checkout_for_different_subscription_remains_blocked(self):
+        original = SimpleNamespace(id="cs_test_first", url="https://checkout.stripe.com/first")
+        with patch.dict(os.environ, {"STRIPE_SECRET_KEY": "sk_test_offline"}):
+            with patch("stripe.checkout.Session.create", return_value=original) as create:
+                create_checkout(self.db, self.account_id, "https://example.test/success", "https://example.test/cancel")
+                with self.db.connect() as conn:
+                    conn.execute(
+                        "INSERT INTO lanternkeeper_memberships(account_id,stripe_subscription_id,stripe_status) "
+                        "VALUES(?,?,?)", (self.account_id, "sub_old", "canceled")
+                    )
+                with patch("stripe.checkout.Session.retrieve", return_value=SimpleNamespace(
+                    id=original.id, status="complete", subscription="sub_new_pending", url=None
+                )):
+                    with self.assertRaisesRegex(ValueError, "wait for subscription confirmation"):
+                        create_checkout(self.db, self.account_id, "https://example.test/success", "https://example.test/cancel")
+                create.assert_called_once()
+
     def test_expired_stripe_checkout_gets_new_reservation(self):
         original = SimpleNamespace(id="cs_test_first", url="https://checkout.stripe.com/first")
         fresh = SimpleNamespace(id="cs_test_second", url="https://checkout.stripe.com/second")
