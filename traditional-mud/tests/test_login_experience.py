@@ -201,7 +201,7 @@ class LoginExperienceTests(unittest.TestCase):
             asyncio.run(session.character_menu())
         output = "".join(session.outputs)
         self.assertIn("BUY SLOT", output)
-        self.assertIn("$1 USD", output)
+        self.assertIn("$1.00 USD", output)
         self.assertIn("https://mud.lvthn.io/slots/checkout?token=", output)
         self.assertEqual(database.character_slot_limit(account.id), 8)
 
