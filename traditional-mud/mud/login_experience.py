@@ -292,7 +292,7 @@ def install_login_experience(player_session_class) -> None:
                     "\r\n✦ EXPAND YOUR LEGACY ✦\r\n\r\n"
                     "Additional Character Slot — $1.00 USD\r\n\r\n"
                     "Every legend deserves room to grow. Make space for another story in Astralis.\r\n\r\n"
-                    "A permanent, one-time account upgrade. No Lantern Keeper membership required.\r\n\r\n"
+                    "A permanent addition to your account, yours to keep for a one-time purchase.\r\n\r\n"
                     f"Complete your secure purchase:\r\n{url}\r\n\r\n"
                     "Once your payment is confirmed, your new slot will appear on your character roster.\r\n"
                     "One purchase. One more character. A whole new adventure.\r\n"
