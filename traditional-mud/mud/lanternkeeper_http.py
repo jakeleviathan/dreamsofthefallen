@@ -7,6 +7,7 @@ account and password; POST /lanternkeeper/webhook with Stripe's raw payload.
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 import os
+import html
 import threading
 import time
 from collections import defaultdict, deque
@@ -57,6 +58,59 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
+
+        def do_GET(self):
+            path = urlsplit(self.path).path
+            if path not in ("/lanternkeeper", "/lanternkeeper/", "/lanternkeeper/success", "/lanternkeeper/cancel"):
+                return self.reply(404, "Not found")
+            if path == "/lanternkeeper/success":
+                heading = "Thank you for supporting Dreams of the Fallen"
+                detail = "Stripe is processing your subscription. Your Lantern Wisp becomes available after payment confirmation. Reconnect to the MUD and use LANTERNKEEPER to check your status."
+            elif path == "/lanternkeeper/cancel":
+                heading = "Checkout canceled"
+                detail = "No subscription was started by this checkout. You can return whenever you are ready."
+            else:
+                heading = "Lanternkeeper"
+                detail = "Support Dreams of the Fallen for $4.99 per month and receive a cosmetic Lantern Wisp. Enter your existing MUD account credentials to continue securely to Stripe."
+            forms = ""
+            if path in ("/lanternkeeper", "/lanternkeeper/"):
+                forms = (
+                    '<form method="post" action="/lanternkeeper/checkout">'
+                    '<label>Account name <input name="account" autocomplete="username" required maxlength="80"></label>'
+                    '<label>Password <input type="password" name="password" autocomplete="current-password" required maxlength="256"></label>'
+                    '<button type="submit">Subscribe for $4.99/month</button>'
+                    '</form>'
+                    '<p>Already subscribed? Manage your membership:</p>'
+                    '<form method="post" action="/lanternkeeper/portal">'
+                    '<label>Account name <input name="account" autocomplete="username" required maxlength="80"></label>'
+                    '<label>Password <input type="password" name="password" autocomplete="current-password" required maxlength="256"></label>'
+                    '<button type="submit">Manage billing</button>'
+                    '</form>'
+                )
+            page = (
+                '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                '<meta name="referrer" content="no-referrer">'
+                '<title>Lanternkeeper | Dreams of the Fallen</title>'
+                '<style>body{background:#10101c;color:#f1e8d8;font:17px system-ui,sans-serif;'
+                'max-width:560px;margin:8vh auto;padding:24px;line-height:1.6}'
+                'h1{color:#eac98b}form{padding:20px 0;border-top:1px solid #484052}'
+                'label{display:block;margin:12px 0}input{display:block;width:100%;'
+                'box-sizing:border-box;padding:10px;background:#211e30;color:white;border:1px solid #776b8c}'
+                'button{padding:12px 18px;background:#eac98b;color:#191420;border:0;cursor:pointer}'
+                'a{color:#eac98b}</style></head><body>'
+                '<h1>' + html.escape(heading) + '</h1><p>' + html.escape(detail) + '</p>'
+                + forms + '<p><a href="https://fallendreams.cloud">Return to Dreams of the Fallen</a></p>'
+                '</body></html>'
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Length", str(len(page)))
+            self.end_headers()
+            self.wfile.write(page)
 
         def do_POST(self):
             path = urlsplit(self.path).path
