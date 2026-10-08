@@ -4,12 +4,15 @@ import json
 import time
 import os
 import tempfile
+from urllib.parse import urlsplit, parse_qs
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from mud.database import Database
 from mud.lanternkeeper_http import start_lanternkeeper_http
+from mud.lanternkeeper_links import issue_action_link, lookup_action_link
+from mud.lanternkeeper_runtime import ensure_schema
 
 
 class LanternkeeperHTTPTests(unittest.TestCase):
@@ -46,6 +49,76 @@ class LanternkeeperHTTPTests(unittest.TestCase):
         response.read()
         conn.close()
         return (status, location) if return_location else status
+
+    def get(self, path):
+        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+        try:
+            conn.request("GET", path)
+            response = conn.getresponse()
+            return response.status, response.read().decode("utf-8"), dict(response.getheaders())
+        finally:
+            conn.close()
+
+    def create_ticket(self, purpose="subscribe"):
+        with patch.dict(os.environ, {"DOTF_LANTERNKEEPER_LINKS_ENABLED": "1"}):
+            return issue_action_link(self.db, 1, purpose)
+
+    def test_ingame_subscribe_link_requires_explicit_browser_confirmation(self):
+        url = self.create_ticket()
+        ticket = parse_qs(urlsplit(url).query)["ticket"][0]
+        status, page, headers = self.get(urlsplit(url).path + "?" + urlsplit(url).query)
+        self.assertEqual(status, 200)
+        self.assertIn("alpha", page)
+        self.assertIn("$4.99", page)
+        self.assertIn('method="post"', page)
+        self.assertIn("no-referrer", headers.get("Referrer-Policy", ""))
+        self.assertIsNotNone(lookup_action_link(self.db, ticket))
+        with patch("mud.lanternkeeper_http.create_checkout", return_value="https://checkout.stripe.com/c/pay/staging") as create:
+            status, location = self.post(
+                "/lanternkeeper/redeem", "ticket=" + ticket, return_location=True
+            )
+            self.assertEqual(status, 303)
+            self.assertEqual(location, "https://checkout.stripe.com/c/pay/staging")
+            self.assertEqual(create.call_args.args[1], 1)
+            self.assertEqual(
+                self.post("/lanternkeeper/redeem", "ticket=" + ticket), 410
+            )
+            create.assert_called_once()
+
+    def test_browser_handoff_rejects_cross_origin_without_consuming_token(self):
+        url = self.create_ticket()
+        ticket = parse_qs(urlsplit(url).query)["ticket"][0]
+        self.assertEqual(self.post(
+            "/lanternkeeper/redeem", "ticket=" + ticket,
+            origin="https://attacker.example"
+        ), 403)
+        self.assertIsNotNone(lookup_action_link(self.db, ticket))
+
+    def test_expired_handoff_link_get_and_post_are_rejected(self):
+        url = self.create_ticket()
+        ticket = parse_qs(urlsplit(url).query)["ticket"][0]
+        with self.db.connect() as db:
+            db.execute("UPDATE lanternkeeper_action_links SET expires_at=0")
+        self.assertEqual(self.get(urlsplit(url).path + "?" + urlsplit(url).query)[0], 410)
+        self.assertEqual(self.post("/lanternkeeper/redeem", "ticket=" + ticket), 410)
+
+    def test_ingame_manage_link_opens_stripe_portal_for_own_account(self):
+        ensure_schema(self.db)
+        with self.db.connect() as db:
+            db.execute(
+                "INSERT INTO lanternkeeper_memberships "
+                "(account_id,stripe_customer_id,stripe_subscription_id,stripe_status) "
+                "VALUES (1,'cus_example','sub_example','active')"
+            )
+        url = self.create_ticket("manage")
+        ticket = parse_qs(urlsplit(url).query)["ticket"][0]
+        with patch("mud.lanternkeeper_http.create_billing_portal", return_value="https://billing.stripe.com/p/session") as portal:
+            status, location = self.post(
+                "/lanternkeeper/redeem", "ticket=" + ticket, return_location=True
+            )
+            self.assertEqual(status, 303)
+            self.assertEqual(location, "https://billing.stripe.com/p/session")
+            self.assertEqual(portal.call_args.args[1], 1)
 
     def test_cross_origin_credentials_rejected(self):
         self.assertEqual(
