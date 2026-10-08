@@ -461,11 +461,11 @@ install_circle_community_runtime(PlayerSession)
 # confirmations always reach it before any inner replay wrapper can consume them.
 # Notepad records only its safe top-level invocation; its editor body remains
 # outside command telemetry as well.
-install_notepad_runtime(PlayerSession)
-install_player_mail_runtime(PlayerSession)
-# Keep cosmetic Wisp command interception outside existing modal wrappers.
+# Install Wisp inside modal mail/notepad wrappers so editor input is preserved.
 from mud.lanternkeeper_runtime import install_lanternkeeper_runtime
 install_lanternkeeper_runtime(PlayerSession)
+install_notepad_runtime(PlayerSession)
+install_player_mail_runtime(PlayerSession)
 
 HOST = "0.0.0.0"
 PORT = 4000
