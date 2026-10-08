@@ -1,5 +1,5 @@
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.11
+-- Version 2.2.12
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -7,7 +7,7 @@
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.11"
+H.version = "2.2.12"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -28,7 +28,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.11"
+local MODERN_UI_VERSION = "2.2.12"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -477,14 +477,14 @@ function H.buildModern()
   H.build()
 
   setBorderTop(math.max(getBorderTop(), 142))
-  setBorderRight(math.max(getBorderRight(), 430))
+  setBorderRight(math.max(getBorderRight(), 330))
   setBorderBottom(math.max(getBorderBottom(), 154))
 
   -- The old target panel remains useful and visually distinctive. The modern
   -- dock lives below it and uses tabs instead of trying to show every list at
   -- once on smaller laptop/projector displays.
   H.sideFrame = Geyser.Label:new({
-    name = "DreamsHUD.SideFrame", x = -420, y = 254, width = 406, height = -164,
+    name = "DreamsHUD.SideFrame", x = -322, y = 150, width = 308, height = -164,
   })
   H.sideFrame:setStyleSheet(PANEL_STYLE)
 
@@ -595,7 +595,7 @@ function H.buildModern()
   -- Bottom command deck: one short onboarding line, then the eight active
   -- ability hotkeys and a matching row of per-slot assignment controls.
   H.bottomFrame = Geyser.Label:new({
-    name = "DreamsHUD.BottomFrame", x = 8, y = -146, width = -438, height = 136,
+    name = "DreamsHUD.BottomFrame", x = 8, y = -146, width = -338, height = 136,
   })
   H.bottomFrame:setStyleSheet(PANEL_STYLE)
 
