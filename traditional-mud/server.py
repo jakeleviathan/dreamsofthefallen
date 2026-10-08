@@ -463,6 +463,9 @@ install_circle_community_runtime(PlayerSession)
 # outside command telemetry as well.
 install_notepad_runtime(PlayerSession)
 install_player_mail_runtime(PlayerSession)
+# Keep cosmetic Wisp command interception outside existing modal wrappers.
+from mud.lanternkeeper_runtime import install_lanternkeeper_runtime
+install_lanternkeeper_runtime(PlayerSession)
 
 HOST = "0.0.0.0"
 PORT = 4000
