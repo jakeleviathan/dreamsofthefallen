@@ -502,7 +502,7 @@ def render_room_lines(
             "tags": list(view.tags),
             "notable": notable_entries,
             "on_ground": [{"text": detail} for detail in scene_contents],
-            "people": people_entries,
+            "people": people_entries + [dict(player, kind="player") for player in players if not player["is_self"]],
             "local_reception": local_reaction if people else "",
             "players": players,
             "shared_table": shared_table_entries,

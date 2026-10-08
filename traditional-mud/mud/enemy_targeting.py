@@ -5,6 +5,7 @@ import asyncio
 from mud.mechanics import class_abilities_for_level
 from mud.partial_target_matching import resolve_target_command
 from mud.social_experience import _ACTIVE_SESSIONS
+from mud.room_player_presence import live_room_sessions
 
 
 _ENEMY_TARGET_CATEGORY_MARKERS = (
@@ -103,7 +104,7 @@ def _selected_player(session):
     if int(target_id) == int(character.id):
         return session
 
-    for other in tuple(_ACTIVE_SESSIONS):
+    for other in live_room_sessions(session):
         other_character = getattr(other, "character", None)
         if other_character is None:
             continue
@@ -142,7 +143,7 @@ def _player_candidates_here(session, target_text: str):
             candidates.append(other)
 
     consider(session)
-    for other in tuple(_ACTIVE_SESSIONS):
+    for other in live_room_sessions(session):
         consider(other)
 
     exact = [
