@@ -58,7 +58,7 @@ def visible_wisp(database, character, now=None):
     wisp = load_wisp(database, character.id)
     return wisp if wisp.visible(membership(database, character.account_id), True, now) else None
 
-def room_wisp_lines(database, room_key):
+def room_wisp_lines(database, room_key, online_character_ids=None):
     """Query authoritative character positions; do not create combat targets."""
     ensure_schema(database)
     with database.connect() as db:
@@ -67,6 +67,8 @@ def room_wisp_lines(database, room_key):
           WHERE c.current_room=? AND w.summoned=1""", (room_key,)).fetchall()
     lines=[]
     for row in rows:
+        if online_character_ids is not None and row["id"] not in online_character_ids:
+            continue
         wisp=visible_wisp(database, type("Character", (), dict(row))())
         if wisp:
             lines.append(f"{row['name']}'s wisp drifts nearby, glowing {wisp.color}.")
