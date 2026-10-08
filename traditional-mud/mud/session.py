@@ -706,10 +706,11 @@ class PlayerSession:
         characters = self.database.list_characters(self.account.id)
 
         used_slots = len(characters)
-        remaining_slots = max(0, MAX_CHARACTERS_PER_ACCOUNT - used_slots)
+        slot_limit = self.database.character_slot_limit(self.account.id)
+        remaining_slots = max(0, slot_limit - used_slots)
 
         await self.send(
-            f"\r\n--- Characters ({used_slots}/{MAX_CHARACTERS_PER_ACCOUNT} slots used) ---\r\n"
+            f"\r\n--- Characters ({used_slots}/{slot_limit} slots used) ---\r\n"
         )
         if characters:
             for index, character in enumerate(characters, start=1):
@@ -733,7 +734,7 @@ class PlayerSession:
                 f"({remaining_slots} slot{'s' if remaining_slots != 1 else ''} remaining)\r\n"
             )
         else:
-            await self.send("Character slots full. Maximum: 8.\r\n")
+            await self.send("Character slots full. Type BUY SLOT to purchase an additional slot.\r\n")
 
         delete_number: int | None = None
         if characters:
@@ -753,9 +754,9 @@ class PlayerSession:
             # Re-check the database at selection time so simultaneous sessions on the
             # same account cannot bypass the eight-character account limit.
             current_count = len(self.database.list_characters(self.account.id))
-            if current_count >= MAX_CHARACTERS_PER_ACCOUNT:
+            if current_count >= self.database.character_slot_limit(self.account.id):
                 await self.send(
-                    f"\r\nAll {MAX_CHARACTERS_PER_ACCOUNT} character slots are already in use.\r\n"
+                    f"\r\nAll {self.database.character_slot_limit(self.account.id)} character slots are already in use.\r\n"
                 )
                 return
 
