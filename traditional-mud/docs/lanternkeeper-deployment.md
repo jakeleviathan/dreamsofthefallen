@@ -54,6 +54,36 @@ The billing worker must run with the stripe-enabled venv; the existing MUD
 service does not require `DOTF_BILLING_ENABLED=1` when a separate worker runs.
 **Do not add live credentials or activate the worker yet.**
 
+## Standalone billing worker
+
+The feature branch includes `mud.lanternkeeper_service` and a sample
+`deploy/lanternkeeper.service.example` unit. Unlike the existing game server,
+this worker uses the Stripe-enabled venv, listens ONLY on
+`127.0.0.1:8766`, and reads the live MUD SQLite database.
+
+**Staging sequence (do not execute live until acceptance checks are complete):**
+
+1. Back up the production SQLite database and verify there are no unresolved
+   Git conflicts or local changes that a deployment would overwrite.
+2. Merge/review the feature into the production source without resetting the
+   production worktree.
+3. Install the protected `/etc/dotf/lanternkeeper.env` file and limit access
+   to root; confirm the billing worker's OS user can write the intended SQLite
+   database and its journal/WAL files.
+4. Copy the systemd sample to `/etc/systemd/system/dotf-lanternkeeper.service`
+   and validate the working directory, interpreter, and database path.
+5. Run `sudo systemctl daemon-reload`, then start the standalone service
+   only after the above review. This **does not** require changing `dotf`
+   or setting `DOTF_BILLING_ENABLED=1`.
+6. Validate loopback-only listening, the public Caddy routes (including no
+   trailing slash), the browser form's trusted IP header, and Stripe's
+   webhook verification. Finally verify billing through sandbox/test-mode,
+   then an explicitly approved controlled live transaction.
+
+Use `sudo systemctl status dotf-lanternkeeper --no-pager` for state;
+do NOT paste environment files or credentials. Keep the billing service
+**stopped and disabled** until the security and end-to-end checks pass.
+
 ## Stripe webhook
 
 Create a **snapshot event** destination once the billing worker is ready,
