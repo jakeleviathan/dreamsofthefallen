@@ -24,6 +24,11 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
                              "customer.subscription.deleted"):
         return False
     sub = event["data"]["object"]
+    # Signature-verified Stripe events contain StripeObject values, which do
+    # not support dict.get(). Convert the nested subscription and items into
+    # ordinary dictionaries before applying entitlement checks.
+    if hasattr(sub, "to_dict_recursive"):
+        sub = sub.to_dict_recursive()
     expected_price = configured_price_id()
     items = ((sub.get("items") or {}).get("data") or [])
     if not any((item.get("price") or {}).get("id") == expected_price for item in items):
