@@ -15,6 +15,11 @@ RESERVATION_SECONDS = 1800
 BLOCKING_STATUSES = ("active", "trialing", "past_due", "unpaid", "incomplete", "paused")
 
 
+def configured_price_id():
+    """Override only in isolated Stripe sandbox deployments."""
+    return os.environ.get("DOTF_LANTERNKEEPER_PRICE_ID") or PRICE_ID
+
+
 def _ensure_checkout_schema(database):
     with database.connect() as db:
         db.execute("""CREATE TABLE IF NOT EXISTS lanternkeeper_checkout_reservations (
@@ -186,7 +191,7 @@ def create_checkout(database, account_id: int, success_url: str, cancel_url: str
     request_id, customer_id = _reserve_checkout(database, account_id)
     args = dict(
         mode="subscription",
-        line_items=[{"price": PRICE_ID, "quantity": 1}],
+        line_items=[{"price": configured_price_id(), "quantity": 1}],
         success_url=success_url,
         cancel_url=cancel_url,
         client_reference_id=str(account_id),
