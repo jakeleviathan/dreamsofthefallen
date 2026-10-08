@@ -293,9 +293,16 @@ def install_login_experience(player_session_class) -> None:
                     "Additional Character Slot — $1.00 USD\r\n\r\n"
                     "Every legend deserves room to grow. Make space for another story in Astralis.\r\n\r\n"
                     "A permanent addition to your account, yours to keep for a one-time purchase.\r\n\r\n"
-                    f"Complete your secure purchase:\r\n{url}\r\n\r\n"
-                    "Once your payment is confirmed, your new slot will appear on your character roster.\r\n"
-                    "One purchase. One more character. A whole new adventure.\r\n"
+                    "Complete your secure purchase:\r\n"
+
+                )
+                if not await self.telnet.send_mxp_link(
+                    "Click here to purchase your character slot - $1.00", url
+                ):
+                    await self.send(f"{url}\\r\\n")
+                await self.send(
+                    "\\r\\nOnce your payment is confirmed, your new slot will appear on your character roster.\\r\\n"
+                    "One purchase. One more character. A whole new adventure.\\r\\n"
                 )
             return
         if lowered in {"create", "new", "new character", "c"}:
