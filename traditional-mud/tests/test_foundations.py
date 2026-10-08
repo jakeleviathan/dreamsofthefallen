@@ -1221,6 +1221,22 @@ class MudletProtocolTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn(b'Char.Status', raw)
             self.assertIn(b'"opponent_name":"Sewer Rat"', raw)
             self.assertIn(b'Dreams.Target', raw)
+            self.assertIn(b'Dreams.Vitals', raw)
+            self.assertIn(b'"xp_into_level":0', raw)
+            self.assertIn(b'"xp_to_next_level":100', raw)
+
+            # XP is cumulative in the database but the gauge must reset its
+            # numerator on level-up rather than showing lifetime experience.
+            self.assertEqual(db.add_experience(character.id, 150), 2)
+            session.character = db.get_character_by_name('Gauge')
+            writer.buffer.clear()
+            await session.send_client_state()
+            leveled = bytes(writer.buffer)
+            self.assertIn(b'"level":2', leveled)
+            self.assertIn(b'"xp":150', leveled)
+            self.assertIn(b'"xp_into_level":50', leveled)
+            self.assertIn(b'"xp_to_next_level":150', leveled)
+            self.assertIn(b'"xp_remaining":100', leveled)
 
 
 class OfficialMudletHudPackageTests(unittest.TestCase):
@@ -1240,6 +1256,7 @@ class OfficialMudletHudPackageTests(unittest.TestCase):
         scripts = tree.findall(".//Script/script")
         combined = "\n".join(node.text or "" for node in scripts)
         self.assertIn("gmcp.Dreams.Vitals", combined)
+        self.assertIn("DreamsHUD.Experience", combined)
         self.assertIn("gmcp.Dreams.Target", combined)
         self.assertIn("Geyser.Gauge", combined)
         self.assertIn("setBorderTop", combined)
