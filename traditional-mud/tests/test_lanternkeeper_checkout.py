@@ -55,6 +55,21 @@ class LanternkeeperCheckoutTests(unittest.TestCase):
             ).fetchone()[0]
         self.assertEqual(saved, "cs_test_first")
 
+    def test_active_membership_blocks_resuming_old_checkout(self):
+        original = SimpleNamespace(id="cs_test_first", url="https://checkout.stripe.com/first")
+        with patch.dict(os.environ, {"STRIPE_SECRET_KEY": "sk_test_offline"}):
+            with patch("stripe.checkout.Session.create", return_value=original):
+                create_checkout(self.db, self.account_id, "https://example.test/success", "https://example.test/cancel")
+            with self.db.connect() as conn:
+                conn.execute(
+                    "INSERT INTO lanternkeeper_memberships(account_id,stripe_subscription_id,stripe_status) VALUES(?,?,?)",
+                    (self.account_id, "sub_existing", "active"),
+                )
+            with patch("stripe.checkout.Session.retrieve") as retrieve:
+                with self.assertRaisesRegex(ValueError, "Existing Lanternkeeper"):
+                    create_checkout(self.db, self.account_id, "https://example.test/success", "https://example.test/cancel")
+                retrieve.assert_not_called()
+
     def test_completed_checkout_blocks_duplicate(self):
         original = SimpleNamespace(id="cs_test_first", url="https://checkout.stripe.com/first")
         with patch.dict(os.environ, {"STRIPE_SECRET_KEY": "sk_test_offline"}):
