@@ -39,6 +39,29 @@ class RoomPlayerPresenceTests(unittest.TestCase):
         with patch("mud.room_player_presence._ACTIVE_SESSIONS", [self.neighbor]):
             return room_player_entries(self.viewer)
 
+    def test_server_session_callback_finds_arlathil_without_social_registration(self):
+        from mud.room_player_presence import room_player_data
+        from mud.class_progression import _ally_here
+        from mud.enemy_targeting import _player_candidates_here
+        self.neighbor.character.name = "Arlathil"
+        self.neighbor.combatant = SimpleNamespace(current_hp=20)
+        self.viewer.room_sessions_callback = lambda room: (self.viewer, self.neighbor)
+        self.viewer.room_players_callback = lambda *_: ()
+        with patch("mud.room_player_presence._ACTIVE_SESSIONS", []):
+            players = room_player_data(self.viewer)
+            self.assertEqual([p["name"] for p in players], ["Prime", "Arlathil"])
+            self.assertIs(_ally_here(self.viewer, "arlathil"), self.neighbor)
+            self.assertEqual(_player_candidates_here(self.viewer, "arlathil"), [self.neighbor])
+
+    def test_live_room_sessions_excludes_departed_and_disconnected_players(self):
+        from mud.room_player_presence import room_player_data
+        self.viewer.room_sessions_callback = lambda room: (self.viewer, self.neighbor)
+        self.neighbor.state.name = "DISCONNECTED"
+        self.assertEqual(len(room_player_data(self.viewer)), 1)
+        self.neighbor.state.name = "PLAYING"
+        self.neighbor.character.current_room = "elsewhere"
+        self.assertEqual(len(room_player_data(self.viewer)), 1)
+
     def test_shows_self_and_other_online_player(self):
         self.assertEqual(
             self.entries(),

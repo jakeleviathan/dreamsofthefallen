@@ -727,7 +727,9 @@ def _ally_here(session, target_text: str):
     wanted = target_text.strip()
     if not wanted or wanted.lower() in {"self", "me", "myself"}:
         return session
-    target = party_system._session_for_name(wanted)
+    from mud.room_player_presence import live_room_sessions
+    target = next((other for other in live_room_sessions(session)
+                   if str(other.character.name).casefold() == wanted.casefold()), None)
     if target is None or getattr(target, "character", None) is None:
         return None
     if target.character.current_room != session.character.current_room:

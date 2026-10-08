@@ -7,6 +7,19 @@ from mud.social_experience import _ACTIVE_SESSIONS
 from mud.waymeet_frontier import WAYMEET_TAVERN_KEY, WAYMEET_TAVERN_LOFT_KEY
 
 
+def live_room_sessions(session):
+    """Use connected server sessions for presence and support targeting."""
+    viewer = getattr(session, "character", None)
+    if viewer is None:
+        return []
+    callback = getattr(session, "room_sessions_callback", None)
+    source = callback(viewer.current_room) if callable(callback) else tuple(_ACTIVE_SESSIONS)
+    return [other for other in source
+            if getattr(other, "character", None) is not None
+            and other.character.current_room == viewer.current_room
+            and getattr(getattr(other, "state", None), "name", "PLAYING") == "PLAYING"]
+
+
 def _role_description(character) -> str:
     race_key = str(getattr(character, "race", "") or "")
     class_key = str(getattr(character, "character_class", "") or "")
@@ -29,7 +42,7 @@ def _live_session(character, viewer):
     """
     if int(character.id) == int(viewer.character.id):
         return viewer
-    for other in tuple(_ACTIVE_SESSIONS):
+    for other in live_room_sessions(viewer):
         active = getattr(other, "character", None)
         state = getattr(other, "state", None)
         if (
@@ -83,6 +96,9 @@ def room_player_data(session) -> list[dict]:
             others = list(callback(viewer.current_room, viewer.id) or ())
         except Exception:
             others = []
+
+    if callable(getattr(session, "room_sessions_callback", None)):
+        others = [other.character for other in live_room_sessions(session)]
 
     entries: list[dict] = []
     seen: set[int] = set()
