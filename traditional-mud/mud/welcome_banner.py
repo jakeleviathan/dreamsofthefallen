@@ -177,16 +177,31 @@ def _symbol_style(char: str, base: str) -> str:
     return base
 
 def _mosaic(text: str, base: str = DREAMLIGHT) -> str:
-    """Group adjacent pixels of the same shade, avoiding per-character resets."""
-    result = []
-    last = None
-    for char in text:
-        style = _symbol_style(char, base) if char != " " else last
-        if style != last and style is not None:
-            result.append(style)
-            last = style
-        result.append(char)
-    return "".join(result) + RESET
+    """ANSI-color complete scenic regions while retaining legible prose."""
+    output = []
+    active = None
+    scenic = any(token in text for token in ("[]", "||", "~~~~", "----", ".--", "/\\\\", "|#|"))
+    for index, char in enumerate(text):
+        if scenic:
+            if "~" in text or "=" in text and text.count("=") > 7:
+                shade = WATER if char != " " else BLUE
+            elif 14 <= index <= 38 and ("'." in text or ".--" in text or "--'" in text):
+                shade = GOLD if char != " " else TWILIGHT
+            elif char in "[]#":
+                shade = GOLD
+            elif char in "/\\\\|_":
+                shade = DREAMLIGHT if index > 39 else TWILIGHT
+            elif char in "*+":
+                shade = GOLD
+            else:
+                shade = base
+        else:
+            shade = base
+        if shade != active:
+            output.append(shade)
+            active = shade
+        output.append(char)
+    return "".join(output) + RESET
 
 def _framed(text: str = "", base: str = DREAMLIGHT) -> str:
     if len(text) > BANNER_WIDTH - 4:
