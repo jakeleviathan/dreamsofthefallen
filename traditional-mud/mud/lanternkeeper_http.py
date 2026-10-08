@@ -17,6 +17,7 @@ from mud.database import Database
 from mud.security import verify_password
 from mud.lanternkeeper_checkout import create_checkout, create_billing_portal
 from mud.lanternkeeper_stripe import process_stripe_webhook
+from mud.lanternkeeper_links import lookup_action_link, consume_action_link
 
 def start_lanternkeeper_http(host="127.0.0.1", port=8766):
     public_origin = os.environ.get("DOTF_BILLING_ORIGIN", "").rstrip("/")
@@ -59,6 +60,13 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
 
 
     class Handler(BaseHTTPRequestHandler):
+        def log_message(self, format, *args):
+            # Confirmation URLs contain short-lived bearer tokens. Never log
+            # the request line, path query, or token in the billing process.
+            if urlsplit(self.path).path == "/lanternkeeper/confirm":
+                return
+            return super().log_message(format, *args)
+
         def trusted_client_ip(self):
             # The listener is loopback-only; the header must be overwritten by Caddy.
             if self.client_address[0] not in ("127.0.0.1", "::1"):
@@ -80,9 +88,38 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
 
         def do_GET(self):
             path = urlsplit(self.path).path
-            if path not in ("/lanternkeeper", "/lanternkeeper/", "/lanternkeeper/success", "/lanternkeeper/cancel"):
+            if path not in (
+                "/lanternkeeper", "/lanternkeeper/",
+                "/lanternkeeper/success", "/lanternkeeper/cancel",
+                "/lanternkeeper/confirm",
+            ):
                 return self.reply(404, "Not found")
-            if path == "/lanternkeeper/success":
+            ticket = None
+            confirmation = None
+            if path == "/lanternkeeper/confirm":
+                params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                if set(params) != {"ticket"} or len(params["ticket"]) != 1:
+                    return self.reply(400, "Invalid billing link")
+                ticket = params["ticket"][0]
+                confirmation = lookup_action_link(database, ticket)
+                if confirmation is None:
+                    return self.reply(410, "This billing link expired or was already used. Request another in the game.")
+                heading = "Lanternkeeper: confirm your choice"
+                if confirmation["purpose"] == "subscribe":
+                    detail = (
+                        "You are about to open Stripe Checkout for a recurring "
+                        "$4.99 USD/month Lanternkeeper subscription. "
+                        "Cosmetic Lantern Wisp only, no gameplay advantages. "
+                        "Cancel anytime through the billing portal."
+                    )
+                    label = "Continue to secure Stripe Checkout"
+                else:
+                    detail = (
+                        "Open the secure Stripe billing portal to review your "
+                        "Lanternkeeper subscription, payment method, or cancellation."
+                    )
+                    label = "Continue to secure billing management"
+            elif path == "/lanternkeeper/success":
                 heading = "Thank you for supporting Dreams of the Fallen"
                 detail = "Stripe is processing your subscription. Your Lantern Wisp becomes available after payment confirmation. Reconnect to the MUD and use LANTERNKEEPER to check your status."
             elif path == "/lanternkeeper/cancel":
@@ -92,6 +129,14 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
                 heading = "Lanternkeeper"
                 detail = "Support Dreams of the Fallen for $4.99 per month and receive a cosmetic Lantern Wisp. Enter your existing MUD account credentials to continue securely to Stripe."
             forms = ""
+            if confirmation is not None:
+                forms = (
+                    '<p>Account: <strong>' + html.escape(confirmation["name"]) + '</strong></p>'
+                    '<form method="post" action="/lanternkeeper/redeem">'
+                    '<input type="hidden" name="ticket" value="' + html.escape(ticket, quote=True) + '">'
+                    '<button type="submit">' + html.escape(label) + '</button></form>'
+                    '<p>This link expires after 10 minutes and works only once.</p>'
+                )
             if path in ("/lanternkeeper", "/lanternkeeper/"):
                 forms = (
                     '<form method="post" action="/lanternkeeper/checkout">'
@@ -125,6 +170,7 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Content-Length", str(len(page)))
@@ -133,7 +179,10 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
 
         def do_POST(self):
             path = urlsplit(self.path).path
-            if path not in ("/lanternkeeper/webhook", "/lanternkeeper/checkout", "/lanternkeeper/portal"):
+            if path not in (
+                "/lanternkeeper/webhook", "/lanternkeeper/checkout",
+                "/lanternkeeper/portal", "/lanternkeeper/redeem",
+            ):
                 return self.reply(404, "Not found")
             length = self.headers.get("Content-Length", "")
             if not length.isdigit() or int(length) > 65536:
@@ -150,6 +199,40 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
             # Require a same-origin browser POST. No account identity from cookies or query params.
             if self.headers.get("Origin") != public_origin:
                 return self.reply(403, "Invalid origin")
+            if path == "/lanternkeeper/redeem":
+                # The one-time bearer ticket came from an authenticated game
+                # session; payment/password fields never cross the telnet link.
+                if self.trusted_client_ip() is None:
+                    return self.reply(503, "Billing proxy configuration unavailable")
+                try:
+                    params = parse_qs(raw.decode("utf-8"), strict_parsing=True)
+                    if set(params) != {"ticket"} or len(params["ticket"]) != 1:
+                        return self.reply(400, "Invalid billing form")
+                    ticket = consume_action_link(database, params["ticket"][0])
+                    if ticket is None:
+                        return self.reply(410, "Billing link expired or already used")
+                    if ticket["purpose"] == "subscribe":
+                        url = create_checkout(
+                            database, ticket["account_id"],
+                            public_origin + "/lanternkeeper/success",
+                            public_origin + "/lanternkeeper/cancel",
+                        )
+                    else:
+                        url = create_billing_portal(
+                            database, ticket["account_id"],
+                            public_origin + "/lanternkeeper",
+                        )
+                    self.send_response(303)
+                    self.send_header("Location", url)
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Referrer-Policy", "no-referrer")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                except (KeyError, IndexError, ValueError, UnicodeError):
+                    return self.reply(400, "Unable to complete billing action")
+                except Exception:
+                    return self.reply(503, "Billing service unavailable")
             try:
                 params = parse_qs(raw.decode("utf-8"), strict_parsing=True)
                 name, password = params["account"][0], params["password"][0]
