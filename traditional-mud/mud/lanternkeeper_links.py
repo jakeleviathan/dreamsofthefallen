@@ -59,6 +59,9 @@ def issue_action_link(database, account_id, purpose, now=None):
     origin = billing_origin()
     now = int(time.time() if now is None else now)
     ensure_link_schema(database)
+    if purpose == "manage":
+        from mud.lanternkeeper_runtime import ensure_schema
+        ensure_schema(database)
     token = secrets.token_urlsafe(32)
     digest = _hash(token)
     with database.connect() as db:
@@ -66,9 +69,8 @@ def issue_action_link(database, account_id, purpose, now=None):
         if not db.execute("SELECT id FROM accounts WHERE id=?", (account_id,)).fetchone():
             raise ValueError("Unknown game account")
         if purpose == "manage":
-            from mud.lanternkeeper_runtime import ensure_schema
-            # The schema is installed when the MUD starts; don't run executescript
-            # inside this transaction since executescript commits implicitly.
+            # Schema is initialized before the transaction so this check
+            # cannot implicitly commit the token-issuance transaction.
             row = db.execute(
                 "SELECT stripe_customer_id FROM lanternkeeper_memberships WHERE account_id=?",
                 (account_id,),
