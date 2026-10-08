@@ -98,6 +98,12 @@ class LanternkeeperStripeTests(unittest.TestCase):
         self.assertFalse(self.deliver(self.event(status="active", created=199)))
         self.assertFalse(membership(self.db, self.account_id).active())
 
+    def test_sandbox_price_override_controls_entitlement(self):
+        with patch.dict(os.environ, {"DOTF_LANTERNKEEPER_PRICE_ID": "price_sandbox_test"}):
+            self.assertFalse(self.deliver(self.event(price=PRICE)))
+            self.assertTrue(self.deliver(self.event(price="price_sandbox_test")))
+            self.assertTrue(membership(self.db, self.account_id).active())
+
     def test_other_price_is_ignored(self):
         self.assertFalse(self.deliver(self.event(price="price_unrelated")))
         self.assertFalse(membership(self.db, self.account_id).active())
