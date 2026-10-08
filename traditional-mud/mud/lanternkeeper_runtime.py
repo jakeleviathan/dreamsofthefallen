@@ -87,7 +87,7 @@ def lanternkeeper_information(member, ready=False):
         "Your Wisp can be named and customized with colors and appearances.\r\n"
         "Your support helps Dreams of the Fallen grow.\r\n"
         f"Account status: {status}.\r\n"
-        "Commands: LANTERNKEEPER STATUS | SUBSCRIBE | MANAGE | HELP\r\n"
+        "Commands: LANTERNKEEPER STATUS | LANTERNKEEPER SUBSCRIBE | LANTERNKEEPER MANAGE\r\n"
         "Wisp commands: WISP STATUS | SUMMON | DISMISS | COLOR | NAME | APPEARANCE\r\n"
         + ("The subscription service is not open yet.\r\n" if not ready else "")
         + "Payment and cancellation are completed securely in your browser, never in telnet.\r\n"
