@@ -301,6 +301,15 @@ class Database:
             password_hash=row["password_hash"],
         )
 
+    def get_account_by_id(self, account_id: int) -> AccountRecord | None:
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT id, name, password_hash FROM accounts WHERE id = ?", (account_id,)
+            ).fetchone()
+        if row is None:
+            return None
+        return AccountRecord(id=row["id"], name=row["name"], password_hash=row["password_hash"])
+
     def create_account(self, name: str, password_hash: str) -> AccountRecord:
         with self.connect() as db:
             cursor = db.execute(
