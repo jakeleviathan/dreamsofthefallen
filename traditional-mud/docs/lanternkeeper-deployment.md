@@ -30,7 +30,10 @@ patches endpoint and other handlers:
 ```caddyfile
 @lanternkeeper path /lanternkeeper /lanternkeeper/*
 handle @lanternkeeper {
-    reverse_proxy 127.0.0.1:8766 {\n        # Replace any incoming value; the backend trusts only this Caddy-set header.\n        header_up X-Lanternkeeper-Client-IP {client_ip}\n    }
+    reverse_proxy 127.0.0.1:8766 {
+        # Replace any incoming value; the backend trusts only this Caddy-set header.
+        header_up X-Lanternkeeper-Client-IP {client_ip}
+    }
 }
 ```
 
@@ -101,11 +104,18 @@ including out-of-order events, before enabling checkout for the public.
 
 - Browser `Origin` validation, no-store responses, request-size limits, and
   account-based authentication throttling currently exist.
-- Validate proxy-injected client-IP parsing and per-IP login throttling in staging;\n  edge-level/CDN WAF controls are still recommended for brute-force and volumetric attacks.
+- Validate proxy-injected client-IP parsing and per-IP login throttling in staging;
+  edge-level/CDN WAF controls are still recommended for brute-force and volumetric attacks.
 - Confirm TLS, proxy forwarding, body logging exclusions, and secrets file permissions.
 - Reconcile pending sessions and test repeated checkout, cancel/rejoin, and Stripe
   Billing Portal end to end.
-- Test with a separate Stripe **sandbox/test-mode price**; the live Price ID\n  cannot be used with test API keys. Set\n  `DOTF_LANTERNKEEPER_PRICE_ID=price_<SANDBOX_PRICE_ID>` **only** in the\n  isolated sandbox worker, along with a test-mode Stripe API key and\n  matching test-mode webhook signing secret. Checkout creation and webhook\n  entitlement verification both use this configured price. Omit the override\n  for the production live price.
+- Test with a separate Stripe **sandbox/test-mode price**; the live Price ID
+  cannot be used with test API keys. Set
+  `DOTF_LANTERNKEEPER_PRICE_ID=price_<SANDBOX_PRICE_ID>` **only** in the
+  isolated sandbox worker, along with a test-mode Stripe API key and
+  matching test-mode webhook signing secret. Checkout creation and webhook
+  entitlement verification both use this configured price. Omit the override
+  for the production live price.
 - Verify the real Wisp visibility and entitlement lifecycle across MUD logins.
 - Ensure a rejected webhook never silently activates or strands a customer:
   inspect delivery failures and support manual reconciliation.
