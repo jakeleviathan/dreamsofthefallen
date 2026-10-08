@@ -7,6 +7,7 @@ must include metadata.dotf_account_id on the Subscription itself.
 import os
 from datetime import datetime, timezone
 from mud.lanternkeeper_runtime import ensure_schema
+from mud.lanternkeeper_checkout import configured_price_id
 
 def process_stripe_webhook(database, raw_body: bytes, signature: str):
     import stripe
@@ -18,7 +19,7 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
                              "customer.subscription.deleted"):
         return False
     sub = event["data"]["object"]
-    expected_price = "price_1UOAp3LnIVgW4g5mj4rNdD7P"
+    expected_price = configured_price_id()
     items = ((sub.get("items") or {}).get("data") or [])
     if not any((item.get("price") or {}).get("id") == expected_price for item in items):
         # Other products in the same Stripe account are not Lanternkeeper events.
