@@ -57,6 +57,33 @@ The billing worker must run with the stripe-enabled venv; the existing MUD
 service does not require `DOTF_BILLING_ENABLED=1` when a separate worker runs.
 **Do not add live credentials or activate the worker yet.**
 
+## Sandbox account verification (first live Stripe API read)
+
+Sandbox Lanternkeeper Price ID:
+`price_1UOBtYLsIp78ZNViq1uuSgZf` (distinct from the live Price ID).
+It must represent an active USD $4.99 monthly recurring price.
+
+The feature branch includes a read-only preflight command:
+
+```bash
+cd ~/dotf-lanternkeeper-test/traditional-mud
+~/dotf-lanternkeeper-venv/bin/python -m mud.lanternkeeper_sandbox_check
+```
+
+In the **Dreams of the Fallen staging sandbox**, open Stripe Dashboard
+**Developers → API keys** and find its sandbox secret key (begins `sk_test_`).
+Enter it directly into the terminal's hidden prompt. Do **not** paste it
+into ChatGPT, Git, a command, or a shared log. The script neither saves the
+key nor creates customers, subscriptions, payments, or webhooks. It retrieves
+this Price ID to verify that the key belongs to the correct sandbox and the
+price is active, in USD, $4.99, and monthly.
+
+Once the preflight succeeds, keep the isolated staging billing worker
+configured with `DOTF_LANTERNKEEPER_PRICE_ID=price_1UOBtYLsIp78ZNViq1uuSgZf`
+alongside a **sandbox** `STRIPE_SECRET_KEY`. Never put this Price ID or test
+secret in the live service environment, and never use a live key in staging.
+Later, set up sandbox webhooks separately with their own signing secret.
+
 ## Predeployment staging smoke test
 
 Run the standalone billing subprocess test using the isolated worktree and
