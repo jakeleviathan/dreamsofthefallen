@@ -70,15 +70,21 @@ class LanternkeeperCheckoutTests(unittest.TestCase):
             ))
         self.assertEqual(len(set(results)), 1)
 
-    def test_expired_reservation_is_replaced(self):
+    def test_expired_reservation_requires_reconciliation(self):
         first, _ = _reserve_checkout(self.db, self.account_id)
         with self.db.connect() as conn:
             conn.execute(
                 "UPDATE lanternkeeper_checkout_reservations SET expires_at=0 WHERE account_id=?",
                 (self.account_id,),
             )
-        second, _ = _reserve_checkout(self.db, self.account_id)
-        self.assertNotEqual(first, second)
+        with self.assertRaisesRegex(ValueError, "requires reconciliation"):
+            _reserve_checkout(self.db, self.account_id)
+        with self.db.connect() as conn:
+            still_reserved = conn.execute(
+                "SELECT request_id FROM lanternkeeper_checkout_reservations WHERE account_id=?",
+                (self.account_id,),
+            ).fetchone()[0]
+        self.assertEqual(first, still_reserved)
 
     def test_existing_active_subscription_blocks_checkout(self):
         with self.db.connect() as conn:
