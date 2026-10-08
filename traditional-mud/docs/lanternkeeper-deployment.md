@@ -5,6 +5,66 @@ The live Stripe account contains product `prod_VOympoGet3eLK1`, price
 `price_1UOAp3LnIVgW4g5mj4rNdD7P`, and portal configuration
 `bpc_1UOAs3LnIVgW4g5mND3kqWi3`.
 
+## In-game member journey (feature-branch implementation)
+
+Players can now discover and use Lanternkeeper from the MUD without sending
+payment information through telnet:
+
+| MUD command | Behavior |
+| --- | --- |
+| `LANTERNKEEPER` or `LANTERNKEEPER INFO` | Explains $4.99/month, cosmetic-only rewards, and available commands |
+| `LANTERNKEEPER STATUS` | Reads the linked Stripe-backed membership and paid-period end (if active) |
+| `LANTERNKEEPER SUBSCRIBE` or `JOIN` | Creates an account-specific, 10-minute HTTPS subscription handoff |
+| `LANTERNKEEPER MANAGE` or `BILLING` | Creates an account-specific HTTPS Stripe Billing Portal handoff |
+| `LANTERNKEEPER HELP` | Lists commands |
+| `WISP STATUS / SUMMON / DISMISS / COLOR / NAME / APPEARANCE` | Existing cosmetic gameplay and persistence |
+
+`HELP LANTERNKEEPER` and `COMMAND SEARCH LANTERNKEEPER` describe the
+commands. When in-game links are enabled, a brief login message also mentions
+Lanternkeeper.
+
+**Protecting accounts:** Standard telnet connections may not be encrypted.
+Each generated browser link is a random, one-use token stored only as a hash
+in the shared SQLite database; it expires in 10 minutes and is revoked if
+the player generates another link for the same action. **The HTTPS confirmation
+page requires the player's MUD account password again**, with login throttling.
+Therefore the link alone does not grant billing portal access. The user must
+explicitly submit the form before Stripe opens. There is never any payment
+card entry within telnet. Treat the link as confidential despite these controls.
+
+**Two independent activation gates:**
+
+- `DOTF_LANTERNKEEPER_LINKS_ENABLED=1` in the **MUD server's** environment
+  allows authenticated characters to generate private handoffs. By default,
+  `SUBSCRIBE` and `MANAGE` say billing is unavailable; `INFO` and `STATUS`
+  remain usable.
+- The separately deployed Lanternkeeper billing worker must be running and
+  reachable via the verified HTTPS proxy route. The MUD itself must NOT enable
+  `DOTF_BILLING_ENABLED=1` when using this standalone worker, to avoid trying
+  to bind port 8766 twice.
+
+Only enable the MUD-side link flag after the complete signed-webhook,
+checkout, portal, Wisp, rollback and credential-protection acceptance tests
+pass. **The feature branch is not a deployed payment service.**
+
+To avoid leaking bearer tokens through reverse-proxy access logs, if Caddy
+HTTP request logging is enabled, use a matching access-log exclusion such
+as `log_skip /lanternkeeper/confirm` in the `mud.lvthn.io` site block
+(Caddy v2.8+). Confirm the installed version and validate the config before
+reloading. The billing app suppresses logging for the confirmation URL itself.
+Do not add link URLs to metrics, analytics, browser tracking, or bug reports.
+See Caddy's `log_skip` documentation for the installed version.
+
+Run the focused in-game tests from the isolated worktree:
+
+```bash
+cd ~/dotf-lanternkeeper-test/traditional-mud
+~/dotf-lanternkeeper-venv/bin/python -m unittest \
+  tests.test_lanternkeeper_links \
+  tests.test_lanternkeeper_commands \
+  tests.test_lanternkeeper_http -v
+```
+
 ## Current infrastructure
 
 - MUD: `mud.lvthn.io:4000`, running via the existing `dotf` systemd service.
