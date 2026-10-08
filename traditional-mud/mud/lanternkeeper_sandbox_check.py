@@ -16,6 +16,8 @@ def validate_sandbox_price(key, *, stripe_module):
     if not key.startswith("sk_test_"):
         raise ValueError("A Stripe sandbox secret key beginning with sk_test_ is required")
     price = stripe_module.Price.retrieve(SANDBOX_PRICE_ID, api_key=key)
+    if hasattr(price, "to_dict"):
+        price = price.to_dict()
     recurring = price.get("recurring")
     if hasattr(recurring, "to_dict"):
         recurring = recurring.to_dict()
