@@ -42,7 +42,7 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
     def record_failure(account):
         now = time.monotonic()
         with attempts_lock:
-            for key in (("ip", ip), ("account", account.casefold())):
+            for key in (("account", account.casefold()),):
                 recent = attempts[key]
                 while recent and recent[0] <= now - window_seconds:
                     recent.popleft()
