@@ -9,6 +9,23 @@ from datetime import datetime, timezone
 from mud.lanternkeeper_runtime import ensure_schema
 from mud.lanternkeeper_checkout import configured_price_id
 
+
+def _plain_stripe_data(value):
+    """Unwrap Stripe SDK 16 objects and nested lists into plain Python values.
+
+    StripeObject exposes to_dict(), not dict.get() or to_dict_recursive().
+    Nested StripeObject instances may remain inside dictionaries and lists,
+    so unwrap them explicitly before parsing the subscription payload.
+    """
+    if isinstance(value, dict):
+        return {key: _plain_stripe_data(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain_stripe_data(item) for item in value]
+    to_dict = getattr(value, "to_dict", None)
+    if callable(to_dict):
+        return _plain_stripe_data(to_dict())
+    return value
+
 def process_stripe_webhook(database, raw_body: bytes, signature: str):
     import stripe
     secret = os.environ.get("DOTF_STRIPE_WEBHOOK_SECRET")
@@ -24,11 +41,9 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
                              "customer.subscription.deleted"):
         return False
     sub = event["data"]["object"]
-    # Signature-verified Stripe events contain StripeObject values, which do
-    # not support dict.get(). Convert the nested subscription and items into
-    # ordinary dictionaries before applying entitlement checks.
-    if hasattr(sub, "to_dict_recursive"):
-        sub = sub.to_dict_recursive()
+    # Verified Stripe webhook events may contain nested StripeObject values.
+    # Normalize once so entitlement logic consistently handles plain dicts.
+    sub = _plain_stripe_data(sub)
     expected_price = configured_price_id()
     items = ((sub.get("items") or {}).get("data") or [])
     if not any((item.get("price") or {}).get("id") == expected_price for item in items):
