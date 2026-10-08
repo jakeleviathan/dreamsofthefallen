@@ -479,8 +479,12 @@ WIKI_ENABLED = os.environ.get("DOTF_WIKI_ENABLED", "1").strip().casefold() not i
 async def main() -> None:
     billing_http = None
     if os.environ.get('DOTF_BILLING_ENABLED') == '1':
-        from mud.lanternkeeper_http import start_lanternkeeper_http
-        billing_http = start_lanternkeeper_http()
+        try:
+            from mud.lanternkeeper_http import start_lanternkeeper_http
+            billing_http = start_lanternkeeper_http()
+        except Exception:
+            import logging
+            logging.exception('Lanternkeeper billing service failed to start; MUD remains available')
     who_display = None
     try:
         who_display = start_who_display_server(host="127.0.0.1", port=8765)
