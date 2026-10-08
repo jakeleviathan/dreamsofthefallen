@@ -134,8 +134,12 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
                     '<p>Account: <strong>' + html.escape(confirmation["name"]) + '</strong></p>'
                     '<form method="post" action="/lanternkeeper/redeem">'
                     '<input type="hidden" name="ticket" value="' + html.escape(ticket, quote=True) + '">'
+                    '<label>Confirm your game account password'
+                    '<input type="password" name="password" autocomplete="current-password"'
+                    ' required maxlength="256"></label>'
                     '<button type="submit">' + html.escape(label) + '</button></form>'
-                    '<p>This link expires after 10 minutes and works only once.</p>'
+                    '<p>This link expires after 10 minutes and works only once. '
+                    'Your password is sent only through this secure website, never to Stripe.</p>'
                 )
             if path in ("/lanternkeeper", "/lanternkeeper/"):
                 forms = (
@@ -206,8 +210,29 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
                     return self.reply(503, "Billing proxy configuration unavailable")
                 try:
                     params = parse_qs(raw.decode("utf-8"), strict_parsing=True)
-                    if set(params) != {"ticket"} or len(params["ticket"]) != 1:
+                    if (set(params) != {"ticket", "password"}
+                            or len(params["ticket"]) != 1
+                            or len(params["password"]) != 1):
                         return self.reply(400, "Invalid billing form")
+                    password = params["password"][0]
+                    if not password or len(password) > 256:
+                        return self.reply(400, "Invalid credentials")
+                    ticket = lookup_action_link(database, params["ticket"][0])
+                    if ticket is None:
+                        return self.reply(410, "Billing link expired or already used")
+                    client_ip = self.trusted_client_ip()
+                    if blocked(ticket["name"], client_ip):
+                        return self.reply(429, "Too many login attempts; try again later")
+                    with database.connect() as db:
+                        account = db.execute(
+                            "SELECT password_hash FROM accounts WHERE id=?",
+                            (ticket["account_id"],)
+                        ).fetchone()
+                    if account is None or not verify_password(
+                        password, account["password_hash"]
+                    ):
+                        record_failure(ticket["name"], client_ip)
+                        return self.reply(401, "Invalid account or password")
                     ticket = consume_action_link(database, params["ticket"][0])
                     if ticket is None:
                         return self.reply(410, "Billing link expired or already used")
