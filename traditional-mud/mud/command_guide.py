@@ -391,10 +391,10 @@ def install_command_guide_runtime(player_session_class, world_service) -> None:
     async def enter_character(self) -> None:
         await previous_enter(self)
         if self.character is not None:
-            await self.send("Command discovery: HELP HERE shows only what is useful in your current situation; COMMANDS searches the full catalog.\\r\\n")
+            await self.send("Command discovery: HELP HERE shows only what is useful in your current situation; COMMANDS searches the full catalog.\r\n")
             from mud.lanternkeeper_links import links_enabled
             if links_enabled():
-                await self.send("Keep a light burning in Astralis: type LANTERNKEEPER to learn about cosmetic Lantern Wisps.\\r\\n")
+                await self.send("Keep a light burning in Astralis: type LANTERNKEEPER to learn about cosmetic Lantern Wisps.\r\n")
 
     async def playing_prompt(self) -> None:
         if self.character is None:
