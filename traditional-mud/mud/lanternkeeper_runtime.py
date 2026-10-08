@@ -103,6 +103,12 @@ def lanternkeeper_status(member):
             f"Current paid period ends: {until} (UTC).\r\n"
             "Use WISP SUMMON and LANTERNKEEPER MANAGE for billing.\r\n"
         )
+    if member.stripe_status in ("active", "trialing"):
+        return (
+            "Lanternkeeper: billing is active, but the paid period is not yet confirmed.\r\n"
+            "Your Wisp is dormant until the billing period is verified.\r\n"
+            "Use LANTERNKEEPER MANAGE if this does not resolve.\r\n"
+        )
     if member.stripe_status not in ("", "inactive"):
         return (
             f"Lanternkeeper: {member.stripe_status.upper().replace('_', ' ')}.\r\n"
@@ -136,8 +142,8 @@ def _lanternkeeper_billing_action(database, member, account_id, action):
     return (
         f"Your private link to {purpose} (expires in 10 minutes):\r\n"
         f"{url}\r\n"
-        "Open it in a browser and confirm your choice. "
-        "Never enter payment details in the MUD.\r\n"
+        "Open it in a browser. The HTTPS page confirms your game password "
+        "before opening Stripe. Never enter payment details in the MUD.\r\n"
         "Treat this link like a password: do not share it.\r\n"
     )
 
