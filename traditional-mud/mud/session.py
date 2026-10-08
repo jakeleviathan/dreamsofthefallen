@@ -592,7 +592,9 @@ class PlayerSession:
         print(f"Connected: {self.peer}")
         try:
             await self.telnet.begin_negotiation()
-            await self.send(WELCOME_BANNER)
+            # The opening mural must display ANSI colors before GMCP negotiation finishes.
+            # Account-specific color/screen-reader preferences remain enforced after login.
+            await self.telnet.send_text(WELCOME_BANNER)
             while self.state is not SessionState.DISCONNECTED:
                 if self.state is SessionState.ACCOUNT_NAME:
                     await self.account_name_screen()
