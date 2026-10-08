@@ -4,7 +4,6 @@ Checkout attempts are reserved atomically in SQLite. The Stripe idempotency
 key is stable for the reservation lifetime, including across process restarts.
 """
 import os
-import sqlite3
 import time
 import uuid
 
@@ -46,6 +45,10 @@ def _reserve_checkout(database, account_id):
         ).fetchone()
         if existing and existing["expires_at"] > now:
             return existing["request_id"], membership["stripe_customer_id"] if membership else None
+        if existing:
+            # Never create a second session merely because a local timer elapsed.
+            # The original Stripe Checkout session might still be payable.
+            raise ValueError("Previous checkout requires reconciliation before retrying")
         request_id = uuid.uuid4().hex
         db.execute(
             """INSERT INTO lanternkeeper_checkout_reservations(account_id,request_id,expires_at)
