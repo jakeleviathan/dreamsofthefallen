@@ -1,0 +1,295 @@
+"""Lanternkeeper HTTPS-reverse-proxied billing routes.
+
+Bind to loopback only. Publish /lanternkeeper/* through a TLS reverse proxy.
+POST /lanternkeeper/checkout or /lanternkeeper/portal with form fields
+account and password; POST /lanternkeeper/webhook with Stripe's raw payload.
+"""
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlsplit
+import os
+import html
+import ipaddress
+import threading
+import time
+from collections import defaultdict, deque
+
+from mud.database import Database
+from mud.security import verify_password
+from mud.lanternkeeper_checkout import create_checkout, create_billing_portal
+from mud.lanternkeeper_stripe import process_stripe_webhook
+from mud.lanternkeeper_links import lookup_action_link, consume_action_link
+
+def start_lanternkeeper_http(host="127.0.0.1", port=8766):
+    public_origin = os.environ.get("DOTF_BILLING_ORIGIN", "").rstrip("/")
+    if not public_origin.startswith("https://") or urlsplit(public_origin).path not in ("", "/"):
+        raise RuntimeError("DOTF_BILLING_ORIGIN must be an HTTPS origin")
+    if host not in ("127.0.0.1", "::1", "localhost"):
+        raise ValueError("Billing service must bind to loopback")
+    database = Database()
+    # Caddy must overwrite X-Lanternkeeper-Client-IP with {client_ip}.
+    # No user-supplied X-Forwarded-For / CF-Connecting-IP headers are trusted.
+    # Per-account and per-visitor throttling complement edge WAF limits.
+    attempts = defaultdict(deque)
+    attempts_lock = threading.Lock()
+    window_seconds = 900
+    max_account_attempts = 5
+    max_ip_attempts = 50
+
+    def blocked(account, client_ip):
+        now = time.monotonic()
+        with attempts_lock:
+            for key, limit in (
+                (("account", account.casefold()), max_account_attempts),
+                (("ip", client_ip), max_ip_attempts),
+            ):
+                recent = attempts[key]
+                while recent and recent[0] <= now - window_seconds:
+                    recent.popleft()
+                if len(recent) >= limit:
+                    return True
+        return False
+
+    def record_failure(account, client_ip):
+        now = time.monotonic()
+        with attempts_lock:
+            for key in (("account", account.casefold()), ("ip", client_ip)):
+                recent = attempts[key]
+                while recent and recent[0] <= now - window_seconds:
+                    recent.popleft()
+                recent.append(now)
+
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, format, *args):
+            # Confirmation URLs contain short-lived bearer tokens. Never log
+            # the request line, path query, or token in the billing process.
+            if urlsplit(self.path).path == "/lanternkeeper/confirm":
+                return
+            return super().log_message(format, *args)
+
+        def trusted_client_ip(self):
+            # The listener is loopback-only; the header must be overwritten by Caddy.
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                return None
+            value = self.headers.get("X-Lanternkeeper-Client-IP", "")
+            try:
+                return str(ipaddress.ip_address(value))
+            except ValueError:
+                return None
+
+        def reply(self, code, body):
+            data = body.encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self):
+            path = urlsplit(self.path).path
+            if path not in (
+                "/lanternkeeper", "/lanternkeeper/",
+                "/lanternkeeper/success", "/lanternkeeper/cancel",
+                "/lanternkeeper/confirm",
+            ):
+                return self.reply(404, "Not found")
+            ticket = None
+            confirmation = None
+            if path == "/lanternkeeper/confirm":
+                params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                if set(params) != {"ticket"} or len(params["ticket"]) != 1:
+                    return self.reply(400, "Invalid billing link")
+                ticket = params["ticket"][0]
+                confirmation = lookup_action_link(database, ticket)
+                if confirmation is None:
+                    return self.reply(410, "This billing link expired or was already used. Request another in the game.")
+                heading = "Lanternkeeper: confirm your choice"
+                if confirmation["purpose"] == "subscribe":
+                    detail = (
+                        "You are about to open Stripe Checkout for a recurring "
+                        "$4.99 USD/month Lanternkeeper subscription. "
+                        "Cosmetic Lantern Wisp only, no gameplay advantages. "
+                        "Cancel anytime through the billing portal."
+                    )
+                    label = "Continue to secure Stripe Checkout"
+                else:
+                    detail = (
+                        "Open the secure Stripe billing portal to review your "
+                        "Lanternkeeper subscription, payment method, or cancellation."
+                    )
+                    label = "Continue to secure billing management"
+            elif path == "/lanternkeeper/success":
+                heading = "Thank you for supporting Dreams of the Fallen"
+                detail = "Stripe is processing your subscription. Your Lantern Wisp becomes available after payment confirmation. Reconnect to the MUD and use LANTERNKEEPER to check your status."
+            elif path == "/lanternkeeper/cancel":
+                heading = "Checkout canceled"
+                detail = "No subscription was started by this checkout. You can return whenever you are ready."
+            else:
+                heading = "Lanternkeeper"
+                detail = "Support Dreams of the Fallen for $4.99 per month and receive a cosmetic Lantern Wisp. Enter your existing MUD account credentials to continue securely to Stripe."
+            forms = ""
+            if confirmation is not None:
+                forms = (
+                    '<p>Account: <strong>' + html.escape(confirmation["name"]) + '</strong></p>'
+                    '<form method="post" action="/lanternkeeper/redeem">'
+                    '<input type="hidden" name="ticket" value="' + html.escape(ticket, quote=True) + '">'
+                    '<label>Confirm your game account password'
+                    '<input type="password" name="password" autocomplete="current-password"'
+                    ' required maxlength="256"></label>'
+                    '<button type="submit">' + html.escape(label) + '</button></form>'
+                    '<p>This link expires after 10 minutes and works only once. '
+                    'Your password is sent only through this secure website, never to Stripe.</p>'
+                )
+            if path in ("/lanternkeeper", "/lanternkeeper/"):
+                forms = (
+                    '<form method="post" action="/lanternkeeper/checkout">'
+                    '<label>Account name <input name="account" autocomplete="username" required maxlength="80"></label>'
+                    '<label>Password <input type="password" name="password" autocomplete="current-password" required maxlength="256"></label>'
+                    '<button type="submit">Subscribe for $4.99/month</button>'
+                    '</form>'
+                    '<p>Already subscribed? Manage your membership:</p>'
+                    '<form method="post" action="/lanternkeeper/portal">'
+                    '<label>Account name <input name="account" autocomplete="username" required maxlength="80"></label>'
+                    '<label>Password <input type="password" name="password" autocomplete="current-password" required maxlength="256"></label>'
+                    '<button type="submit">Manage billing</button>'
+                    '</form>'
+                )
+            page = (
+                '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                '<meta name="referrer" content="no-referrer">'
+                '<title>Lanternkeeper | Dreams of the Fallen</title>'
+                '<style>body{background:#10101c;color:#f1e8d8;font:17px system-ui,sans-serif;'
+                'max-width:560px;margin:8vh auto;padding:24px;line-height:1.6}'
+                'h1{color:#eac98b}form{padding:20px 0;border-top:1px solid #484052}'
+                'label{display:block;margin:12px 0}input{display:block;width:100%;'
+                'box-sizing:border-box;padding:10px;background:#211e30;color:white;border:1px solid #776b8c}'
+                'button{padding:12px 18px;background:#eac98b;color:#191420;border:0;cursor:pointer}'
+                'a{color:#eac98b}</style></head><body>'
+                '<h1>' + html.escape(heading) + '</h1><p>' + html.escape(detail) + '</p>'
+                + forms + '<p><a href="https://fallendreams.cloud">Return to Dreams of the Fallen</a></p>'
+                '</body></html>'
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Length", str(len(page)))
+            self.end_headers()
+            self.wfile.write(page)
+
+        def do_POST(self):
+            path = urlsplit(self.path).path
+            if path not in (
+                "/lanternkeeper/webhook", "/lanternkeeper/checkout",
+                "/lanternkeeper/portal", "/lanternkeeper/redeem",
+            ):
+                return self.reply(404, "Not found")
+            length = self.headers.get("Content-Length", "")
+            if not length.isdigit() or int(length) > 65536:
+                return self.reply(413, "Invalid request size")
+            raw = self.rfile.read(int(length))
+            if path == "/lanternkeeper/webhook":
+                try:
+                    processed = process_stripe_webhook(database, raw, self.headers.get("Stripe-Signature", ""))
+                except ValueError:
+                    return self.reply(400, "Invalid event")
+                except Exception:
+                    return self.reply(503, "Webhook processing unavailable")
+                return self.reply(200, "Processed" if processed else "Ignored")
+            # Require a same-origin browser POST. No account identity from cookies or query params.
+            if self.headers.get("Origin") != public_origin:
+                return self.reply(403, "Invalid origin")
+            if path == "/lanternkeeper/redeem":
+                # The one-time bearer ticket came from an authenticated game
+                # session; payment/password fields never cross the telnet link.
+                if self.trusted_client_ip() is None:
+                    return self.reply(503, "Billing proxy configuration unavailable")
+                try:
+                    params = parse_qs(raw.decode("utf-8"), strict_parsing=True)
+                    if (set(params) != {"ticket", "password"}
+                            or len(params["ticket"]) != 1
+                            or len(params["password"]) != 1):
+                        return self.reply(400, "Invalid billing form")
+                    password = params["password"][0]
+                    if not password or len(password) > 256:
+                        return self.reply(400, "Invalid credentials")
+                    ticket = lookup_action_link(database, params["ticket"][0])
+                    if ticket is None:
+                        return self.reply(410, "Billing link expired or already used")
+                    client_ip = self.trusted_client_ip()
+                    if blocked(ticket["name"], client_ip):
+                        return self.reply(429, "Too many login attempts; try again later")
+                    with database.connect() as db:
+                        account = db.execute(
+                            "SELECT password_hash FROM accounts WHERE id=?",
+                            (ticket["account_id"],)
+                        ).fetchone()
+                    if account is None or not verify_password(
+                        password, account["password_hash"]
+                    ):
+                        record_failure(ticket["name"], client_ip)
+                        return self.reply(401, "Invalid account or password")
+                    ticket = consume_action_link(database, params["ticket"][0])
+                    if ticket is None:
+                        return self.reply(410, "Billing link expired or already used")
+                    if ticket["purpose"] == "subscribe":
+                        url = create_checkout(
+                            database, ticket["account_id"],
+                            public_origin + "/lanternkeeper/success",
+                            public_origin + "/lanternkeeper/cancel",
+                        )
+                    else:
+                        url = create_billing_portal(
+                            database, ticket["account_id"],
+                            public_origin + "/lanternkeeper",
+                        )
+                    self.send_response(303)
+                    self.send_header("Location", url)
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Referrer-Policy", "no-referrer")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                except (KeyError, IndexError, ValueError, UnicodeError):
+                    return self.reply(400, "Unable to complete billing action")
+                except Exception:
+                    return self.reply(503, "Billing service unavailable")
+            try:
+                params = parse_qs(raw.decode("utf-8"), strict_parsing=True)
+                name, password = params["account"][0], params["password"][0]
+                if not name or not password or len(name) > 80 or len(password) > 256:
+                    return self.reply(400, "Invalid credentials")
+                client_ip = self.trusted_client_ip()
+                if client_ip is None:
+                    return self.reply(503, "Billing proxy configuration unavailable")
+                if blocked(name, client_ip):
+                    return self.reply(429, "Too many login attempts; try again later")
+                with database.connect() as db:
+                    row = db.execute("SELECT id,password_hash FROM accounts WHERE name=? COLLATE NOCASE", (name,)).fetchone()
+                if row is None or not verify_password(password, row["password_hash"]):
+                    record_failure(name, client_ip)
+                    return self.reply(401, "Invalid account or password")
+                account_id = int(row["id"])
+                if path.endswith("/checkout"):
+                    url = create_checkout(database, account_id, public_origin + "/lanternkeeper/success",
+                                          public_origin + "/lanternkeeper/cancel")
+                else:
+                    url = create_billing_portal(database, account_id, public_origin + "/lanternkeeper")
+                self.send_response(303)
+                self.send_header("Location", url)
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            except (KeyError, IndexError, ValueError, UnicodeError):
+                self.reply(400, "Invalid request")
+            except Exception:
+                self.reply(503, "Billing service unavailable")
+
+    server = ThreadingHTTPServer((host, port), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True, name="lanternkeeper-http")
+    thread.start()
+    return server

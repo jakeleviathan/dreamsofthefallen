@@ -461,6 +461,9 @@ install_circle_community_runtime(PlayerSession)
 # confirmations always reach it before any inner replay wrapper can consume them.
 # Notepad records only its safe top-level invocation; its editor body remains
 # outside command telemetry as well.
+# Install Wisp inside modal mail/notepad wrappers so editor input is preserved.
+from mud.lanternkeeper_runtime import install_lanternkeeper_runtime
+install_lanternkeeper_runtime(PlayerSession)
 install_notepad_runtime(PlayerSession)
 install_player_mail_runtime(PlayerSession)
 
@@ -474,6 +477,14 @@ except ValueError:
 WIKI_ENABLED = os.environ.get("DOTF_WIKI_ENABLED", "1").strip().casefold() not in {"0", "false", "no", "off"}
 
 async def main() -> None:
+    billing_http = None
+    if os.environ.get('DOTF_BILLING_ENABLED') == '1':
+        try:
+            from mud.lanternkeeper_http import start_lanternkeeper_http
+            billing_http = start_lanternkeeper_http()
+        except Exception:
+            import logging
+            logging.exception('Lanternkeeper billing service failed to start; MUD remains available')
     who_display = None
     try:
         who_display = start_who_display_server(host="127.0.0.1", port=8765)
@@ -495,6 +506,9 @@ async def main() -> None:
     try:
         await mud.run()
     finally:
+        if billing_http is not None:
+            billing_http.shutdown()
+            billing_http.server_close()
         if wiki is not None:
             wiki.close()
         if who_display is not None:

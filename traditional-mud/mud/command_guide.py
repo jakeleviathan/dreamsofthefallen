@@ -35,6 +35,7 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("basics", "COMMANDS", "Show command categories and common starting commands."),
     CommandEntry("basics", "COMMANDS <category>", "Show every cataloged command family in one category."),
     CommandEntry("basics", "COMMANDS ALL", "Print the complete searchable player command catalog."),
+
     CommandEntry("basics", "COMMAND SEARCH <word>", "Search command syntax and descriptions by word."),
     CommandEntry("basics", "JOURNEY", "Show a spoiler-light sense of the current progression path."),
     CommandEntry("basics", "WAYMAPS", "List the Blank Waymaps and individually numbered Marked Waymaps you carry."),
@@ -76,6 +77,11 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("combat", "RELEASE", "After death, accept the XP-loss release and return to your bind point."),
     CommandEntry("combat", "RESURRECT <player>", "Priest utility that can return an unreleased fallen player without their release XP loss."),
 
+    CommandEntry("social", "LANTERNKEEPER / LANTERNKEEPER INFO", "Learn about the $4.99/month cosmetic Lanternkeeper membership and Lantern Wisp."),
+    CommandEntry("social", "LANTERNKEEPER STATUS", "Check your account's membership status and Wisp entitlement."),
+    CommandEntry("social", "LANTERNKEEPER SUBSCRIBE / JOIN", "Get a private, short-lived HTTPS link to confirm a Stripe subscription in your browser."),
+    CommandEntry("social", "LANTERNKEEPER MANAGE / BILLING", "Get a private HTTPS link to Stripe billing management, payment methods, and cancellation."),
+    CommandEntry("social", "WISP STATUS / SUMMON / DISMISS / COLOR / NAME / APPEARANCE", "Customize or summon your Lanternkeeper cosmetic Wisp when your membership is active."),
     CommandEntry("social", "SAY <message>", "Speak to everyone in the current room."),
     CommandEntry("social", "CHAT <message>", "Speak on world chat."),
     CommandEntry("social", "OOC <message>", "Speak on the out-of-character channel."),
@@ -386,6 +392,9 @@ def install_command_guide_runtime(player_session_class, world_service) -> None:
         await previous_enter(self)
         if self.character is not None:
             await self.send("Command discovery: HELP HERE shows only what is useful in your current situation; COMMANDS searches the full catalog.\r\n")
+            from mud.lanternkeeper_links import links_enabled
+            if links_enabled():
+                await self.send("Keep a light burning in Astralis: type LANTERNKEEPER to learn about cosmetic Lantern Wisps.\r\n")
 
     async def playing_prompt(self) -> None:
         if self.character is None:
