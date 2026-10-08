@@ -5,6 +5,7 @@ from datetime import datetime
 from mud.character_creation_experience import install_character_creation_experience
 from mud.character_options import CLASSES_BY_KEY, RACES_BY_KEY
 from mud.database import MAX_CHARACTERS_PER_ACCOUNT
+from mud.character_slot_payments import purchase_link_for_account
 from mud.security import hash_password, verify_password
 from mud.world import ROOMS_BY_KEY
 from mud.welcome_banner import WELCOME_BANNER
@@ -228,7 +229,8 @@ def install_login_experience(player_session_class) -> None:
         assert self.account is not None
         characters = self.database.list_characters(self.account.id)
         used_slots = len(characters)
-        remaining_slots = max(0, MAX_CHARACTERS_PER_ACCOUNT - used_slots)
+        slot_limit = self.database.character_slot_limit(self.account.id)
+        remaining_slots = max(0, slot_limit - used_slots)
         recent_character = _most_recent_character(self.database, characters)
 
         await self.send(
@@ -236,7 +238,7 @@ def install_login_experience(player_session_class) -> None:
             "|                                   CHARACTER ROSTER                                   |\r\n"
             "+--------------------------------------------------------------------------------------+\r\n"
         )
-        for slot in range(1, MAX_CHARACTERS_PER_ACCOUNT + 1):
+        for slot in range(1, slot_limit + 1):
             if slot <= used_slots:
                 character = characters[slot - 1]
                 race = RACES_BY_KEY.get(character.race or "")
@@ -253,12 +255,12 @@ def install_login_experience(player_session_class) -> None:
                 await self.send(f"| {slot}. [ Empty ]{' ' * 69}|\r\n")
         await self.send(
             "+--------------------------------------------------------------------------------------+\r\n"
-            f"Slots used: {used_slots}/{MAX_CHARACTERS_PER_ACCOUNT}"
+            f"Slots used: {used_slots}/{slot_limit}"
             + (f"    Empty slots: {remaining_slots}\r\n" if remaining_slots else "    Character slots are full.\r\n")
         )
         if recent_character is not None:
             await self.send(f"Last played: {recent_character.name}\r\n")
-        await self.send("Commands: ENTER <slot or name>    PLAY LAST    CREATE    DELETE <slot or name>    QUIT\r\n")
+        await self.send("Commands: ENTER <slot or name>    PLAY LAST    CREATE    DELETE <slot or name>    BUY SLOT    QUIT\r\n")
 
         choice = await self.prompt("Roster: ")
         if choice is None:
@@ -273,6 +275,7 @@ def install_login_experience(player_session_class) -> None:
                 "PLAY LAST - immediately enter the character you played most recently.\r\n"
                 "CREATE - begin making a new character in an empty slot.\r\n"
                 "DELETE <slot or name> - permanently delete a character after name confirmation.\r\n"
+                "BUY SLOT - purchase one permanent additional slot for $1 USD (no subscription required).\r\n"
                 "QUIT - disconnect.\r\n"
             )
             return
@@ -280,16 +283,35 @@ def install_login_experience(player_session_class) -> None:
             await self.send("\r\nGoodbye.\r\n")
             self.state = session_module.SessionState.DISCONNECTED
             return
+        if lowered in {"buy slot", "buy slots", "purchase slot"}:
+            url = purchase_link_for_account(self.account.id)
+            if not url:
+                await self.send("\r
+Extra slot purchases are not available yet. Please check back later.\r
+")
+            else:
+                await self.send(
+                    "\r
+Extra Character Slot - $1 USD (one-time).\r
+"
+                    "Adds one permanent account slot, independent of Lantern Keeper.\r
+"
+                    f"Secure checkout: {url}\r
+"
+                    "Your roster will reflect the slot after Stripe confirms payment.\r
+"
+                )
+            return
         if lowered in {"create", "new", "new character", "c"}:
             if remaining_slots <= 0:
                 await self.send(
-                    f"\r\nAll {MAX_CHARACTERS_PER_ACCOUNT} character slots are already in use.\r\n"
+                    f"\r\nAll {slot_limit} character slots are already in use. Type BUY SLOT for an additional slot.\r\n"
                 )
                 return
             # Re-check at action time for simultaneous sessions on one account.
-            if len(self.database.list_characters(self.account.id)) >= MAX_CHARACTERS_PER_ACCOUNT:
+            if len(self.database.list_characters(self.account.id)) >= self.database.character_slot_limit(self.account.id):
                 await self.send(
-                    f"\r\nAll {MAX_CHARACTERS_PER_ACCOUNT} character slots are already in use.\r\n"
+                    f"\r\nAll {slot_limit} character slots are already in use. Type BUY SLOT for an additional slot.\r\n"
                 )
                 return
             await self.character_creation_flow()
