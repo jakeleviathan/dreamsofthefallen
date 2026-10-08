@@ -296,9 +296,9 @@ def install_login_experience(player_session_class) -> None:
                     "Complete your secure purchase:\r\n"
 
                 )
-                if not await self.telnet.send_mxp_link(
-                    "Click here to purchase your character slot - $1.00", url
-                ):
+                send_link = getattr(self.telnet, "send_mxp_link", None)
+                linked = await send_link("Click here to purchase your character slot - $1.00", url) if send_link else False
+                if not linked:
                     await self.send(f"{url}\r\n")
                 await self.send(
                     "\r\nOnce your payment is confirmed, your new slot will appear on your character roster.\r\n"
