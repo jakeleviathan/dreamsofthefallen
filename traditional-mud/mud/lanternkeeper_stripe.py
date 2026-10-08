@@ -28,6 +28,12 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
             raise ValueError("Unknown DOTF account")
         if db.execute("SELECT 1 FROM lanternkeeper_stripe_events WHERE event_id=?", (event["id"],)).fetchone():
             return False
+        # Ignore delayed delivery of older events after a newer update.
+        db.execute("CREATE TABLE IF NOT EXISTS lanternkeeper_event_clock (account_id INTEGER PRIMARY KEY, created INTEGER NOT NULL)")
+        clock = db.execute("SELECT created FROM lanternkeeper_event_clock WHERE account_id=?", (account_id,)).fetchone()
+        if clock and int(event["created"]) < int(clock["created"]):
+            db.execute("INSERT INTO lanternkeeper_stripe_events(event_id) VALUES (?)", (event["id"],))
+            return False
         # Prevent one Stripe subscription from being assigned to multiple accounts.
         existing = db.execute("SELECT account_id FROM lanternkeeper_memberships WHERE stripe_subscription_id=?",
                               (sub["id"],)).fetchone()
@@ -49,4 +55,5 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
           current_period_end=excluded.current_period_end""",
           (account_id, customer, sub["id"], status, end))
         db.execute("INSERT INTO lanternkeeper_stripe_events(event_id) VALUES (?)", (event["id"],))
+        db.execute("INSERT INTO lanternkeeper_event_clock(account_id,created) VALUES (?,?) ON CONFLICT(account_id) DO UPDATE SET created=excluded.created", (account_id, int(event["created"])))
     return True
