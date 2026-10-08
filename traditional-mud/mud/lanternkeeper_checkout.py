@@ -77,6 +77,7 @@ def _reserve_checkout(database, account_id):
 def _saved_session(database, account_id):
     _ensure_checkout_schema(database)
     with database.connect() as db:
+        _membership_row(db, account_id)
         row = db.execute(
             "SELECT request_id,stripe_session_id FROM lanternkeeper_checkout_reservations "
             "WHERE account_id=?", (account_id,)
