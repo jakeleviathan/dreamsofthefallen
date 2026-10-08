@@ -13,6 +13,7 @@ from mud.database import Database
 from mud.lanternkeeper_http import start_lanternkeeper_http
 from mud.lanternkeeper_links import issue_action_link, lookup_action_link
 from mud.lanternkeeper_runtime import ensure_schema
+from mud.security import hash_password
 
 
 class LanternkeeperHTTPTests(unittest.TestCase):
@@ -21,8 +22,8 @@ class LanternkeeperHTTPTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.db = Database(Path(self.tmp.name) / "game.db")
         with self.db.connect() as conn:
-            conn.execute("INSERT INTO accounts(name,password_hash) VALUES('alpha','test')")
-            conn.execute("INSERT INTO accounts(name,password_hash) VALUES('beta','test')")
+            conn.execute("INSERT INTO accounts(name,password_hash) VALUES(?,?)", ("alpha", hash_password("correct")))
+            conn.execute("INSERT INTO accounts(name,password_hash) VALUES(?,?)", ("beta", hash_password("correct")))
         self.env = patch.dict(os.environ, {"DOTF_BILLING_ORIGIN": "https://mud.lvthn.io"})
         self.env.start()
         self.addCleanup(self.env.stop)
@@ -71,17 +72,18 @@ class LanternkeeperHTTPTests(unittest.TestCase):
         self.assertIn("alpha", page)
         self.assertIn("$4.99", page)
         self.assertIn('method="post"', page)
+        self.assertIn('name="password"', page)
         self.assertIn("no-referrer", headers.get("Referrer-Policy", ""))
         self.assertIsNotNone(lookup_action_link(self.db, ticket))
         with patch("mud.lanternkeeper_http.create_checkout", return_value="https://checkout.stripe.com/c/pay/staging") as create:
             status, location = self.post(
-                "/lanternkeeper/redeem", "ticket=" + ticket, return_location=True
+                "/lanternkeeper/redeem", "ticket=" + ticket + "&password=correct", return_location=True
             )
             self.assertEqual(status, 303)
             self.assertEqual(location, "https://checkout.stripe.com/c/pay/staging")
             self.assertEqual(create.call_args.args[1], 1)
             self.assertEqual(
-                self.post("/lanternkeeper/redeem", "ticket=" + ticket), 410
+                self.post("/lanternkeeper/redeem", "ticket=" + ticket + "&password=correct"), 410
             )
             create.assert_called_once()
 
@@ -89,9 +91,23 @@ class LanternkeeperHTTPTests(unittest.TestCase):
         url = self.create_ticket()
         ticket = parse_qs(urlsplit(url).query)["ticket"][0]
         self.assertEqual(self.post(
-            "/lanternkeeper/redeem", "ticket=" + ticket,
+            "/lanternkeeper/redeem", "ticket=" + ticket + "&password=correct",
             origin="https://attacker.example"
         ), 403)
+        self.assertIsNotNone(lookup_action_link(self.db, ticket))
+
+    def test_in_game_link_requires_correct_browser_password(self):
+        url = self.create_ticket()
+        ticket = parse_qs(urlsplit(url).query)["ticket"][0]
+        with patch("mud.lanternkeeper_http.create_checkout") as create:
+            self.assertEqual(
+                self.post(
+                    "/lanternkeeper/redeem",
+                    "ticket=" + ticket + "&password=incorrect"
+                ),
+                401,
+            )
+            create.assert_not_called()
         self.assertIsNotNone(lookup_action_link(self.db, ticket))
 
     def test_expired_handoff_link_get_and_post_are_rejected(self):
@@ -100,7 +116,7 @@ class LanternkeeperHTTPTests(unittest.TestCase):
         with self.db.connect() as db:
             db.execute("UPDATE lanternkeeper_action_links SET expires_at=0")
         self.assertEqual(self.get(urlsplit(url).path + "?" + urlsplit(url).query)[0], 410)
-        self.assertEqual(self.post("/lanternkeeper/redeem", "ticket=" + ticket), 410)
+        self.assertEqual(self.post("/lanternkeeper/redeem", "ticket=" + ticket + "&password=correct"), 410)
 
     def test_ingame_manage_link_opens_stripe_portal_for_own_account(self):
         ensure_schema(self.db)
@@ -114,7 +130,7 @@ class LanternkeeperHTTPTests(unittest.TestCase):
         ticket = parse_qs(urlsplit(url).query)["ticket"][0]
         with patch("mud.lanternkeeper_http.create_billing_portal", return_value="https://billing.stripe.com/p/session") as portal:
             status, location = self.post(
-                "/lanternkeeper/redeem", "ticket=" + ticket, return_location=True
+                "/lanternkeeper/redeem", "ticket=" + ticket + "&password=correct", return_location=True
             )
             self.assertEqual(status, 303)
             self.assertEqual(location, "https://billing.stripe.com/p/session")
