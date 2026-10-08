@@ -103,6 +103,18 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_characters_account_id
                 ON characters(account_id);
 
+                -- Purchased capacity belongs to the account, never to an individual character.
+                -- A checkout session can be fulfilled only once, even after a webhook retry.
+                CREATE TABLE IF NOT EXISTS account_character_slot_purchases (
+                    payment_reference TEXT PRIMARY KEY,
+                    account_id INTEGER NOT NULL,
+                    quantity INTEGER NOT NULL CHECK (quantity > 0),
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_slot_purchases_account_id
+                ON account_character_slot_purchases(account_id);
+
                 CREATE TABLE IF NOT EXISTS character_abilities (
                     character_id INTEGER NOT NULL,
                     ability_key TEXT NOT NULL,
@@ -319,6 +331,45 @@ class Database:
             ).fetchall()
         return [self._character_from_row(row) for row in rows]
 
+    def character_slot_limit(self, account_id: int) -> int:
+        """Eight free slots plus permanently purchased account-wide slots."""
+        with self.connect() as db:
+            row = db.execute(
+                """
+                SELECT COALESCE(SUM(quantity), 0) AS purchased
+                FROM account_character_slot_purchases WHERE account_id = ?
+                """,
+                (account_id,),
+            ).fetchone()
+        return MAX_CHARACTERS_PER_ACCOUNT + int(row["purchased"])
+
+    def record_character_slot_purchase(
+        self, account_id: int, payment_reference: str, quantity: int = 1
+    ) -> bool:
+        """Fulfill a *verified* payment once. Never expose this method to player commands.
+
+        Returns False on a duplicate Stripe Checkout Session; webhook retries are harmless.
+        The caller must verify the Stripe signature, payment status and paid price first.
+        """
+        if not payment_reference or not payment_reference.startswith("cs_"):
+            raise ValueError("A Stripe Checkout Session reference is required.")
+        if quantity != 1:
+            raise ValueError("Each character slot purchase must grant exactly one slot.")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            account = db.execute("SELECT id FROM accounts WHERE id = ?", (account_id,)).fetchone()
+            if account is None:
+                raise KeyError(f"Unknown account id {account_id}")
+            cursor = db.execute(
+                """
+                INSERT OR IGNORE INTO account_character_slot_purchases
+                    (payment_reference, account_id, quantity)
+                VALUES (?, ?, ?)
+                """,
+                (payment_reference, account_id, quantity),
+            )
+            return cursor.rowcount == 1
+
     def delete_character(self, account_id: int, character_id: int) -> bool:
         """Permanently delete one character owned by an account.
 
@@ -364,9 +415,14 @@ class Database:
                 "SELECT COUNT(*) AS total FROM characters WHERE account_id = ?",
                 (account_id,),
             ).fetchone()
-            if int(row["total"]) >= MAX_CHARACTERS_PER_ACCOUNT:
+            purchased = db.execute(
+                "SELECT COALESCE(SUM(quantity), 0) AS total FROM account_character_slot_purchases WHERE account_id = ?",
+                (account_id,),
+            ).fetchone()
+            slot_limit = MAX_CHARACTERS_PER_ACCOUNT + int(purchased["total"])
+            if int(row["total"]) >= slot_limit:
                 raise CharacterSlotLimitReached(
-                    f"Account {account_id} already has {MAX_CHARACTERS_PER_ACCOUNT} characters."
+                    f"Account {account_id} already has {slot_limit} characters."
                 )
 
             stats = stats or CharacterStats()
