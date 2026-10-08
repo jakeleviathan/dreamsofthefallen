@@ -1,0 +1,24 @@
+# Example for /etc/systemd/system/dotf-lanternkeeper.service
+# Do not enable until Stripe sandbox integration and launch checks pass.
+[Unit]
+Description=Dreams of the Fallen - Lanternkeeper Billing
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/dreamsofthefallen/traditional-mud
+EnvironmentFile=/etc/dotf/lanternkeeper.env
+ExecStart=/home/ubuntu/dotf-lanternkeeper-venv/bin/python -m mud.lanternkeeper_service
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/ubuntu/dotf-data
+
+[Install]
+WantedBy=multi-user.target
