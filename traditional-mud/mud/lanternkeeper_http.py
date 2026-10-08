@@ -8,6 +8,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 import os
 import threading
+import time
+from collections import defaultdict, deque
 
 from mud.database import Database
 from mud.security import verify_password
@@ -19,6 +21,32 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
     if not public_origin.startswith("https://") or urlsplit(public_origin).path not in ("", "/"):
         raise RuntimeError("DOTF_BILLING_ORIGIN must be an HTTPS origin")
     database = Database()
+    # In-process throttling; do not trust client-supplied forwarding headers.
+    attempts = defaultdict(deque)
+    attempts_lock = threading.Lock()
+    window_seconds = 900
+    max_attempts = 5
+
+    def blocked(ip, account):
+        now = time.monotonic()
+        with attempts_lock:
+            for key in (("ip", ip), ("account", account.casefold())):
+                recent = attempts[key]
+                while recent and recent[0] <= now - window_seconds:
+                    recent.popleft()
+                if len(recent) >= max_attempts:
+                    return True
+            return False
+
+    def record_failure(ip, account):
+        now = time.monotonic()
+        with attempts_lock:
+            for key in (("ip", ip), ("account", account.casefold())):
+                recent = attempts[key]
+                while recent and recent[0] <= now - window_seconds:
+                    recent.popleft()
+                recent.append(now)
+
 
     class Handler(BaseHTTPRequestHandler):
         def reply(self, code, body):
@@ -52,11 +80,15 @@ def start_lanternkeeper_http(host="127.0.0.1", port=8766):
             try:
                 params = parse_qs(raw.decode("utf-8"), strict_parsing=True)
                 name, password = params["account"][0], params["password"][0]
-                if len(name) > 80 or len(password) > 256:
+                if not name or not password or len(name) > 80 or len(password) > 256:
                     return self.reply(400, "Invalid credentials")
+                ip = self.client_address[0]
+                if blocked(ip, name):
+                    return self.reply(429, "Too many login attempts; try again later")
                 with database.connect() as db:
                     row = db.execute("SELECT id,password_hash FROM accounts WHERE name=? COLLATE NOCASE", (name,)).fetchone()
                 if row is None or not verify_password(password, row["password_hash"]):
+                    record_failure(ip, name)
                     return self.reply(401, "Invalid account or password")
                 account_id = int(row["id"])
                 if path.endswith("/checkout"):
