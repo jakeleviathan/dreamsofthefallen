@@ -1,5 +1,5 @@
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.15
+-- Version 2.2.16
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -7,10 +7,11 @@
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.15"
+H.version = "2.2.16"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
+H.state.roomView = H.state.roomView or nil
 H.state.party = H.state.party or { active = false, members = {} }
 H.state.quests = H.state.quests or { active = {} }
 H.state.inventory = H.state.inventory or { items = {} }
@@ -28,7 +29,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.15"
+local MODERN_UI_VERSION = "2.2.16"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -1052,10 +1053,56 @@ function H.renderModernAll()
   H.renderOnboarding()
 end
 
+local function currentRoomExtras()
+  local extras = rawget(_G, "DreamsHUDExtras")
+  return type(extras) == "table" and extras or nil
+end
+
 function H.onRoomModern()
   local room = gmcp and gmcp.Dreams and gmcp.Dreams.Room
   if not room then return end
+
+  local previous = H.state.room
   H.state.room = room
+
+  -- DreamsHUDExtras predates Dreams.RoomView and cached parsed destination
+  -- names by direction only. Clear that cache as soon as the room changes so a
+  -- NORTH/EAST/etc. label from the previous room can never bleed into this one.
+  local extras = currentRoomExtras()
+  if extras then
+    local previousNum = previous and previous.num
+    if tostring(previousNum or "") ~= tostring(room.num or "") then
+      extras.lastExitNames = {}
+      extras.lastExitNamesRoom = nil
+    end
+  end
+end
+
+function H.onRoomViewModern()
+  local roomView = gmcp and gmcp.Dreams and gmcp.Dreams.RoomView
+  if type(roomView) ~= "table" then return end
+  H.state.roomView = roomView
+
+  -- RoomView is the canonical, atomic room observation produced by the server.
+  -- Feed its exit titles to the companion Current Room panel instead of letting
+  -- that older panel reuse text-scraped names from a previous room.
+  local extras = currentRoomExtras()
+  if extras then
+    local names = {}
+    for _, exitView in ipairs(roomView.exits or {}) do
+      local direction = tostring(exitView.direction or ""):lower()
+      local title = tostring(exitView.title or "")
+      if direction ~= "" and title ~= "" then
+        names[direction] = title
+      end
+    end
+    extras.lastExitNames = names
+    extras.lastExitNamesRoom = tostring(roomView.id or "")
+
+    if type(extras.renderRoom) == "function" then
+      pcall(extras.renderRoom)
+    end
+  end
 end
 
 function H.onPartyModern()
@@ -1178,6 +1225,7 @@ end
 function H.registerModernHandlers()
   local names = {
     room = {"gmcp.Dreams.Room", H.onRoomModern},
+    roomView = {"gmcp.Dreams.RoomView", H.onRoomViewModern},
     party = {"gmcp.Dreams.Party", H.onPartyModern},
     quests = {"gmcp.Dreams.Quests", H.onQuestsModern},
     inventory = {"gmcp.Dreams.Inventory", H.onInventoryModern},

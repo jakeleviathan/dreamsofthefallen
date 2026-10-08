@@ -43,9 +43,9 @@ jobs:
               assert {"DreamsOfTheFallenHUD.xml", "config.lua"} <= names
               xml = zf.read("DreamsOfTheFallenHUD.xml").decode("utf-8")
               config = zf.read("config.lua").decode("utf-8")
-          for marker in ("Dreams.Room", "Dreams.Map", "Dreams.Party", "Dreams.Quests", "Dreams.Inventory", "Dreams.Abilities", "Dreams.Effects", "Dreams.Context", "Dreams.Onboarding", "Dreams.Crafting", "DreamsHUD.EffectsPane"):
+          for marker in ("Dreams.Room", "Dreams.RoomView", "Dreams.Map", "Dreams.Party", "Dreams.Quests", "Dreams.Inventory", "Dreams.Abilities", "Dreams.Effects", "Dreams.Context", "Dreams.Onboarding", "Dreams.Crafting", "DreamsHUD.EffectsPane"):
               assert marker in xml, marker
-          assert 'version = "2.2.11"' in config
+          assert 'version = "2.2.16"' in config
 
           root = ET.fromstring(xml)
           embedded_lua = root.findtext(".//Script/script")
@@ -62,6 +62,8 @@ jobs:
           assert "font-size: 9pt" not in embedded_lua
           assert "font-size: 8pt" not in embedded_lua
           assert "function H.renderCrafting()" in embedded_lua
+          assert "function H.onRoomViewModern()" in embedded_lua
+          assert 'roomView = {"gmcp.Dreams.RoomView", H.onRoomViewModern}' in embedded_lua
           assert "Crafting: " not in embedded_lua
           bootstrap_lua = root.findtext(".//TriggerPackage/Trigger/script")
           assert bootstrap_lua and "loadstring(source)" in bootstrap_lua
