@@ -105,8 +105,7 @@ including out-of-order events, before enabling checkout for the public.
 - Confirm TLS, proxy forwarding, body logging exclusions, and secrets file permissions.
 - Reconcile pending sessions and test repeated checkout, cancel/rejoin, and Stripe
   Billing Portal end to end.
-- Test with a separate Stripe **sandbox/test-mode price**; the live Price ID
-  cannot be used with test API keys.
+- Test with a separate Stripe **sandbox/test-mode price**; the live Price ID\n  cannot be used with test API keys. Set\n  `DOTF_LANTERNKEEPER_PRICE_ID=price_<SANDBOX_PRICE_ID>` **only** in the\n  isolated sandbox worker, along with a test-mode Stripe API key and\n  matching test-mode webhook signing secret. Checkout creation and webhook\n  entitlement verification both use this configured price. Omit the override\n  for the production live price.
 - Verify the real Wisp visibility and entitlement lifecycle across MUD logins.
 - Ensure a rejected webhook never silently activates or strands a customer:
   inspect delivery failures and support manual reconciliation.
