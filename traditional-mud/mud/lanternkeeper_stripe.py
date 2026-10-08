@@ -21,7 +21,8 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
     expected_price = "price_1UOAp3LnIVgW4g5mj4rNdD7P"
     items = ((sub.get("items") or {}).get("data") or [])
     if not any((item.get("price") or {}).get("id") == expected_price for item in items):
-        raise ValueError("Subscription does not include the Lanternkeeper price")
+        # Other products in the same Stripe account are not Lanternkeeper events.
+        return False
     account_id = (sub.get("metadata") or {}).get("dotf_account_id")
     if not account_id or not str(account_id).isdigit():
         raise ValueError("Subscription missing trusted DOTF account mapping")
