@@ -1,5 +1,8 @@
 """Offline Stripe webhook lifecycle tests. No network calls or charges."""
+import hashlib
+import hmac
 import json
+import time
 import os
 import tempfile
 import unittest
@@ -46,6 +49,29 @@ class LanternkeeperStripeTests(unittest.TestCase):
         with patch.dict(os.environ, {"DOTF_STRIPE_WEBHOOK_SECRET": "whsec_offline_test"}):
             with patch("stripe.Webhook.construct_event", return_value=event):
                 return process_stripe_webhook(self.db, json.dumps(event).encode(), "mocked-signature")
+
+    def test_real_signature_verification_activates_membership(self):
+        secret = "whsec_offline_test"
+        payload = json.dumps(self.event()).encode()
+        timestamp = int(time.time())
+        signature = hmac.new(
+            secret.encode(), str(timestamp).encode() + b"." + payload,
+            hashlib.sha256
+        ).hexdigest()
+        header = f"t={timestamp},v1={signature}"
+        with patch.dict(os.environ, {"DOTF_STRIPE_WEBHOOK_SECRET": secret}):
+            self.assertTrue(process_stripe_webhook(self.db, payload, header))
+        self.assertTrue(membership(self.db, self.account_id).active())
+
+    def test_invalid_signature_rejected_without_entitlement(self):
+        payload = json.dumps(self.event()).encode()
+        timestamp = int(time.time())
+        with patch.dict(os.environ, {"DOTF_STRIPE_WEBHOOK_SECRET": "whsec_offline_test"}):
+            with self.assertRaisesRegex(ValueError, "Invalid Stripe webhook"):
+                process_stripe_webhook(
+                    self.db, payload, f"t={timestamp},v1={'0' * 64}"
+                )
+        self.assertFalse(membership(self.db, self.account_id).active())
 
     def test_active_then_deleted(self):
         self.assertTrue(self.deliver(self.event()))
