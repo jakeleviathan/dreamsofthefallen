@@ -157,8 +157,8 @@ function H.build()
 
   H.topFrame = Geyser.Label:new({
     name = "DreamsHUD.TopFrame",
-    x = -620, y = 8,
-    width = 606, height = 126,
+    x = -614, y = 8,
+    width = 600, height = 126,
   })
   H.topFrame:setStyleSheet(OUTER_FRAME)
 
@@ -223,8 +223,8 @@ function H.build()
 
   H.targetFrame = Geyser.Label:new({
     name = "DreamsHUD.TargetFrame",
-    x = -420, y = 302,
-    width = 406, height = 136,
+    x = -490, y = 442,
+    width = 476, height = 116,
   })
   H.targetFrame:setStyleSheet(OUTER_FRAME)
 
@@ -266,8 +266,8 @@ function H.build()
 
   H.targetSigil = Geyser.Label:new({
     name = "DreamsHUD.TargetSigil",
-    x = "12%", y = 114,
-    width = "76%", height = 12,
+    x = "12%", y = 109,
+    width = "76%", height = 1,
   }, H.targetInner)
   H.targetSigil:setStyleSheet([[
     QLabel {
