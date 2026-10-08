@@ -50,8 +50,19 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
         customer = sub.get("customer")
         if not isinstance(customer, str):
             raise ValueError("Invalid Stripe customer")
-        end_timestamp = sub.get("current_period_end")
-        end = datetime.fromtimestamp(end_timestamp, timezone.utc).isoformat() if isinstance(end_timestamp, int) else None
+        # Newer Stripe API versions report billing periods on subscription items.
+        # Use the latest period end among the items belonging to our price.
+        period_ends = [
+            item.get("current_period_end")
+            for item in items
+            if (item.get("price") or {}).get("id") == expected_price
+            and isinstance(item.get("current_period_end"), int)
+        ]
+        legacy_end = sub.get("current_period_end")
+        if isinstance(legacy_end, int):
+            period_ends.append(legacy_end)
+        end_timestamp = max(period_ends) if period_ends else None
+        end = datetime.fromtimestamp(end_timestamp, timezone.utc).isoformat() if end_timestamp is not None else None
         status = "canceled" if event["type"] == "customer.subscription.deleted" else sub["status"]
         db.execute("""INSERT INTO lanternkeeper_memberships
           (account_id,stripe_customer_id,stripe_subscription_id,stripe_status,current_period_end)
