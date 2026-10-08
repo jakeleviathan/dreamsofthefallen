@@ -1,5 +1,7 @@
 """Local-only HTTP security regression tests; no Stripe requests."""
 import http.client
+import json
+import time
 import os
 import tempfile
 import unittest
@@ -100,6 +102,18 @@ class LanternkeeperHTTPTests(unittest.TestCase):
                 )
                 self.assertEqual(status, 303)
                 self.assertEqual(location, "https://checkout.stripe.com/c/pay/mock")
+
+    def test_unsigned_stripe_webhook_returns_400(self):
+        fake_event = {
+            "id": "evt_unsigned", "created": int(time.time()),
+            "type": "customer.subscription.created",
+            "data": {"object": {"id": "sub_unsigned", "status": "active"}},
+        }
+        with patch.dict(os.environ, {"DOTF_STRIPE_WEBHOOK_SECRET": "whsec_offline_test"}):
+            status = self.post(
+                "/lanternkeeper/webhook", json.dumps(fake_event), origin=None
+            )
+            self.assertEqual(status, 400)
 
     def test_unknown_path_rejected(self):
         self.assertEqual(self.post("/lanternkeeper/not-a-route", ""), 404)
