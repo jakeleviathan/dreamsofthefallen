@@ -223,6 +223,16 @@ local MOVE_BACK = [[
   border: 1px solid #23492d;
   border-radius: 5px;
 ]]
+local XP_FRONT = [[
+  background-color: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #360957, stop:0.45 #7832b7, stop:1 #b16ae8);
+  border: 1px solid #d1a4f2;
+  border-radius: 5px;
+]]
+local XP_BACK = [[
+  background-color: #140b1e;
+  border: 1px solid #513269;
+  border-radius: 5px;
+]]
 local TARGET_FRONT = [[
   background-color: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #3a0710, stop:0.55 #821527, stop:1 #c52e42);
   border: 1px solid #c88978;
@@ -250,8 +260,8 @@ function H.build()
 
   H.topFrame = Geyser.Label:new({
     name = "DreamsHUD.TopFrame",
-    x = "8%", y = 8,
-    width = "62%", height = 126,
+    x = -614, y = 8,
+    width = 600, height = 126,
   })
   H.topFrame:setStyleSheet(OUTER_FRAME)
 
@@ -288,36 +298,43 @@ function H.build()
 
   H.character = Geyser.Label:new({
     name = "DreamsHUD.Character",
-    x = "5%", y = 24,
+    x = "5%", y = 22,
     width = "90%", height = 17,
   }, H.topInner)
   H.character:setStyleSheet(SUBTITLE_STYLE)
 
   H.hp = Geyser.Gauge:new({
     name = "DreamsHUD.Health",
-    x = "6%", y = 43,
-    width = "88%", height = 18,
+    x = "6%", y = 40,
+    width = "88%", height = 16,
   }, H.topInner)
   styleGauge(H.hp, HP_FRONT, HP_BACK)
 
   H.mana = Geyser.Gauge:new({
     name = "DreamsHUD.Mana",
-    x = "6%", y = 66,
-    width = "88%", height = 18,
+    x = "6%", y = 58,
+    width = "88%", height = 16,
   }, H.topInner)
   styleGauge(H.mana, MANA_FRONT, MANA_BACK)
 
   H.movement = Geyser.Gauge:new({
     name = "DreamsHUD.Movement",
-    x = "6%", y = 89,
-    width = "88%", height = 18,
+    x = "6%", y = 76,
+    width = "88%", height = 16,
   }, H.topInner)
   styleGauge(H.movement, MOVE_FRONT, MOVE_BACK)
 
+  H.experience = Geyser.Gauge:new({
+    name = "DreamsHUD.Experience",
+    x = "6%", y = 94,
+    width = "88%", height = 16,
+  }, H.topInner)
+  styleGauge(H.experience, XP_FRONT, XP_BACK)
+
   H.targetFrame = Geyser.Label:new({
     name = "DreamsHUD.TargetFrame",
-    x = -318, y = 15,
-    width = 304, height = 232,
+    x = -490, y = 442,
+    width = 476, height = 116,
   })
   H.targetFrame:setStyleSheet(OUTER_FRAME)
 
@@ -345,22 +362,22 @@ function H.build()
 
   H.targetGauge = Geyser.Gauge:new({
     name = "DreamsHUD.TargetHealth",
-    x = "8%", y = 68,
-    width = "84%", height = 22,
+    x = "8%", y = 64,
+    width = "84%", height = 16,
   }, H.targetInner)
   styleGauge(H.targetGauge, TARGET_FRONT, TARGET_BACK)
 
   H.targetDetail = Geyser.Label:new({
     name = "DreamsHUD.TargetDetail",
-    x = "6%", y = 98,
-    width = "88%", height = 24,
+    x = "6%", y = 85,
+    width = "88%", height = 23,
   }, H.targetInner)
   H.targetDetail:setStyleSheet(SUBTITLE_STYLE)
 
   H.targetSigil = Geyser.Label:new({
     name = "DreamsHUD.TargetSigil",
-    x = "12%", y = 128,
-    width = "76%", height = 66,
+    x = "12%", y = 109,
+    width = "76%", height = 1,
   }, H.targetInner)
   H.targetSigil:setStyleSheet([[
     QLabel {
@@ -394,6 +411,18 @@ function H.renderVitals()
   H.mana.text:echo(string.format("&lt;center&gt;MANA  %d / %d&lt;/center&gt;", s.mana, s.max_mana))
   H.movement:setValue(s.movement, s.max_movement)
   H.movement.text:echo(string.format("&lt;center&gt;MOVEMENT  %d / %d&lt;/center&gt;", s.movement, s.max_movement))
+
+  -- The server reports progress within the current level. Until it does, show
+  -- an unknown XP state rather than a misleading empty progress bar.
+  if s.xp_known and tonumber(s.xp_to_next_level) and s.xp_to_next_level &gt; 0 then
+    local needed = safeMax(s.xp_to_next_level)
+    local earned = clamp(s.xp_into_level, 0, needed)
+    H.experience:setValue(earned, needed)
+    H.experience.text:echo(string.format("&lt;center&gt;EXPERIENCE  %d / %d&lt;/center&gt;", earned, needed))
+  else
+    H.experience:setValue(0, 1)
+    H.experience.text:echo("&lt;center&gt;EXPERIENCE  --&lt;/center&gt;")
+  end
 end
 
 function H.renderCharacter()
@@ -444,6 +473,11 @@ function H.onVitals()
   H.state.max_mana = tonumber(v.max_mana) or H.state.max_mana
   H.state.movement = tonumber(v.movement) or H.state.movement
   H.state.max_movement = tonumber(v.max_movement) or H.state.max_movement
+  if tonumber(v.xp_into_level) and tonumber(v.xp_to_next_level) then
+    H.state.xp_into_level = tonumber(v.xp_into_level)
+    H.state.xp_to_next_level = tonumber(v.xp_to_next_level)
+    H.state.xp_known = true
+  end
   H.renderVitals()
 end
 
@@ -493,7 +527,7 @@ H.init()
 
 -- BEGIN modern.lua
 -- Dreams of the Fallen - Modern Telnet Experience
--- Version 2.2.11
+-- Version 2.2.15
 --
 -- This layer is intentionally a client presentation of normal Telnet commands.
 -- Every click sends the same command a player could type by hand. GMCP supplies
@@ -501,7 +535,7 @@ H.init()
 
 DreamsHUD = DreamsHUD or {}
 local H = DreamsHUD
-H.version = "2.2.11"
+H.version = "2.2.15"
 H.handlers = H.handlers or {}
 H.state = H.state or {}
 H.state.room = H.state.room or nil
@@ -514,7 +548,7 @@ H.state.context = H.state.context or { actions = {} }
 H.state.onboarding = H.state.onboarding or { active = false }
 H.state.crafting = H.state.crafting or { active = false }
 H.state.selected_ally = H.state.selected_ally or ""
-H.activePanel = (H.activePanel == nil or H.activePanel == "map") and "effects" or H.activePanel
+H.activePanel = (H.activePanel == nil or H.activePanel == "map" or H.activePanel == "effects") and "quests" or H.activePanel
 H.modernHandlers = H.modernHandlers or {}
 H.modernTriggers = H.modernTriggers or {}
 H.soundEnabled = H.soundEnabled ~= false
@@ -522,7 +556,7 @@ H.hotbarAssignments = H.hotbarAssignments or {}
 H.hotbarConfigLoaded = H.hotbarConfigLoaded or false
 H.hotbarEmptyKey = "__empty__"
 
-local MODERN_UI_VERSION = "2.2.11"
+local MODERN_UI_VERSION = "2.2.15"
 if H.modernUiVersion ~= MODERN_UI_VERSION then
   -- Client.GUI can replace a package while the Mudlet profile stays alive.
   -- Tear down the old dock so new releases can safely change widget structure
@@ -530,13 +564,22 @@ if H.modernUiVersion ~= MODERN_UI_VERSION then
   if H.sideFrame and H.sideFrame.delete then pcall(function() H.sideFrame:delete() end) end
   if H.bottomFrame and H.bottomFrame.delete then pcall(function() H.bottomFrame:delete() end) end
   if H.eventBanner and H.eventBanner.delete then pcall(function() H.eventBanner:delete() end) end
+  if H.effectsOverlay and H.effectsOverlay.delete then pcall(function() H.effectsOverlay:delete() end) end
+  -- The base HUD is independently guarded by H.built. Explicitly rebuild its
+  -- root widgets after a layout upgrade instead of leaving stale coordinates.
+  if H.topFrame and H.topFrame.delete then pcall(function() H.topFrame:delete() end) end
+  if H.targetFrame and H.targetFrame.delete then pcall(function() H.targetFrame:delete() end) end
+  H.topFrame, H.targetFrame, H.built = nil, nil, false
   H.sideFrame = nil
   H.bottomFrame = nil
   H.eventBanner = nil
+  H.effectsOverlay = nil
+  H.effectsOverlayHeader = nil
+  H.effectsOverlayList = nil
   H.mapWidget = nil
   H.mapFallback = nil
   H.modernBuilt = false
-  H.activePanel = "effects"
+  H.activePanel = "quests"
   H.effectsTickScheduled = false
 end
 H.modernUiVersion = MODERN_UI_VERSION
@@ -846,7 +889,7 @@ end
 
 function H.setPanel(panel)
   H.activePanel = panel or "effects"
-  local panels = { "effects", "party", "quests", "inventory" }
+  local panels = { "party", "quests", "inventory" }
   for _, key in ipairs(panels) do
     if H.panelButtons and H.panelButtons[key] then
       H.panelButtons[key]:setStyleSheet(key == H.activePanel and BUTTON_ACTIVE_STYLE or BUTTON_STYLE)
@@ -970,25 +1013,43 @@ function H.buildModern()
   if H.modernBuilt then return end
   H.build()
 
+  -- Place the actual Geyser roots after initialization. Negative coordinates
+  -- are relative to their immediate parent and were not reliably moving the
+  -- base widgets in the live profile; absolute viewport positions avoid this.
+  local screenWidth = 1650
+  if getMainWindowSize then
+    local ok, width = pcall(getMainWindowSize)
+    if ok and type(width) == "number" and width &gt; 900 then screenWidth = width end
+  end
+  local right = math.max(940, screenWidth - 14)
+  if H.topFrame then
+    H.topFrame:move(right - 600, 8)
+    H.topFrame:resize(600, 126)
+  end
+  if H.targetFrame then
+    H.targetFrame:move(right - 476, 442)
+    H.targetFrame:resize(476, 116)
+  end
+
   setBorderTop(math.max(getBorderTop(), 142))
-  setBorderRight(math.max(getBorderRight(), 430))
+  setBorderRight(math.max(getBorderRight(), 340))
   setBorderBottom(math.max(getBorderBottom(), 154))
 
   -- The old target panel remains useful and visually distinctive. The modern
   -- dock lives below it and uses tabs instead of trying to show every list at
   -- once on smaller laptop/projector displays.
   H.sideFrame = Geyser.Label:new({
-    name = "DreamsHUD.SideFrame", x = -420, y = 254, width = 406, height = -164,
+    name = "DreamsHUD.SideFrame", x = right - 316, y = 150, width = 316, height = 285,
   })
   H.sideFrame:setStyleSheet(PANEL_STYLE)
 
   H.panelButtons = {}
   local tabs = {
-    { "effects", "EFFECTS" }, { "party", "PARTY" }, { "quests", "QUESTS" }, { "inventory", "PACK" },
+    { "party", "PARTY" }, { "quests", "QUESTS" }, { "inventory", "PACK" },
   }
   for index, spec in ipairs(tabs) do
     local button = label(H.sideFrame, "DreamsHUD.Tab." .. spec[1],
-      tostring((index - 1) * 25 + 1) .. "%", 5, "24%", 28, BUTTON_STYLE)
+      tostring((index - 1) * 33.333 + 1) .. "%", 5, "32%", 28, BUTTON_STYLE)
     button:echo("&lt;center&gt;" .. spec[2] .. "&lt;/center&gt;")
     button:setClickCallback("DreamsHUD.setPanel", spec[1])
     H.panelButtons[spec[1]] = button
@@ -1089,7 +1150,7 @@ function H.buildModern()
   -- Bottom command deck: one short onboarding line, then the eight active
   -- ability hotkeys and a matching row of per-slot assignment controls.
   H.bottomFrame = Geyser.Label:new({
-    name = "DreamsHUD.BottomFrame", x = 8, y = -146, width = -438, height = 136,
+    name = "DreamsHUD.BottomFrame", x = 346, y = -146, width = right - 696, height = 136,
   })
   H.bottomFrame:setStyleSheet(PANEL_STYLE)
 
@@ -1111,6 +1172,15 @@ function H.buildModern()
     H.hotbarConfig[i] = label(H.bottomFrame, "DreamsHUD.HotbarSet" .. i, x, 84, "12%", 40, BUTTON_STYLE)
     H.hotbarConfig[i]:setClickCallback("DreamsHUD.cycleHotbarSlot", i)
   end
+
+  -- Top-middle effects panel is independent of the quest/party/pack dock.
+  -- Both widgets use the same GMCP state, but have distinct screen regions.
+  H.effectsOverlay = Geyser.Label:new({
+    name = "DreamsHUD.EffectsOverlay", x = right - 930, y = 54, width = 320, height = 82,
+  })
+  H.effectsOverlay:setStyleSheet(PANEL_STYLE)
+  H.effectsOverlayHeader = label(H.effectsOverlay, "DreamsHUD.EffectsOverlayHeader", 10, 8, -20, 26, GOLD_TEXT)
+  H.effectsOverlayList = label(H.effectsOverlay, "DreamsHUD.EffectsOverlayList", 10, 38, -20, 34, MUTED_TEXT)
 
   H.eventBanner = label(nil, "DreamsHUD.EventBanner", "37%", 12, "26%", 34, BUTTON_ACTIVE_STYLE)
   H.eventBanner:hide()
@@ -1204,6 +1274,11 @@ function H.renderEffectsPanel()
   end
 
   H.effectsHeader:echo(string.format("ACTIVE EFFECTS  •  %d", #visible))
+  if H.effectsOverlayHeader then
+    H.effectsOverlayHeader:echo(string.format("ACTIVE EFFECTS  •  %d", #visible))
+    local first = visible[1]
+    H.effectsOverlayList:echo(first and escape(tostring(first.name or first.key or "Effect")) or "No active effects")
+  end
   H.effectsList:clear()
   H.effectsList:fg("white")
 
