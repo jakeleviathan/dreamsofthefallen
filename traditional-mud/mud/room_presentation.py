@@ -33,6 +33,7 @@ from mud.goblin_swamp import (
 from mud.inventory_inspection import install_inventory_inspection_runtime
 from mud.room_scene_actors import scene_lines
 from mud.room_player_presence import room_player_data
+from mud.lanternkeeper_runtime import room_wisp_lines
 from mud.room_gmcp import install_room_gmcp_runtime
 from mud.mana_regeneration import install_mana_regeneration_runtime
 from mud.movement_system import install_movement_runtime
@@ -148,6 +149,10 @@ def render_room_lines(
         if index:
             lines.append("")
         lines.append(_paint(BODY, paragraph.replace("\n", " ")))
+
+    # Cosmetic only: never part of NPC lists, targeting, or lighting.
+    for wisp_line in room_wisp_lines(session.database, view.key):
+        lines.append(_paint(FEATURE, wisp_line))
 
     reflection_sources = room_reflection_opportunities(scene, world_service.state)
     business = HUMAN_DISTRICT.business_in_room(view.key)
