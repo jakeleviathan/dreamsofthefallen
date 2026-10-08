@@ -6,6 +6,7 @@ grant anything from browser redirects or client input; only paid signed events.
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -65,7 +66,7 @@ def account_from_purchase_token(token: str, secret: str, *, now: int | None = No
         if account_id < 1 or int(time.time() if now is None else now) > expiry:
             raise ValueError("Expired purchase link.")
         return account_id
-    except (ValueError, UnicodeError, IndexError) as exc:
+    except (ValueError, UnicodeError, IndexError, binascii.Error) as exc:
         raise ValueError("Invalid or expired purchase link.") from exc
 
 
