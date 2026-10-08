@@ -35,7 +35,7 @@ class WelcomeBannerDesignTests(unittest.TestCase):
         for phrase in (
             "O F   T H E", "A S T R A L I S",
             "[ LOGIN / CREATE ACCOUNT ]",
-            "Discord: https://discord.gg/MyW5XJWgzW",
+            "Root: https://rootapp.gg/ADG6eZjrgQqXVAqT0c7ceA",
             "Enter your account name below to awaken.",
             "The road remembers every soul that crossed it.",
             "RUINS  +  MYSTERY  +  MAGIC",
@@ -72,7 +72,7 @@ class Session:
 plain = _presentation_text(Session(), session_module.WELCOME_BANNER)
 assert "\x1b[" not in plain
 assert "A S T R A L I S" in plain
-assert "Discord: https://discord.gg/MyW5XJWgzW" in plain
+assert "Root: https://rootapp.gg/ADG6eZjrgQqXVAqT0c7ceA" in plain
 print("ANSI_BANNER_OK")
 """
         result = subprocess.run(
