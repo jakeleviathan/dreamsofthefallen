@@ -53,6 +53,41 @@ class LanternkeeperStripeTests(unittest.TestCase):
         self.assertTrue(self.deliver(self.event(status="canceled", event_type="customer.subscription.deleted", created=101)))
         self.assertFalse(membership(self.db, self.account_id).active())
 
+    def test_canceled_member_can_rejoin_with_new_subscription(self):
+        self.deliver(self.event(status="canceled", event_type="customer.subscription.deleted", created=101))
+        new_event = self.event(status="active", created=102)
+        new_event["data"]["object"]["id"] = "sub_lanternkeeper_rejoined"
+        self.assertTrue(self.deliver(new_event))
+        current = membership(self.db, self.account_id)
+        self.assertTrue(current.active())
+        self.assertEqual(current.subscription_id, "sub_lanternkeeper_rejoined")
+
+    def test_late_retired_subscription_event_cannot_disable_rejoined_member(self):
+        self.deliver(self.event(status="canceled", event_type="customer.subscription.deleted", created=101))
+        new_event = self.event(status="active", created=102)
+        new_event["data"]["object"]["id"] = "sub_lanternkeeper_rejoined"
+        self.assertTrue(self.deliver(new_event))
+        old_event = self.event(status="canceled", event_type="customer.subscription.deleted", created=103)
+        self.assertFalse(self.deliver(old_event))
+        current = membership(self.db, self.account_id)
+        self.assertTrue(current.active())
+        self.assertEqual(current.subscription_id, "sub_lanternkeeper_rejoined")
+
+    def test_active_member_cannot_be_replaced_by_different_subscription(self):
+        self.deliver(self.event(status="active", created=101))
+        new_event = self.event(status="active", created=102)
+        new_event["data"]["object"]["id"] = "sub_unexpected_second"
+        with self.assertRaisesRegex(ValueError, "Different active subscription"):
+            self.deliver(new_event)
+
+    def test_rejoining_must_keep_existing_stripe_customer(self):
+        self.deliver(self.event(status="canceled", event_type="customer.subscription.deleted", created=101))
+        new_event = self.event(status="active", created=102)
+        new_event["data"]["object"]["id"] = "sub_different_customer"
+        new_event["data"]["object"]["customer"] = "cus_other"
+        with self.assertRaisesRegex(ValueError, "Different Stripe customer"):
+            self.deliver(new_event)
+
     def test_duplicate_delivery_is_idempotent(self):
         event = self.event(event_id="evt_repeat")
         self.assertTrue(self.deliver(event))
