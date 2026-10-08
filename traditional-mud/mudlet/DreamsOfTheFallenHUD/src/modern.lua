@@ -20,7 +20,7 @@ H.state.context = H.state.context or { actions = {} }
 H.state.onboarding = H.state.onboarding or { active = false }
 H.state.crafting = H.state.crafting or { active = false }
 H.state.selected_ally = H.state.selected_ally or ""
-H.activePanel = (H.activePanel == nil or H.activePanel == "map") and "effects" or H.activePanel
+H.activePanel = (H.activePanel == nil or H.activePanel == "map" or H.activePanel == "effects") and "quests" or H.activePanel
 H.modernHandlers = H.modernHandlers or {}
 H.modernTriggers = H.modernTriggers or {}
 H.soundEnabled = H.soundEnabled ~= false
@@ -49,7 +49,7 @@ if H.modernUiVersion ~= MODERN_UI_VERSION then
   H.mapWidget = nil
   H.mapFallback = nil
   H.modernBuilt = false
-  H.activePanel = "effects"
+  H.activePanel = "quests"
   H.effectsTickScheduled = false
 end
 H.modernUiVersion = MODERN_UI_VERSION
@@ -359,7 +359,7 @@ end
 
 function H.setPanel(panel)
   H.activePanel = panel or "effects"
-  local panels = { "effects", "party", "quests", "inventory" }
+  local panels = { "party", "quests", "inventory" }
   for _, key in ipairs(panels) do
     if H.panelButtons and H.panelButtons[key] then
       H.panelButtons[key]:setStyleSheet(key == H.activePanel and BUTTON_ACTIVE_STYLE or BUTTON_STYLE)
@@ -497,11 +497,11 @@ function H.buildModern()
 
   H.panelButtons = {}
   local tabs = {
-    { "effects", "EFFECTS" }, { "party", "PARTY" }, { "quests", "QUESTS" }, { "inventory", "PACK" },
+    { "party", "PARTY" }, { "quests", "QUESTS" }, { "inventory", "PACK" },
   }
   for index, spec in ipairs(tabs) do
     local button = label(H.sideFrame, "DreamsHUD.Tab." .. spec[1],
-      tostring((index - 1) * 25 + 1) .. "%", 5, "24%", 28, BUTTON_STYLE)
+      tostring((index - 1) * 33.333 + 1) .. "%", 5, "32%", 28, BUTTON_STYLE)
     button:echo("<center>" .. spec[2] .. "</center>")
     button:setClickCallback("DreamsHUD.setPanel", spec[1])
     H.panelButtons[spec[1]] = button
