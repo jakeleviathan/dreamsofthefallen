@@ -249,7 +249,7 @@ def build_welcome_banner() -> str:
         _paint(GOLD, "+" + "-" * (BANNER_WIDTH - 2) + "+"),
         _framed("A S T R A L I S", STARLIGHT),
         _framed("[ LOGIN / CREATE ACCOUNT ]", GOLD),
-        _framed("Discord: https://discord.gg/MyW5XJWgzW", DREAMLIGHT),
+        _framed("Root: https://rootapp.gg/ADG6eZjrgQqXVAqT0c7ceA", DREAMLIGHT),
         _framed("Enter your account name below to awaken.", SHADOW),
         _paint(GOLD, "+" + "=" * (BANNER_WIDTH - 2) + "+"),
         "",
