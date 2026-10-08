@@ -30,7 +30,7 @@ patches endpoint and other handlers:
 ```caddyfile
 @lanternkeeper path /lanternkeeper /lanternkeeper/*
 handle @lanternkeeper {
-    reverse_proxy 127.0.0.1:8766
+    reverse_proxy 127.0.0.1:8766 {\n        # Replace any incoming value; the backend trusts only this Caddy-set header.\n        header_up X-Lanternkeeper-Client-IP {client_ip}\n    }
 }
 ```
 
@@ -71,7 +71,7 @@ including out-of-order events, before enabling checkout for the public.
 
 - Browser `Origin` validation, no-store responses, request-size limits, and
   account-based authentication throttling currently exist.
-- Finish trusted-client-IP/edge-level rate limiting for login POST endpoints.
+- Validate proxy-injected client-IP parsing and per-IP login throttling in staging;\n  edge-level/CDN WAF controls are still recommended for brute-force and volumetric attacks.
 - Confirm TLS, proxy forwarding, body logging exclusions, and secrets file permissions.
 - Reconcile pending sessions and test repeated checkout, cancel/rejoin, and Stripe
   Billing Portal end to end.
