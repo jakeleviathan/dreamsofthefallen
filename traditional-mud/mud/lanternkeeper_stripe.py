@@ -44,12 +44,38 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
                               (sub["id"],)).fetchone()
         if existing and existing["account_id"] != account_id:
             raise ValueError("Subscription already belongs to another account")
-        linked = db.execute("SELECT stripe_subscription_id FROM lanternkeeper_memberships WHERE account_id=?", (account_id,)).fetchone()
-        if linked and linked["stripe_subscription_id"] and linked["stripe_subscription_id"] != sub["id"]:
-            raise ValueError("Different subscription already linked to account")
+        # A canceled member can subscribe again. Keep the retired subscription
+        # identifiers so delayed webhooks cannot overwrite their new membership.
+        db.execute("""CREATE TABLE IF NOT EXISTS lanternkeeper_retired_subscriptions (
+            stripe_subscription_id TEXT PRIMARY KEY,
+            account_id INTEGER NOT NULL
+        )""")
+        retired = db.execute(
+            "SELECT account_id FROM lanternkeeper_retired_subscriptions "
+            "WHERE stripe_subscription_id=?", (sub["id"],)
+        ).fetchone()
+        if retired:
+            if retired["account_id"] != account_id:
+                raise ValueError("Retired subscription belongs to another account")
+            db.execute("INSERT INTO lanternkeeper_stripe_events(event_id) VALUES (?)", (event["id"],))
+            return False
+
+        linked = db.execute(
+            "SELECT stripe_subscription_id,stripe_customer_id,stripe_status "
+            "FROM lanternkeeper_memberships WHERE account_id=?", (account_id,)
+        ).fetchone()
         customer = sub.get("customer")
-        if not isinstance(customer, str):
+        if not isinstance(customer, str) or not customer:
             raise ValueError("Invalid Stripe customer")
+        if linked and linked["stripe_customer_id"] and linked["stripe_customer_id"] != customer:
+            raise ValueError("Different Stripe customer linked to DOTF account")
+        if linked and linked["stripe_subscription_id"] and linked["stripe_subscription_id"] != sub["id"]:
+            if linked["stripe_status"] not in ("canceled", "incomplete_expired"):
+                raise ValueError("Different active subscription already linked to account")
+            db.execute(
+                "INSERT INTO lanternkeeper_retired_subscriptions(stripe_subscription_id,account_id) "
+                "VALUES (?,?)", (linked["stripe_subscription_id"], account_id)
+            )
         # Newer Stripe API versions report billing periods on subscription items.
         # Use the latest period end among the items belonging to our price.
         period_ends = [
