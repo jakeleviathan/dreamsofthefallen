@@ -23,7 +23,7 @@ class LanternkeeperHTTPTests(unittest.TestCase):
         self.db = Database(Path(self.tmp.name) / "game.db")
         with self.db.connect() as conn:
             conn.execute("INSERT INTO accounts(name,password_hash) VALUES(?,?)", ("alpha", hash_password("correct")))
-            conn.execute("INSERT INTO accounts(name,password_hash) VALUES(?,?)", ("beta", hash_password("correct")))
+            conn.execute("INSERT INTO accounts(name,password_hash) VALUES(?,?)", ("beta", hash_password("beta-correct")))
         self.env = patch.dict(os.environ, {"DOTF_BILLING_ORIGIN": "https://mud.lvthn.io"})
         self.env.start()
         self.addCleanup(self.env.stop)
@@ -108,6 +108,18 @@ class LanternkeeperHTTPTests(unittest.TestCase):
                 401,
             )
             create.assert_not_called()
+        self.assertIsNotNone(lookup_action_link(self.db, ticket))
+
+    def test_other_account_password_cannot_redeem_link(self):
+        url = self.create_ticket()
+        ticket = parse_qs(urlsplit(url).query)["ticket"][0]
+        self.assertEqual(
+            self.post(
+                "/lanternkeeper/redeem",
+                "ticket=" + ticket + "&password=beta-correct"
+            ),
+            401,
+        )
         self.assertIsNotNone(lookup_action_link(self.db, ticket))
 
     def test_expired_handoff_link_get_and_post_are_rejected(self):
