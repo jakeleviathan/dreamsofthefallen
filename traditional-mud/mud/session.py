@@ -539,6 +539,14 @@ class PlayerSession:
         })
         await self.telnet.send_gmcp("Char.Vitals", vitals)
         await self.telnet.send_gmcp("Char.Status", status)
+        # Character experience is cumulative in storage; the HUD gauge needs
+        # progress within the *current* level, not the lifetime total.
+        # Keep XP in Dreams.Vitals only: Char.Vitals is used by Mudlet's generic UI.
+        xp_total = max(0, int(self.character.experience))
+        xp_level = max(1, int(self.character.level))
+        xp_level_floor = PROGRESSION_RULES.cumulative_xp_for_level(xp_level)
+        xp_level_span = max(1, PROGRESSION_RULES.xp_to_next_level(xp_level))
+        xp_into_level = min(xp_level_span, max(0, xp_total - xp_level_floor))
         await self.telnet.send_gmcp("Dreams.Vitals", {
             "hp": self.combatant.current_hp,
             "max_hp": self.combatant.max_hp,
@@ -546,6 +554,11 @@ class PlayerSession:
             "max_mana": self.combatant.max_mana,
             "movement": self.combatant.current_movement,
             "max_movement": self.combatant.max_movement,
+            "level": xp_level,
+            "xp": xp_total,
+            "xp_into_level": xp_into_level,
+            "xp_to_next_level": xp_level_span,
+            "xp_remaining": xp_level_span - xp_into_level,
         })
         if display_player is not None:
             target_character = display_player.character
