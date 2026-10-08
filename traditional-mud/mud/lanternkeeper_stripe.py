@@ -14,7 +14,12 @@ def process_stripe_webhook(database, raw_body: bytes, signature: str):
     secret = os.environ.get("DOTF_STRIPE_WEBHOOK_SECRET")
     if not secret:
         raise RuntimeError("Stripe webhook secret is not configured")
-    event = stripe.Webhook.construct_event(raw_body, signature, secret)
+    try:
+        event = stripe.Webhook.construct_event(raw_body, signature, secret)
+    except (stripe.error.SignatureVerificationError, ValueError) as exc:
+        # Invalid public webhook traffic is a client error, not an internal
+        # outage. Never grant entitlements for an unverified payload.
+        raise ValueError("Invalid Stripe webhook signature or JSON") from exc
     if event["type"] not in ("customer.subscription.created", "customer.subscription.updated",
                              "customer.subscription.deleted"):
         return False
