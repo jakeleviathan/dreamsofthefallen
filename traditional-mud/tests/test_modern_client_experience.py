@@ -423,7 +423,13 @@ class ModernClientExperienceTests(unittest.TestCase):
         ):
             self.assertIn(marker, modern_lua)
         self.assertNotIn("Geyser.Mapper:new", modern_lua)
-        self.assertIn('{ "effects", "EFFECTS" }', modern_lua)
+        # Effects now have their own standalone overlay; the right dock has
+        # only Party, Quests, and Pack tabs.
+        self.assertIn('"DreamsHUD.EffectsOverlay"', modern_lua)
+        self.assertIn('{ "party", "PARTY" }', modern_lua)
+        self.assertIn('{ "quests", "QUESTS" }', modern_lua)
+        self.assertIn('{ "inventory", "PACK" }', modern_lua)
+        self.assertNotIn('{ "effects", "EFFECTS" }', modern_lua)
         self.assertIn("Dreams.Map", map_lua)
         self.assertIn("discovered_count", map_lua)
         self.assertIn('ROOT / "src" / "modern.lua"', build_source)
