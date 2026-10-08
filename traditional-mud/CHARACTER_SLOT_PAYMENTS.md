@@ -5,7 +5,7 @@ Extra character slots are a **one-time account upgrade**, not a Lanternkeeper su
 ## Stripe product
 
 - Payment account: Vesper Heart IP Holdings LLC (the same account as Lanternkeeper).
-- Product: Dreams of the Fallen — Extra Character Slot
+- Product: Dreams of the Fallen - Extra Character Slot
 - Product ID: `prod_VP0vpYxSBSTgLi`
 - Live **one-time** USD 100-cent price: `price_1UOCtFLnIVgW4g5mRXVriDJY`
 
