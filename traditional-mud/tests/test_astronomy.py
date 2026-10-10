@@ -19,14 +19,36 @@ from mud.waymeet_frontier import (
     WAYMEET_CRAFT_ROW_KEY,
     WAYMEET_LANTERN_MARKET_KEY,
 )
-from mud.world import ROOMS_BY_KEY
+from mud.world import ROOMS_BY_KEY, RoomDefinition
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class World:
     def __init__(self):
-        self.legacy_rooms = ROOMS_BY_KEY
+        self.legacy_rooms = {
+            **ROOMS_BY_KEY,
+            WAYMEET_COMMONHOUSE_KEY: RoomDefinition(
+                WAYMEET_COMMONHOUSE_KEY, "Commonhouse Yard", "A quiet yard",
+                "waymeet_frontier", tags=("safe", "social"),
+            ),
+            WAYMEET_LANTERN_MARKET_KEY: RoomDefinition(
+                WAYMEET_LANTERN_MARKET_KEY, "Lantern Market", "An open market",
+                "waymeet_frontier", tags=("market", "safe"),
+            ),
+            WAYMEET_CRAFT_ROW_KEY: RoomDefinition(
+                WAYMEET_CRAFT_ROW_KEY, "Hammer and Thread Row", "Open work bays",
+                "waymeet_frontier", tags=("crafting", "safe"),
+            ),
+            "sablewater_heron_flats": RoomDefinition(
+                "sablewater_heron_flats", "Heron Flats", "A riverbank",
+                "sablewater_reach", tags=("river", "safe"),
+            ),
+            "waymeet_fifth_lantern": RoomDefinition(
+                "waymeet_fifth_lantern", "The Fifth Lantern", "A tavern",
+                "waymeet_frontier", tags=("indoors", "tavern"),
+            ),
+        }
         self.weather = {}
 
         class State:
@@ -177,8 +199,7 @@ class AstronomyTests(unittest.TestCase):
         with patch.object(astronomy.ASTRALIS_CLOCK, "now", return_value=moment(1, 23)):
             result = act(self.session, "CHART SKY")
             repeat = act(self.session, "CHART SKY")
-        self.assertIn("Folded", result + " " + " ".join(item.name for item in astronomy.ITEMS))
-        self.assertEqual(self.database.item_quantity(self.character.id, astronomy.CHART_KEY), 1)
+        self.assertIn("fold your first three sketches", result)
         self.assertEqual(self.database.item_quantity(self.character.id, astronomy.CHART_KEY), 1)
         self.assertIn("not every night", repeat.lower())
         self.assertEqual(len(astronomy.recorded_sightings(self.database, self.character.id)), 3)
