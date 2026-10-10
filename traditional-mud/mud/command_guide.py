@@ -143,6 +143,12 @@ COMMANDS: tuple[CommandEntry, ...] = (
     CommandEntry("economy", "TRADE ADD / REMOVE [qty] <item>", "Edit your trade offer; changes reset confirmation."),
     CommandEntry("economy", "TRADE CONFIRM", "Confirm the current trade offer; both players must confirm the same state."),
 
+    CommandEntry("world", "ASTRONOMY / SKY", "See the current sky and learn how to stargaze without a progression grind."),
+    CommandEntry("world", "OBSERVE SKY / STARGAZE / CHART SKY", "On an open clear night, discover seasonal and regional constellations with a field telescope."),
+    CommandEntry("world", "SHOW STAR CHART", "Show your folded sky chart and its drawings to players in the same room."),
+    CommandEntry("world", "SKY JOURNAL / CONSTELLATIONS", "Read your persistent celestial discoveries and their first-observed Astralis dates."),
+    CommandEntry("world", "SKY SHOP / BUY TELESCOPE / BUY LENS", "At Waymeet Lantern Market, buy a field telescope or a lens for assembling one."),
+    CommandEntry("world", "ASSEMBLE TELESCOPE", "At Hammer and Thread Row, build a reusable telescope from an iron ingot, cotton thread, and a polished lens."),
     CommandEntry("world", "TIME / DATE / CALENDAR", "Read the persistent accelerated Astralis clock and calendar."),
     CommandEntry("world", "WEATHER", "Read current regional weather where the calendar runtime exposes it."),
     CommandEntry("world", "CIRCLE / CIRCLE STATUS", "At Forest Elf Circle Clearing, view shared ritual, storm recovery and community memory."),
