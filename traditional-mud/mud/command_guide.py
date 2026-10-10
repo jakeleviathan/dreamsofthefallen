@@ -145,6 +145,7 @@ COMMANDS: tuple[CommandEntry, ...] = (
 
     CommandEntry("world", "ASTRONOMY / SKY", "See the current sky and learn how to stargaze without a progression grind."),
     CommandEntry("world", "OBSERVE SKY / STARGAZE / CHART SKY", "On an open clear night, discover seasonal and regional constellations with a field telescope."),
+    CommandEntry("world", "SHOW STAR CHART", "Show your folded sky chart and its drawings to players in the same room."),
     CommandEntry("world", "SKY JOURNAL / CONSTELLATIONS", "Read your persistent celestial discoveries and their first-observed Astralis dates."),
     CommandEntry("world", "SKY SHOP / BUY TELESCOPE / BUY LENS", "At Waymeet Lantern Market, buy a field telescope or a lens for assembling one."),
     CommandEntry("world", "ASSEMBLE TELESCOPE", "At Hammer and Thread Row, build a reusable telescope from an iron ingot, cotton thread, and a polished lens."),
