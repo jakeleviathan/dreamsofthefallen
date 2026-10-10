@@ -9,6 +9,8 @@ import sys
 import unittest
 
 import mud.veilith as veilith
+import mud.crafting as crafting
+import mud.world as legacy_world
 from mud.salt_kingdoms_midgame import TIDEMARK_SINK_KEY
 
 
@@ -86,7 +88,6 @@ class Session:
 
 
 WORLD = World()
-veilith.install_veilith_runtime(Session, WORLD)
 
 
 def step(session, command):
@@ -96,6 +97,25 @@ def step(session, command):
 
 
 class VeilithOpeningTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Avoid global registration during unittest discovery.
+        cls._original_rooms = legacy_world.ROOMS
+        cls._original_items = crafting.ITEMS
+        cls._previous_draught = crafting.ITEMS_BY_KEY.get(veilith.DRAUGHT_KEY)
+        veilith.install_veilith_runtime(Session, WORLD)
+
+    @classmethod
+    def tearDownClass(cls):
+        legacy_world.ROOMS = cls._original_rooms
+        for key in veilith.ROOM_KEYS:
+            legacy_world.ROOMS_BY_KEY.pop(key, None)
+        crafting.ITEMS = cls._original_items
+        if cls._previous_draught is None:
+            crafting.ITEMS_BY_KEY.pop(veilith.DRAUGHT_KEY, None)
+        else:
+            crafting.ITEMS_BY_KEY[veilith.DRAUGHT_KEY] = cls._previous_draught
+
     def test_real_registered_rooms_have_no_npcs_or_combat_and_are_not_public_exits(self):
         self.assertEqual(len(veilith.ROOMS), 4)
         self.assertEqual(set(veilith.ROOM_KEYS), {room.key for room in veilith.ROOMS})
