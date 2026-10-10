@@ -231,6 +231,22 @@ class AstronomyTests(unittest.TestCase):
         self.assertTrue(any("OBSERVE SKY" in entry.syntax for entry in COMMANDS))
         self.assertIn("No experience", act(self.session, "ASTRONOMY"))
 
+    def test_show_star_chart_to_nearby_players_only(self):
+        from mud.social_experience import _ACTIVE_SESSIONS
+        self.assertIn("do not carry", act(self.session, "SHOW STAR CHART"))
+        self.database.add_item(self.character.id, astronomy.CHART_KEY)
+        second = Session(self.database, self.character)
+        outsider = Session(self.database, None)
+        _ACTIVE_SESSIONS.add(second)
+        _ACTIVE_SESSIONS.add(outsider)
+        try:
+            self.assertIn("unfold", act(self.session, "SHOW STAR CHART"))
+            self.assertTrue(any("unfolds a hand-drawn" in text for text in second.messages))
+            self.assertEqual(outsider.messages, [])
+        finally:
+            _ACTIVE_SESSIONS.discard(second)
+            _ACTIVE_SESSIONS.discard(outsider)
+
     def test_production_server_boots_with_astronomy_installed(self):
         code = """
 import server
