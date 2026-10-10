@@ -22,7 +22,16 @@ if not hasattr(crafting, "register_item"):
     crafting.register_item = _register_item
 
 from mud.server import MudServer, PlayerSession, WORLD
-from mud.who_display import start_who_display_server
+# The private WHO mini-display is optional and may be installed only on the host.
+# An absent auxiliary display must never stop the Telnet game from booting.
+try:
+    from mud.who_display import start_who_display_server
+except ModuleNotFoundError as exc:
+    if exc.name != "mud.who_display":
+        raise
+
+    def start_who_display_server(*, host: str, port: int):
+        raise OSError("optional WHO-display module is not installed")
 from mud.trade_experience import install_trade_experience_runtime
 from mud.economy_loop import install_economy_loop_runtime, install_fresh_water_sources
 from mud.economy_balance import install_economy_balance_runtime
@@ -108,6 +117,7 @@ from mud.regional_cooking_runtime import install_regional_cooking_runtime
 from mud.regional_brewing import install_regional_brewing_content
 from mud.regional_brewing_runtime import install_regional_brewing_runtime
 from mud.planar_realms import install_planar_realms_runtime
+from mud.veilith import install_veilith_runtime
 from mud.item_naming import install_authored_item_names
 from mud.item_heritage import install_item_heritage_runtime
 from mud.faction_reputation import install_faction_reputation_runtime
@@ -329,6 +339,10 @@ apply_living_world_event_variety(PlayerSession)
 # help/GMCP presentation. Its entrances remain contextual and undisclosed: there
 # is intentionally no seven-plane checklist for players to complete.
 install_planar_realms_runtime(PlayerSession, WORLD)
+# The level-25 Veilith opening uses a hidden Salt Kingdoms lab, an alchemical
+# perception shift, and a quiet light-causeway puzzle. It is an optional
+# discoverable slice, not an open-world exit or a completed boss dungeon.
+install_veilith_runtime(PlayerSession, WORLD)
 
 # Complete the scheduled civilian layer only after the full physical world has
 # been assembled. Bespoke regional casts count toward the baseline, so this adds
