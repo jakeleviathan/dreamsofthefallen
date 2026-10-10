@@ -22,7 +22,16 @@ if not hasattr(crafting, "register_item"):
     crafting.register_item = _register_item
 
 from mud.server import MudServer, PlayerSession, WORLD
-from mud.who_display import start_who_display_server
+# The private WHO mini-display is optional and may be installed only on the host.
+# An absent auxiliary display must never stop the Telnet game from booting.
+try:
+    from mud.who_display import start_who_display_server
+except ModuleNotFoundError as exc:
+    if exc.name != "mud.who_display":
+        raise
+
+    def start_who_display_server(*, host: str, port: int):
+        raise OSError("optional WHO-display module is not installed")
 from mud.trade_experience import install_trade_experience_runtime
 from mud.economy_loop import install_economy_loop_runtime, install_fresh_water_sources
 from mud.economy_balance import install_economy_balance_runtime
