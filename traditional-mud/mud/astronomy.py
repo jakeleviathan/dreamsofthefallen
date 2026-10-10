@@ -13,6 +13,7 @@ import mud.world as legacy_world
 from mud.astralis_time import ASTRALIS_CLOCK
 from mud.crafting import ItemDefinition
 from mud.weather_gameplay import room_is_weather_exposed
+from mud.social_experience import _ACTIVE_SESSIONS
 from mud.waymeet_frontier import WAYMEET_CRAFT_ROW_KEY, WAYMEET_LANTERN_MARKET_KEY
 
 TELESCOPE_KEY = "astronomy_field_telescope"
@@ -223,6 +224,7 @@ async def _show_help(session) -> None:
         "ASTRONOMY / SKY: sky conditions and observation hints\r\n"
         "OBSERVE SKY / STARGAZE / CHART SKY: watch the sky, chart what you discover\r\n"
         "SKY JOURNAL / CONSTELLATIONS: read your own persistent notes\r\n"
+        "SHOW STAR CHART: share your keepsake with people nearby\r\n"
         "SKY SHOP (Lantern Market): buy a telescope or a lens\r\n"
         "ASSEMBLE TELESCOPE (Hammer and Thread Row): iron ingot, cotton thread, polished lens\r\n"
         "Clear, open nights are best. Different seasons and places have different skies.\r\n"
@@ -324,6 +326,28 @@ async def _observe(session, world) -> None:
             "You set aside a tiny hushglass charm to remember the star that should not be there. "
             "It is only a keepsake.\r\n"
         )
+
+
+
+async def _share_chart(session) -> None:
+    if session.database.item_quantity(session.character.id, CHART_KEY) < 1:
+        await session.send("You do not carry a folded night-sky chart to show.\r\n")
+        return
+    sightings = recorded_sightings(session.database, session.character.id)
+    favorites = ", ".join(entry["name"] for entry in sightings[:3])
+    await session.send(
+        "You unfold your hand-drawn night-sky chart for anyone nearby. "
+        + (f"It shows {favorites}.\r\n" if favorites else "\r\n")
+    )
+    for other in tuple(_ACTIVE_SESSIONS):
+        character = getattr(other, "character", None)
+        if other is session or character is None:
+            continue
+        if character.current_room == session.character.current_room:
+            await other.send(
+                f"{session.character.name} unfolds a hand-drawn star chart. "
+                + (f"It shows {favorites}.\r\n" if favorites else "\r\n")
+            )
 
 
 async def _sky_shop(session) -> None:
@@ -432,6 +456,8 @@ def install_astronomy_runtime(player_session_class, world) -> None:
             return await _observe(self, world)
         if action in {"sky journal", "astronomy journal", "constellations", "star journal", "star chart", "read star chart"}:
             return await _show_journal(self)
+        if action in {"show star chart", "show sky chart", "share star chart"}:
+            return await _share_chart(self)
         if action in {"sky shop", "astronomy shop"}:
             return await _sky_shop(self)
         if action in {"buy telescope", "buy field telescope"}:
