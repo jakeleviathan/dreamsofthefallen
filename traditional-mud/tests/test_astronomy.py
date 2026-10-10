@@ -235,7 +235,7 @@ class AstronomyTests(unittest.TestCase):
         from mud.social_experience import _ACTIVE_SESSIONS
         self.assertIn("do not carry", act(self.session, "SHOW STAR CHART"))
         self.database.add_item(self.character.id, astronomy.CHART_KEY)
-        second = Session(self.database, self.character)
+        second = Session(self.database, self.session.character)
         outsider = Session(self.database, None)
         _ACTIVE_SESSIONS.add(second)
         _ACTIVE_SESSIONS.add(outsider)
