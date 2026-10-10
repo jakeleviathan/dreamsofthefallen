@@ -117,6 +117,7 @@ from mud.regional_cooking_runtime import install_regional_cooking_runtime
 from mud.regional_brewing import install_regional_brewing_content
 from mud.regional_brewing_runtime import install_regional_brewing_runtime
 from mud.planar_realms import install_planar_realms_runtime
+from mud.astronomy import install_astronomy_runtime
 from mud.veilith import install_veilith_runtime
 from mud.item_naming import install_authored_item_names
 from mud.item_heritage import install_item_heritage_runtime
@@ -343,6 +344,7 @@ install_planar_realms_runtime(PlayerSession, WORLD)
 # perception shift, and a quiet light-causeway puzzle. It is an optional
 # discoverable slice, not an open-world exit or a completed boss dungeon.
 install_veilith_runtime(PlayerSession, WORLD)
+install_astronomy_runtime(PlayerSession, WORLD)
 
 # Complete the scheduled civilian layer only after the full physical world has
 # been assembled. Bespoke regional casts count toward the baseline, so this adds
